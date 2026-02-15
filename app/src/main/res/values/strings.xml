@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OC Remote</string>
+    
+    <!-- Home Screen -->
+    <string name="home_title">OC Remote</string>
+    <string name="home_add_server">Add Server</string>
+    <string name="home_no_servers">No servers configured</string>
+    <string name="home_server_health_good">Connected</string>
+    <string name="home_server_health_bad">Disconnected</string>
+    
+    <!-- Server Management -->
+    <string name="server_url">Server URL</string>
+    <string name="server_url_hint">http://192.168.1.100:4096</string>
+    <string name="server_username">Username</string>
+    <string name="server_username_hint">opencode</string>
+    <string name="server_password">Password</string>
+    <string name="server_password_hint">Optional</string>
+    <string name="server_save">Save</string>
+    <string name="server_cancel">Cancel</string>
+    <string name="server_delete">Delete</string>
+    
+    <!-- Session Screen -->
+    <string name="sessions_title">Sessions</string>
+    <string name="sessions_new">New Session</string>
+    <string name="sessions_empty">No sessions yet</string>
+    <string name="session_status_idle">Idle</string>
+    <string name="session_status_busy">Working…</string>
+    <string name="session_status_retry">Retrying (%1$d/%2$d)</string>
+    
+    <!-- Chat Screen -->
+    <string name="chat_input_hint">Message OpenCode…</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_abort">Abort</string>
+    <string name="chat_empty">Start a conversation with OpenCode</string>
+    
+    <!-- Permissions -->
+    <string name="permission_title">Permission Required</string>
+    <string name="permission_allow_once">Allow Once</string>
+    <string name="permission_allow_always">Allow Always</string>
+    <string name="permission_deny">Deny</string>
+    
+    <!-- Questions -->
+    <string name="question_submit">Submit</string>
+    <string name="question_cancel">Cancel</string>
+    <string name="question_custom_answer">Type your own answer</string>
+    
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_auto_accept_permissions">Auto-accept edit permissions</string>
+    
+    <!-- Notifications -->
+    <string name="notification_channel_connection">OpenCode Connection</string>
+    <string name="notification_channel_tasks">Task Completion</string>
+    <string name="notification_connected">Connected to %1$s</string>
+    <string name="notification_task_complete">Task completed</string>
+    <string name="notification_permission_required">Permission required</string>
+    
+    <!-- Errors -->
+    <string name="error_network">Network error</string>
+    <string name="error_auth">Authentication failed</string>
+    <string name="error_unknown">An error occurred</string>
+    
+    <!-- Common -->
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="retry">Retry</string>
+    <string name="delete">Delete</string>
+    <string name="close">Close</string>
+</resources>
