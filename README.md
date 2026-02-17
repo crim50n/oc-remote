@@ -110,10 +110,8 @@ dev.minios.ocremote/
 ## Recent Changes
 
 ### Draft persistence
-- Input text, image attachments, and `@file` mentions saved per session via `DraftRepository`
+- Input text, image attachments, and `@file` mentions saved per session
 - Restored automatically when returning to a session — survives navigation, app restart, WebUI detours
-- Uses JSON file storage (`session_drafts.json`) with in-memory cache
-- `takePersistableUriPermission()` ensures image URIs survive process death
 
 ### Session export
 - Export full session as a text file with streaming download and progress notification
@@ -126,32 +124,16 @@ dev.minios.ocremote/
 - **Toolbar subtitle** — always shows total tokens + cost (e.g. `275.2k tokens · $0.042`)
 - Paperclip alignment, settings divider removed, keyboard toolbar always visible
 
-### Bug fixes
-- **Part.Patch deserialization** — fixed crash: `files` field is `List<String>`, not `List<FilePatch>`
-- **Compaction detection** — checks `Part.Compaction` in message parts instead of relying on agent field
-- **Notification strings** — all 27+ hardcoded English strings in foreground service converted to `getString(R.string.*)`
-
-### Auto-scroll fixes
-- Fixed scroll position during streaming/summarization — now scrolls to bottom of tall messages, not top
+### Auto-scroll
+- Smart scroll during streaming — scrolls to bottom of tall messages, not just top
 - Manual scroll disables auto-scroll; scrolling back to bottom re-enables it
 - FAB "scroll to bottom" button appears when auto-scroll is disabled
 
-### UI improvements
-- Globe button replaced with dropdown menu (⋮) in chat topbar with 6 actions: Open in Web, New Session, Fork, Compact, Share/Unshare, Rename
-- Share/Unshare toggle — button changes based on session share status
-- Empty user messages (e.g. from `/compact`) are now hidden
-- Fixed red background visible behind user message bubbles (swipe-to-revert background)
-
-### Toolbar layout fixes
-- Agent/model/variant area now horizontally scrollable to prevent overflow
-- Reduced padding/spacing for compact layout on all languages
-- Paperclip button always visible and pinned right
-
-### Pagination & OOM fixes
-- Initial load: 50 messages (expandable with "Load earlier messages" button)
-- `largeHeap="true"` enables ~512MB heap (was ~256MB)
-- Ktor logging reduced from INFO to HEADERS (prevents response body buffering)
-- OOM recovery: if initial load fails, retry with halved limit
+### Session management UI
+- Dropdown menu (⋮) in chat topbar: Open in Web, New Session, Fork, Compact, Share/Unshare, Rename
+- Share/Unshare toggle based on session share status
+- Horizontally scrollable agent/model/variant toolbar
+- Pagination: initial 50 messages, expandable with "Load earlier" button
 
 ## License
 
