@@ -1,0 +1,24 @@
+# lokit configuration for OC Remote Android app
+# See: https://github.com/minios-linux/lokit
+
+source_lang: en
+
+languages:
+  - ru
+  - de
+  - es
+  - fr
+  - it
+  - pt-BR
+  - ja
+  - ko
+  - zh-CN
+  - uk
+  - tr
+  - ar
+  - pl
+
+targets:
+  - name: OC Remote Android
+    type: android
+    res_dir: app/src/main/res

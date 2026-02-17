@@ -8,6 +8,7 @@ import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import dev.minios.ocremote.BuildConfig
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.minios.ocremote.data.repository.ServerRepository
@@ -29,8 +30,6 @@ data class HomeUiState(
     val connectedServerIds: Set<String> = emptySet(),
     val connectingServerIds: Set<String> = emptySet(),
     val connectionErrors: Map<String, String> = emptyMap(),
-    val isCheckingHealth: Map<String, Boolean> = emptyMap(),
-    val healthStatus: Map<String, Boolean> = emptyMap(),
     val showAddServerDialog: Boolean = false,
     val editingServer: ServerConfig? = null,
     val isLoading: Boolean = true
@@ -75,21 +74,29 @@ class HomeViewModel @Inject constructor(
         val service = serviceBinder?.getService() ?: return
         val ids = service.connectedServerIds.value
         if (ids.isNotEmpty()) {
-            Log.d(TAG, "Restoring connected state from service: serverIds=$ids")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Restoring connected state from service: serverIds=$ids")
             _uiState.update { it.copy(connectedServerIds = ids) }
         }
     }
 
     /**
-     * Observe connectedServerIds from the service.
+     * Observe connectedServerIds and connectingServerIds from the service.
      */
     private fun observeServiceConnectionState() {
         sseObserverJob?.cancel()
         val service = serviceBinder?.getService() ?: return
         sseObserverJob = viewModelScope.launch {
-            service.connectedServerIds.collect { ids ->
-                Log.d(TAG, "Service connected server IDs changed: $ids")
-                _uiState.update { it.copy(connectedServerIds = ids) }
+            launch {
+                service.connectedServerIds.collect { ids ->
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Service connected server IDs changed: $ids")
+                    _uiState.update { it.copy(connectedServerIds = ids) }
+                }
+            }
+            launch {
+                service.connectingServerIds.collect { ids ->
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Service connecting server IDs changed: $ids")
+                    _uiState.update { it.copy(connectingServerIds = ids) }
+                }
             }
         }
     }
@@ -160,38 +167,12 @@ class HomeViewModel @Inject constructor(
 
     fun deleteServer(serverId: String) {
         viewModelScope.launch {
-            // Disconnect first if connected
-            if (_uiState.value.connectedServerIds.contains(serverId)) {
+            // Disconnect first if connected or connecting
+            if (_uiState.value.connectedServerIds.contains(serverId) ||
+                _uiState.value.connectingServerIds.contains(serverId)) {
                 disconnectFromServer(serverId)
             }
             serverRepository.deleteServer(serverId)
-        }
-    }
-
-    fun checkServerHealth(serverId: String) {
-        val server = _uiState.value.servers.find { it.id == serverId } ?: return
-        
-        _uiState.update { 
-            it.copy(isCheckingHealth = it.isCheckingHealth + (serverId to true))
-        }
-        
-        viewModelScope.launch {
-            try {
-                val isHealthy = serverRepository.checkServerHealth(server)
-                _uiState.update {
-                    it.copy(
-                        isCheckingHealth = it.isCheckingHealth - serverId,
-                        healthStatus = it.healthStatus + (serverId to isHealthy)
-                    )
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isCheckingHealth = it.isCheckingHealth - serverId,
-                        healthStatus = it.healthStatus + (serverId to false)
-                    )
-                }
-            }
         }
     }
 
@@ -201,8 +182,9 @@ class HomeViewModel @Inject constructor(
     fun connectToServer(serverId: String) {
         val server = _uiState.value.servers.find { it.id == serverId } ?: return
 
-        // Already connected? No-op.
-        if (_uiState.value.connectedServerIds.contains(serverId)) return
+        // Already connected or connecting? No-op.
+        if (_uiState.value.connectedServerIds.contains(serverId) ||
+            _uiState.value.connectingServerIds.contains(serverId)) return
 
         _uiState.update {
             it.copy(
@@ -239,12 +221,8 @@ class HomeViewModel @Inject constructor(
                     context.startService(intent)
                 }
 
-                _uiState.update {
-                    it.copy(
-                        connectingServerIds = it.connectingServerIds - serverId,
-                        connectedServerIds = it.connectedServerIds + serverId
-                    )
-                }
+                // Connection state will be updated by the service via
+                // observeServiceConnectionState() — no optimistic update needed.
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(

@@ -1,6 +1,7 @@
 package dev.minios.ocremote.data.repository
 
 import android.util.Log
+import dev.minios.ocremote.BuildConfig
 import dev.minios.ocremote.domain.model.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -107,12 +108,12 @@ class EventReducer @Inject constructor() {
     // ============ Server Events ============
     
     private fun handleServerConnected() {
-        Log.d(TAG, "Server connected")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Server connected")
     }
     
     private fun handleServerInstanceDisposed(event: SseEvent.ServerInstanceDisposed) {
-        Log.d(TAG, "Server instance disposed: ${event.directory}")
-        // TODO: Clear state for this directory
+        if (BuildConfig.DEBUG) Log.d(TAG, "Server instance disposed: ${event.directory}")
+        // State cleanup for the directory is handled by clearForServer() on disconnect
     }
     
     // ============ Session Events ============
@@ -134,7 +135,7 @@ class EventReducer @Inject constructor() {
                 current.toMutableList().apply { set(existingIndex, event.info) }
             } else {
                 // Upsert: session wasn't in list (no session.created received), add it
-                Log.d(TAG, "Session ${event.info.id} not found, upserting (title=${event.info.title})")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Session ${event.info.id} not found, upserting (title=${event.info.title})")
                 (current + event.info).sortedByDescending { it.time.updated }
             }
         }
@@ -160,7 +161,7 @@ class EventReducer @Inject constructor() {
     
     private fun handleSessionStatus(event: SseEvent.SessionStatus) {
         _sessionStatuses.update { it + (event.sessionId to event.status) }
-        Log.d(TAG, "Session ${event.sessionId} status: ${event.status}")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Session ${event.sessionId} status: ${event.status}")
     }
     
     private fun handleSessionIdle(event: SseEvent.SessionIdle) {
@@ -307,6 +308,31 @@ class EventReducer @Inject constructor() {
             }
         }
     }
+
+    /**
+     * Optimistically remove a question from the pending list.
+     * Called after a successful API reply/reject, in case the SSE event doesn't arrive.
+     */
+    fun removeQuestion(questionId: String) {
+        _questions.update { current ->
+            current.mapValues { (_, questions) ->
+                questions.filter { it.id != questionId }
+            }
+        }
+    }
+
+    /**
+     * Set pending questions for a session (loaded from REST API on session open).
+     */
+    fun setQuestions(sessionId: String, questions: List<SseEvent.QuestionAsked>) {
+        _questions.update { current ->
+            if (questions.isEmpty()) {
+                current - sessionId
+            } else {
+                current + (sessionId to questions)
+            }
+        }
+    }
     
     // ============ Batch Updates ============
     
@@ -333,6 +359,15 @@ class EventReducer @Inject constructor() {
             }
             updated.sortedByDescending { it.time.updated }
         }
+    }
+
+    /**
+     * Manually update the session status.
+     * Useful for optimistic updates (e.g. aborting a session).
+     */
+    fun updateSessionStatus(sessionId: String, status: SessionStatus) {
+        _sessionStatuses.update { it + (sessionId to status) }
+        if (BuildConfig.DEBUG) Log.d(TAG, "Manually updated session $sessionId status to $status")
     }
     
     /**
@@ -375,7 +410,7 @@ class EventReducer @Inject constructor() {
             return
         }
         
-        Log.d(TAG, "Clearing state for server $serverId (${sessionIds.size} sessions)")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Clearing state for server $serverId (${sessionIds.size} sessions)")
         
         // Remove the server's session tracking
         _serverSessions.update { it - serverId }

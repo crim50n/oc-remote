@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,6 +29,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import dev.minios.ocremote.R
 import dev.minios.ocremote.domain.model.ServerConfig
+import dev.minios.ocremote.ui.theme.StatusConnected
 
 /**
  * Home Screen - Server list and management
@@ -39,6 +41,8 @@ import dev.minios.ocremote.domain.model.ServerConfig
 @Composable
 fun HomeScreen(
     onNavigateToWebView: (serverUrl: String, username: String, password: String, serverName: String) -> Unit,
+    onNavigateToSessions: (serverUrl: String, username: String, password: String, serverName: String, serverId: String) -> Unit = { _, _, _, _, _ -> },
+    onNavigateToSettings: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -84,6 +88,9 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.home_title)) },
                 actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
                     IconButton(onClick = { viewModel.showAddServerDialog() }) {
                         Icon(Icons.Default.Add, contentDescription = stringResource(R.string.home_add_server))
                     }
@@ -135,8 +142,6 @@ fun HomeScreen(
                                 isConnected = server.id in uiState.connectedServerIds,
                                 isConnecting = server.id in uiState.connectingServerIds,
                                 connectionError = uiState.connectionErrors[server.id],
-                                healthStatus = uiState.healthStatus[server.id],
-                                isCheckingHealth = uiState.isCheckingHealth[server.id] == true,
                                 onConnect = { requestNotificationPermissionAndConnect(server.id) },
                                 onDisconnect = { viewModel.disconnectFromServer(server.id) },
                                 onOpenWebUi = {
@@ -147,9 +152,17 @@ fun HomeScreen(
                                         server.displayName
                                     )
                                 },
+                                onOpenSessions = {
+                                    onNavigateToSessions(
+                                        server.url,
+                                        server.username,
+                                        server.password ?: "",
+                                        server.displayName,
+                                        server.id
+                                    )
+                                },
                                 onEdit = { viewModel.showEditServerDialog(server) },
-                                onDelete = { viewModel.deleteServer(server.id) },
-                                onCheckHealth = { viewModel.checkServerHealth(server.id) }
+                                onDelete = { viewModel.deleteServer(server.id) }
                             )
                         }
                     }
@@ -207,14 +220,12 @@ private fun ServerCard(
     isConnected: Boolean,
     isConnecting: Boolean,
     connectionError: String?,
-    healthStatus: Boolean?,
-    isCheckingHealth: Boolean,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onOpenWebUi: () -> Unit,
+    onOpenSessions: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onCheckHealth: () -> Unit
+    onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -222,7 +233,7 @@ private fun ServerCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = if (isConnected) {
-                MaterialTheme.colorScheme.primaryContainer
+                MaterialTheme.colorScheme.surfaceVariant
             } else {
                 MaterialTheme.colorScheme.surface
             }
@@ -243,7 +254,7 @@ private fun ServerCard(
                         text = server.displayName,
                         style = MaterialTheme.typography.titleMedium,
                         color = if (isConnected) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         } else {
                             MaterialTheme.colorScheme.onSurface
                         }
@@ -252,7 +263,7 @@ private fun ServerCard(
                         text = server.url,
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (isConnected) {
-                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         } else {
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         }
@@ -261,7 +272,7 @@ private fun ServerCard(
                         Text(
                             text = "Connected",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
+                            color = StatusConnected
                         )
                     } else if (isConnecting) {
                         Text(
@@ -272,76 +283,35 @@ private fun ServerCard(
                     }
                 }
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Health status indicator
-                    when {
-                        isCheckingHealth -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        }
-                        healthStatus == true -> {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Healthy",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        healthStatus == false -> {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = "Unhealthy",
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                // Menu button
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More options")
                     }
-
-                    // Menu button
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Check Health") },
-                                onClick = {
-                                    showMenu = false
-                                    onCheckHealth()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Refresh, contentDescription = null)
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Edit") },
-                                onClick = {
-                                    showMenu = false
-                                    onEdit()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Edit, contentDescription = null)
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Delete") },
-                                onClick = {
-                                    showMenu = false
-                                    onDelete()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Delete, contentDescription = null)
-                                }
-                            )
-                        }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Edit") },
+                            onClick = {
+                                showMenu = false
+                                onEdit()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Edit, contentDescription = null)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = {
+                                showMenu = false
+                                onDelete()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Delete, contentDescription = null)
+                            }
+                        )
                     }
                 }
             }
@@ -362,40 +332,56 @@ private fun ServerCard(
             ) {
                 if (isConnected) {
                     Button(
+                        onClick = onOpenSessions,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Sessions", maxLines = 1)
+                    }
+                    OutlinedButton(
                         onClick = onOpenWebUi,
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Open Web UI", maxLines = 1)
+                        Text("Web UI", maxLines = 1)
                     }
+                }
+            }
+            if (isConnected) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     OutlinedButton(
                         onClick = onDisconnect,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("Disconnect", maxLines = 1)
                     }
-                } else {
-                    Button(
-                        onClick = onConnect,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isConnecting
-                    ) {
-                        if (isConnecting) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text("Connecting...")
-                        } else {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Connect")
-                        }
+                }
+            }
+            if (!isConnected) {
+                Button(
+                    onClick = onConnect,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isConnecting
+                ) {
+                    if (isConnecting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("Connecting...")
+                    } else {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Connect")
                     }
                 }
             }

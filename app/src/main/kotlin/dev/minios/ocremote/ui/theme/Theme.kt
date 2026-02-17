@@ -10,21 +10,58 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = Color(0xFF9DA3FF),
+    onPrimary = Color(0xFF1A1B4B),
+    primaryContainer = Color(0xFF2D2F6E),
+    onPrimaryContainer = Color(0xFFDEE0FF),
+    secondary = Color(0xFFCAC3DC),
+    onSecondary = Color(0xFF322E41),
+    secondaryContainer = Color(0xFF494559),
+    onSecondaryContainer = Color(0xFFE7DFF8),
+    tertiary = Color(0xFF7DD0E1),
+    onTertiary = Color(0xFF003640),
+    surface = Color(0xFF121218),
+    onSurface = Color(0xFFE5E1E9),
+    surfaceVariant = Color(0xFF2B2B35),
+    onSurfaceVariant = Color(0xFFC8C5D0),
+    surfaceContainer = Color(0xFF1E1E25),
+    surfaceContainerHigh = Color(0xFF262630),
+    surfaceContainerHighest = Color(0xFF31313B),
+    outline = Color(0xFF918F9A),
+    outlineVariant = Color(0xFF47464F),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = Color(0xFF4F52B8),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFE0E0FF),
+    onPrimaryContainer = Color(0xFF0C0F6A),
+    secondary = Color(0xFF5D5B71),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFE3DFF9),
+    onSecondaryContainer = Color(0xFF1A182C),
+    tertiary = Color(0xFF006879),
+    onTertiary = Color(0xFFFFFFFF),
+    surface = Color(0xFFFCF8FF),
+    onSurface = Color(0xFF1C1B22),
+    surfaceVariant = Color(0xFFE5E1EC),
+    onSurfaceVariant = Color(0xFF47464F),
+    surfaceContainer = Color(0xFFF3EFF7),
+    surfaceContainerHigh = Color(0xFFECE8F1),
+    surfaceContainerHighest = Color(0xFFE6E2EB),
+    outline = Color(0xFF787680),
+    outlineVariant = Color(0xFFC9C5D0),
+    error = Color(0xFFBA1A1A),
+    onError = Color(0xFFFFFFFF)
 )
 
 /**
@@ -54,7 +91,8 @@ fun OpenCodeTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
+            // Use surface color for status bar (less jarring than primary)
+            window.statusBarColor = colorScheme.surface.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }

@@ -8,6 +8,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import dev.minios.ocremote.BuildConfig
 import dev.minios.ocremote.MainActivity
 import dev.minios.ocremote.R
 import dev.minios.ocremote.data.api.OpenCodeApi
@@ -85,9 +86,13 @@ class OpenCodeConnectionService : Service() {
 
     private lateinit var notificationManager: NotificationManager
 
-    /** Observable set of connected server IDs. */
+    /** Observable set of server IDs that are actually connected (SSE stream active). */
     private val _connectedServerIds = MutableStateFlow<Set<String>>(emptySet())
     val connectedServerIds: StateFlow<Set<String>> = _connectedServerIds.asStateFlow()
+
+    /** Observable set of server IDs that are attempting to connect (SSE not yet established or reconnecting). */
+    private val _connectingServerIds = MutableStateFlow<Set<String>>(emptySet())
+    val connectingServerIds: StateFlow<Set<String>> = _connectingServerIds.asStateFlow()
 
     inner class LocalBinder : Binder() {
         fun getService(): OpenCodeConnectionService = this@OpenCodeConnectionService
@@ -95,14 +100,14 @@ class OpenCodeConnectionService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "Service created")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Service created")
 
         notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannels()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "Service started, action=${intent?.action}")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Service started, action=${intent?.action}")
 
         when (intent?.action) {
             ACTION_DISCONNECT_ALL -> {
@@ -152,7 +157,7 @@ class OpenCodeConnectionService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "Service destroyed")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Service destroyed")
         disconnectAllInternal(stopService = false)
         serviceScope.cancel()
     }
@@ -165,11 +170,11 @@ class OpenCodeConnectionService : Service() {
      */
     fun connect(server: ServerConfig) {
         if (connections.containsKey(server.id)) {
-            Log.d(TAG, "Already connected to server ${server.id}, skipping")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Already connected to server ${server.id}, skipping")
             return
         }
 
-        Log.d(TAG, "Connecting to server: ${server.displayName} (${server.url})")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Connecting to server: ${server.displayName} (${server.url})")
 
         val conn = ServerConnection.from(server.url, server.username, server.password)
 
@@ -186,7 +191,7 @@ class OpenCodeConnectionService : Service() {
             isConnected = false
         )
 
-        _connectedServerIds.update { it + server.id }
+        _connectingServerIds.update { it + server.id }
 
         // Update persistent notification
         updatePersistentNotification()
@@ -199,12 +204,13 @@ class OpenCodeConnectionService : Service() {
      * Disconnect from a single server.
      */
     fun disconnect(serverId: String) {
-        Log.d(TAG, "Disconnecting server $serverId")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Disconnecting server $serverId")
 
         val state = connections.remove(serverId) ?: return
         state.sseJob.cancel()
 
         _connectedServerIds.update { it - serverId }
+        _connectingServerIds.update { it - serverId }
 
         eventReducer.clearForServer(serverId)
 
@@ -228,7 +234,7 @@ class OpenCodeConnectionService : Service() {
     }
 
     private fun disconnectAllInternal(stopService: Boolean) {
-        Log.d(TAG, "Disconnecting all servers")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Disconnecting all servers")
 
         for ((_, state) in connections) {
             state.sseJob.cancel()
@@ -237,6 +243,7 @@ class OpenCodeConnectionService : Service() {
         connections.clear()
 
         _connectedServerIds.value = emptySet()
+        _connectingServerIds.value = emptySet()
 
         for (serverId in serverIds) {
             eventReducer.clearForServer(serverId)
@@ -286,14 +293,14 @@ class OpenCodeConnectionService : Service() {
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG).apply {
             acquire()
         }
-        Log.d(TAG, "WakeLock acquired")
+        if (BuildConfig.DEBUG) Log.d(TAG, "WakeLock acquired")
     }
 
     private fun releaseWakeLock() {
         wakeLock?.let {
             if (it.isHeld) {
                 it.release()
-                Log.d(TAG, "WakeLock released")
+                if (BuildConfig.DEBUG) Log.d(TAG, "WakeLock released")
             }
         }
         wakeLock = null
@@ -338,7 +345,7 @@ class OpenCodeConnectionService : Service() {
                     Log.w(TAG, "[${server.displayName}] SSE stream completed")
                     updateServerConnected(server.id, false)
                 } catch (e: CancellationException) {
-                    Log.d(TAG, "[${server.displayName}] SSE job cancelled, not reconnecting")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "[${server.displayName}] SSE job cancelled, not reconnecting")
                     throw e
                 } catch (e: Exception) {
                     Log.e(TAG, "[${server.displayName}] SSE connection failed: ${e.message}")
@@ -359,8 +366,13 @@ class OpenCodeConnectionService : Service() {
     private fun updateServerConnected(serverId: String, connected: Boolean) {
         val state = connections[serverId] ?: return
         connections[serverId] = state.copy(isConnected = connected)
-        // Update the flow — connectedServerIds always contains all servers we're
-        // trying to connect to. The per-server connected boolean is internal state.
+        if (connected) {
+            _connectingServerIds.update { it - serverId }
+            _connectedServerIds.update { it + serverId }
+        } else {
+            _connectedServerIds.update { it - serverId }
+            _connectingServerIds.update { it + serverId }
+        }
     }
 
     private fun calculateBackoff(attempt: Int): Long {
@@ -370,26 +382,40 @@ class OpenCodeConnectionService : Service() {
 
     // ============ Event Processing ============
 
+    /**
+     * Check if a session is a child/sub-agent session (has parentID set).
+     * Child sessions should not trigger user-facing notifications,
+     * matching the behavior of the official opencode WebUI and TUI.
+     */
+    private fun isChildSession(sessionId: String): Boolean {
+        val session = eventReducer.sessions.value.find { it.id == sessionId }
+        return session?.parentId != null
+    }
+
     private fun processEvent(server: ServerConfig, event: SseEvent) {
-        Log.d(TAG, "[${server.displayName}] SSE event: ${event.javaClass.simpleName}")
+        if (BuildConfig.DEBUG) Log.d(TAG, "[${server.displayName}] SSE event: ${event.javaClass.simpleName}")
 
         eventReducer.processEvent(event, server.id)
 
         when (event) {
             is SseEvent.SessionIdle -> {
+                if (isChildSession(event.sessionId)) return
                 Log.i(TAG, "[${server.displayName}] Session idle -> Response ready for ${event.sessionId}")
                 showTaskCompleteNotification(server, event.sessionId)
             }
             is SseEvent.PermissionAsked -> {
+                if (isChildSession(event.sessionId)) return
                 Log.i(TAG, "[${server.displayName}] Permission asked: ${event.permission}")
                 showPermissionNotification(server, event.sessionId, event.permission)
             }
             is SseEvent.QuestionAsked -> {
+                if (isChildSession(event.sessionId)) return
                 Log.i(TAG, "[${server.displayName}] Question asked for session ${event.sessionId}")
                 val questionText = event.questions.firstOrNull()?.question ?: "The agent has a question"
                 showQuestionNotification(server, event.sessionId, questionText)
             }
             is SseEvent.SessionError -> {
+                if (event.sessionId != null && isChildSession(event.sessionId)) return
                 Log.i(TAG, "[${server.displayName}] Session error: ${event.error}")
                 showErrorNotification(server, event.sessionId, event.error)
             }

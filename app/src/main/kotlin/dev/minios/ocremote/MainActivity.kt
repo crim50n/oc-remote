@@ -1,6 +1,8 @@
 package dev.minios.ocremote
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -15,12 +17,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.view.WindowCompat
+import dev.minios.ocremote.data.repository.SettingsRepository
+import dev.minios.ocremote.data.repository.ServerRepository
+import dev.minios.ocremote.data.repository.EventReducer
 import dev.minios.ocremote.service.OpenCodeConnectionService
 import dev.minios.ocremote.ui.navigation.NavGraph
 import dev.minios.ocremote.ui.theme.OpenCodeTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import javax.inject.Inject
 
 private const val TAG = "MainActivity"
 
@@ -42,19 +48,38 @@ data class SessionDeepLink(
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
+
+    @Inject
+    lateinit var serverRepository: ServerRepository
+
+    @Inject
+    lateinit var eventReducer: EventReducer
+    
     /**
      * Shared flow for deep-link events from notification taps.
      * NavGraph subscribes and navigates to WebView when a value is emitted.
      */
     private val _deepLinkFlow = MutableSharedFlow<SessionDeepLink>(extraBufferCapacity = 1)
     val deepLinkFlow = _deepLinkFlow.asSharedFlow()
-    
+
+    /**
+     * Shared flow for images received via ACTION_SEND / ACTION_SEND_MULTIPLE.
+     * NavGraph / ChatScreen consumes these to pre-populate attachments.
+     * Uses replay=1 so a late subscriber (ChatScreen opened after share) still gets the URIs.
+     */
+    private val _sharedImagesFlow = MutableSharedFlow<List<Uri>>(replay = 1)
+    val sharedImagesFlow = _sharedImagesFlow.asSharedFlow()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
         // Handle notification tap that launched the activity
         handleSessionIntent(intent)
+        // Handle image share that launched the activity
+        handleShareIntent(intent)
         
         setContent {
             OpenCodeTheme {
@@ -75,7 +100,13 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    NavGraph(deepLinkFlow = deepLinkFlow)
+                    NavGraph(
+                        deepLinkFlow = deepLinkFlow,
+                        sharedImagesFlow = sharedImagesFlow,
+                        settingsRepository = settingsRepository,
+                        serverRepository = serverRepository,
+                        eventReducer = eventReducer
+                    )
                 }
             }
         }
@@ -85,6 +116,8 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         // Handle notification tap when activity is already running
         handleSessionIntent(intent)
+        // Handle image share when activity is already running
+        handleShareIntent(intent)
     }
     
     private fun handleSessionIntent(intent: Intent?) {
@@ -107,5 +140,59 @@ class MainActivity : ComponentActivity() {
                 sessionPath = sessionPath
             )
         )
+    }
+
+    /**
+     * Handle ACTION_SEND and ACTION_SEND_MULTIPLE with image content.
+     * Extracts image URIs and emits them via [sharedImagesFlow].
+     * The URIs are content:// URIs that remain readable while the Activity is alive.
+     */
+    private fun handleShareIntent(intent: Intent?) {
+        if (intent == null) return
+
+        val uris = mutableListOf<Uri>()
+
+        when (intent.action) {
+            Intent.ACTION_SEND -> {
+                if (intent.type?.startsWith("image/") == true) {
+                    val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                    }
+                    uri?.let { uris.add(it) }
+                }
+            }
+            Intent.ACTION_SEND_MULTIPLE -> {
+                if (intent.type?.startsWith("image/") == true) {
+                    val list = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
+                    }
+                    list?.let { uris.addAll(it) }
+                }
+            }
+            else -> return
+        }
+
+        if (uris.isNotEmpty()) {
+            // Take persistable read permission so URIs survive configuration changes
+            for (uri in uris) {
+                try {
+                    contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (e: SecurityException) {
+                    // Not all providers support persistable permissions — that's OK,
+                    // the temporary grant from the share intent is still valid.
+                }
+            }
+            Log.i(TAG, "Received ${uris.size} shared image(s)")
+            _sharedImagesFlow.tryEmit(uris)
+        }
     }
 }

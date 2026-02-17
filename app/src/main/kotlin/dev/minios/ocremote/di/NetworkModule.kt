@@ -34,6 +34,7 @@ object NetworkModule {
         ignoreUnknownKeys = true
         coerceInputValues = true
         encodeDefaults = true
+        explicitNulls = false
     }
     
     @Provides
@@ -49,10 +50,9 @@ object NetworkModule {
         }
         
         install(HttpTimeout) {
-            requestTimeoutMillis = 30_000
-            connectTimeoutMillis = 10_000
-            // No global socketTimeoutMillis — SSE connections need infinite socket timeout.
-            // Individual requests can set their own timeout via the timeout {} block.
+            requestTimeoutMillis = 120_000
+            connectTimeoutMillis = 15_000
+            socketTimeoutMillis = 120_000
         }
         
         install(Auth) {
