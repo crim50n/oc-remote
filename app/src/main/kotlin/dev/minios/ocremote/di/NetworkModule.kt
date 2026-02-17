@@ -46,7 +46,7 @@ object NetworkModule {
         
         install(Logging) {
             logger = Logger.ANDROID
-            level = LogLevel.INFO
+            level = LogLevel.HEADERS
         }
         
         install(HttpTimeout) {

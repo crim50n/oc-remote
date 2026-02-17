@@ -1,17 +1,43 @@
-# OC Remote
+# OpenCode Android
 
-Android client for [OpenCode](https://github.com/anomalyco/opencode) servers. Displays the OpenCode web UI in a WebView while a background service maintains SSE connections for push notifications.
+Android client for [OpenCode](https://github.com/anomalyco/opencode) servers with native UI and full feature parity.
 
 **This is an unofficial community project, not affiliated with the OpenCode team.**
 
 ## Features
 
-- **WebView UI** -- full OpenCode web interface with auth, deep-linking, pull-to-refresh, file upload, and keyboard handling
-- **Multi-server** -- connect to multiple OpenCode servers simultaneously, each with independent connect/disconnect
-- **Background SSE** -- foreground service keeps SSE connections alive when the app is minimized
-- **Push notifications** -- task completion, permission requests, errors; tap a notification to jump to the relevant session
-- **Auto-reconnect** -- exponential backoff (1s to 30s), partial WakeLock to prevent CPU sleep
-- **Battery optimization prompt** -- warns if the OS may kill the background service, with a one-tap fix
+### Native UI
+- **Full chat interface** — native Material 3 UI with markdown rendering (code blocks, tables, syntax highlighting)
+- **Message streaming** — real-time text streaming with auto-scroll
+- **Smart scroll behavior** — manual scroll disables auto-scroll; automatically re-enables when scrolled to bottom
+- **File mentions** — `@file` completion with fuzzy search
+- **Image support** — inline base64 images in chat
+- **Tool outputs** — expandable tool call results with syntax highlighting
+- **Slash commands** — `/new`, `/fork`, `/compact`, `/share`, `/rename`, `/undo`, `/redo`
+- **Swipe to revert** — swipe user messages to undo (with confirmation dialog)
+
+### Session Management  
+- **Multi-session** — switch between sessions, view history
+- **Session actions** — create, fork, compact, share/unshare, rename via dropdown menu
+- **Load older messages** — pagination for large sessions (initial 50, expandable)
+- **OOM protection** — `largeHeap` enabled, reduced logging, pagination prevents crashes on huge sessions
+
+### Model & Agent Selection
+- **Model picker** — select provider and model with variant support
+- **Agent toggle** — switch between Build/Plan agents
+- **Token usage** — displays total input/output tokens and cost
+- **Compact layout** — horizontally scrollable toolbar prevents overflow on long translations
+
+### Localization
+- **13 languages** — English (source), Russian, German, Spanish, French, Italian, Portuguese (BR), Japanese, Korean, Chinese (Simplified), Ukrainian, Turkish, Arabic, Polish
+- **Auto-translation** — lokit integration for automatic string translation
+- **Settings** — language and theme selection in Settings screen
+
+### Connection
+- **Multi-server** — connect to multiple OpenCode servers simultaneously
+- **SSE event stream** — real-time session status, permissions, questions
+- **Auto-reconnect** — exponential backoff (1s to 30s)
+- **Background service** — foreground service keeps connections alive when app is minimized
 
 ## Requirements
 
@@ -41,14 +67,11 @@ opencode web --port 4096 --hostname 0.0.0.0
 ### Command line
 
 ```bash
-# Set Android SDK path
-echo "sdk.dir=/path/to/android/sdk" > local.properties
-
 # Build debug APK
 ./gradlew assembleDebug
 
 # Install on connected device
-adb install app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ## Architecture
@@ -60,7 +83,7 @@ dev.minios.ocremote/
 ├── data/
 │   ├── api/
 │   │   ├── OpenCodeApi.kt          # Stateless REST client (Ktor/OkHttp)
-│   │   └── SseClient.kt           # Stateless SSE client
+│   │   └── SseClient.kt            # SSE client for event streaming
 │   └── repository/
 │       ├── EventReducer.kt         # Central SSE event state management
 │       └── ServerRepository.kt     # Server config persistence (DataStore)
@@ -68,14 +91,41 @@ dev.minios.ocremote/
 ├── service/
 │   └── OpenCodeConnectionService.kt  # Multi-server foreground service
 ├── di/
-│   └── NetworkModule.kt            # Hilt DI
+│   └── NetworkModule.kt            # Hilt DI (Ktor, OkHttp, lokit)
 └── ui/
     ├── screens/
-    │   ├── home/                   # Server list, connect/disconnect, battery banner
-    │   └── webview/                # WebView with auth, file chooser, pull-to-refresh
+    │   ├── home/                   # Server list, session list, battery banner
+    │   ├── chat/                   # Native chat UI with markdown, streaming, scroll
+    │   ├── settings/               # Language/theme selection
+    │   └── webview/                # Fallback WebView for "Open in Web" action
+    ├── components/                 # Reusable UI components
     ├── navigation/                 # Compose Navigation graph
-    └── theme/                      # Material 3 theme
+    └── theme/                      # Material 3 theme (dynamic color support)
 ```
+
+## Recent Changes
+
+### Auto-scroll fixes
+- Fixed scroll position during streaming/summarization — now scrolls to bottom of tall messages, not top
+- Manual scroll disables auto-scroll; scrolling back to bottom re-enables it
+- FAB "scroll to bottom" button appears when auto-scroll is disabled
+
+### UI improvements
+- Globe button replaced with dropdown menu (⋮) in chat topbar with 6 actions: Open in Web, New Session, Fork, Compact, Share/Unshare, Rename
+- Share/Unshare toggle — button changes based on session share status
+- Empty user messages (e.g. from `/compact`) are now hidden
+- Fixed red background visible behind user message bubbles (swipe-to-revert background)
+
+### Toolbar layout fixes
+- Agent/model/variant area now horizontally scrollable to prevent overflow
+- Reduced padding/spacing for compact layout on all languages
+- Paperclip button always visible and pinned right
+
+### Pagination & OOM fixes
+- Initial load: 50 messages (expandable with "Load earlier messages" button)
+- `largeHeap="true"` enables ~512MB heap (was ~256MB)
+- Ktor logging reduced from INFO to HEADERS (prevents response body buffering)
+- OOM recovery: if initial load fails, retry with halved limit
 
 ## License
 

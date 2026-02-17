@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.verticalScroll
@@ -78,6 +79,8 @@ import android.content.res.Configuration
 import android.util.Base64
 import android.util.Log
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.stringResource
+import dev.minios.ocremote.R
 
 /**
  * Chat Screen - conversation view with native markdown rendering.
@@ -97,21 +100,16 @@ private data class SlashCommand(
 )
 
 /** Client-side slash commands that mirror the original opencode TUI. */
-private val clientCommands = listOf(
-    SlashCommand("new", "Create a new session", "client"),
-    SlashCommand("sessions", "Resume a previous session", "client"),
-    SlashCommand("models", "Switch to a different model", "client"),
-    SlashCommand("agents", "Switch to the next agent", "client"),
-    SlashCommand("compact", "Compact session to reduce context size", "client"),
-    SlashCommand("fork", "Create a new session from a message", "client"),
-    SlashCommand("share", "Share session and copy URL", "client"),
-    SlashCommand("unshare", "Remove shared session link", "client"),
-    SlashCommand("undo", "Undo the last message", "client"),
-    SlashCommand("redo", "Redo the last undone message", "client"),
-    SlashCommand("rename", "Rename this session", "client"),
-    SlashCommand("copy", "Copy last assistant response", "client"),
-    SlashCommand("abort", "Abort the running session", "client"),
-    SlashCommand("help", "Show available commands", "client"),
+@Composable
+private fun clientCommands(): List<SlashCommand> = listOf(
+    SlashCommand("new", stringResource(R.string.cmd_new), "client"),
+    SlashCommand("compact", stringResource(R.string.cmd_compact), "client"),
+    SlashCommand("fork", stringResource(R.string.cmd_fork), "client"),
+    SlashCommand("share", stringResource(R.string.cmd_share), "client"),
+    SlashCommand("unshare", stringResource(R.string.cmd_unshare), "client"),
+    SlashCommand("undo", stringResource(R.string.cmd_undo), "client"),
+    SlashCommand("redo", stringResource(R.string.cmd_redo), "client"),
+    SlashCommand("rename", stringResource(R.string.cmd_rename), "client"),
 )
 
 /** Format a token count to a human-readable string (e.g., 1.2k, 45.3k, 1.2M). */
@@ -282,6 +280,7 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     var showModelPicker by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -365,16 +364,37 @@ fun ChatScreen(
         }
     }
 
-    // Track whether user has scrolled away from bottom
+    // Whether auto-scroll should follow new content.
+    // Disabled when user manually scrolls up; re-enabled when user scrolls back to bottom.
+    var autoScrollEnabled by remember { mutableStateOf(true) }
+
+    // True when the very bottom of the list is visible (accounting for offset within tall items)
     val isAtBottom by remember {
         derivedStateOf {
-            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-            val totalItems = listState.layoutInfo.totalItemsCount
-            lastVisibleItem != null && lastVisibleItem.index >= totalItems - 2
+            val info = listState.layoutInfo
+            val lastVisible = info.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf true
+            val totalItems = info.totalItemsCount
+            if (lastVisible.index < totalItems - 1) return@derivedStateOf false
+            // Last item is visible — check if its bottom edge is within the viewport
+            val itemBottom = lastVisible.offset + lastVisible.size
+            val viewportEnd = info.viewportEndOffset
+            itemBottom <= viewportEnd + 50 // 50px tolerance
         }
     }
 
-    // Auto-scroll to bottom when new content arrives (only if already at bottom)
+    // When user touches the list, disable auto-scroll; re-enable when they reach the bottom
+    LaunchedEffect(listState.isScrollInProgress, isAtBottom) {
+        if (listState.isScrollInProgress) {
+            // User is actively dragging/flinging — disable auto-scroll
+            autoScrollEnabled = false
+        } else if (isAtBottom) {
+            // User stopped scrolling and ended up at the bottom — re-enable
+            autoScrollEnabled = true
+        }
+    }
+
+
+    // Auto-scroll to bottom when new content arrives (only if auto-scroll is enabled)
     // Track message count, part count, and content length of the last part to catch streaming updates
     val messageCount = uiState.messages.size
     val lastPartCount = uiState.messages.lastOrNull()?.parts?.size ?: 0
@@ -394,15 +414,37 @@ fun ChatScreen(
     val pendingCount = uiState.pendingPermissions.size + uiState.pendingQuestions.size
     val isBusy = uiState.sessionStatus is SessionStatus.Busy
     LaunchedEffect(messageCount, lastPartCount, lastContentLength, pendingCount, isBusy) {
-        if (messageCount > 0 && isAtBottom) {
-            listState.animateScrollToItem(listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1)
+        if (messageCount > 0 && autoScrollEnabled) {
+            val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
+            listState.scrollToItem(lastIndex)
+            // scrollToItem goes to the TOP of the last item; when a message is
+            // taller than the viewport (e.g. streaming summarisation) we also
+            // need to scroll past it so the user sees the bottom of that message.
+            val lastItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            if (lastItem != null) {
+                val viewport = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+                val overflow = lastItem.size - viewport
+                if (overflow > 0) {
+                    listState.scrollBy(overflow.toFloat())
+                }
+            }
         }
     }
 
     // Also auto-scroll when first loading
     LaunchedEffect(uiState.isLoading) {
         if (!uiState.isLoading && messageCount > 0) {
-            listState.scrollToItem(listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1)
+            val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
+            listState.scrollToItem(lastIndex)
+            val lastItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            if (lastItem != null) {
+                val viewport = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+                val overflow = lastItem.size - viewport
+                if (overflow > 0) {
+                    listState.scrollBy(overflow.toFloat())
+                }
+            }
+            autoScrollEnabled = true
         }
     }
 
@@ -421,17 +463,17 @@ fun ChatScreen(
                         // Subtitle: working status or cost/token summary
                         if (uiState.sessionStatus is SessionStatus.Busy) {
                             Text(
-                                text = "Working...",
+                                text = stringResource(R.string.session_status_busy),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.tertiary
                             )
                         } else if (uiState.totalCost > 0 || uiState.totalInputTokens > 0) {
                             val costStr = if (uiState.totalCost > 0) {
-                                "$${String.format("%.4f", uiState.totalCost)}"
+                                stringResource(R.string.chat_cost_format, String.format("%.4f", uiState.totalCost))
                             } else null
                             val tokenStr = formatTokenCount(uiState.totalInputTokens + uiState.totalOutputTokens)
                             Text(
-                                text = listOfNotNull(costStr, "${tokenStr} tokens").joinToString(" \u00b7 "),
+                                text = listOfNotNull(costStr, stringResource(R.string.chat_tokens_summary, tokenStr)).joinToString(" \u00b7 "),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
@@ -440,7 +482,7 @@ fun ChatScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -448,16 +490,131 @@ fun ChatScreen(
                         IconButton(onClick = { viewModel.abortSession() }) {
                             Icon(
                                 Icons.Default.Stop,
-                                contentDescription = "Stop",
+                                contentDescription = stringResource(R.string.chat_stop),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
                     }
-                    IconButton(onClick = onOpenInWebView) {
-                        Icon(
-                            Icons.Default.Language,
-                            contentDescription = "Open in Web UI"
-                        )
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_open_in_web)) },
+                                onClick = {
+                                    showMenu = false
+                                    onOpenInWebView()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Language, contentDescription = null)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_new_session)) },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.createNewSession { session ->
+                                        if (session != null) {
+                                            onNavigateToSession(session.id)
+                                        } else {
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar(context.getString(R.string.chat_session_create_failed))
+                                            }
+                                        }
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Add, contentDescription = null)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_fork_session)) },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.forkSession { session ->
+                                        if (session != null) {
+                                            onNavigateToSession(session.id)
+                                        } else {
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar(context.getString(R.string.chat_fork_failed))
+                                            }
+                                        }
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.CopyAll, contentDescription = null)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_compact_session)) },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.compactSession { ok ->
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                if (ok) context.getString(R.string.chat_session_compacted) else context.getString(R.string.chat_session_compact_failed)
+                                            )
+                                        }
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Compress, contentDescription = null)
+                                }
+                            )
+                            // Show Share or Unshare depending on current share status
+                            if (uiState.shareUrl != null) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.cmd_unshare)) },
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.unshareSession { ok ->
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar(
+                                                    if (ok) context.getString(R.string.chat_session_unshared) else context.getString(R.string.chat_session_unshare_failed)
+                                                )
+                                            }
+                                        }
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.LinkOff, contentDescription = null)
+                                    }
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.menu_share_session)) },
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.shareSession { url ->
+                                            coroutineScope.launch {
+                                                if (url != null) {
+                                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
+                                                    snackbarHostState.showSnackbar(context.getString(R.string.chat_share_url_copied))
+                                                } else {
+                                                    snackbarHostState.showSnackbar(context.getString(R.string.chat_share_failed))
+                                                }
+                                            }
+                                        }
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Share, contentDescription = null)
+                                    }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_rename_session)) },
+                                onClick = {
+                                    showMenu = false
+                                    showRenameDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Edit, contentDescription = null)
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -550,26 +707,8 @@ fun ChatScreen(
                                     onNavigateToSession(session.id)
                                 } else {
                                     coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Failed to create session")
+                                        snackbarHostState.showSnackbar(context.getString(R.string.chat_session_create_failed))
                                     }
-                                }
-                            }
-                        }
-                        "sessions" -> {
-                            onNavigateBack()
-                        }
-                        "models" -> {
-                            showModelPicker = true
-                        }
-                        "agents" -> {
-                            // Cycle to next agent
-                            val agents = uiState.agents
-                            if (agents.isNotEmpty()) {
-                                val idx = agents.indexOfFirst { it.name == uiState.selectedAgent }
-                                val next = agents[(idx + 1) % agents.size]
-                                viewModel.selectAgent(next.name)
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Agent: ${next.name}")
                                 }
                             }
                         }
@@ -577,7 +716,7 @@ fun ChatScreen(
                             viewModel.compactSession { ok ->
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
-                                        if (ok) "Session compacted" else "Failed to compact session"
+                                        if (ok) context.getString(R.string.chat_session_compacted) else context.getString(R.string.chat_session_compact_failed)
                                     )
                                 }
                             }
@@ -588,7 +727,7 @@ fun ChatScreen(
                                     onNavigateToSession(session.id)
                                 } else {
                                     coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Failed to fork session")
+                                        snackbarHostState.showSnackbar(context.getString(R.string.chat_fork_failed))
                                     }
                                 }
                             }
@@ -598,9 +737,9 @@ fun ChatScreen(
                                 coroutineScope.launch {
                                     if (url != null) {
                                         clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
-                                        snackbarHostState.showSnackbar("Share URL copied")
+                                        snackbarHostState.showSnackbar(context.getString(R.string.chat_share_url_copied))
                                     } else {
-                                        snackbarHostState.showSnackbar("Failed to share session")
+                                        snackbarHostState.showSnackbar(context.getString(R.string.chat_share_failed))
                                     }
                                 }
                             }
@@ -609,7 +748,7 @@ fun ChatScreen(
                             viewModel.unshareSession { ok ->
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
-                                        if (ok) "Session unshared" else "Failed to unshare"
+                                        if (ok) context.getString(R.string.chat_session_unshared) else context.getString(R.string.chat_session_unshare_failed)
                                     )
                                 }
                             }
@@ -618,7 +757,7 @@ fun ChatScreen(
                             viewModel.undoMessage { ok ->
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
-                                        if (ok) "Message undone" else "Failed to undo"
+                                        if (ok) context.getString(R.string.chat_message_undone) else context.getString(R.string.chat_message_undo_failed)
                                     )
                                 }
                             }
@@ -627,7 +766,7 @@ fun ChatScreen(
                             viewModel.redoMessage { ok ->
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
-                                        if (ok) "Message redone" else "Failed to redo"
+                                        if (ok) context.getString(R.string.chat_message_redone) else context.getString(R.string.chat_message_redo_failed)
                                     )
                                 }
                             }
@@ -635,36 +774,12 @@ fun ChatScreen(
                         "rename" -> {
                             showRenameDialog = true
                         }
-                        "copy" -> {
-                            val text = viewModel.getLastAssistantText()
-                            if (text != null) {
-                                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(text))
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Copied to clipboard")
-                                }
-                            } else {
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("No assistant message to copy")
-                                }
-                            }
-                        }
-                        "abort" -> {
-                            viewModel.abortSession()
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Session aborted")
-                            }
-                        }
-                        "help" -> {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Type / to see available commands")
-                            }
-                        }
                         else -> {
                             // Server command — execute via API
                             viewModel.executeCommand(cmd.name) { ok ->
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(
-                                        if (ok) "/${cmd.name} executed" else "Failed to execute /${cmd.name}"
+                                        if (ok) context.getString(R.string.chat_command_executed, cmd.name) else context.getString(R.string.chat_command_failed, cmd.name)
                                     )
                                 }
                             }
@@ -700,12 +815,12 @@ fun ChatScreen(
                             tint = MaterialTheme.colorScheme.error
                         )
                         Text(
-                            text = uiState.error ?: "Unknown error",
+                            text = uiState.error ?: stringResource(R.string.session_unknown_error),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )
                         Button(onClick = { viewModel.loadMessages() }) {
-                            Text("Retry")
+                            Text(stringResource(R.string.retry))
                         }
                     }
                 }
@@ -718,12 +833,12 @@ fun ChatScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Start a conversation",
+                            text = stringResource(R.string.chat_empty),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Text(
-                            text = "Type a message below",
+                            text = stringResource(R.string.chat_type_message),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         )
@@ -736,10 +851,51 @@ fun ChatScreen(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        // "Load earlier messages" button at the top
+                        if (uiState.hasOlderMessages) {
+                            item(key = "load_older") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (uiState.isLoadingOlder) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                strokeWidth = 2.dp
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.chat_loading_earlier),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    } else {
+                                        TextButton(onClick = { viewModel.loadOlderMessages() }) {
+                                            Text(stringResource(R.string.chat_load_earlier))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         items(
                             uiState.messages,
                             key = { it.message.id }
                         ) { chatMessage ->
+                            // Skip empty user messages (e.g. compact/summarize triggers)
+                            val hasVisibleContent = if (chatMessage.isUser) {
+                                chatMessage.parts.any { part ->
+                                    part is Part.Text && part.synthetic != true && part.ignored != true && part.text.isNotBlank()
+                                }
+                            } else true
+                            if (!hasVisibleContent) return@items
+
                             ChatMessageBubble(
                                 chatMessage = chatMessage,
                                 onRevert = if (chatMessage.isUser) {
@@ -747,7 +903,7 @@ fun ChatScreen(
                                         viewModel.revertMessage(chatMessage.message.id) { ok ->
                                             coroutineScope.launch {
                                                 snackbarHostState.showSnackbar(
-                                                    if (ok) "Message reverted" else "Failed to revert"
+                                                    if (ok) context.getString(R.string.chat_message_reverted) else context.getString(R.string.chat_message_revert_failed)
                                                 )
                                             }
                                         }
@@ -762,7 +918,7 @@ fun ChatScreen(
                                             androidx.compose.ui.text.AnnotatedString(text)
                                         )
                                         coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("Copied to clipboard")
+                                            snackbarHostState.showSnackbar(context.getString(R.string.chat_copied_clipboard))
                                         }
                                     }
                                 }
@@ -776,7 +932,7 @@ fun ChatScreen(
                                     viewModel.redoMessage { ok ->
                                         coroutineScope.launch {
                                             snackbarHostState.showSnackbar(
-                                                if (ok) "Messages restored" else "Failed to redo"
+                                                if (ok) context.getString(R.string.chat_messages_restored) else context.getString(R.string.chat_message_redo_failed)
                                             )
                                         }
                                     }
@@ -815,13 +971,21 @@ fun ChatScreen(
                     }
 
                     // Scroll-to-bottom FAB
-                    if (!isAtBottom) {
+                    if (!isAtBottom && !autoScrollEnabled) {
                         SmallFloatingActionButton(
                             onClick = {
                                 coroutineScope.launch {
-                                    listState.animateScrollToItem(
-                                        listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
-                                    )
+                                    val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
+                                    listState.scrollToItem(lastIndex)
+                                    val lastItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+                                    if (lastItem != null) {
+                                        val viewport = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+                                        val overflow = lastItem.size - viewport
+                                        if (overflow > 0) {
+                                            listState.scrollBy(overflow.toFloat())
+                                        }
+                                    }
+                                    autoScrollEnabled = true
                                 }
                             },
                             modifier = Modifier
@@ -832,7 +996,7 @@ fun ChatScreen(
                         ) {
                             Icon(
                                 Icons.Default.KeyboardArrowDown,
-                                contentDescription = "Scroll to bottom",
+                                contentDescription = stringResource(R.string.chat_scroll_bottom),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -861,12 +1025,12 @@ fun ChatScreen(
         var renameText by remember { mutableStateOf(uiState.sessionTitle) }
         AlertDialog(
             onDismissRequest = { showRenameDialog = false },
-            title = { Text("Rename Session") },
+            title = { Text(stringResource(R.string.session_rename)) },
             text = {
                 OutlinedTextField(
                     value = renameText,
                     onValueChange = { renameText = it },
-                    label = { Text("Title") },
+                    label = { Text(stringResource(R.string.session_rename_title)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -877,7 +1041,7 @@ fun ChatScreen(
                         viewModel.renameSession(renameText) { ok ->
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar(
-                                    if (ok) "Session renamed" else "Failed to rename"
+                                    if (ok) context.getString(R.string.chat_session_renamed) else context.getString(R.string.chat_session_rename_failed)
                                 )
                             }
                         }
@@ -885,12 +1049,12 @@ fun ChatScreen(
                     },
                     enabled = renameText.isNotBlank()
                 ) {
-                    Text("Rename")
+                    Text(stringResource(R.string.session_rename_button))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showRenameDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -975,7 +1139,7 @@ private fun ModelPickerDialog(
                                 )
                                 if (isModelFree(provider.id, model)) {
                                     Text(
-                                        text = "Free",
+                                        text = stringResource(R.string.chat_free_label),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.8f)
                                     )
@@ -1002,6 +1166,7 @@ private fun ModelPickerDialog(
  * Determine the "status text" for a group of step parts (like WebUI).
  * E.g., "Making edits", "Running commands", "Searching codebase", "Thinking"
  */
+@Composable
 private fun resolveStepsStatus(stepParts: List<Part>): String {
     val toolParts = stepParts.filterIsInstance<Part.Tool>()
     val hasRunning = toolParts.any { it.state is ToolState.Running }
@@ -1011,21 +1176,36 @@ private fun resolveStepsStatus(stepParts: List<Part>): String {
         val bashCount = toolParts.count { it.tool == "bash" }
         val searchCount = toolParts.count { it.tool in listOf("glob", "grep", "read", "list", "listDirectory") }
         return when {
-            editCount > 0 && bashCount == 0 && searchCount == 0 -> "$editCount edit${if (editCount != 1) "s" else ""}"
-            bashCount > 0 && editCount == 0 && searchCount == 0 -> "$bashCount command${if (bashCount != 1) "s" else ""}"
-            else -> "${toolParts.size} step${if (toolParts.size != 1) "s" else ""}"
+            editCount > 0 && bashCount == 0 && searchCount == 0 -> {
+                if (editCount == 1) 
+                    stringResource(R.string.chat_status_edits, editCount)
+                else 
+                    stringResource(R.string.chat_status_edits_plural, editCount)
+            }
+            bashCount > 0 && editCount == 0 && searchCount == 0 -> {
+                if (bashCount == 1)
+                    stringResource(R.string.chat_status_commands, bashCount)
+                else
+                    stringResource(R.string.chat_status_commands_plural, bashCount)
+            }
+            else -> {
+                if (toolParts.size == 1)
+                    stringResource(R.string.chat_status_steps, toolParts.size)
+                else
+                    stringResource(R.string.chat_status_steps_plural, toolParts.size)
+            }
         }
     }
     // Currently running — describe what's happening
     val runningTool = toolParts.lastOrNull { it.state is ToolState.Running }
     return when (runningTool?.tool) {
-        "edit", "write", "multiedit" -> "Making edits"
-        "bash" -> "Running commands"
-        "read", "glob", "grep", "list", "listDirectory" -> "Searching codebase"
-        "webfetch" -> "Fetching URL"
-        "task" -> "Running sub-agent"
-        "todowrite" -> "Updating tasks"
-        else -> "Thinking"
+        "edit", "write", "multiedit" -> stringResource(R.string.chat_status_making_edits)
+        "bash" -> stringResource(R.string.chat_status_running_commands)
+        "read", "glob", "grep", "list", "listDirectory" -> stringResource(R.string.chat_status_searching)
+        "webfetch" -> stringResource(R.string.chat_status_fetching_url)
+        "task" -> stringResource(R.string.chat_status_running_subagent)
+        "todowrite" -> stringResource(R.string.chat_status_updating_tasks)
+        else -> stringResource(R.string.chat_status_thinking)
     }
 }
 
@@ -1110,7 +1290,7 @@ private fun ChatMessageBubble(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Response",
+                                text = stringResource(R.string.chat_response),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     letterSpacing = 0.8.sp,
                                     fontWeight = FontWeight.Medium
@@ -1120,7 +1300,7 @@ private fun ChatMessageBubble(
                             if (onCopyText != null) {
                                 Icon(
                                     Icons.Default.ContentCopy,
-                                    contentDescription = "Copy",
+                                    contentDescription = stringResource(R.string.chat_copy),
                                     modifier = Modifier
                                         .size(15.dp)
                                         .clickable { onCopyText() },
@@ -1157,7 +1337,7 @@ private fun ChatMessageBubble(
                                 )
                             }
                             Text(
-                                text = if (stepsExpanded) "Hide steps" else stepsStatus,
+                                text = if (stepsExpanded) stringResource(R.string.chat_hide_steps) else stepsStatus,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = textColor.copy(alpha = 0.6f)
                             )
@@ -1204,7 +1384,7 @@ private fun ChatMessageBubble(
                     // If no visible content, show empty state for user messages
                     if (visibleParts.isEmpty() && isUser) {
                         Text(
-                            text = "(empty message)",
+                            text = stringResource(R.string.chat_empty_message),
                             style = MaterialTheme.typography.bodyMedium,
                             color = textColor.copy(alpha = 0.5f)
                         )
@@ -1234,8 +1414,8 @@ private fun ChatMessageBubble(
             if (showRevertConfirmation) {
                 AlertDialog(
                     onDismissRequest = { showRevertConfirmation = false },
-                    title = { Text("Revert message?") },
-                    text = { Text("This will undo this message and all subsequent messages. File changes will be reversed.") },
+                    title = { Text(stringResource(R.string.chat_revert_title)) },
+                    text = { Text(stringResource(R.string.chat_revert_message)) },
                     confirmButton = {
                         TextButton(
                             onClick = {
@@ -1243,12 +1423,12 @@ private fun ChatMessageBubble(
                                 onRevert()
                             }
                         ) {
-                            Text("Revert", color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.chat_revert), color = MaterialTheme.colorScheme.error)
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { showRevertConfirmation = false }) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.cancel))
                         }
                     }
                 )
@@ -1267,7 +1447,12 @@ private fun ChatMessageBubble(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(
+                                topStart = 18.dp,
+                                topEnd = 4.dp,
+                                bottomStart = 18.dp,
+                                bottomEnd = 18.dp
+                            ))
                             .background(bgColor)
                             .padding(horizontal = 20.dp),
                         contentAlignment = iconAlignment
@@ -1278,11 +1463,11 @@ private fun ChatMessageBubble(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.Undo,
-                                contentDescription = "Revert",
+                                contentDescription = stringResource(R.string.chat_revert),
                                 tint = MaterialTheme.colorScheme.onErrorContainer
                             )
                             Text(
-                                text = "Revert",
+                                text = stringResource(R.string.chat_revert),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -1327,19 +1512,19 @@ private fun RevertBanner(onRedo: () -> Unit) {
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Messages reverted",
+                    text = stringResource(R.string.chat_messages_reverted),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
                 Text(
-                    text = "Tap to restore, or use /redo",
+                    text = stringResource(R.string.chat_tap_restore),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
                 )
             }
             Icon(
                 Icons.Default.Restore,
-                contentDescription = "Restore",
+                contentDescription = stringResource(R.string.chat_restore),
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onTertiaryContainer
             )
@@ -1402,28 +1587,28 @@ private fun PartContent(
         }
         is Part.Permission -> {
             Text(
-                text = "Permission: ${part.message}",
+                text = stringResource(R.string.chat_permission_label, part.message),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.tertiary
             )
         }
         is Part.Question -> {
             Text(
-                text = "Question: ${part.question}",
+                text = stringResource(R.string.chat_question_inline, part.question),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.tertiary
             )
         }
         is Part.Abort -> {
             Text(
-                text = "Aborted: ${part.reason}",
+                text = stringResource(R.string.chat_aborted, part.reason),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error
             )
         }
         is Part.Retry -> {
             Text(
-                text = "Retry #${part.attempt}: ${part.errorMessage}",
+                text = stringResource(R.string.chat_retry, part.attempt, part.errorMessage),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error
             )
@@ -1564,7 +1749,7 @@ private fun ReasoningBlock(text: String) {
             
             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
                 Text(
-                    text = "Thinking",
+                    text = stringResource(R.string.chat_status_thinking),
                     style = MaterialTheme.typography.labelSmall.copy(
                         letterSpacing = 0.6.sp,
                         fontWeight = FontWeight.Medium
@@ -1603,7 +1788,7 @@ private fun ToolCallCard(tool: Part.Tool) {
     }
 
     // Resolve display info based on tool type
-    val toolDisplay = remember(tool.tool, tool.state) { resolveToolDisplay(tool.tool, tool.state, input) }
+    val toolDisplay = resolveToolDisplay(tool.tool, tool.state, input)
 
     var expanded by remember { mutableStateOf(false) }
 
@@ -1664,7 +1849,7 @@ private fun ToolCallCard(tool: Part.Tool) {
                 if (tool.state is ToolState.Completed || tool.state is ToolState.Error) {
                     Icon(
                         imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (expanded) "Collapse" else "Expand",
+                        contentDescription = if (expanded) stringResource(R.string.chat_collapse) else stringResource(R.string.chat_expand),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                     )
@@ -1726,6 +1911,7 @@ private data class ToolDisplayInfo(
  * Resolve display info for a tool call based on its type and input arguments.
  * Matches WebUI tool registry behavior with human-readable titles.
  */
+@Composable
 private fun resolveToolDisplay(
     toolName: String,
     state: ToolState,
@@ -1746,21 +1932,21 @@ private fun resolveToolDisplay(
     return when (toolName) {
         "read" -> {
             ToolDisplayInfo(
-                title = serverTitle ?: "Read file",
+                title = serverTitle ?: stringResource(R.string.tool_read_file),
                 subtitle = shortPath ?: filePath,
                 icon = Icons.Default.Description
             )
         }
         "write" -> {
             ToolDisplayInfo(
-                title = serverTitle ?: "Write file",
+                title = serverTitle ?: stringResource(R.string.tool_write_file),
                 subtitle = shortPath ?: filePath,
                 icon = Icons.Default.EditNote
             )
         }
         "edit" -> {
             ToolDisplayInfo(
-                title = serverTitle ?: "Edit file",
+                title = serverTitle ?: stringResource(R.string.tool_edit_file),
                 subtitle = shortPath ?: filePath,
                 icon = Icons.Default.Edit
             )
@@ -1771,7 +1957,7 @@ private fun resolveToolDisplay(
                 if (it.length > 60) it.take(57) + "..." else it
             }
             ToolDisplayInfo(
-                title = serverTitle ?: "Terminal",
+                title = serverTitle ?: stringResource(R.string.tool_terminal),
                 subtitle = shortCmd,
                 icon = Icons.Default.Terminal
             )
@@ -1779,7 +1965,7 @@ private fun resolveToolDisplay(
         "glob" -> {
             val pattern = input["pattern"]?.jsonPrimitive?.contentOrNull
             ToolDisplayInfo(
-                title = serverTitle ?: "Find files",
+                title = serverTitle ?: stringResource(R.string.tool_find_files),
                 subtitle = pattern,
                 icon = Icons.Default.FolderOpen
             )
@@ -1787,14 +1973,14 @@ private fun resolveToolDisplay(
         "grep" -> {
             val pattern = input["pattern"]?.jsonPrimitive?.contentOrNull
             ToolDisplayInfo(
-                title = serverTitle ?: "Search code",
+                title = serverTitle ?: stringResource(R.string.tool_search_code),
                 subtitle = pattern,
                 icon = Icons.Default.Search
             )
         }
         "list", "listDirectory" -> {
             ToolDisplayInfo(
-                title = serverTitle ?: "List directory",
+                title = serverTitle ?: stringResource(R.string.tool_list_directory),
                 subtitle = filePath,
                 icon = Icons.Default.Folder
             )
@@ -1805,7 +1991,7 @@ private fun resolveToolDisplay(
                 try { java.net.URI(it).host } catch (_: Exception) { it.take(40) }
             }
             ToolDisplayInfo(
-                title = serverTitle ?: "Fetch URL",
+                title = serverTitle ?: stringResource(R.string.tool_fetch_url),
                 subtitle = shortUrl,
                 icon = Icons.Default.Language
             )
@@ -1813,14 +1999,14 @@ private fun resolveToolDisplay(
         "task" -> {
             val description = input["description"]?.jsonPrimitive?.contentOrNull
             ToolDisplayInfo(
-                title = serverTitle ?: "Sub-agent",
+                title = serverTitle ?: stringResource(R.string.tool_sub_agent),
                 subtitle = description,
                 icon = Icons.Default.AccountTree
             )
         }
         "apply_patch" -> {
             ToolDisplayInfo(
-                title = serverTitle ?: "Apply patch",
+                title = serverTitle ?: stringResource(R.string.tool_apply_patch),
                 subtitle = shortPath,
                 icon = Icons.Default.Compare
             )
@@ -1924,7 +2110,7 @@ private fun EditToolCard(tool: Part.Tool) {
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Edit",
+                            text = stringResource(R.string.chat_edit_label),
                             style = MaterialTheme.typography.labelMedium,
                             maxLines = 1
                         )
@@ -2173,7 +2359,7 @@ private fun WriteToolCard(tool: Part.Tool) {
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Write",
+                            text = stringResource(R.string.chat_write_label),
                             style = MaterialTheme.typography.labelMedium
                         )
                         if (shortPath.isNotBlank()) {
@@ -2273,7 +2459,7 @@ private fun BashToolCard(tool: Part.Tool) {
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = serverTitle ?: "Shell",
+                            text = serverTitle ?: stringResource(R.string.tool_shell),
                             style = MaterialTheme.typography.labelMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -2387,7 +2573,7 @@ private fun ReadToolCard(tool: Part.Tool) {
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = serverTitle ?: "Read",
+                        text = serverTitle ?: stringResource(R.string.tool_read),
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1
                     )
@@ -2441,8 +2627,8 @@ private fun SearchToolCard(tool: Part.Tool) {
     }
 
     val title = when (tool.tool) {
-        "glob" -> serverTitle ?: "Glob"
-        "grep" -> serverTitle ?: "Grep"
+        "glob" -> serverTitle ?: stringResource(R.string.tool_find_files)
+        "grep" -> serverTitle ?: stringResource(R.string.tool_search_code)
         else -> serverTitle ?: tool.tool
     }
 
@@ -2598,7 +2784,7 @@ private fun TaskToolCard(tool: Part.Tool) {
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = serverTitle ?: "Sub-agent",
+                            text = serverTitle ?: stringResource(R.string.tool_sub_agent),
                             style = MaterialTheme.typography.labelMedium,
                             maxLines = 1
                         )
@@ -2714,7 +2900,7 @@ private fun TodoListCard(tool: Part.Tool) {
                         }
                     )
                     Text(
-                        text = "Tasks",
+                        text = stringResource(R.string.chat_tasks_label),
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
@@ -2729,7 +2915,7 @@ private fun TodoListCard(tool: Part.Tool) {
                     )
                     Icon(
                         imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (expanded) "Collapse" else "Expand",
+                        contentDescription = if (expanded) stringResource(R.string.chat_collapse) else stringResource(R.string.chat_expand),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
@@ -2805,14 +2991,14 @@ private fun StepFinishInfo(step: Part.StepFinish) {
         ) {
             step.tokens?.let { tokens ->
                 Text(
-                    text = "${tokens.input}/${tokens.output} tokens",
+                    text = stringResource(R.string.chat_tokens_format, tokens.input, tokens.output),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                 )
             }
             step.cost?.let { cost ->
                 Text(
-                    text = "$${String.format("%.4f", cost)}",
+                    text = stringResource(R.string.chat_cost_format, String.format("%.4f", cost)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                 )
@@ -2880,7 +3066,10 @@ private fun PatchCard(patch: Part.Patch) {
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "${patch.files.size} file${if (patch.files.size != 1) "s" else ""} changed",
+                        text = if (patch.files.size == 1) 
+                            stringResource(R.string.chat_files_changed, patch.files.size)
+                        else 
+                            stringResource(R.string.chat_files_changed_plural, patch.files.size),
                         style = MaterialTheme.typography.labelMedium
                     )
                     // +N/-N summary
@@ -2911,7 +3100,7 @@ private fun PatchCard(patch: Part.Patch) {
                 }
                 Icon(
                     imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    contentDescription = if (expanded) stringResource(R.string.chat_collapse) else stringResource(R.string.chat_expand),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                 )
@@ -3030,10 +3219,10 @@ private fun PatchFileRow(
         ) {
             // Action label
             val (actionLabel, actionColor) = when (file.type) {
-                "add" -> "Created" to addColor
-                "delete" -> "Deleted" to delColor
-                "move" -> "Moved" to Color(0xFFFFA726)
-                else -> "Patched" to MaterialTheme.colorScheme.onSurface
+                "add" -> stringResource(R.string.patch_created) to addColor
+                "delete" -> stringResource(R.string.patch_deleted) to delColor
+                "move" -> stringResource(R.string.patch_moved) to Color(0xFFFFA726)
+                else -> stringResource(R.string.patch_patched) to MaterialTheme.colorScheme.onSurface
             }
             Text(
                 text = actionLabel,
@@ -3136,7 +3325,7 @@ private fun ImageThumbnailRow(imageFiles: List<Part.File>) {
             if (bitmap != null) {
                 androidx.compose.foundation.Image(
                     bitmap = bitmap.asImageBitmap(),
-                    contentDescription = file.filename ?: "Image",
+                    contentDescription = file.filename ?: stringResource(R.string.chat_image),
                     modifier = Modifier
                         .size(80.dp)
                         .clip(RoundedCornerShape(8.dp))
@@ -3182,16 +3371,16 @@ private fun ImageThumbnailRow(imageFiles: List<Part.File>) {
                 onDismissRequest = { previewIndex = -1 },
                 confirmButton = {
                     TextButton(onClick = { previewIndex = -1 }) {
-                        Text("Close")
+                        Text(stringResource(R.string.close))
                     }
                 },
                 text = {
                     androidx.compose.foundation.Image(
                         bitmap = bitmap.asImageBitmap(),
-                        contentDescription = file.filename ?: "Image",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 480.dp),
+                    contentDescription = file.filename ?: stringResource(R.string.chat_image),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 480.dp),
                         contentScale = ContentScale.Fit
                     )
                 }
@@ -3261,7 +3450,7 @@ private fun PermissionCard(
                     tint = MaterialTheme.colorScheme.onTertiaryContainer
                 )
                 Text(
-                    text = "Permission Required",
+                    text = stringResource(R.string.permission_title),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
@@ -3284,16 +3473,28 @@ private fun PermissionCard(
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedButton(onClick = onReject) {
-                    Text("Reject")
+                OutlinedButton(
+                    onClick = onReject,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                ) {
+                    Text(stringResource(R.string.permission_deny), maxLines = 1)
                 }
-                OutlinedButton(onClick = onOnce) {
-                    Text("Once")
+                OutlinedButton(
+                    onClick = onOnce,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                ) {
+                    Text(stringResource(R.string.permission_allow_once), maxLines = 1)
                 }
-                Button(onClick = onAlways) {
-                    Text("Always")
+                Button(
+                    onClick = onAlways,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                ) {
+                    Text(stringResource(R.string.permission_allow_always), maxLines = 1)
                 }
             }
         }
@@ -3301,13 +3502,13 @@ private fun PermissionCard(
 }
 
 /** Rotating placeholder hints for the input bar, similar to the WebUI prompt input. */
-private val placeholderHints = listOf(
-    "Ask a question...",
-    "Fix the bug in...",
-    "Refactor the...",
-    "Add tests for...",
-    "Explain how...",
-    "Help me with...",
+private val placeholderHintResIds = listOf(
+    R.string.chat_hint_ask,
+    R.string.chat_hint_fix,
+    R.string.chat_hint_refactor,
+    R.string.chat_hint_tests,
+    R.string.chat_hint_explain,
+    R.string.chat_hint_help,
 )
 
 @Composable
@@ -3340,21 +3541,22 @@ private fun ChatInputBar(
     LaunchedEffect(Unit) {
         while (true) {
             kotlinx.coroutines.delay(4000)
-            hintIndex.intValue = (hintIndex.intValue + 1) % placeholderHints.size
+            hintIndex.intValue = (hintIndex.intValue + 1) % placeholderHintResIds.size
         }
     }
-    val placeholder = placeholderHints[hintIndex.intValue]
+    val placeholder = stringResource(placeholderHintResIds[hintIndex.intValue])
 
     val text = textFieldValue.text
     val canSend = (text.isNotBlank() || attachments.isNotEmpty()) && !isSending
 
     // Build merged slash commands: client commands + server commands (deduplicated)
-    val allCommands = remember(commands) {
-        val clientNames = clientCommands.map { it.name }.toSet()
+    val clientCmds = clientCommands()
+    val allCommands = remember(commands, clientCmds) {
+        val clientNames = clientCmds.map { it.name }.toSet()
         val serverSlash = commands
             .filter { it.source != "skill" && it.name !in clientNames }
             .map { SlashCommand(it.name, it.description, "server") }
-        clientCommands + serverSlash
+        clientCmds + serverSlash
     }
 
     // Slash command suggestions
@@ -3506,19 +3708,19 @@ private fun ChatInputBar(
             val statusText = if (lastRunningTool != null) {
                 val title = (lastRunningTool.state as ToolState.Running).title
                 when (lastRunningTool.tool) {
-                    "read" -> title ?: "Reading file..."
-                    "write" -> title ?: "Writing file..."
-                    "edit" -> title ?: "Editing file..."
-                    "bash" -> title ?: "Running command..."
-                    "glob", "list" -> title ?: "Searching files..."
-                    "grep" -> title ?: "Searching code..."
-                    "webfetch" -> title ?: "Fetching URL..."
-                    "task" -> title ?: "Running sub-agent..."
-                    "todowrite" -> title ?: "Updating tasks..."
-                    else -> title ?: "Running ${lastRunningTool.tool}..."
+                    "read" -> title ?: stringResource(R.string.chat_tool_reading_file)
+                    "write" -> title ?: stringResource(R.string.chat_tool_writing_file)
+                    "edit" -> title ?: stringResource(R.string.chat_tool_editing_file)
+                    "bash" -> title ?: stringResource(R.string.chat_tool_running_command)
+                    "glob", "list" -> title ?: stringResource(R.string.chat_tool_searching_files)
+                    "grep" -> title ?: stringResource(R.string.chat_tool_searching_code)
+                    "webfetch" -> title ?: stringResource(R.string.chat_tool_fetching_url)
+                    "task" -> title ?: stringResource(R.string.chat_tool_running_subagent)
+                    "todowrite" -> title ?: stringResource(R.string.chat_tool_updating_tasks)
+                    else -> title ?: stringResource(R.string.chat_tool_running_tool, lastRunningTool.tool)
                 }
             } else {
-                "Thinking..."
+                stringResource(R.string.chat_tool_thinking)
             }
 
             Row(
@@ -3552,95 +3754,103 @@ private fun ChatInputBar(
             // Agent + Model + Variant + Attach selector row — small, subtle
             if (modelLabel.isNotEmpty() || agents.size > 1) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Agent selector (build/plan toggle) — FIRST
-                    if (agents.size > 1) {
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            agents.forEach { agent ->
-                                val isActive = agent.name == selectedAgent
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .then(
-                                            if (isActive) Modifier.background(
-                                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                            ) else Modifier
+                    // Scrollable area for agent/model/variant so paperclip always stays visible
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .horizontalScroll(rememberScrollState()),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // Agent selector (build/plan toggle) — FIRST
+                        if (agents.size > 1) {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                agents.forEach { agent ->
+                                    val isActive = agent.name == selectedAgent
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .then(
+                                                if (isActive) Modifier.background(
+                                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                                ) else Modifier
+                                            )
+                                            .clickable { onAgentSelect(agent.name) }
+                                            .padding(horizontal = 6.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = agent.name.replaceFirstChar { it.uppercase() },
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (isActive) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                            }
                                         )
-                                        .clickable { onAgentSelect(agent.name) }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        text = agent.name.replaceFirstChar { it.uppercase() },
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (isActive) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                        }
-                                    )
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    // Model selector — SECOND
-                    if (modelLabel.isNotEmpty()) {
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable { onModelClick() }
-                                .padding(horizontal = 4.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
+                        // Model selector — SECOND
+                        if (modelLabel.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { onModelClick() }
+                                    .padding(horizontal = 3.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Text(
+                                    text = modelLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                                Icon(
+                                    Icons.Default.UnfoldMore,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+
+                        // Variant cycle button (thinking effort) — THIRD
+                        if (variantNames.isNotEmpty()) {
                             Text(
-                                text = modelLabel,
+                                text = selectedVariant?.replaceFirstChar { it.uppercase() } ?: stringResource(R.string.chat_default_variant),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
-                            Icon(
-                                Icons.Default.UnfoldMore,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                color = if (selectedVariant != null) {
+                                    MaterialTheme.colorScheme.tertiary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                },
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { onCycleVariant() }
+                                    .padding(horizontal = 3.dp, vertical = 3.dp)
                             )
                         }
                     }
 
-                    // Variant cycle button (thinking effort) — THIRD
-                    if (variantNames.isNotEmpty()) {
-                        Text(
-                            text = selectedVariant?.replaceFirstChar { it.uppercase() } ?: "Default",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (selectedVariant != null) {
-                                MaterialTheme.colorScheme.tertiary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            },
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable { onCycleVariant() }
-                                .padding(horizontal = 6.dp, vertical = 4.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    // Attach button (paperclip)
+                    // Attach button (paperclip) — always visible, pinned right
                     IconButton(
                         onClick = onAttach,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier
+                            .size(32.dp)
+                            .padding(end = 8.dp)
                     ) {
                         Icon(
                             Icons.Default.AttachFile,
-                            contentDescription = "Attach",
+                            contentDescription = stringResource(R.string.chat_attach),
                             modifier = Modifier.size(20.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -3679,7 +3889,7 @@ private fun ChatInputBar(
                                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                                     Icon(
                                         Icons.Default.Close,
-                                        contentDescription = "Remove",
+                                        contentDescription = stringResource(R.string.chat_remove),
                                         modifier = Modifier.size(12.dp),
                                         tint = MaterialTheme.colorScheme.onError
                                     )
@@ -3749,7 +3959,7 @@ private fun ChatInputBar(
                     } else {
                         Icon(
                             Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Send",
+                            contentDescription = stringResource(R.string.chat_send),
                             modifier = Modifier.size(20.dp),
                             tint = if (canSend) {
                                 MaterialTheme.colorScheme.primary
@@ -3815,7 +4025,7 @@ private fun QuestionCard(
                     tint = accentColor
                 )
                 Text(
-                    text = "Question",
+                    text = stringResource(R.string.chat_question_label),
                     style = MaterialTheme.typography.titleSmall,
                     color = contentColor
                 )
@@ -3983,7 +4193,7 @@ private fun QuestionCard(
                                 ) {
                                     Icon(
                                         Icons.Default.Close,
-                                        contentDescription = "Clear",
+                                        contentDescription = stringResource(R.string.chat_clear),
                                         modifier = Modifier.size(16.dp),
                                         tint = accentColor.copy(alpha = 0.7f)
                                     )
@@ -4016,7 +4226,7 @@ private fun QuestionCard(
                                         tint = accentColor.copy(alpha = 0.7f)
                                     )
                                     Text(
-                                        text = "Type your own answer",
+                                        text = stringResource(R.string.question_custom_answer),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = accentColor.copy(alpha = 0.7f)
                                     )
@@ -4029,7 +4239,7 @@ private fun QuestionCard(
                                 enabled = !submitted,
                                 placeholder = {
                                     Text(
-                                        "Type your answer...",
+                                        stringResource(R.string.chat_type_answer),
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 },
@@ -4060,14 +4270,14 @@ private fun QuestionCard(
                                         ) {
                                             Icon(
                                                 Icons.AutoMirrored.Filled.Send,
-                                                contentDescription = "Submit",
+                                                contentDescription = stringResource(R.string.question_submit),
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
                                         IconButton(onClick = { isEditingCustom = false; customText = "" }) {
                                             Icon(
                                                 Icons.Default.Close,
-                                                contentDescription = "Cancel",
+                                                contentDescription = stringResource(R.string.question_cancel),
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -4091,7 +4301,7 @@ private fun QuestionCard(
                     },
                     enabled = !submitted
                 ) {
-                    Text("Dismiss", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.chat_dismiss), style = MaterialTheme.typography.labelMedium)
                 }
                 if (!isSingle) {
                     Button(
@@ -4102,7 +4312,7 @@ private fun QuestionCard(
                         enabled = answersPerQuestion.any { it.isNotEmpty() } && !submitted,
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
                     ) {
-                        Text("Submit", style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.question_submit), style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }

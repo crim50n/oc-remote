@@ -50,7 +50,13 @@ data class ChatUiState(
     val selectedAgent: String = "build",
     val variantNames: List<String> = emptyList(),
     val selectedVariant: String? = null,
-    val commands: List<CommandInfo> = emptyList()
+    val commands: List<CommandInfo> = emptyList(),
+    /** True when there are older messages on the server that haven't been loaded yet. */
+    val hasOlderMessages: Boolean = false,
+    /** True while a "load older" request is in flight. */
+    val isLoadingOlder: Boolean = false,
+    /** Share URL if session is shared, null otherwise. */
+    val shareUrl: String? = null
 )
 
 /**
@@ -110,6 +116,16 @@ class ChatViewModel @Inject constructor(
     private val _selectedVariant = MutableStateFlow<String?>(null)
     private val _commands = MutableStateFlow<List<CommandInfo>>(emptyList())
 
+    // ============ Pagination ============
+    /** Initial number of messages to load. */
+    private val INITIAL_MESSAGE_LIMIT = 50
+    /** Current message limit (doubles each time user loads older messages). */
+    private var currentMessageLimit = INITIAL_MESSAGE_LIMIT
+    /** Whether there are more messages on the server beyond the current limit. */
+    private val _hasOlderMessages = MutableStateFlow(false)
+    /** Whether a "load older" request is in flight. */
+    private val _isLoadingOlder = MutableStateFlow(false)
+
     val uiState: StateFlow<ChatUiState> = combine(
         eventReducer.sessions,
         eventReducer.messages,
@@ -127,7 +143,9 @@ class ChatViewModel @Inject constructor(
         _agents,
         _selectedAgent,
         _selectedVariant,
-        _commands
+        _commands,
+        _hasOlderMessages,
+        _isLoadingOlder
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val allSessions = args[0] as List<Session>
@@ -150,6 +168,8 @@ class ChatViewModel @Inject constructor(
         val isAgentExplicitlySelected = agentSelection.second
         val selectedVariant = args[15] as String?
         val commands = args[16] as List<CommandInfo>
+        val hasOlderMessages = args[17] as Boolean
+        val isLoadingOlder = args[18] as Boolean
 
         val session = allSessions.find { it.id == sessionId }
         val sessionMessages = allMessages[sessionId] ?: emptyList()
@@ -243,7 +263,10 @@ class ChatViewModel @Inject constructor(
             selectedAgent = effectiveAgent,
             variantNames = availableVariants,
             selectedVariant = if (selectedVariant != null && selectedVariant in availableVariants) selectedVariant else null,
-            commands = commands
+            commands = commands,
+            hasOlderMessages = hasOlderMessages,
+            isLoadingOlder = isLoadingOlder,
+            shareUrl = session?.share?.url
         )
     }.stateIn(
         viewModelScope,
@@ -281,14 +304,54 @@ class ChatViewModel @Inject constructor(
             _isLoading.value = true
             _error.value = null
             try {
-                val messages = api.listMessages(conn, sessionId)
+                val messages = api.listMessages(conn, sessionId, limit = currentMessageLimit)
                 eventReducer.setMessages(sessionId, messages)
-                if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${messages.size} messages for session $sessionId")
+                // If we got exactly the limit, there are likely more messages on the server
+                _hasOlderMessages.value = messages.size >= currentMessageLimit
+                if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${messages.size} messages for session $sessionId (limit=$currentMessageLimit, hasOlder=${_hasOlderMessages.value})")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load messages", e)
-                _error.value = e.message ?: "Failed to load messages"
+                // On OOM or other memory errors, retry with a smaller limit
+                if (e is OutOfMemoryError || (e.cause is OutOfMemoryError)) {
+                    Log.w(TAG, "OOM loading messages, retrying with smaller limit")
+                    currentMessageLimit = (currentMessageLimit / 2).coerceAtLeast(10)
+                    try {
+                        val messages = api.listMessages(conn, sessionId, limit = currentMessageLimit)
+                        eventReducer.setMessages(sessionId, messages)
+                        _hasOlderMessages.value = messages.size >= currentMessageLimit
+                        if (BuildConfig.DEBUG) Log.d(TAG, "Retry succeeded: loaded ${messages.size} messages (limit=$currentMessageLimit)")
+                    } catch (retryEx: Exception) {
+                        Log.e(TAG, "Retry also failed", retryEx)
+                        _error.value = retryEx.message ?: "Failed to load messages"
+                    }
+                } else {
+                    _error.value = e.message ?: "Failed to load messages"
+                }
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Load older messages by doubling the limit and reloading.
+     * The server returns the N most recent messages, so we simply request more.
+     */
+    fun loadOlderMessages() {
+        viewModelScope.launch {
+            _isLoadingOlder.value = true
+            currentMessageLimit *= 2
+            try {
+                val messages = api.listMessages(conn, sessionId, limit = currentMessageLimit)
+                eventReducer.setMessages(sessionId, messages)
+                _hasOlderMessages.value = messages.size >= currentMessageLimit
+                if (BuildConfig.DEBUG) Log.d(TAG, "Loaded older: ${messages.size} messages (limit=$currentMessageLimit, hasOlder=${_hasOlderMessages.value})")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load older messages", e)
+                // Roll back the limit on failure
+                currentMessageLimit /= 2
+            } finally {
+                _isLoadingOlder.value = false
             }
         }
     }

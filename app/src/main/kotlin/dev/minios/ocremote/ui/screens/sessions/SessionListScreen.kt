@@ -21,6 +21,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
+import dev.minios.ocremote.R
 import dev.minios.ocremote.data.api.FileNode
 import dev.minios.ocremote.domain.model.Project
 import dev.minios.ocremote.domain.model.SessionStatus
@@ -81,14 +83,14 @@ fun SessionListScreen(
                 title = {
                     Column {
                         Text(
-                            text = uiState.serverName.ifEmpty { "Sessions" },
+                            text = uiState.serverName.ifEmpty { stringResource(R.string.sessions_title) },
                             style = MaterialTheme.typography.titleMedium
                         )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -107,7 +109,7 @@ fun SessionListScreen(
                     }
                 }
             ) {
-                Icon(Icons.Default.Add, contentDescription = "New Session")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sessions_new))
             }
         }
     ) { padding ->
@@ -138,12 +140,12 @@ fun SessionListScreen(
                             tint = MaterialTheme.colorScheme.error
                         )
                         Text(
-                            text = uiState.error ?: "Unknown error",
+                            text = uiState.error ?: stringResource(R.string.session_unknown_error),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )
                         Button(onClick = { viewModel.loadSessions() }) {
-                            Text("Retry")
+                            Text(stringResource(R.string.retry))
                         }
                     }
                 }
@@ -162,12 +164,12 @@ fun SessionListScreen(
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                         )
                         Text(
-                            text = "No sessions yet",
+                            text = stringResource(R.string.sessions_empty),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Text(
-                            text = "Tap + to start a new conversation",
+                            text = stringResource(R.string.sessions_tap_plus),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         )
@@ -185,6 +187,7 @@ fun SessionListScreen(
                                     .trimEnd('/')
                                     .substringAfterLast('/')
                                     .ifEmpty { null }
+                                val untitledLabel = stringResource(R.string.session_untitled)
                                 SessionRow(
                                     item = item,
                                     projectName = sessionDir ?: group.projectName,
@@ -196,7 +199,7 @@ fun SessionListScreen(
                                     },
                                     onDelete = {
                                         deleteSessionId = item.session.id
-                                        deleteSessionTitle = item.session.title ?: "Untitled session"
+                                        deleteSessionTitle = item.session.title ?: untitledLabel
                                         showDeleteDialog = true
                                     }
                                 )
@@ -242,12 +245,12 @@ fun SessionListScreen(
     if (showRenameDialog) {
         AlertDialog(
             onDismissRequest = { showRenameDialog = false },
-            title = { Text("Rename Session") },
+            title = { Text(stringResource(R.string.session_rename)) },
             text = {
                 OutlinedTextField(
                     value = renameText,
                     onValueChange = { renameText = it },
-                    label = { Text("Title") },
+                    label = { Text(stringResource(R.string.session_rename_title)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -260,12 +263,12 @@ fun SessionListScreen(
                     },
                     enabled = renameText.isNotBlank()
                 ) {
-                    Text("Rename")
+                    Text(stringResource(R.string.session_rename_button))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showRenameDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -275,9 +278,9 @@ fun SessionListScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Session") },
+            title = { Text(stringResource(R.string.session_delete)) },
             text = {
-                Text("Delete \"$deleteSessionTitle\"? This cannot be undone.")
+                Text(stringResource(R.string.session_delete_confirm, deleteSessionTitle))
             },
             confirmButton = {
                 TextButton(
@@ -289,12 +292,12 @@ fun SessionListScreen(
                         contentColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -431,11 +434,11 @@ private fun OpenProjectDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Open project",
+                        text = stringResource(R.string.sessions_open_project),
                         style = MaterialTheme.typography.titleMedium
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                     }
                 }
 
@@ -470,7 +473,7 @@ private fun OpenProjectDialog(
                         decorationBox = { innerTextField ->
                             if (searchQuery.isEmpty()) {
                                 Text(
-                                    text = "Search folders",
+                                    text = stringResource(R.string.sessions_search_folders),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                                 )
@@ -478,16 +481,16 @@ private fun OpenProjectDialog(
                             innerTextField()
                         }
                     )
-                    if (searchQuery.isNotEmpty()) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Clear",
-                            modifier = Modifier
-                                .size(18.dp)
-                                .clickable { searchQuery = "" },
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                    }
+                        if (searchQuery.isNotEmpty()) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = stringResource(R.string.chat_clear),
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clickable { searchQuery = "" },
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
                 }
 
                 // Breadcrumb / current path (when not searching)
@@ -512,7 +515,7 @@ private fun OpenProjectDialog(
                         if (canGoUp) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Up",
+                                contentDescription = stringResource(R.string.back),
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                             )
@@ -550,7 +553,7 @@ private fun OpenProjectDialog(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "No folders found",
+                                    text = stringResource(R.string.sessions_no_folders),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                 )
@@ -589,7 +592,7 @@ private fun OpenProjectDialog(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "Empty directory",
+                                    text = stringResource(R.string.sessions_empty_directory),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                 )
@@ -672,19 +675,19 @@ private fun DirectoryRow(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        if (onNavigate != null) {
-            IconButton(
-                onClick = onNavigate,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    Icons.Default.ChevronRight,
-                    contentDescription = "Open",
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                )
+            if (onNavigate != null) {
+                IconButton(
+                    onClick = onNavigate,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = stringResource(R.string.open),
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    )
+                }
             }
-        }
     }
 }
 
@@ -734,7 +737,7 @@ private fun NewSessionQuickDialog(
             Column(modifier = Modifier.padding(vertical = 16.dp)) {
                 // Header
                 Text(
-                    text = "New session",
+                    text = stringResource(R.string.sessions_new_dialog_title),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp)
                 )
@@ -807,7 +810,7 @@ private fun NewSessionQuickDialog(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                     Text(
-                        text = "Open other project...",
+                        text = stringResource(R.string.sessions_open_other_project),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -888,12 +891,12 @@ private fun SessionRow(
                         ) {
                             Icon(
                                 Icons.Default.Edit,
-                                contentDescription = "Rename",
+                                contentDescription = stringResource(R.string.session_rename),
                                 tint = iconTint,
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
-                                "Rename",
+                                stringResource(R.string.session_rename),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = iconTint
                             )
@@ -905,13 +908,13 @@ private fun SessionRow(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "Delete",
+                                stringResource(R.string.delete),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = iconTint
                             )
                             Icon(
                                 Icons.Default.Delete,
-                                contentDescription = "Delete",
+                                contentDescription = stringResource(R.string.delete),
                                 tint = iconTint,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -951,7 +954,7 @@ private fun SessionRow(
 
                     // Title
                     Text(
-                        text = item.session.title ?: "Untitled session",
+                        text = item.session.title ?: stringResource(R.string.session_untitled),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.bodyLarge
@@ -983,7 +986,7 @@ private fun SessionRow(
                                         color = MaterialTheme.colorScheme.tertiary
                                     )
                                     Text(
-                                        text = "Working",
+                                        text = stringResource(R.string.sessions_working),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.tertiary
                                     )
@@ -1001,7 +1004,7 @@ private fun SessionRow(
                                             .background(MaterialTheme.colorScheme.error)
                                     )
                                     Text(
-                                        text = "Retrying",
+                                        text = stringResource(R.string.sessions_retrying),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.error
                                     )
@@ -1016,7 +1019,7 @@ private fun SessionRow(
                             Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                                 if (summary.additions > 0) {
                                     Text(
-                                        text = "+${summary.additions}",
+                                        text = stringResource(R.string.session_changes_additions, summary.additions),
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontFamily = FontFamily.Monospace,
                                             fontSize = 11.sp,
@@ -1026,7 +1029,7 @@ private fun SessionRow(
                                 }
                                 if (summary.deletions > 0) {
                                     Text(
-                                        text = "-${summary.deletions}",
+                                        text = stringResource(R.string.session_changes_deletions, summary.deletions),
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontFamily = FontFamily.Monospace,
                                             fontSize = 11.sp,

@@ -8,10 +8,21 @@
     <string name="home_no_servers">No servers configured</string>
     <string name="home_server_health_good">Connected</string>
     <string name="home_server_health_bad">Disconnected</string>
+    <string name="home_connect">Connect</string>
+    <string name="home_connecting">Connecting…</string>
+    <string name="home_disconnect">Disconnect</string>
+    <string name="home_edit">Edit</string>
+    <string name="home_fix">Fix</string>
+    <string name="home_battery_title">Battery restrictions active</string>
+    <string name="home_battery_message">Background connections may be killed. Tap to disable optimization.</string>
     
     <!-- Server Management -->
+    <string name="server_name">Server Name</string>
+    <string name="server_name_hint">My OpenCode Server</string>
+    <string name="server_name_required">Name is required</string>
     <string name="server_url">Server URL</string>
     <string name="server_url_hint">http://192.168.1.100:4096</string>
+    <string name="server_url_example">e.g. http://192.168.0.10:4096 or https://my-server:443</string>
     <string name="server_username">Username</string>
     <string name="server_username_hint">opencode</string>
     <string name="server_password">Password</string>
@@ -19,26 +30,177 @@
     <string name="server_save">Save</string>
     <string name="server_cancel">Cancel</string>
     <string name="server_delete">Delete</string>
+    <string name="server_add">Add Server</string>
+    <string name="server_invalid_url">Invalid URL format</string>
     
     <!-- Session Screen -->
     <string name="sessions_title">Sessions</string>
     <string name="sessions_new">New Session</string>
+    <string name="sessions_new_dialog_title">New session</string>
+    <string name="sessions_open_other_project">Open other project…</string>
+    <string name="sessions_new_on_server">New session on %1$s…</string>
+    <string name="sessions_new_short">New session…</string>
     <string name="sessions_empty">No sessions yet</string>
+    <string name="sessions_tap_plus">Tap + to start a new conversation</string>
+    <string name="sessions_open_project">Open project</string>
+    <string name="sessions_search_folders">Search folders</string>
+    <string name="sessions_no_folders">No folders found</string>
+    <string name="sessions_empty_directory">Empty directory</string>
+    <string name="sessions_working">Working</string>
+    <string name="sessions_retrying">Retrying</string>
     <string name="session_status_idle">Idle</string>
     <string name="session_status_busy">Working…</string>
     <string name="session_status_retry">Retrying (%1$d/%2$d)</string>
+    <string name="session_rename">Rename Session</string>
+    <string name="session_rename_title">Title</string>
+    <string name="session_rename_button">Rename</string>
+    <string name="session_delete">Delete Session</string>
+    <string name="session_delete_confirm">Delete \"%1$s\"? This cannot be undone.</string>
+    <string name="session_changes_additions">+%1$d</string>
+    <string name="session_changes_deletions">-%1$d</string>
+    <string name="session_untitled">Untitled session</string>
+    <string name="session_unknown_error">Unknown error</string>
     
     <!-- Chat Screen -->
     <string name="chat_input_hint">Message OpenCode…</string>
     <string name="chat_send">Send</string>
+    <string name="chat_stop">Stop</string>
     <string name="chat_abort">Abort</string>
     <string name="chat_empty">Start a conversation with OpenCode</string>
+    <string name="chat_copy">Copy</string>
+    <string name="chat_revert">Revert</string>
+    <string name="chat_revert_title">Revert message?</string>
+    <string name="chat_revert_message">This will undo this message and all subsequent messages. File changes will be reversed.</string>
+    <string name="chat_restore">Restore</string>
+    <string name="chat_attach">Attach</string>
+    <string name="chat_remove">Remove</string>
+    <string name="chat_clear">Clear</string>
+    <string name="chat_scroll_bottom">Scroll to bottom</string>
+    <string name="chat_open_webui">Open in Web UI</string>
+    <string name="chat_dismiss">Dismiss</string>
+    <string name="chat_session_create_failed">Failed to create session</string>
+    <string name="chat_agent_name">Agent: %1$s</string>
+    <string name="chat_fork_failed">Failed to fork session</string>
+    <string name="chat_share_url_copied">Share URL copied</string>
+    <string name="chat_share_failed">Failed to share session</string>
+    <string name="chat_copied_clipboard">Copied to clipboard</string>
+    <string name="chat_no_message_copy">No assistant message to copy</string>
+    <string name="chat_session_aborted">Session aborted</string>
+    <string name="chat_session_compacted">Session compacted</string>
+    <string name="chat_session_compact_failed">Failed to compact session</string>
+    <string name="chat_session_unshared">Session unshared</string>
+    <string name="chat_session_unshare_failed">Failed to unshare</string>
+    <string name="chat_message_undone">Message undone</string>
+    <string name="chat_message_undo_failed">Failed to undo</string>
+    <string name="chat_message_redone">Message redone</string>
+    <string name="chat_message_redo_failed">Failed to redo</string>
+    <string name="chat_command_executed">/%1$s executed</string>
+    <string name="chat_command_failed">Failed to execute /%1$s</string>
+    <string name="chat_message_reverted">Message reverted</string>
+    <string name="chat_message_revert_failed">Failed to revert</string>
+    <string name="chat_messages_restored">Messages restored</string>
+    <string name="chat_session_renamed">Session renamed</string>
+    <string name="chat_session_rename_failed">Failed to rename</string>
+    <string name="chat_commands_hint">Type / to see available commands</string>
+    <string name="chat_response">Response</string>
+    <string name="chat_hide_steps">Hide steps</string>
+    <string name="chat_status_edits">%1$d edit</string>
+    <string name="chat_status_edits_plural">%1$d edits</string>
+    <string name="chat_status_commands">%1$d command</string>
+    <string name="chat_status_commands_plural">%1$d commands</string>
+    <string name="chat_status_steps">%1$d step</string>
+    <string name="chat_status_steps_plural">%1$d steps</string>
+    <string name="chat_status_making_edits">Making edits</string>
+    <string name="chat_status_running_commands">Running commands</string>
+    <string name="chat_status_searching">Searching codebase</string>
+    <string name="chat_status_fetching_url">Fetching URL</string>
+    <string name="chat_status_running_subagent">Running sub-agent</string>
+    <string name="chat_status_updating_tasks">Updating tasks</string>
+    <string name="chat_status_thinking">Thinking</string>
+    <string name="chat_tool_reading_file">Reading file…</string>
+    <string name="chat_tool_writing_file">Writing file…</string>
+    <string name="chat_tool_editing_file">Editing file…</string>
+    <string name="chat_tool_running_command">Running command…</string>
+    <string name="chat_tool_searching_files">Searching files…</string>
+    <string name="chat_tool_searching_code">Searching code…</string>
+    <string name="chat_tool_fetching_url">Fetching URL…</string>
+    <string name="chat_tool_running_subagent">Running sub-agent…</string>
+    <string name="chat_tool_updating_tasks">Updating tasks…</string>
+    <string name="chat_tool_thinking">Thinking…</string>
+    <string name="chat_tool_running_tool">Running %1$s…</string>
+    <string name="chat_hint_ask">Ask a question…</string>
+    <string name="chat_hint_fix">Fix the bug in…</string>
+    <string name="chat_hint_refactor">Refactor the…</string>
+    <string name="chat_hint_tests">Add tests for…</string>
+    <string name="chat_hint_explain">Explain how…</string>
+    <string name="chat_hint_help">Help me with…</string>
+    <string name="chat_type_message">Type a message below</string>
+    <string name="chat_empty_message">(empty message)</string>
+    <string name="chat_messages_reverted">Messages reverted</string>
+    <string name="chat_tap_restore">Tap to restore, or use /redo</string>
+    <string name="chat_thinking">Thinking</string>
+    <string name="chat_edit_label">Edit</string>
+    <string name="chat_write_label">Write</string>
+    <string name="chat_tasks_label">Tasks</string>
+    <string name="chat_tokens_format">%1$d/%2$d tokens</string>
+    <string name="chat_files_changed">%1$d file changed</string>
+    <string name="chat_files_changed_plural">%1$d files changed</string>
+    <string name="chat_free_label">Free</string>
+    <string name="chat_question_label">Question</string>
+    <string name="chat_permission_label">Permission: %1$s</string>
+    <string name="chat_question_inline">Question: %1$s</string>
+    <string name="chat_aborted">Aborted: %1$s</string>
+    <string name="chat_retry">Retry #%1$d: %2$s</string>
+    <string name="chat_tasks_count">%1$d/%2$d</string>
+    <string name="chat_cost_format">$%1$s</string>
+    <string name="chat_collapse">Collapse</string>
+    <string name="chat_expand">Expand</string>
+    <string name="chat_tokens_summary">%1$s tokens</string>
+    <string name="chat_default_variant">Default</string>
+    <string name="chat_type_answer">Type your answer…</string>
+    <string name="chat_image">Image</string>
+    
+    <!-- Slash Commands -->
+    <string name="cmd_new">Create a new session</string>
+    <string name="cmd_sessions">Resume a previous session</string>
+    <string name="cmd_models">Switch to a different model</string>
+    <string name="cmd_agents">Switch to the next agent</string>
+    <string name="cmd_compact">Compact session to reduce context size</string>
+    <string name="cmd_fork">Create a new session from a message</string>
+    <string name="cmd_share">Share session and copy URL</string>
+    <string name="cmd_unshare">Remove shared session link</string>
+    <string name="cmd_undo">Undo the last message</string>
+    <string name="cmd_redo">Redo the last undone message</string>
+    <string name="cmd_rename">Rename this session</string>
+    <string name="cmd_copy">Copy last assistant response</string>
+    <string name="cmd_abort">Abort the running session</string>
+    <string name="cmd_help">Show available commands</string>
+    
+    <!-- Tool Display Titles -->
+    <string name="tool_read_file">Read file</string>
+    <string name="tool_write_file">Write file</string>
+    <string name="tool_edit_file">Edit file</string>
+    <string name="tool_terminal">Terminal</string>
+    <string name="tool_find_files">Find files</string>
+    <string name="tool_search_code">Search code</string>
+    <string name="tool_list_directory">List directory</string>
+    <string name="tool_fetch_url">Fetch URL</string>
+    <string name="tool_sub_agent">Sub-agent</string>
+    <string name="tool_apply_patch">Apply patch</string>
+    <string name="tool_shell">Shell</string>
+    <string name="tool_read">Read</string>
+    
+    <!-- Patch File Actions -->
+    <string name="patch_created">Created</string>
+    <string name="patch_deleted">Deleted</string>
+    <string name="patch_moved">Moved</string>
+    <string name="patch_patched">Patched</string>
     
     <!-- Permissions -->
     <string name="permission_title">Permission Required</string>
-    <string name="permission_allow_once">Allow Once</string>
-    <string name="permission_allow_always">Allow Always</string>
-    <string name="permission_deny">Deny</string>
+    <string name="permission_allow_once">Once</string>
+    <string name="permission_allow_always">Always</string>
+    <string name="permission_deny">Reject</string>
     
     <!-- Questions -->
     <string name="question_submit">Submit</string>
@@ -48,11 +210,17 @@
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_theme">Theme</string>
-    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_system">System default</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">System default</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_auto_accept_permissions">Auto-accept edit permissions</string>
+    
+    <!-- Dialogs -->
+    <string name="dialog_select_theme">Select Theme</string>
+    <string name="dialog_select_language">Select Language</string>
     
     <!-- Notifications -->
     <string name="notification_channel_connection">OpenCode Connection</string>
@@ -72,4 +240,24 @@
     <string name="retry">Retry</string>
     <string name="delete">Delete</string>
     <string name="close">Close</string>
+    <string name="back">Back</string>
+    <string name="more_options">More options</string>
+    <string name="open">Open</string>
+    <string name="image_count_single">1 image</string>
+    <string name="image_count_multiple">%1$d images</string>
+    <string name="share_send_image_to">Send image to…</string>
+    <string name="share_no_connected_servers">No connected servers</string>
+    <string name="share_connect_first">Connect to a server first, then share images</string>
+
+    <!-- Chat pagination -->
+    <string name="chat_load_earlier">Load earlier messages</string>
+    <string name="chat_loading_earlier">Loading…</string>
+
+    <!-- Chat menu actions -->
+    <string name="menu_open_in_web">Open in Web</string>
+    <string name="menu_new_session">New session</string>
+    <string name="menu_fork_session">Fork session</string>
+    <string name="menu_compact_session">Compact session</string>
+    <string name="menu_share_session">Share session</string>
+    <string name="menu_rename_session">Rename session</string>
 </resources>

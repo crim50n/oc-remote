@@ -2,8 +2,8 @@ package dev.minios.ocremote.data.repository
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -16,23 +16,40 @@ import javax.inject.Singleton
 class SettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) {
-
     companion object {
-        private val USE_NATIVE_UI_KEY = booleanPreferencesKey("use_native_ui")
+        private val LANGUAGE_KEY = stringPreferencesKey("app_language")
+        private val THEME_KEY = stringPreferencesKey("app_theme")
     }
 
     /**
-     * When true, deep-links and the primary "open" action use the native Chat UI.
-     * When false, they use the WebView.
-     * Default: true (native).
+     * Selected language code (e.g. "en", "ru", "de") or empty string for system default.
      */
-    val useNativeUi: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[USE_NATIVE_UI_KEY] ?: true
+    val appLanguage: Flow<String> = dataStore.data.map { preferences ->
+        preferences[LANGUAGE_KEY] ?: ""
     }
 
-    suspend fun setUseNativeUi(value: Boolean) {
-        dataStore.edit { prefs ->
-            prefs[USE_NATIVE_UI_KEY] = value
+    /**
+     * Selected theme: "system", "light", or "dark".
+     */
+    val appTheme: Flow<String> = dataStore.data.map { preferences ->
+        preferences[THEME_KEY] ?: "system"
+    }
+
+    /**
+     * Set the app language. Pass empty string to use system default.
+     */
+    suspend fun setAppLanguage(languageCode: String) {
+        dataStore.edit { preferences ->
+            preferences[LANGUAGE_KEY] = languageCode
+        }
+    }
+
+    /**
+     * Set the app theme. Valid values: "system", "light", "dark".
+     */
+    suspend fun setAppTheme(theme: String) {
+        dataStore.edit { preferences ->
+            preferences[THEME_KEY] = theme
         }
     }
 }

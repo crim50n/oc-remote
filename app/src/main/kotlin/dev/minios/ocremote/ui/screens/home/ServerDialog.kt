@@ -5,9 +5,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import dev.minios.ocremote.R
 import dev.minios.ocremote.domain.model.ServerConfig
 
 /**
@@ -65,10 +67,13 @@ fun ServerDialog(
     var nameError by remember { mutableStateOf(false) }
     var urlError by remember { mutableStateOf<String?>(null) }
 
+    val urlRequiredText = stringResource(R.string.server_url)
+    val urlInvalidText = stringResource(R.string.server_invalid_url)
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(text = if (server != null) "Edit Server" else "Add Server")
+            Text(text = if (server != null) stringResource(R.string.home_edit) else stringResource(R.string.server_add))
         },
         text = {
             Column(
@@ -81,11 +86,11 @@ fun ServerDialog(
                         name = it
                         nameError = it.isBlank()
                     },
-                    label = { Text("Server Name") },
-                    placeholder = { Text("My OpenCode Server") },
+                    label = { Text(stringResource(R.string.server_name)) },
+                    placeholder = { Text(stringResource(R.string.server_name_hint)) },
                     isError = nameError,
                     supportingText = if (nameError) {
-                        { Text("Name is required") }
+                        { Text(stringResource(R.string.server_name_required)) }
                     } else null,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -97,13 +102,13 @@ fun ServerDialog(
                         url = it
                         urlError = null
                     },
-                    label = { Text("Server URL") },
-                    placeholder = { Text("http://192.168.1.100:4096") },
+                    label = { Text(stringResource(R.string.server_url)) },
+                    placeholder = { Text(stringResource(R.string.server_url_hint)) },
                     isError = urlError != null,
                     supportingText = if (urlError != null) {
                         { Text(urlError!!) }
                     } else {
-                        { Text("e.g. http://192.168.0.10:4096 or https://my-server:443") }
+                        { Text(stringResource(R.string.server_url_example)) }
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     singleLine = true,
@@ -113,8 +118,8 @@ fun ServerDialog(
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
-                    label = { Text("Username (optional)") },
-                    placeholder = { Text("opencode") },
+                    label = { Text(stringResource(R.string.server_username)) },
+                    placeholder = { Text(stringResource(R.string.server_username_hint)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -122,7 +127,7 @@ fun ServerDialog(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Password (optional)") },
+                    label = { Text(stringResource(R.string.server_password)) },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
@@ -137,8 +142,8 @@ fun ServerDialog(
                     nameError = name.isBlank()
                     val normalizedUrl = validateAndNormalizeUrl(url)
                     urlError = when {
-                        url.isBlank() -> "URL is required"
-                        normalizedUrl == null -> "Invalid URL format"
+                        url.isBlank() -> urlRequiredText
+                        normalizedUrl == null -> urlInvalidText
                         else -> null
                     }
 
@@ -152,12 +157,12 @@ fun ServerDialog(
                     }
                 }
             ) {
-                Text("Save")
+                Text(stringResource(R.string.server_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.server_cancel))
             }
         }
     )

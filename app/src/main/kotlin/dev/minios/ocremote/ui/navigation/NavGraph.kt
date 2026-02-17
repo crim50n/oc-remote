@@ -15,9 +15,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.minios.ocremote.R
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavType
@@ -58,12 +60,12 @@ fun NavGraph(
 ) {
     val navController = rememberNavController()
     
+    // Use native UI by default (WebView is legacy)
+    val useNativeUi = true
+    
     // Flow to tell the *existing* WebView to navigate to a new URL
     // (used when deep-link arrives while WebView is already on screen)
     val webViewNavigateFlow = remember { MutableSharedFlow<String>(extraBufferCapacity = 1) }
-    
-    // Read the "use native UI" preference reactively
-    val useNativeUi by settingsRepository.useNativeUi.collectAsState(initial = true)
 
     // ============ Share Target Picker state ============
     var showSharePicker by remember { mutableStateOf(false) }
@@ -480,17 +482,20 @@ private fun ShareTargetPickerDialog(
                 ) {
                     Column {
                         Text(
-                            text = "Send image to...",
+                            text = stringResource(R.string.share_send_image_to),
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = if (imageCount == 1) "1 image" else "$imageCount images",
+                            text = if (imageCount == 1) 
+                                stringResource(R.string.image_count_single)
+                            else 
+                                stringResource(R.string.image_count_multiple, imageCount),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
                     }
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                     }
                 }
 
@@ -518,12 +523,12 @@ private fun ShareTargetPickerDialog(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                             )
                             Text(
-                                text = "No connected servers",
+                                text = stringResource(R.string.share_no_connected_servers),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                             )
                             Text(
-                                text = "Connect to a server first, then share images",
+                                text = stringResource(R.string.share_connect_first),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                             )
@@ -560,7 +565,7 @@ private fun ShareTargetPickerDialog(
                                 Column(modifier = Modifier.weight(1f)) {
                                     // Session title
                                     Text(
-                                        text = item.session.title ?: "Untitled session",
+                                        text = item.session.title ?: stringResource(R.string.session_untitled),
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Medium,
                                         maxLines = 1,
@@ -619,9 +624,9 @@ private fun ShareTargetPickerDialog(
                             )
                             Text(
                                 text = if (activeServers.size > 1)
-                                    "New session on ${server.displayName}..."
+                                    stringResource(R.string.sessions_new_on_server, server.displayName)
                                 else
-                                    "New session...",
+                                    stringResource(R.string.sessions_new_short),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

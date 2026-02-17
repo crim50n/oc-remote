@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.minios.ocremote.data.repository.SettingsRepository
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -14,13 +13,28 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
+    
+    val appLanguage = settingsRepository.appLanguage.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = ""
+    )
 
-    val useNativeUi: StateFlow<Boolean> = settingsRepository.useNativeUi
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val appTheme = settingsRepository.appTheme.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "system"
+    )
 
-    fun setUseNativeUi(value: Boolean) {
+    fun setLanguage(languageCode: String) {
         viewModelScope.launch {
-            settingsRepository.setUseNativeUi(value)
+            settingsRepository.setAppLanguage(languageCode)
+        }
+    }
+
+    fun setTheme(theme: String) {
+        viewModelScope.launch {
+            settingsRepository.setAppTheme(theme)
         }
     }
 }

@@ -88,7 +88,7 @@ fun HomeScreen(
                 title = { Text(stringResource(R.string.home_title)) },
                 actions = {
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title))
                     }
                     IconButton(onClick = { viewModel.showAddServerDialog() }) {
                         Icon(Icons.Default.Add, contentDescription = stringResource(R.string.home_add_server))
@@ -260,13 +260,13 @@ private fun ServerCard(
                     )
                     if (isConnected) {
                         Text(
-                            text = "Connected",
+                            text = stringResource(R.string.home_server_health_good),
                             style = MaterialTheme.typography.labelSmall,
                             color = StatusConnected
                         )
                     } else if (isConnecting) {
                         Text(
-                            text = "Connecting...",
+                            text = stringResource(R.string.home_connecting),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.tertiary
                         )
@@ -276,14 +276,14 @@ private fun ServerCard(
                 // Menu button
                 Box {
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                     }
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Edit") },
+                            text = { Text(stringResource(R.string.home_edit)) },
                             onClick = {
                                 showMenu = false
                                 onEdit()
@@ -293,7 +293,7 @@ private fun ServerCard(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Delete") },
+                            text = { Text(stringResource(R.string.server_delete)) },
                             onClick = {
                                 showMenu = false
                                 onDelete()
@@ -327,7 +327,7 @@ private fun ServerCard(
                     ) {
                         Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Sessions", maxLines = 1)
+                        Text(stringResource(R.string.sessions_title), maxLines = 1)
                     }
                 }
             }
@@ -342,7 +342,7 @@ private fun ServerCard(
                     ) {
                         Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Disconnect", maxLines = 1)
+                        Text(stringResource(R.string.home_disconnect), maxLines = 1)
                     }
                 }
             }
@@ -359,11 +359,11 @@ private fun ServerCard(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Spacer(Modifier.width(6.dp))
-                        Text("Connecting...")
+                        Text(stringResource(R.string.home_connecting))
                     } else {
                         Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Connect")
+                        Text(stringResource(R.string.home_connect))
                     }
                 }
             }
@@ -396,18 +396,18 @@ private fun BatteryOptimizationBanner(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Battery restrictions active",
+                    text = stringResource(R.string.home_battery_title),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
                 Text(
-                    text = "Background connections may be killed. Tap to disable optimization.",
+                    text = stringResource(R.string.home_battery_message),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
                 )
             }
             FilledTonalButton(onClick = onDisable) {
-                Text("Fix")
+                Text(stringResource(R.string.home_fix))
             }
         }
     }

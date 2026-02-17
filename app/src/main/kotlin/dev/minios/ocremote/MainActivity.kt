@@ -8,15 +8,20 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.core.os.LocaleListCompat
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.data.repository.ServerRepository
 import dev.minios.ocremote.data.repository.EventReducer
@@ -26,6 +31,7 @@ import dev.minios.ocremote.ui.theme.OpenCodeTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "MainActivity"
@@ -76,14 +82,36 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
+        // Apply language preference
+        lifecycleScope.launch {
+            settingsRepository.appLanguage.collect { languageCode ->
+                val localeList = if (languageCode.isEmpty()) {
+                    LocaleListCompat.getEmptyLocaleList()
+                } else {
+                    LocaleListCompat.forLanguageTags(languageCode)
+                }
+                AppCompatDelegate.setApplicationLocales(localeList)
+            }
+        }
+        
         // Handle notification tap that launched the activity
         handleSessionIntent(intent)
         // Handle image share that launched the activity
         handleShareIntent(intent)
         
         setContent {
-            OpenCodeTheme {
-                val darkTheme = isSystemInDarkTheme()
+            // Collect theme preference
+            val appTheme by settingsRepository.appTheme.collectAsState(initial = "system")
+            
+            // Determine if dark theme should be used
+            val systemDarkTheme = isSystemInDarkTheme()
+            val darkTheme = when (appTheme) {
+                "light" -> false
+                "dark" -> true
+                else -> systemDarkTheme
+            }
+            
+            OpenCodeTheme(darkTheme = darkTheme) {
                 
                 // Set status bar color based on theme
                 SideEffect {
