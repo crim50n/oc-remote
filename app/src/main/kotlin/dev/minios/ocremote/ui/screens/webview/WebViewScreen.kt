@@ -254,7 +254,9 @@ fun WebViewScreen(
                 LinearProgressIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .align(Alignment.TopCenter)
+                        .align(Alignment.TopCenter),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                 )
             }
         }

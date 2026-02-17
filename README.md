@@ -21,11 +21,14 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Session actions** — create, fork, compact, share/unshare, rename via dropdown menu
 - **Load older messages** — pagination for large sessions (initial 50, expandable)
 - **OOM protection** — `largeHeap` enabled, reduced logging, pagination prevents crashes on huge sessions
+- **Session export** — export full session as text file with streaming progress notification
+- **Draft persistence** — input text, image attachments, and @file mentions saved per session; survives navigation, app restart, and WebUI detours
 
 ### Model & Agent Selection
 - **Model picker** — select provider and model with variant support
 - **Agent toggle** — switch between Build/Plan agents
-- **Token usage** — displays total input/output tokens and cost
+- **Token usage** — displays total tokens and cost in toolbar subtitle
+- **Context window** — percentage display above input, color-coded (normal < 70%, warning 70-90%, critical > 90%)
 - **Compact layout** — horizontally scrollable toolbar prevents overflow on long translations
 
 ### Localization
@@ -85,6 +88,7 @@ dev.minios.ocremote/
 │   │   ├── OpenCodeApi.kt          # Stateless REST client (Ktor/OkHttp)
 │   │   └── SseClient.kt            # SSE client for event streaming
 │   └── repository/
+│       ├── DraftRepository.kt      # Per-session draft persistence (text, images, @files)
 │       ├── EventReducer.kt         # Central SSE event state management
 │       └── ServerRepository.kt     # Server config persistence (DataStore)
 ├── domain/model/                   # Data classes (Session, Message, Part, etc.)
@@ -104,6 +108,28 @@ dev.minios.ocremote/
 ```
 
 ## Recent Changes
+
+### Draft persistence
+- Input text, image attachments, and `@file` mentions saved per session via `DraftRepository`
+- Restored automatically when returning to a session — survives navigation, app restart, WebUI detours
+- Uses JSON file storage (`session_drafts.json`) with in-memory cache
+- `takePersistableUriPermission()` ensures image URIs survive process death
+
+### Session export
+- Export full session as a text file with streaming download and progress notification
+
+### UI polish
+- **Pulsing dots indicator** — replaced spinning progress across ChatScreen, SessionListScreen, HomeScreen
+- **Breathing circle** — animated send button spinner during agent work
+- **Compaction divider** — visual separator `——— Context compacted ———` with long-press to revert
+- **Context window display** — percentage shown above input area, color-coded by usage level
+- **Toolbar subtitle** — always shows total tokens + cost (e.g. `275.2k tokens · $0.042`)
+- Paperclip alignment, settings divider removed, keyboard toolbar always visible
+
+### Bug fixes
+- **Part.Patch deserialization** — fixed crash: `files` field is `List<String>`, not `List<FilePatch>`
+- **Compaction detection** — checks `Part.Compaction` in message parts instead of relying on agent field
+- **Notification strings** — all 27+ hardcoded English strings in foreground service converted to `getString(R.string.*)`
 
 ### Auto-scroll fixes
 - Fixed scroll position during streaming/summarization — now scrolls to bottom of tall messages, not top

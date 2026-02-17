@@ -110,6 +110,13 @@ class OpenCodeApi @Inject constructor(
         }.body()
     }
 
+    /** Returns session info as raw JSON string (for export without re-serialization). */
+    suspend fun getSessionRaw(conn: ServerConnection, sessionId: String): String {
+        return httpClient.get("${conn.baseUrl}/session/$sessionId") {
+            conn.authHeader?.let { header("Authorization", it) }
+        }.bodyAsText()
+    }
+
     suspend fun createSession(conn: ServerConnection, title: String? = null, parentId: String? = null, directory: String? = null): Session {
         val body = buildMap<String, String> {
             title?.let { put("title", it) }
@@ -253,6 +260,68 @@ class OpenCodeApi @Inject constructor(
             conn.authHeader?.let { header("Authorization", it) }
             limit?.let { parameter("limit", it) }
         }.body()
+    }
+
+    /** Returns messages as raw JSON string (for export without re-serialization). */
+    suspend fun listMessagesRaw(conn: ServerConnection, sessionId: String): String {
+        return httpClient.get("${conn.baseUrl}/session/$sessionId/message") {
+            conn.authHeader?.let { header("Authorization", it) }
+        }.bodyAsText()
+    }
+
+    /**
+     * Stream session export JSON directly to an OutputStream.
+     * Writes: {"info":<session>,"messages":<messages>}
+     * Uses raw OkHttp for the messages request to enable true streaming
+     * (Ktor's ContentNegotiation plugin buffers the entire response).
+     * @param onProgress called with bytes written so far
+     */
+    suspend fun exportSessionToStream(
+        conn: ServerConnection,
+        sessionId: String,
+        outputStream: java.io.OutputStream,
+        onProgress: (Long) -> Unit = {}
+    ) {
+        var bytesWritten = 0L
+        // Write session info (small, safe to hold in memory)
+        val sessionJson = httpClient.get("${conn.baseUrl}/session/$sessionId") {
+            conn.authHeader?.let { header("Authorization", it) }
+        }.bodyAsText()
+        val header = """{"info":$sessionJson,"messages":"""
+        outputStream.write(header.toByteArray())
+        bytesWritten += header.toByteArray().size
+        outputStream.flush()
+        onProgress(bytesWritten)
+
+        // Stream messages via raw OkHttp to get true byte-level streaming
+        val okClient = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+        val request = okhttp3.Request.Builder()
+            .url("${conn.baseUrl}/session/$sessionId/message")
+            .apply { conn.authHeader?.let { addHeader("Authorization", it) } }
+            .build()
+
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            okClient.newCall(request).execute().use { response ->
+                val body = response.body ?: throw java.io.IOException("Empty response body")
+                val source = body.source()
+                val buffer = ByteArray(8192)
+                while (true) {
+                    val read = source.read(buffer)
+                    if (read == -1) break
+                    outputStream.write(buffer, 0, read)
+                    bytesWritten += read
+                    onProgress(bytesWritten)
+                }
+            }
+        }
+
+        outputStream.write("}".toByteArray())
+        bytesWritten += 1
+        outputStream.flush()
+        onProgress(bytesWritten)
     }
 
     suspend fun getMessage(conn: ServerConnection, sessionId: String, messageId: String): MessageWithParts {

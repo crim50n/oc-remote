@@ -1,13 +1,24 @@
 package dev.minios.ocremote.ui.screens.chat
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -16,6 +27,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -32,9 +44,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +63,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -75,6 +90,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import android.net.Uri
+import android.content.Intent
 import android.content.res.Configuration
 import android.util.Base64
 import android.util.Log
@@ -111,6 +127,116 @@ private fun clientCommands(): List<SlashCommand> = listOf(
     SlashCommand("redo", stringResource(R.string.cmd_redo), "client"),
     SlashCommand("rename", stringResource(R.string.cmd_rename), "client"),
 )
+
+/** Pulsing dots loading indicator — 3 dots that scale up/down in sequence. */
+@Composable
+private fun PulsingDotsIndicator(
+    modifier: Modifier = Modifier,
+    dotSize: Dp = 10.dp,
+    dotSpacing: Dp = 8.dp,
+    color: Color = MaterialTheme.colorScheme.primary
+) {
+    val transition = rememberInfiniteTransition(label = "pulsing_dots")
+    val scales = (0..2).map { index ->
+        transition.animateFloat(
+            initialValue = 0.4f,
+            targetValue = 0.4f,
+            animationSpec = infiniteRepeatable(
+                animation = keyframes {
+                    durationMillis = 1200
+                    0.4f at 0
+                    1.0f at 300
+                    0.4f at 600
+                    0.4f at 1200
+                },
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "dot_$index"
+        )
+    }
+    // Stagger: shift each dot's time by reading at offset phase
+    val phaseShift = 150 // ms between dots
+    val scales2 = (0..2).map { index ->
+        transition.animateFloat(
+            initialValue = 0.4f,
+            targetValue = 0.4f,
+            animationSpec = infiniteRepeatable(
+                animation = keyframes {
+                    durationMillis = 1200
+                    val offset = index * phaseShift
+                    0.4f at 0 + offset
+                    1.0f at 300 + offset
+                    0.4f at 600 + offset
+                    0.4f at 1200
+                },
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "dot_scale_$index"
+        )
+    }
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(dotSpacing),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        scales2.forEach { scale ->
+            Box(
+                modifier = Modifier
+                    .size(dotSize)
+                    .graphicsLayer {
+                        scaleX = scale.value
+                        scaleY = scale.value
+                        alpha = 0.3f + 0.7f * ((scale.value - 0.4f) / 0.6f)
+                    }
+                    .background(color, CircleShape)
+            )
+        }
+    }
+}
+
+/** Breathing circle loading indicator — single circle that pulses smoothly. */
+@Composable
+private fun BreathingCircleIndicator(
+    modifier: Modifier = Modifier,
+    size: Dp = 20.dp,
+    color: Color = MaterialTheme.colorScheme.primary
+) {
+    val transition = rememberInfiniteTransition(label = "breathing_circle")
+    val scale by transition.animateFloat(
+        initialValue = 0.7f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "circle_scale"
+    )
+    val alpha by transition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "circle_alpha"
+    )
+    
+    Box(
+        modifier = modifier.size(size),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(size)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    this.alpha = alpha
+                }
+                .background(color, CircleShape)
+        )
+    }
+}
 
 /** Format a token count to a human-readable string (e.g., 1.2k, 45.3k, 1.2M). */
 private fun formatTokenCount(count: Int): String {
@@ -235,12 +361,14 @@ private fun buildPromptParts(
         // Add file part
         val isDir = mention.path.endsWith("/")
         val absPath = if (sessionDirectory != null) "$sessionDirectory/${mention.path}" else mention.path
+        val displayName = mention.path.trimEnd('/').substringAfterLast('/')
         parts.add(
             PromptPart(
                 type = "file",
                 path = mention.path,
                 mime = if (isDir) "application/x-directory" else "text/plain",
-                url = "file:///$absPath"
+                url = "file:///$absPath",
+                filename = displayName
             )
         )
         cursor = mention.end
@@ -276,7 +404,17 @@ fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val draftText by viewModel.draftText.collectAsState()
+    val draftAttachmentUris by viewModel.draftAttachmentUris.collectAsState()
     var inputText by remember { mutableStateOf(TextFieldValue("")) }
+    // Sync inputText once from draft on first composition
+    var draftTextInitialized by remember { mutableStateOf(false) }
+    if (!draftTextInitialized && draftText.isNotEmpty()) {
+        inputText = TextFieldValue(draftText, TextRange(draftText.length))
+        draftTextInitialized = true
+    } else if (!draftTextInitialized) {
+        draftTextInitialized = true
+    }
     val listState = rememberLazyListState()
     var showModelPicker by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
@@ -290,13 +428,56 @@ fun ChatScreen(
     val fileSearchResults by viewModel.fileSearchResults.collectAsState()
     val confirmedFilePaths by viewModel.confirmedFilePaths.collectAsState()
 
-    // Image attachments
+    // Image attachments — backed by ViewModel URIs for draft persistence
     val attachments = remember { mutableStateListOf<ImageAttachment>() }
+
+    // Rebuild attachment objects from persisted draft URIs on first composition
+    LaunchedEffect(draftAttachmentUris) {
+        // Only rebuild if attachments list doesn't match URIs (e.g. on session restore)
+        val currentUris = attachments.map { it.uri.toString() }.toSet()
+        val draftUriSet = draftAttachmentUris.toSet()
+        if (currentUris == draftUriSet) return@LaunchedEffect
+
+        val restored = mutableListOf<ImageAttachment>()
+        for (uriStr in draftAttachmentUris) {
+            // Skip URIs already present
+            if (uriStr in currentUris) {
+                val existing = attachments.first { it.uri.toString() == uriStr }
+                restored.add(existing)
+                continue
+            }
+            try {
+                val uri = android.net.Uri.parse(uriStr)
+                val mimeType = context.contentResolver.getType(uri) ?: "image/png"
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: continue
+                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                val dataUrl = "data:$mimeType;base64,$base64"
+                val filename = uri.lastPathSegment?.substringAfterLast('/') ?: "image.png"
+                restored.add(ImageAttachment(uri = uri, mime = mimeType, filename = filename, dataUrl = dataUrl))
+            } catch (e: Exception) {
+                Log.w("ChatScreen", "Failed to restore attachment $uriStr: ${e.message}")
+                // Remove invalid URI from draft
+                viewModel.removeDraftAttachment(draftAttachmentUris.indexOf(uriStr))
+            }
+        }
+        attachments.clear()
+        attachments.addAll(restored)
+    }
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
         for (uri in uris) {
             try {
+                // Take persistable URI permission so the URI survives app restarts
+                try {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (e: Exception) {
+                    // Not all URIs support persistable permissions — that's OK
+                }
+
                 val mimeType = context.contentResolver.getType(uri) ?: "image/png"
                 // Only accept image types and PDF (matching WebUI)
                 val acceptedTypes = listOf("image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf")
@@ -317,8 +498,27 @@ fun ChatScreen(
                         dataUrl = dataUrl
                     )
                 )
+                viewModel.addDraftAttachment(uri.toString())
             } catch (e: Exception) {
                 // Skip files that fail to read
+            }
+        }
+    }
+
+    // Session export via SAF (Storage Access Framework)
+    // Flow: menu click → SAF file picker → stream API responses directly to file
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.exportSession(context, uri) { success ->
+                coroutineScope.launch {
+                    if (success) {
+                        snackbarHostState.showSnackbar(context.getString(R.string.chat_session_exported))
+                    } else {
+                        snackbarHostState.showSnackbar(context.getString(R.string.chat_session_export_failed))
+                    }
+                }
             }
         }
     }
@@ -328,6 +528,15 @@ fun ChatScreen(
         if (initialSharedImages.isEmpty()) return@LaunchedEffect
         for (uri in initialSharedImages) {
             try {
+                // Take persistable URI permission so the URI survives app restarts
+                try {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (e: Exception) {
+                    // Not all URIs support persistable permissions — that's OK
+                }
+
                 val mimeType = context.contentResolver.getType(uri) ?: "image/png"
                 val acceptedTypes = listOf("image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf")
                 if (mimeType !in acceptedTypes) continue
@@ -346,6 +555,7 @@ fun ChatScreen(
                         dataUrl = dataUrl
                     )
                 )
+                viewModel.addDraftAttachment(uri.toString())
             } catch (e: Exception) {
                 Log.w("ChatScreen", "Failed to read shared image: ${e.message}")
             }
@@ -460,23 +670,23 @@ fun ChatScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        // Subtitle: working status or cost/token summary
-                        if (uiState.sessionStatus is SessionStatus.Busy) {
-                            Text(
-                                text = stringResource(R.string.session_status_busy),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.tertiary
-                            )
-                        } else if (uiState.totalCost > 0 || uiState.totalInputTokens > 0) {
-                            val costStr = if (uiState.totalCost > 0) {
-                                stringResource(R.string.chat_cost_format, String.format("%.4f", uiState.totalCost))
-                            } else null
-                            val tokenStr = formatTokenCount(uiState.totalInputTokens + uiState.totalOutputTokens)
-                            Text(
-                                text = listOfNotNull(costStr, stringResource(R.string.chat_tokens_summary, tokenStr)).joinToString(" \u00b7 "),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
+                        // Subtitle: total tokens and cost for the session
+                        val totalTokens = uiState.totalInputTokens + uiState.totalOutputTokens
+                        if (totalTokens > 0 || uiState.totalCost > 0) {
+                            val parts = mutableListOf<String>()
+                            if (totalTokens > 0) {
+                                parts.add(stringResource(R.string.chat_tokens_summary, formatTokenCount(totalTokens)))
+                            }
+                            if (uiState.totalCost > 0) {
+                                parts.add(stringResource(R.string.chat_cost_format, String.format("%.4f", uiState.totalCost)))
+                            }
+                            if (parts.isNotEmpty()) {
+                                Text(
+                                    text = parts.joinToString(" · "),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                )
+                            }
                         }
                     }
                 },
@@ -614,6 +824,20 @@ fun ChatScreen(
                                     Icon(Icons.Default.Edit, contentDescription = null)
                                 }
                             )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_export_session)) },
+                                onClick = {
+                                    showMenu = false
+                                    val slug = uiState.sessionTitle
+                                        .take(30)
+                                        .replace(Regex("[^a-zA-Z0-9_-]"), "_")
+                                        .ifBlank { "session" }
+                                    exportLauncher.launch("$slug.json")
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.FileDownload, contentDescription = null)
+                                }
+                            )
                         }
                     }
                 }
@@ -630,6 +854,7 @@ fun ChatScreen(
                 textFieldValue = inputText,
                 onTextFieldValueChange = { newValue ->
                     inputText = newValue
+                    viewModel.updateDraftText(newValue.text)
                     // Detect @query before cursor for file mention
                     val cursorPos = newValue.selection.start
                     val textBefore = newValue.text.substring(0, cursorPos)
@@ -659,6 +884,7 @@ fun ChatScreen(
                     attachments.clear()
                     viewModel.clearConfirmedPaths()
                     viewModel.clearFileSearch()
+                    viewModel.clearDraft()
                 },
                 isSending = uiState.isSending,
                 isBusy = uiState.sessionStatus is SessionStatus.Busy,
@@ -666,7 +892,10 @@ fun ChatScreen(
                 attachments = attachments,
                 onAttach = { imagePickerLauncher.launch("image/*") },
                 onRemoveAttachment = { index ->
-                    if (index in attachments.indices) attachments.removeAt(index)
+                    if (index in attachments.indices) {
+                        attachments.removeAt(index)
+                        viewModel.removeDraftAttachment(index)
+                    }
                 },
                 modelLabel = modelLabel,
                 onModelClick = { showModelPicker = true },
@@ -785,7 +1014,9 @@ fun ChatScreen(
                             }
                         }
                     }
-                }
+                },
+                contextWindow = uiState.contextWindow,
+                lastContextTokens = uiState.lastContextTokens
             )
         }
     ) { padding ->
@@ -796,7 +1027,7 @@ fun ChatScreen(
         ) {
             when {
                 uiState.isLoading && uiState.messages.isEmpty() -> {
-                    CircularProgressIndicator(
+                    PulsingDotsIndicator(
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
@@ -865,9 +1096,10 @@ fun ChatScreen(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(16.dp),
-                                                strokeWidth = 2.dp
+                                            PulsingDotsIndicator(
+                                                dotSize = 6.dp,
+                                                dotSpacing = 4.dp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                             Text(
                                                 text = stringResource(R.string.chat_loading_earlier),
@@ -888,13 +1120,73 @@ fun ChatScreen(
                             uiState.messages,
                             key = { it.message.id }
                         ) { chatMessage ->
-                            // Skip empty user messages (e.g. compact/summarize triggers)
-                            val hasVisibleContent = if (chatMessage.isUser) {
-                                chatMessage.parts.any { part ->
-                                    part is Part.Text && part.synthetic != true && part.ignored != true && part.text.isNotBlank()
+                            // Detect compaction trigger messages (user messages with Part.Compaction)
+                            val isCompactionTrigger = chatMessage.isUser &&
+                                chatMessage.parts.any { it is Part.Compaction }
+
+                            // Show compact system-style divider for compaction triggers
+                            // Long-press to revert (undo compaction and subsequent messages)
+                            if (isCompactionTrigger) {
+                                var showRevertDialog by remember { mutableStateOf(false) }
+
+                                if (showRevertDialog) {
+                                    AlertDialog(
+                                        onDismissRequest = { showRevertDialog = false },
+                                        title = { Text(stringResource(R.string.chat_revert_title)) },
+                                        text = { Text(stringResource(R.string.chat_revert_message)) },
+                                        confirmButton = {
+                                            TextButton(
+                                                onClick = {
+                                                    showRevertDialog = false
+                                                    viewModel.revertMessage(chatMessage.message.id) { ok ->
+                                                        coroutineScope.launch {
+                                                            snackbarHostState.showSnackbar(
+                                                                if (ok) context.getString(R.string.chat_message_reverted) else context.getString(R.string.chat_message_revert_failed)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            ) {
+                                                Text(stringResource(R.string.chat_revert), color = MaterialTheme.colorScheme.error)
+                                            }
+                                        },
+                                        dismissButton = {
+                                            TextButton(onClick = { showRevertDialog = false }) {
+                                                Text(stringResource(R.string.cancel))
+                                            }
+                                        }
+                                    )
                                 }
-                            } else true
-                            if (!hasVisibleContent) return@items
+
+                                @OptIn(ExperimentalFoundationApi::class)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .combinedClickable(
+                                            onClick = { },
+                                            onLongClick = { showRevertDialog = true }
+                                        )
+                                        .padding(vertical = 4.dp, horizontal = 32.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.weight(1f),
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.chat_summarized),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                        modifier = Modifier.padding(horizontal = 12.dp)
+                                    )
+                                    HorizontalDivider(
+                                        modifier = Modifier.weight(1f),
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                    )
+                                }
+                                return@items
+                            }
 
                             ChatMessageBubble(
                                 chatMessage = chatMessage,
@@ -1323,9 +1615,9 @@ private fun ChatMessageBubble(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (hasRunningTool) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(14.dp),
-                                    strokeWidth = 2.dp,
+                                PulsingDotsIndicator(
+                                    dotSize = 5.dp,
+                                    dotSpacing = 3.dp,
                                     color = MaterialTheme.colorScheme.tertiary
                                 )
                             } else {
@@ -1854,9 +2146,9 @@ private fun ToolCallCard(tool: Part.Tool) {
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                     )
                 } else if (tool.state is ToolState.Running) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(14.dp),
-                        strokeWidth = 2.dp,
+                    PulsingDotsIndicator(
+                        dotSize = 5.dp,
+                        dotSpacing = 3.dp,
                         color = stateColor
                     )
                 }
@@ -2134,9 +2426,9 @@ private fun EditToolCard(tool: Part.Tool) {
                         DiffChangesInline(additions = additions, deletions = deletions)
                     }
                     if (isRunning) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(14.dp),
-                            strokeWidth = 2.dp,
+                        PulsingDotsIndicator(
+                            dotSize = 5.dp,
+                            dotSpacing = 3.dp,
                             color = MaterialTheme.colorScheme.tertiary
                         )
                     } else if (hasContent) {
@@ -2374,7 +2666,7 @@ private fun WriteToolCard(tool: Part.Tool) {
                     }
                 }
                 if (isRunning) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.tertiary)
+                    PulsingDotsIndicator(dotSize = 5.dp, dotSpacing = 3.dp, color = MaterialTheme.colorScheme.tertiary)
                 } else if (hasContent) {
                     Icon(
                         imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -2476,7 +2768,7 @@ private fun BashToolCard(tool: Part.Tool) {
                     }
                 }
                 if (isRunning) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.tertiary)
+                    PulsingDotsIndicator(dotSize = 5.dp, dotSpacing = 3.dp, color = MaterialTheme.colorScheme.tertiary)
                 } else if (hasContent) {
                     Icon(
                         imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -2602,7 +2894,7 @@ private fun ReadToolCard(tool: Part.Tool) {
                 }
             }
             if (isRunning) {
-                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.tertiary)
+                PulsingDotsIndicator(dotSize = 5.dp, dotSpacing = 3.dp, color = MaterialTheme.colorScheme.tertiary)
             }
         }
     }
@@ -2701,7 +2993,7 @@ private fun SearchToolCard(tool: Part.Tool) {
                     }
                 }
                 if (isRunning) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.tertiary)
+                    PulsingDotsIndicator(dotSize = 5.dp, dotSpacing = 3.dp, color = MaterialTheme.colorScheme.tertiary)
                 } else if (hasOutput) {
                     Icon(
                         imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -2800,7 +3092,7 @@ private fun TaskToolCard(tool: Part.Tool) {
                     }
                 }
                 if (isRunning) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.tertiary)
+                    PulsingDotsIndicator(dotSize = 5.dp, dotSpacing = 3.dp, color = MaterialTheme.colorScheme.tertiary)
                 } else if (hasOutput) {
                     Icon(
                         imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -3007,37 +3299,9 @@ private fun StepFinishInfo(step: Part.StepFinish) {
     }
 }
 
-/**
- * Compute additions/deletions from a unified diff string by counting lines starting with +/-.
- * Skips the --- and +++ header lines.
- */
-private fun parseDiffCounts(diff: String?): Pair<Int, Int> {
-    if (diff.isNullOrBlank()) return 0 to 0
-    var additions = 0
-    var deletions = 0
-    for (line in diff.lineSequence()) {
-        when {
-            line.startsWith("+++") || line.startsWith("---") -> { /* skip header */ }
-            line.startsWith("+") -> additions++
-            line.startsWith("-") -> deletions++
-        }
-    }
-    return additions to deletions
-}
-
 @Composable
 private fun PatchCard(patch: Part.Patch) {
-    // Compute additions/deletions from diff text for each file
-    val fileDiffCounts = remember(patch.files) {
-        patch.files.map { file -> file to parseDiffCounts(file.diff) }
-    }
-    val totalAdditions = fileDiffCounts.sumOf { (_, counts) -> counts.first }
-    val totalDeletions = fileDiffCounts.sumOf { (_, counts) -> counts.second }
-
     var expanded by remember { mutableStateOf(false) }
-
-    val addColor = Color(0xFF4CAF50)
-    val delColor = Color(0xFFE53935)
 
     Surface(
         shape = RoundedCornerShape(8.dp),
@@ -3046,7 +3310,7 @@ private fun PatchCard(patch: Part.Patch) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
-            // Header row with total stats
+            // Header row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -3066,37 +3330,12 @@ private fun PatchCard(patch: Part.Patch) {
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = if (patch.files.size == 1) 
+                        text = if (patch.files.size == 1)
                             stringResource(R.string.chat_files_changed, patch.files.size)
-                        else 
+                        else
                             stringResource(R.string.chat_files_changed_plural, patch.files.size),
                         style = MaterialTheme.typography.labelMedium
                     )
-                    // +N/-N summary
-                    if (totalAdditions > 0 || totalDeletions > 0) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            if (totalAdditions > 0) {
-                                Text(
-                                    text = "+$totalAdditions",
-                                    style = CodeTypography.copy(fontSize = 11.sp, color = addColor),
-                                )
-                            }
-                            if (totalDeletions > 0) {
-                                Text(
-                                    text = "-$totalDeletions",
-                                    style = CodeTypography.copy(fontSize = 11.sp, color = delColor),
-                                )
-                            }
-                        }
-                    }
-                    // Mini color bar (5 blocks like WebUI)
-                    if (totalAdditions > 0 || totalDeletions > 0) {
-                        DiffColorBar(
-                            additions = totalAdditions,
-                            deletions = totalDeletions,
-                            modifier = Modifier.padding(start = 4.dp)
-                        )
-                    }
                 }
                 Icon(
                     imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -3112,187 +3351,19 @@ private fun PatchCard(patch: Part.Patch) {
                     modifier = Modifier.padding(top = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    for ((file, counts) in fileDiffCounts) {
-                        PatchFileRow(
-                            file = file,
-                            additions = counts.first,
-                            deletions = counts.second,
-                            addColor = addColor,
-                            delColor = delColor
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * 5-block color bar mimicking the WebUI DiffChanges "bars" variant.
- * Green blocks for additions, red for deletions, gray for neutral.
- */
-@Composable
-private fun DiffColorBar(
-    additions: Int,
-    deletions: Int,
-    modifier: Modifier = Modifier
-) {
-    val total = additions + deletions
-    if (total == 0) return
-
-    val addColor = Color(0xFF4CAF50)
-    val delColor = Color(0xFFE53935)
-    val neutralColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-
-    // Calculate proportional blocks (5 total, at least 1 each if non-zero)
-    val addBlocks: Int
-    val delBlocks: Int
-    if (additions > 0 && deletions > 0) {
-        val addRatio = additions.toFloat() / total
-        addBlocks = (addRatio * 5).toInt().coerceIn(1, 4)
-        delBlocks = (5 - addBlocks).coerceIn(1, 4)
-    } else if (additions > 0) {
-        addBlocks = 5
-        delBlocks = 0
-    } else {
-        addBlocks = 0
-        delBlocks = 5
-    }
-    val neutralBlocks = 5 - addBlocks - delBlocks
-
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(1.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        repeat(addBlocks) {
-            Box(
-                modifier = Modifier
-                    .size(width = 3.dp, height = 10.dp)
-                    .clip(RoundedCornerShape(1.dp))
-                    .background(addColor)
-            )
-        }
-        repeat(delBlocks) {
-            Box(
-                modifier = Modifier
-                    .size(width = 3.dp, height = 10.dp)
-                    .clip(RoundedCornerShape(1.dp))
-                    .background(delColor)
-            )
-        }
-        repeat(neutralBlocks) {
-            Box(
-                modifier = Modifier
-                    .size(width = 3.dp, height = 10.dp)
-                    .clip(RoundedCornerShape(1.dp))
-                    .background(neutralColor)
-            )
-        }
-    }
-}
-
-/**
- * A single file row in the expanded patch card.
- * Shows action label + file path + +N/-N counts.
- */
-@Composable
-private fun PatchFileRow(
-    file: Part.Patch.FilePatch,
-    additions: Int,
-    deletions: Int,
-    addColor: Color,
-    delColor: Color
-) {
-    var showDiff by remember { mutableStateOf(false) }
-
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .let { mod ->
-                    if (!file.diff.isNullOrBlank()) mod.clickable { showDiff = !showDiff } else mod
-                }
-                .padding(vertical = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Action label
-            val (actionLabel, actionColor) = when (file.type) {
-                "add" -> stringResource(R.string.patch_created) to addColor
-                "delete" -> stringResource(R.string.patch_deleted) to delColor
-                "move" -> stringResource(R.string.patch_moved) to Color(0xFFFFA726)
-                else -> stringResource(R.string.patch_patched) to MaterialTheme.colorScheme.onSurface
-            }
-            Text(
-                text = actionLabel,
-                style = MaterialTheme.typography.labelSmall.copy(color = actionColor),
-                modifier = Modifier.widthIn(min = 48.dp)
-            )
-
-            // File path
-            Text(
-                text = file.path.substringAfterLast('/'),
-                style = CodeTypography.copy(fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-
-            // +N/-N per file
-            if (file.type != "delete") {
-                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    if (additions > 0) {
+                    for (filePath in patch.files) {
                         Text(
-                            text = "+$additions",
-                            style = CodeTypography.copy(fontSize = 10.sp, color = addColor)
-                        )
-                    }
-                    if (deletions > 0) {
-                        Text(
-                            text = "-$deletions",
-                            style = CodeTypography.copy(fontSize = 10.sp, color = delColor)
+                            text = filePath.substringAfterLast('/'),
+                            style = CodeTypography.copy(
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(vertical = 2.dp)
                         )
                     }
                 }
-            } else if (deletions > 0) {
-                Text(
-                    text = "-$deletions",
-                    style = CodeTypography.copy(fontSize = 10.sp, color = delColor)
-                )
-            }
-
-            // Expand indicator if diff is available
-            if (!file.diff.isNullOrBlank()) {
-                Icon(
-                    imageVector = if (showDiff) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                )
-            }
-        }
-
-        // Expandable diff content
-        AnimatedVisibility(visible = showDiff && !file.diff.isNullOrBlank()) {
-            Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 8.dp, bottom = 4.dp)
-                    .heightIn(max = 300.dp)
-            ) {
-                Text(
-                    text = file.diff ?: "",
-                    style = CodeTypography.copy(
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    ),
-                    modifier = Modifier
-                        .padding(6.dp)
-                        .horizontalScroll(rememberScrollState())
-                )
             }
         }
     }
@@ -3415,7 +3486,9 @@ private fun FileCardFallback(file: Part.File) {
                 tint = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = file.filename ?: file.mime,
+                text = file.filename
+                    ?: file.url?.trimEnd('/')?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+                    ?: file.mime,
                 style = MaterialTheme.typography.bodySmall
             )
         }
@@ -3534,7 +3607,9 @@ private fun ChatInputBar(
     fileSearchResults: List<String> = emptyList(),
     confirmedFilePaths: Set<String> = emptySet(),
     onFileSelected: (String) -> Unit = {},
-    onSlashCommand: (SlashCommand) -> Unit = {}
+    onSlashCommand: (SlashCommand) -> Unit = {},
+    contextWindow: Int = 0,
+    lastContextTokens: Int = 0
 ) {
     // Rotate placeholder hint every 4 seconds
     val hintIndex = remember { mutableIntStateOf(0) }
@@ -3699,49 +3774,82 @@ private fun ChatInputBar(
             }
         }
 
-        // Working status indicator — inline, subtle
-        if (isBusy) {
-            val lastRunningTool = messages.lastOrNull()?.parts
-                ?.filterIsInstance<Part.Tool>()
-                ?.lastOrNull { it.state is ToolState.Running }
+        // Status row: working status (left) + context usage (right)
+        val showContext = contextWindow > 0 && lastContextTokens > 0
+        if (isBusy || showContext) {
+            val lastRunningTool = if (isBusy) {
+                messages.lastOrNull()?.parts
+                    ?.filterIsInstance<Part.Tool>()
+                    ?.lastOrNull { it.state is ToolState.Running }
+            } else null
 
-            val statusText = if (lastRunningTool != null) {
-                val title = (lastRunningTool.state as ToolState.Running).title
-                when (lastRunningTool.tool) {
-                    "read" -> title ?: stringResource(R.string.chat_tool_reading_file)
-                    "write" -> title ?: stringResource(R.string.chat_tool_writing_file)
-                    "edit" -> title ?: stringResource(R.string.chat_tool_editing_file)
-                    "bash" -> title ?: stringResource(R.string.chat_tool_running_command)
-                    "glob", "list" -> title ?: stringResource(R.string.chat_tool_searching_files)
-                    "grep" -> title ?: stringResource(R.string.chat_tool_searching_code)
-                    "webfetch" -> title ?: stringResource(R.string.chat_tool_fetching_url)
-                    "task" -> title ?: stringResource(R.string.chat_tool_running_subagent)
-                    "todowrite" -> title ?: stringResource(R.string.chat_tool_updating_tasks)
-                    else -> title ?: stringResource(R.string.chat_tool_running_tool, lastRunningTool.tool)
+            val statusText = if (isBusy) {
+                if (lastRunningTool != null) {
+                    val title = (lastRunningTool.state as ToolState.Running).title
+                    when (lastRunningTool.tool) {
+                        "read" -> title ?: stringResource(R.string.chat_tool_reading_file)
+                        "write" -> title ?: stringResource(R.string.chat_tool_writing_file)
+                        "edit" -> title ?: stringResource(R.string.chat_tool_editing_file)
+                        "bash" -> title ?: stringResource(R.string.chat_tool_running_command)
+                        "glob", "list" -> title ?: stringResource(R.string.chat_tool_searching_files)
+                        "grep" -> title ?: stringResource(R.string.chat_tool_searching_code)
+                        "webfetch" -> title ?: stringResource(R.string.chat_tool_fetching_url)
+                        "task" -> title ?: stringResource(R.string.chat_tool_running_subagent)
+                        "todowrite" -> title ?: stringResource(R.string.chat_tool_updating_tasks)
+                        else -> title ?: stringResource(R.string.chat_tool_running_tool, lastRunningTool.tool)
+                    }
+                } else {
+                    stringResource(R.string.chat_tool_thinking)
                 }
-            } else {
-                stringResource(R.string.chat_tool_thinking)
-            }
+            } else null
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(12.dp),
-                    strokeWidth = 1.5.dp,
-                    color = MaterialTheme.colorScheme.tertiary
-                )
-                Text(
-                    text = statusText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                // Left: working status
+                if (isBusy && statusText != null) {
+                    Row(
+                        modifier = Modifier.weight(1f, fill = false),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        PulsingDotsIndicator(
+                            dotSize = 4.dp,
+                            dotSpacing = 3.dp,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(0.dp))
+                }
+                // Right: context usage (percentage)
+                if (showContext) {
+                    val percentage = Math.round(lastContextTokens.toDouble() / contextWindow * 100).toInt()
+                    val contextColor = when {
+                        percentage >= 90 -> MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                        percentage >= 70 -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f)
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    }
+                    Text(
+                        text = stringResource(
+                            R.string.chat_context_format,
+                            percentage
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = contextColor
+                    )
+                }
             }
         }
 
@@ -3752,7 +3860,7 @@ private fun ChatInputBar(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // Agent + Model + Variant + Attach selector row — small, subtle
-            if (modelLabel.isNotEmpty() || agents.size > 1) {
+            if ((modelLabel.isNotEmpty() || agents.size > 1)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -3841,12 +3949,10 @@ private fun ChatInputBar(
                         }
                     }
 
-                    // Attach button (paperclip) — always visible, pinned right
+                    // Attach button (paperclip) — always visible, pinned right, aligned with Send button
                     IconButton(
                         onClick = onAttach,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .padding(end = 8.dp)
+                        modifier = Modifier.size(44.dp)
                     ) {
                         Icon(
                             Icons.Default.AttachFile,
@@ -3952,9 +4058,9 @@ private fun ChatInputBar(
                     modifier = Modifier.size(44.dp)
                 ) {
                     if (isSending) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
+                        BreathingCircleIndicator(
+                            size = 20.dp,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     } else {
                         Icon(

@@ -80,10 +80,30 @@
     <string name="dialog_select_language">Выбрать язык</string>
     <!-- Notifications -->
     <string name="notification_channel_connection">Подключение к OpenCode</string>
-    <string name="notification_channel_tasks">Выполнение задачи</string>
+    <string name="notification_channel_connection_desc">Постоянное подключение к серверу OpenCode</string>
+    <string name="notification_channel_tasks">Уведомления о задачах</string>
+    <string name="notification_channel_tasks_desc">Уведомления о завершении задач OpenCode</string>
+    <string name="notification_channel_permissions">Запросы разрешений</string>
+    <string name="notification_channel_permissions_desc">Уведомления, когда OpenCode требует разрешения</string>
     <string name="notification_connected">Подключено к %1$s</string>
-    <string name="notification_task_complete">Задача выполнена</string>
+    <string name="notification_connecting">Подключение к %1$s…</string>
+    <string name="notification_connected_count">Подключено к %1$d из %2$d серверов</string>
+    <string name="notification_disconnect_all">Отключить все</string>
+    <string name="notification_inbox_title">OC Remote — %1$d/%2$d подключено</string>
+    <string name="notification_status_connected">Подключено</string>
+    <string name="notification_status_connecting">Подключение…</string>
+    <string name="notification_response_ready">Ответ готов</string>
+    <string name="notification_new_session">Новая сессия</string>
+    <string name="notification_needs_permission_project">%1$s в %2$s требует разрешения</string>
+    <string name="notification_needs_permission">%1$s требует разрешения</string>
     <string name="notification_permission_required">Требуется разрешение</string>
+    <string name="notification_has_question_project">%1$s в %2$s имеет вопрос</string>
+    <string name="notification_has_question">%1$s имеет вопрос</string>
+    <string name="notification_question">Вопрос</string>
+    <string name="notification_session_error">Ошибка сессии</string>
+    <string name="notification_group_summary">Уведомления OpenCode</string>
+    <string name="notification_export_progress">Прогресс экспорта сессии</string>
+    <string name="notification_task_complete">Задача выполнена</string>
     <!-- Errors -->
     <string name="error_network">Ошибка сети</string>
     <string name="error_auth">Ошибка аутентификации</string>
@@ -172,6 +192,7 @@
     <string name="chat_retry">Повтор #%1$d: %2$s</string>
     <string name="chat_tasks_count">%1$d/%2$d</string>
     <string name="chat_cost_format">$%1$s</string>
+    <string name="chat_context_format">%1$d%% ctx</string>
     <string name="chat_collapse">Свернуть</string>
     <string name="chat_expand">Развернуть</string>
     <string name="home_battery_title">Ограничения батареи активны</string>
@@ -233,10 +254,14 @@
     <string name="chat_session_rename_failed">Не удалось переименовать</string>
     <string name="chat_load_earlier">Загрузить предыдущие сообщения</string>
     <string name="chat_loading_earlier">Загрузка…</string>
+    <string name="chat_summarized">Контекст сжат</string>
     <string name="menu_open_in_web">Открыть в браузере</string>
     <string name="menu_new_session">Новая сессия</string>
     <string name="menu_fork_session">Форкнуть сессию</string>
-    <string name="menu_compact_session">Компактная сессия</string>
+    <string name="menu_compact_session">Сжать сессию</string>
     <string name="menu_share_session">Поделиться сессией</string>
     <string name="menu_rename_session">Переименовать сессию</string>
+    <string name="menu_export_session">Экспорт сессии</string>
+    <string name="chat_session_exported">Сессия экспортирована</string>
+    <string name="chat_session_export_failed">Не удалось экспортировать сессию</string>
 </resources>

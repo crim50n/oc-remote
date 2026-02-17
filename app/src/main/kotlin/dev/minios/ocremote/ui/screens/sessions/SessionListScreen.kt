@@ -42,6 +42,55 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.animation.core.*
+import androidx.compose.ui.graphics.graphicsLayer
+
+/** Pulsing dots loading indicator — 3 dots that scale up/down in sequence. */
+@Composable
+private fun PulsingDotsIndicator(
+    modifier: Modifier = Modifier,
+    dotSize: androidx.compose.ui.unit.Dp = 10.dp,
+    dotSpacing: androidx.compose.ui.unit.Dp = 8.dp,
+    color: Color = MaterialTheme.colorScheme.primary
+) {
+    val transition = rememberInfiniteTransition(label = "pulsing_dots")
+    val scales2 = (0..2).map { index ->
+        transition.animateFloat(
+            initialValue = 0.4f,
+            targetValue = 0.4f,
+            animationSpec = infiniteRepeatable(
+                animation = keyframes {
+                    durationMillis = 1200
+                    val offset = index * 150
+                    0.4f at 0 + offset
+                    1.0f at 300 + offset
+                    0.4f at 600 + offset
+                    0.4f at 1200
+                },
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "dot_scale_$index"
+        )
+    }
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(dotSpacing),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        scales2.forEach { scale ->
+            Box(
+                modifier = Modifier
+                    .size(dotSize)
+                    .graphicsLayer {
+                        scaleX = scale.value
+                        scaleY = scale.value
+                        alpha = 0.3f + 0.7f * ((scale.value - 0.4f) / 0.6f)
+                    }
+                    .background(color, CircleShape)
+            )
+        }
+    }
+}
 
 /**
  * Session List Screen - shows all sessions for a connected server,
@@ -121,8 +170,10 @@ fun SessionListScreen(
             val allSessions = uiState.sessionGroups.flatMap { it.sessions }
             when {
                 uiState.isLoading && allSessions.isEmpty() -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
+                    PulsingDotsIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        dotSize = 12.dp,
+                        dotSpacing = 8.dp
                     )
                 }
                 uiState.error != null && allSessions.isEmpty() -> {
@@ -542,7 +593,7 @@ private fun OpenProjectDialog(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            PulsingDotsIndicator(dotSize = 10.dp, dotSpacing = 6.dp)
                         }
                     }
                     isSearching -> {
@@ -980,9 +1031,9 @@ private fun SessionRow(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(10.dp),
-                                        strokeWidth = 1.5.dp,
+                                    PulsingDotsIndicator(
+                                        dotSize = 4.dp,
+                                        dotSpacing = 2.dp,
                                         color = MaterialTheme.colorScheme.tertiary
                                     )
                                     Text(

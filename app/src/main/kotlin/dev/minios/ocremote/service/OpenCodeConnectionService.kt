@@ -411,7 +411,7 @@ class OpenCodeConnectionService : Service() {
             is SseEvent.QuestionAsked -> {
                 if (isChildSession(event.sessionId)) return
                 Log.i(TAG, "[${server.displayName}] Question asked for session ${event.sessionId}")
-                val questionText = event.questions.firstOrNull()?.question ?: "The agent has a question"
+                val questionText = event.questions.firstOrNull()?.question ?: getString(R.string.notification_has_question, getString(R.string.notification_new_session))
                 showQuestionNotification(server, event.sessionId, questionText)
             }
             is SseEvent.SessionError -> {
@@ -501,19 +501,19 @@ class OpenCodeConnectionService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val connectionChannel = NotificationChannel(
                 NOTIFICATION_CHANNEL_ID,
-                "OpenCode Connection",
+                getString(R.string.notification_channel_connection),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Persistent connection to OpenCode server"
+                description = getString(R.string.notification_channel_connection_desc)
                 setShowBadge(false)
             }
 
             val tasksChannel = NotificationChannel(
                 NOTIFICATION_CHANNEL_TASKS_ID,
-                "Task Notifications",
+                getString(R.string.notification_channel_tasks),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Notifications when OpenCode tasks are completed"
+                description = getString(R.string.notification_channel_tasks_desc)
                 setShowBadge(true)
                 enableVibration(true)
                 enableLights(true)
@@ -521,10 +521,10 @@ class OpenCodeConnectionService : Service() {
 
             val permissionsChannel = NotificationChannel(
                 NOTIFICATION_CHANNEL_PERMISSIONS_ID,
-                "Permission Requests",
+                getString(R.string.notification_channel_permissions),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Notifications when OpenCode needs permissions"
+                description = getString(R.string.notification_channel_permissions_desc)
                 setShowBadge(true)
                 enableVibration(true)
                 enableLights(true)
@@ -560,30 +560,30 @@ class OpenCodeConnectionService : Service() {
         val connectedCount = connections.values.count { it.isConnected }
 
         val title = if (serverCount == 0) {
-            "OC Remote"
+            getString(R.string.app_name)
         } else if (serverCount == 1) {
             val server = connections.values.first()
-            if (server.isConnected) "Connected to ${server.config.displayName}"
-            else "Connecting to ${server.config.displayName}..."
+            if (server.isConnected) getString(R.string.notification_connected, server.config.displayName)
+            else getString(R.string.notification_connecting, server.config.displayName)
         } else {
-            "Connected to $connectedCount of $serverCount servers"
+            getString(R.string.notification_connected_count, connectedCount, serverCount)
         }
 
         val builder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("OC Remote")
+            .setContentTitle(getString(R.string.app_name))
             .setContentText(title)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(tapPendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .addAction(R.mipmap.ic_launcher, "Disconnect All", disconnectAllPendingIntent)
+            .addAction(R.mipmap.ic_launcher, getString(R.string.notification_disconnect_all), disconnectAllPendingIntent)
 
         // InboxStyle when multiple servers
         if (serverCount > 1) {
             val inboxStyle = NotificationCompat.InboxStyle()
-                .setBigContentTitle("OC Remote — $connectedCount/$serverCount connected")
+                .setBigContentTitle(getString(R.string.notification_inbox_title, connectedCount, serverCount))
             for ((_, state) in connections) {
-                val status = if (state.isConnected) "Connected" else "Connecting..."
+                val status = if (state.isConnected) getString(R.string.notification_status_connected) else getString(R.string.notification_status_connecting)
                 inboxStyle.addLine("${state.config.displayName}: $status")
             }
             builder.setStyle(inboxStyle)
@@ -607,7 +607,7 @@ class OpenCodeConnectionService : Service() {
 
         val notifId = eventNotificationId(server.id, sessionId, 0)
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_TASKS_ID)
-            .setContentTitle("Response ready")
+            .setContentTitle(getString(R.string.notification_response_ready))
             .setContentText(body)
             .setSubText(server.displayName)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -625,19 +625,19 @@ class OpenCodeConnectionService : Service() {
 
     private fun showPermissionNotification(server: ServerConfig, sessionId: String, permission: String) {
         val (sessionTitle, directory) = getSessionInfo(sessionId)
-        val displayTitle = sessionTitle ?: "New session"
+        val displayTitle = sessionTitle ?: getString(R.string.notification_new_session)
         val projectName = getProjectName(directory)
         val body = if (projectName != null) {
-            "$displayTitle in $projectName needs permission"
+            getString(R.string.notification_needs_permission_project, displayTitle, projectName)
         } else {
-            "$displayTitle needs permission"
+            getString(R.string.notification_needs_permission, displayTitle)
         }
 
         val notifId = eventNotificationId(server.id, sessionId, 1000)
         val pendingIntent = createSessionPendingIntent(server, sessionId, notifId)
 
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_PERMISSIONS_ID)
-            .setContentTitle("Permission required")
+            .setContentTitle(getString(R.string.notification_permission_required))
             .setContentText(body)
             .setSubText(server.displayName)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -655,19 +655,19 @@ class OpenCodeConnectionService : Service() {
 
     private fun showQuestionNotification(server: ServerConfig, sessionId: String, questionText: String) {
         val (sessionTitle, directory) = getSessionInfo(sessionId)
-        val displayTitle = sessionTitle ?: "New session"
+        val displayTitle = sessionTitle ?: getString(R.string.notification_new_session)
         val projectName = getProjectName(directory)
         val body = if (projectName != null) {
-            "$displayTitle in $projectName has a question"
+            getString(R.string.notification_has_question_project, displayTitle, projectName)
         } else {
-            "$displayTitle has a question"
+            getString(R.string.notification_has_question, displayTitle)
         }
 
         val notifId = eventNotificationId(server.id, sessionId, 2000)
         val pendingIntent = createSessionPendingIntent(server, sessionId, notifId)
 
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_PERMISSIONS_ID)
-            .setContentTitle("Question")
+            .setContentTitle(getString(R.string.notification_question))
             .setContentText(body)
             .setSubText(server.displayName)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -686,16 +686,16 @@ class OpenCodeConnectionService : Service() {
     private fun showErrorNotification(server: ServerConfig, sessionId: String?, error: String) {
         val body = if (sessionId != null) {
             val (sessionTitle, _) = getSessionInfo(sessionId)
-            sessionTitle ?: error.ifBlank { "An error occurred" }
+            sessionTitle ?: error.ifBlank { getString(R.string.error_unknown) }
         } else {
-            error.ifBlank { "An error occurred" }
+            error.ifBlank { getString(R.string.error_unknown) }
         }
 
         val notifId = eventNotificationId(server.id, sessionId ?: "error", 3000)
         val pendingIntent = createSessionPendingIntent(server, sessionId, notifId)
 
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_TASKS_ID)
-            .setContentTitle("Session error")
+            .setContentTitle(getString(R.string.notification_session_error))
             .setContentText(body)
             .setSubText(server.displayName)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -718,7 +718,7 @@ class OpenCodeConnectionService : Service() {
         val summaryId = "server_summary_${server.id}".hashCode()
         val summary = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_TASKS_ID)
             .setContentTitle(server.displayName)
-            .setContentText("OpenCode notifications")
+            .setContentText(getString(R.string.notification_group_summary))
             .setSmallIcon(R.mipmap.ic_launcher)
             .setGroup("server_${server.id}")
             .setGroupSummary(true)

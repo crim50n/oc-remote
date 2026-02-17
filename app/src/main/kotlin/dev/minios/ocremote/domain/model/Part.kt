@@ -139,15 +139,8 @@ sealed class Part {
         @SerialName("sessionID") override val sessionId: String,
         @SerialName("messageID") override val messageId: String,
         val hash: String = "",
-        val files: List<FilePatch> = emptyList()
-    ) : Part() {
-        @Serializable
-        data class FilePatch(
-            val path: String,
-            val type: String, // add, update, delete, move
-            val diff: String? = null
-        )
-    }
+        val files: List<String> = emptyList()
+    ) : Part()
 
     @Serializable
     data class Subtask(

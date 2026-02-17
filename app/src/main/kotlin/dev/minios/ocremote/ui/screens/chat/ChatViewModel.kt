@@ -2,6 +2,7 @@ package dev.minios.ocremote.ui.screens.chat
 
 import android.util.Log
 import dev.minios.ocremote.BuildConfig
+import dev.minios.ocremote.R
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,6 +14,7 @@ import dev.minios.ocremote.data.api.OpenCodeApi
 import dev.minios.ocremote.data.api.PromptPart
 import dev.minios.ocremote.data.api.ProviderInfo
 import dev.minios.ocremote.data.api.ServerConnection
+import dev.minios.ocremote.data.repository.DraftRepository
 import dev.minios.ocremote.data.repository.EventReducer
 import dev.minios.ocremote.domain.model.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,7 +58,11 @@ data class ChatUiState(
     /** True while a "load older" request is in flight. */
     val isLoadingOlder: Boolean = false,
     /** Share URL if session is shared, null otherwise. */
-    val shareUrl: String? = null
+    val shareUrl: String? = null,
+    /** Context window size of the current model (0 if unknown). */
+    val contextWindow: Int = 0,
+    /** Total tokens from the last assistant message with output > 0 (current context usage). */
+    val lastContextTokens: Int = 0
 )
 
 /**
@@ -75,7 +81,8 @@ data class ChatMessage(
 class ChatViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val eventReducer: EventReducer,
-    private val api: OpenCodeApi
+    private val api: OpenCodeApi,
+    private val draftRepository: DraftRepository
 ) : ViewModel() {
 
     private val serverUrl: String = URLDecoder.decode(
@@ -115,6 +122,19 @@ class ChatViewModel @Inject constructor(
     private val _selectedAgent = MutableStateFlow("build" to false)
     private val _selectedVariant = MutableStateFlow<String?>(null)
     private val _commands = MutableStateFlow<List<CommandInfo>>(emptyList())
+
+    // ============ Draft Persistence ============
+    /** Draft text for the input field — survives navigation / app restart. */
+    private val _draftText = MutableStateFlow("")
+    val draftText: StateFlow<String> = _draftText
+
+    /** Draft attachment URIs (content:// URIs as strings) — survives navigation / app restart. */
+    private val _draftAttachmentUris = MutableStateFlow<List<String>>(emptyList())
+    val draftAttachmentUris: StateFlow<List<String>> = _draftAttachmentUris
+
+    /** Set of file paths that have been confirmed by user selection from the popup */
+    private val _confirmedFilePaths = MutableStateFlow<Set<String>>(emptySet())
+    val confirmedFilePaths: StateFlow<Set<String>> = _confirmedFilePaths
 
     // ============ Pagination ============
     /** Initial number of messages to load. */
@@ -233,6 +253,11 @@ class ChatViewModel @Inject constructor(
         val totalCost = assistantMessages.sumOf { it.cost ?: 0.0 }
         val totalInputTokens = assistantMessages.sumOf { it.tokens?.input ?: 0 }
         val totalOutputTokens = assistantMessages.sumOf { it.tokens?.output ?: 0 }
+        // Context usage: total tokens from the last assistant message with output > 0
+        val lastWithOutput = assistantMessages.lastOrNull { (it.tokens?.output ?: 0) > 0 }
+        val lastContextTokens = lastWithOutput?.tokens?.let { t ->
+            t.input + t.output + t.reasoning + t.cache.read + t.cache.write
+        } ?: 0
 
         // Resolve available variants for the currently selected model
         val currentModel = if (effectiveProviderId != null && effectiveModelId != null) {
@@ -266,7 +291,9 @@ class ChatViewModel @Inject constructor(
             commands = commands,
             hasOlderMessages = hasOlderMessages,
             isLoadingOlder = isLoadingOlder,
-            shareUrl = session?.share?.url
+            shareUrl = session?.share?.url,
+            contextWindow = currentModel?.limit?.context ?: 0,
+            lastContextTokens = lastContextTokens
         )
     }.stateIn(
         viewModelScope,
@@ -275,6 +302,16 @@ class ChatViewModel @Inject constructor(
     )
 
     init {
+        // Restore draft from disk
+        val draft = draftRepository.getDraft(sessionId)
+        if (draft != null) {
+            _draftText.value = draft.text
+            _draftAttachmentUris.value = draft.imageUris
+            if (draft.confirmedFilePaths.isNotEmpty()) {
+                _confirmedFilePaths.value = draft.confirmedFilePaths.toSet()
+            }
+        }
+
         // loadSession must complete first so sessionDirectory is set for loadPendingQuestions
         viewModelScope.launch {
             loadSession()
@@ -472,10 +509,6 @@ class ChatViewModel @Inject constructor(
     private val _fileSearchResults = MutableStateFlow<List<String>>(emptyList())
     val fileSearchResults: StateFlow<List<String>> = _fileSearchResults
 
-    /** Set of file paths that have been confirmed by user selection from the popup */
-    private val _confirmedFilePaths = MutableStateFlow<Set<String>>(emptySet())
-    val confirmedFilePaths: StateFlow<Set<String>> = _confirmedFilePaths
-
     /** Debounce job for file search */
     private var fileSearchJob: Job? = null
 
@@ -538,6 +571,49 @@ class ChatViewModel @Inject constructor(
     /** Clear confirmed file paths (e.g. after sending a message) */
     fun clearConfirmedPaths() {
         _confirmedFilePaths.value = emptySet()
+    }
+
+    // ============ Draft Management ============
+
+    /** Update the draft text (called on every keystroke). */
+    fun updateDraftText(text: String) {
+        _draftText.value = text
+    }
+
+    /** Add an attachment URI to the draft. */
+    fun addDraftAttachment(uri: String) {
+        _draftAttachmentUris.value = _draftAttachmentUris.value + uri
+    }
+
+    /** Remove an attachment URI from the draft by index. */
+    fun removeDraftAttachment(index: Int) {
+        val current = _draftAttachmentUris.value.toMutableList()
+        if (index in current.indices) {
+            current.removeAt(index)
+            _draftAttachmentUris.value = current
+        }
+    }
+
+    /** Clear all draft state (called after sending a message). */
+    fun clearDraft() {
+        _draftText.value = ""
+        _draftAttachmentUris.value = emptyList()
+        draftRepository.clearDraft(sessionId)
+    }
+
+    /** Persist current draft to disk. */
+    private fun saveDraft() {
+        val draft = dev.minios.ocremote.data.repository.Draft(
+            text = _draftText.value,
+            imageUris = _draftAttachmentUris.value,
+            confirmedFilePaths = _confirmedFilePaths.value.toList()
+        )
+        draftRepository.saveDraft(sessionId, draft)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        saveDraft()
     }
 
     /** Get the session directory for building file:// URLs */
@@ -713,6 +789,70 @@ class ChatViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to compact session", e)
                 onResult(false)
+            }
+        }
+    }
+
+    /**
+     * Export the session as JSON directly to a file URI.
+     * Streams API responses directly to the output stream to avoid OOM
+     * on large sessions (messages can be 80+ MB).
+     * Shows a notification with download progress.
+     */
+    fun exportSession(context: android.content.Context, uri: android.net.Uri, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val channelId = "opencode_export"
+            val notificationId = 9999
+
+            // Create notification channel
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val channel = android.app.NotificationChannel(
+                    channelId,
+                    context.getString(R.string.menu_export_session),
+                    android.app.NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    description = context.getString(R.string.notification_export_progress)
+                    setShowBadge(false)
+                }
+                notificationManager.createNotificationChannel(channel)
+            }
+
+            val builder = androidx.core.app.NotificationCompat.Builder(context, channelId)
+                .setSmallIcon(android.R.drawable.stat_sys_download)
+                .setContentTitle(context.getString(R.string.menu_export_session))
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setProgress(0, 0, true)
+
+            try {
+                Log.d(TAG, "exportSession: streaming to $uri")
+                notificationManager.notify(notificationId, builder.build())
+
+                var lastNotifyTime = 0L
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    api.exportSessionToStream(conn, sessionId, outputStream) { bytesWritten ->
+                        val now = System.currentTimeMillis()
+                        if (now - lastNotifyTime > 500) { // throttle to 2 updates/sec
+                            lastNotifyTime = now
+                            val mb = String.format("%.1f MB", bytesWritten / 1_000_000.0)
+                            builder.setContentText(mb)
+                            notificationManager.notify(notificationId, builder.build())
+                        }
+                    }
+                }
+
+                Log.d(TAG, "exportSession: done")
+                notificationManager.cancel(notificationId)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onResult(true)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to export session", e)
+                notificationManager.cancel(notificationId)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onResult(false)
+                }
             }
         }
     }

@@ -63,8 +63,6 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { showThemeDialog = true }
             )
             
-            HorizontalDivider()
-            
             // Language setting
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_language)) },

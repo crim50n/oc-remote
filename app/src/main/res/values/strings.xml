@@ -153,6 +153,7 @@
     <string name="chat_retry">Retry #%1$d: %2$s</string>
     <string name="chat_tasks_count">%1$d/%2$d</string>
     <string name="chat_cost_format">$%1$s</string>
+    <string name="chat_context_format">%1$d%% ctx</string>
     <string name="chat_collapse">Collapse</string>
     <string name="chat_expand">Expand</string>
     <string name="chat_tokens_summary">%1$s tokens</string>
@@ -224,10 +225,30 @@
     
     <!-- Notifications -->
     <string name="notification_channel_connection">OpenCode Connection</string>
-    <string name="notification_channel_tasks">Task Completion</string>
+    <string name="notification_channel_connection_desc">Persistent connection to OpenCode server</string>
+    <string name="notification_channel_tasks">Task Notifications</string>
+    <string name="notification_channel_tasks_desc">Notifications when OpenCode tasks are completed</string>
+    <string name="notification_channel_permissions">Permission Requests</string>
+    <string name="notification_channel_permissions_desc">Notifications when OpenCode needs permissions</string>
     <string name="notification_connected">Connected to %1$s</string>
-    <string name="notification_task_complete">Task completed</string>
+    <string name="notification_connecting">Connecting to %1$s…</string>
+    <string name="notification_connected_count">Connected to %1$d of %2$d servers</string>
+    <string name="notification_disconnect_all">Disconnect All</string>
+    <string name="notification_inbox_title">OC Remote — %1$d/%2$d connected</string>
+    <string name="notification_status_connected">Connected</string>
+    <string name="notification_status_connecting">Connecting…</string>
+    <string name="notification_response_ready">Response ready</string>
+    <string name="notification_new_session">New session</string>
+    <string name="notification_needs_permission_project">%1$s in %2$s needs permission</string>
+    <string name="notification_needs_permission">%1$s needs permission</string>
     <string name="notification_permission_required">Permission required</string>
+    <string name="notification_has_question_project">%1$s in %2$s has a question</string>
+    <string name="notification_has_question">%1$s has a question</string>
+    <string name="notification_question">Question</string>
+    <string name="notification_session_error">Session error</string>
+    <string name="notification_group_summary">OpenCode notifications</string>
+    <string name="notification_export_progress">Session export progress</string>
+    <string name="notification_task_complete">Task completed</string>
     
     <!-- Errors -->
     <string name="error_network">Network error</string>
@@ -252,6 +273,7 @@
     <!-- Chat pagination -->
     <string name="chat_load_earlier">Load earlier messages</string>
     <string name="chat_loading_earlier">Loading…</string>
+    <string name="chat_summarized">Context compacted</string>
 
     <!-- Chat menu actions -->
     <string name="menu_open_in_web">Open in Web</string>
@@ -260,4 +282,8 @@
     <string name="menu_compact_session">Compact session</string>
     <string name="menu_share_session">Share session</string>
     <string name="menu_rename_session">Rename session</string>
+    <string name="menu_export_session">Export session</string>
+    <string name="chat_session_exported">Session exported</string>
+    <string name="chat_session_export_failed">Failed to export session</string>
+    <string name="chat_session_exporting">Exporting… %s</string>
 </resources>
