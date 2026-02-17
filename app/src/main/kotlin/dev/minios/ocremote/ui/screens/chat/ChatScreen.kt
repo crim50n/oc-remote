@@ -272,6 +272,7 @@ private data class ImageAttachment(
 fun ChatScreen(
     onNavigateBack: () -> Unit,
     onNavigateToSession: (sessionId: String) -> Unit = {},
+    onOpenInWebView: () -> Unit = {},
     initialSharedImages: List<Uri> = emptyList(),
     onSharedImagesConsumed: () -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel()
@@ -451,6 +452,12 @@ fun ChatScreen(
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
+                    }
+                    IconButton(onClick = onOpenInWebView) {
+                        Icon(
+                            Icons.Default.Language,
+                            contentDescription = "Open in Web UI"
+                        )
                     }
                 }
             )

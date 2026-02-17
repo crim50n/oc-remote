@@ -210,11 +210,6 @@ fun NavGraph(
         // ============ Home Screen ============
         composable(Screen.Home.route) {
             HomeScreen(
-                onNavigateToWebView = { serverUrl, username, password, serverName ->
-                    navController.navigate(
-                        Screen.WebView.createRoute(serverUrl, username, password, serverName)
-                    )
-                },
                 onNavigateToSessions = { serverUrl, username, password, serverName, serverId ->
                     navController.navigate(
                         Screen.SessionList.createRoute(serverUrl, username, password, serverName, serverId)
@@ -393,6 +388,24 @@ fun NavGraph(
                             inclusive = false
                         }
                     }
+                },
+                onOpenInWebView = {
+                    // Build the session path: /<base64url(directory)>/session/<sessionId>
+                    val session = eventReducer.sessions.value.find { it.id == sessionId }
+                    val dir = session?.directory ?: ""
+                    val encodedDir = android.util.Base64.encodeToString(
+                        dir.toByteArray(Charsets.UTF_8),
+                        android.util.Base64.NO_WRAP
+                    ).replace('+', '-').replace('/', '_').replace("=", "")
+                    val sessionPath = "/$encodedDir/session/$sessionId"
+                    val route = Screen.WebView.createRoute(
+                        serverUrl = serverUrl,
+                        username = username,
+                        password = password,
+                        serverName = serverName,
+                        initialPath = sessionPath
+                    )
+                    navController.navigate(route) { launchSingleTop = true }
                 },
                 initialSharedImages = imagesForThisSession,
                 onSharedImagesConsumed = {

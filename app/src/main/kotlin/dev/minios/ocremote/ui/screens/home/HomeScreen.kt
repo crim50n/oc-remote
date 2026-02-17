@@ -34,13 +34,12 @@ import dev.minios.ocremote.ui.theme.StatusConnected
 /**
  * Home Screen - Server list and management
  * 
- * Each server card has its own Connect/Disconnect/Open Web UI buttons.
+ * Each server card has Connect/Disconnect/Sessions buttons.
  * Multiple servers can be connected simultaneously.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToWebView: (serverUrl: String, username: String, password: String, serverName: String) -> Unit,
     onNavigateToSessions: (serverUrl: String, username: String, password: String, serverName: String, serverId: String) -> Unit = { _, _, _, _, _ -> },
     onNavigateToSettings: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
@@ -144,14 +143,6 @@ fun HomeScreen(
                                 connectionError = uiState.connectionErrors[server.id],
                                 onConnect = { requestNotificationPermissionAndConnect(server.id) },
                                 onDisconnect = { viewModel.disconnectFromServer(server.id) },
-                                onOpenWebUi = {
-                                    onNavigateToWebView(
-                                        server.url,
-                                        server.username,
-                                        server.password ?: "",
-                                        server.displayName
-                                    )
-                                },
                                 onOpenSessions = {
                                     onNavigateToSessions(
                                         server.url,
@@ -222,7 +213,6 @@ private fun ServerCard(
     connectionError: String?,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
-    onOpenWebUi: () -> Unit,
     onOpenSessions: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -338,14 +328,6 @@ private fun ServerCard(
                         Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("Sessions", maxLines = 1)
-                    }
-                    OutlinedButton(
-                        onClick = onOpenWebUi,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Web UI", maxLines = 1)
                     }
                 }
             }
