@@ -39,6 +39,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -102,6 +103,27 @@ import dev.minios.ocremote.R
  * Chat Screen - conversation view with native markdown rendering.
  * Shows messages with streaming text rendered via mikepenz markdown renderer.
  */
+
+// ============ Chat Settings via CompositionLocal ============
+
+/** Chat font size setting: "small", "medium", "large". */
+val LocalChatFontSize = compositionLocalOf { "medium" }
+
+/** Whether code blocks use word wrap instead of horizontal scroll. */
+val LocalCodeWordWrap = compositionLocalOf { false }
+
+/**
+ * Conditionally applies horizontalScroll for code blocks.
+ * When word wrap is enabled, no horizontal scroll is applied.
+ */
+@Composable
+private fun Modifier.codeHorizontalScroll(): Modifier {
+    return if (!LocalCodeWordWrap.current) {
+        this.horizontalScroll(rememberScrollState())
+    } else {
+        this
+    }
+}
 
 /**
  * Slash command definition for the suggestion popup.
@@ -428,6 +450,14 @@ fun ChatScreen(
     val fileSearchResults by viewModel.fileSearchResults.collectAsState()
     val confirmedFilePaths by viewModel.confirmedFilePaths.collectAsState()
 
+    // Settings
+    val chatFontSize by viewModel.chatFontSize.collectAsState()
+    val codeWordWrap by viewModel.codeWordWrap.collectAsState()
+    val confirmBeforeSend by viewModel.confirmBeforeSend.collectAsState()
+    var showSendConfirmDialog by remember { mutableStateOf(false) }
+    // Pending send action: stored so the confirm dialog can trigger it
+    var pendingSendAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
     // Image attachments — backed by ViewModel URIs for draft persistence
     val attachments = remember { mutableStateListOf<ImageAttachment>() }
 
@@ -658,6 +688,10 @@ fun ChatScreen(
         }
     }
 
+    CompositionLocalProvider(
+        LocalChatFontSize provides chatFontSize,
+        LocalCodeWordWrap provides codeWordWrap
+    ) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -867,24 +901,32 @@ fun ChatScreen(
                     }
                 },
                 onSend = {
-                    val rawText = inputText.text
-                    // Build prompt parts: split text around confirmed @file mentions
-                    val allParts = buildPromptParts(rawText, confirmedFilePaths, viewModel.getSessionDirectory())
-                    // Add image attachments
-                    val attachmentParts = attachments.map { att ->
-                        PromptPart(
-                            type = "file",
-                            mime = att.mime,
-                            url = att.dataUrl,
-                            filename = att.filename
-                        )
+                    val doSend = {
+                        val rawText = inputText.text
+                        // Build prompt parts: split text around confirmed @file mentions
+                        val allParts = buildPromptParts(rawText, confirmedFilePaths, viewModel.getSessionDirectory())
+                        // Add image attachments
+                        val attachmentParts = attachments.map { att ->
+                            PromptPart(
+                                type = "file",
+                                mime = att.mime,
+                                url = att.dataUrl,
+                                filename = att.filename
+                            )
+                        }
+                        viewModel.sendMessage(allParts, attachmentParts)
+                        inputText = TextFieldValue("")
+                        attachments.clear()
+                        viewModel.clearConfirmedPaths()
+                        viewModel.clearFileSearch()
+                        viewModel.clearDraft()
                     }
-                    viewModel.sendMessage(allParts, attachmentParts)
-                    inputText = TextFieldValue("")
-                    attachments.clear()
-                    viewModel.clearConfirmedPaths()
-                    viewModel.clearFileSearch()
-                    viewModel.clearDraft()
+                    if (confirmBeforeSend) {
+                        pendingSendAction = doSend
+                        showSendConfirmDialog = true
+                    } else {
+                        doSend()
+                    }
                 },
                 isSending = uiState.isSending,
                 isBusy = uiState.sessionStatus is SessionStatus.Busy,
@@ -1351,6 +1393,36 @@ fun ChatScreen(
             }
         )
     }
+
+    // Send confirmation dialog
+    if (showSendConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showSendConfirmDialog = false
+                pendingSendAction = null
+            },
+            title = { Text(stringResource(R.string.settings_confirm_send_title)) },
+            text = { Text(stringResource(R.string.settings_confirm_send_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSendConfirmDialog = false
+                    pendingSendAction?.invoke()
+                    pendingSendAction = null
+                }) {
+                    Text(stringResource(R.string.settings_send))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showSendConfirmDialog = false
+                    pendingSendAction = null
+                }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+    } // CompositionLocalProvider
 }
 
 @Composable
@@ -1943,10 +2015,24 @@ private fun MarkdownContent(
         MaterialTheme.colorScheme.onSurface
     }
 
+    // Font size from settings: small=13sp, medium=14sp (default), large=16sp
+    val fontSizeSetting = LocalChatFontSize.current
+    val (bodyFontSize, bodyLineHeight) = when (fontSizeSetting) {
+        "small" -> 13.sp to 18.sp
+        "large" -> 16.sp to 26.sp
+        else -> 14.sp to 22.sp // medium
+    }
+    val (codeFontSize, codeLineHeight) = when (fontSizeSetting) {
+        "small" -> 11.sp to 16.sp
+        "large" -> 15.sp to 22.sp
+        else -> 13.sp to 20.sp // medium
+    }
+
     // Balanced text style with better line-height for readability
     val bodyStyle = MaterialTheme.typography.bodyMedium.copy(
         color = textColor,
-        lineHeight = 22.sp
+        fontSize = bodyFontSize,
+        lineHeight = bodyLineHeight
     )
 
     val colors = markdownColor(
@@ -1988,10 +2074,10 @@ private fun MarkdownContent(
             fontWeight = FontWeight.Medium
         ),
         text = bodyStyle,
-        code = CodeTypography.copy(color = codeBlockFg),
+        code = CodeTypography.copy(color = codeBlockFg, fontSize = codeFontSize, lineHeight = codeLineHeight),
         inlineCode = CodeTypography.copy(
             color = inlineCodeFg,
-            fontSize = 13.sp,
+            fontSize = codeFontSize,
             fontWeight = FontWeight.Medium
         ),
         quote = bodyStyle.copy(
@@ -2179,7 +2265,7 @@ private fun ToolCallCard(tool: Part.Tool) {
                                 ),
                                 modifier = Modifier
                                     .padding(8.dp)
-                                    .horizontalScroll(rememberScrollState())
+                                    .codeHorizontalScroll()
                             )
                         }
                     }
@@ -2518,7 +2604,7 @@ private fun DiffView(before: String, after: String) {
     ) {
         Column(
             modifier = Modifier
-                .horizontalScroll(rememberScrollState())
+                .codeHorizontalScroll()
                 .verticalScroll(rememberScrollState())
                 .padding(4.dp)
         ) {
@@ -2691,7 +2777,7 @@ private fun WriteToolCard(tool: Part.Tool) {
                         style = CodeTypography.copy(fontSize = 13.sp, color = MaterialTheme.colorScheme.onSecondaryContainer),
                         modifier = Modifier
                             .padding(8.dp)
-                            .horizontalScroll(rememberScrollState())
+                            .codeHorizontalScroll()
                             .verticalScroll(rememberScrollState())
                     )
                 }
@@ -2803,7 +2889,7 @@ private fun BashToolCard(tool: Part.Tool) {
                         style = CodeTypography.copy(fontSize = 13.sp, color = MaterialTheme.colorScheme.onSecondaryContainer),
                         modifier = Modifier
                             .padding(8.dp)
-                            .horizontalScroll(rememberScrollState())
+                            .codeHorizontalScroll()
                             .verticalScroll(rememberScrollState())
                     )
                 }
@@ -3018,7 +3104,7 @@ private fun SearchToolCard(tool: Part.Tool) {
                         style = CodeTypography.copy(fontSize = 13.sp, color = MaterialTheme.colorScheme.onSecondaryContainer),
                         modifier = Modifier
                             .padding(8.dp)
-                            .horizontalScroll(rememberScrollState())
+                            .codeHorizontalScroll()
                             .verticalScroll(rememberScrollState())
                     )
                 }
@@ -3117,7 +3203,7 @@ private fun TaskToolCard(tool: Part.Tool) {
                         style = CodeTypography.copy(fontSize = 13.sp, color = MaterialTheme.colorScheme.onSecondaryContainer),
                         modifier = Modifier
                             .padding(8.dp)
-                            .horizontalScroll(rememberScrollState())
+                            .codeHorizontalScroll()
                             .verticalScroll(rememberScrollState())
                     )
                 }

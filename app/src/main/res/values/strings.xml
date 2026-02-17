@@ -218,6 +218,25 @@
     <string name="settings_language_system">System default</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_auto_accept_permissions">Auto-accept edit permissions</string>
+    <string name="settings_dynamic_color">Dynamic colors</string>
+    <string name="settings_dynamic_color_desc">Use colors from wallpaper (Material You)</string>
+    <string name="settings_font_size">Chat font size</string>
+    <string name="settings_font_size_small">Small</string>
+    <string name="settings_font_size_medium">Medium</string>
+    <string name="settings_font_size_large">Large</string>
+    <string name="settings_notifications_desc">Notify when agent completes a task</string>
+    <string name="settings_auto_accept_desc">Automatically allow file edit permissions</string>
+    <string name="settings_initial_messages">Initial messages to load</string>
+    <string name="settings_code_word_wrap">Word wrap in code blocks</string>
+    <string name="settings_code_word_wrap_desc">Wrap long lines instead of horizontal scrolling</string>
+    <string name="settings_confirm_send">Confirm before sending</string>
+    <string name="settings_confirm_send_desc">Show confirmation dialog before sending a message</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_chat">Chat</string>
+    <string name="settings_section_behavior">Behavior</string>
+    <string name="settings_confirm_send_title">Send message?</string>
+    <string name="settings_confirm_send_body">Do you want to send this message?</string>
+    <string name="settings_send">Send</string>
     
     <!-- Dialogs -->
     <string name="dialog_select_theme">Select Theme</string>

@@ -16,11 +16,13 @@ import dev.minios.ocremote.data.api.ProviderInfo
 import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.repository.DraftRepository
 import dev.minios.ocremote.data.repository.EventReducer
+import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.domain.model.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -82,7 +84,8 @@ class ChatViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val eventReducer: EventReducer,
     private val api: OpenCodeApi,
-    private val draftRepository: DraftRepository
+    private val draftRepository: DraftRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val serverUrl: String = URLDecoder.decode(
@@ -136,11 +139,20 @@ class ChatViewModel @Inject constructor(
     private val _confirmedFilePaths = MutableStateFlow<Set<String>>(emptySet())
     val confirmedFilePaths: StateFlow<Set<String>> = _confirmedFilePaths
 
+    // ============ Settings (exposed for ChatScreen) ============
+    val chatFontSize = settingsRepository.chatFontSize.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), "medium"
+    )
+    val codeWordWrap = settingsRepository.codeWordWrap.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
+    val confirmBeforeSend = settingsRepository.confirmBeforeSend.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
+
     // ============ Pagination ============
-    /** Initial number of messages to load. */
-    private val INITIAL_MESSAGE_LIMIT = 50
     /** Current message limit (doubles each time user loads older messages). */
-    private var currentMessageLimit = INITIAL_MESSAGE_LIMIT
+    private var currentMessageLimit = 50
     /** Whether there are more messages on the server beyond the current limit. */
     private val _hasOlderMessages = MutableStateFlow(false)
     /** Whether a "load older" request is in flight. */
@@ -312,8 +324,9 @@ class ChatViewModel @Inject constructor(
             }
         }
 
-        // loadSession must complete first so sessionDirectory is set for loadPendingQuestions
+        // Load initial message count from settings, then load data
         viewModelScope.launch {
+            currentMessageLimit = settingsRepository.initialMessageCount.first()
             loadSession()
             loadPendingQuestions()
         }
@@ -321,6 +334,23 @@ class ChatViewModel @Inject constructor(
         loadProviders()
         loadAgents()
         loadCommands()
+
+        // Auto-accept permissions when setting is enabled
+        viewModelScope.launch {
+            eventReducer.permissions.collect { allPermissions ->
+                val pending = allPermissions[sessionId] ?: emptyList()
+                if (pending.isNotEmpty() && settingsRepository.autoAcceptPermissions.first()) {
+                    for (permission in pending) {
+                        try {
+                            api.replyToPermission(conn, permission.id, "always", sessionDirectory)
+                            if (BuildConfig.DEBUG) Log.d(TAG, "Auto-accepted permission ${permission.id}")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to auto-accept permission ${permission.id}", e)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /** Load the session info to get its directory for correct project context. */

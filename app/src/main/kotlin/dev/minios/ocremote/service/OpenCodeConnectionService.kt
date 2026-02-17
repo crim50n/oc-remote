@@ -15,6 +15,7 @@ import dev.minios.ocremote.data.api.OpenCodeApi
 import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.api.SseClient
 import dev.minios.ocremote.data.repository.EventReducer
+import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.domain.model.SseEvent
 import dagger.hilt.android.AndroidEntryPoint
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 
@@ -74,6 +76,9 @@ class OpenCodeConnectionService : Service() {
 
     @Inject
     lateinit var eventReducer: EventReducer
+
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
 
     private val binder = LocalBinder()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -401,12 +406,35 @@ class OpenCodeConnectionService : Service() {
             is SseEvent.SessionIdle -> {
                 if (isChildSession(event.sessionId)) return
                 Log.i(TAG, "[${server.displayName}] Session idle -> Response ready for ${event.sessionId}")
-                showTaskCompleteNotification(server, event.sessionId)
+                serviceScope.launch {
+                    if (settingsRepository.notificationsEnabled.first()) {
+                        showTaskCompleteNotification(server, event.sessionId)
+                    }
+                }
             }
             is SseEvent.PermissionAsked -> {
                 if (isChildSession(event.sessionId)) return
                 Log.i(TAG, "[${server.displayName}] Permission asked: ${event.permission}")
-                showPermissionNotification(server, event.sessionId, event.permission)
+                serviceScope.launch {
+                    if (settingsRepository.autoAcceptPermissions.first()) {
+                        // Auto-accept: reply "always" immediately
+                        try {
+                            val conn = getServerConnection(server)
+                            if (conn != null) {
+                                val directory = eventReducer.sessions.value
+                                    .find { it.id == event.sessionId }?.directory
+                                api.replyToPermission(conn, event.id, "always", directory)
+                                Log.i(TAG, "[${server.displayName}] Auto-accepted permission ${event.id}")
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to auto-accept permission", e)
+                            // Fall back to showing notification
+                            showPermissionNotification(server, event.sessionId, event.permission)
+                        }
+                    } else {
+                        showPermissionNotification(server, event.sessionId, event.permission)
+                    }
+                }
             }
             is SseEvent.QuestionAsked -> {
                 if (isChildSession(event.sessionId)) return
@@ -424,6 +452,10 @@ class OpenCodeConnectionService : Service() {
     }
 
     // ============ Helpers ============
+
+    private fun getServerConnection(server: ServerConfig): ServerConnection? {
+        return connections[server.id]?.conn
+    }
 
     private fun getSessionInfo(sessionId: String): Pair<String?, String?> {
         val session = eventReducer.sessions.value.find { it.id == sessionId }

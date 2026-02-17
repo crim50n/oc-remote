@@ -36,6 +36,15 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Auto-translation** — lokit integration for automatic string translation
 - **Settings** — language and theme selection in Settings screen
 
+### Settings
+- **Dynamic colors** — Material You dynamic color support (Android 12+)
+- **Chat font size** — small, medium, or large text in chat messages and code blocks
+- **Code word wrap** — toggle horizontal scrolling vs. word wrap in code blocks and tool outputs
+- **Notifications** — toggle task completion notifications
+- **Auto-accept permissions** — automatically approve tool permission requests
+- **Initial message count** — configure how many messages to load per session (10–200)
+- **Confirm before send** — optional confirmation dialog before sending messages
+
 ### Connection
 - **Multi-server** — connect to multiple OpenCode servers simultaneously
 - **SSE event stream** — real-time session status, permissions, questions
@@ -90,7 +99,8 @@ dev.minios.ocremote/
 │   └── repository/
 │       ├── DraftRepository.kt      # Per-session draft persistence (text, images, @files)
 │       ├── EventReducer.kt         # Central SSE event state management
-│       └── ServerRepository.kt     # Server config persistence (DataStore)
+│       ├── ServerRepository.kt     # Server config persistence (DataStore)
+│       └── SettingsRepository.kt   # App settings persistence (DataStore)
 ├── domain/model/                   # Data classes (Session, Message, Part, etc.)
 ├── service/
 │   └── OpenCodeConnectionService.kt  # Multi-server foreground service
@@ -100,7 +110,7 @@ dev.minios.ocremote/
     ├── screens/
     │   ├── home/                   # Server list, session list, battery banner
     │   ├── chat/                   # Native chat UI with markdown, streaming, scroll
-    │   ├── settings/               # Language/theme selection
+    │   ├── settings/               # Settings (appearance, chat, behavior)
     │   └── webview/                # Fallback WebView for "Open in Web" action
     ├── components/                 # Reusable UI components
     ├── navigation/                 # Compose Navigation graph
@@ -108,6 +118,12 @@ dev.minios.ocremote/
 ```
 
 ## Recent Changes
+
+### Settings
+- 7 new settings: dynamic colors, chat font size, code word wrap, notifications toggle, auto-accept permissions, initial message count, confirm before send
+- Settings screen reorganized into Appearance, Chat, and Behavior sections
+- Font size scales both markdown body text and code blocks
+- Code word wrap toggles horizontal scrolling in all tool output cards and diff views
 
 ### Draft persistence
 - Input text, image attachments, and `@file` mentions saved per session

@@ -26,6 +26,48 @@ class SettingsViewModel @Inject constructor(
         initialValue = "system"
     )
 
+    val dynamicColor = settingsRepository.dynamicColor.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = true
+    )
+
+    val chatFontSize = settingsRepository.chatFontSize.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "medium"
+    )
+
+    val notificationsEnabled = settingsRepository.notificationsEnabled.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = true
+    )
+
+    val autoAcceptPermissions = settingsRepository.autoAcceptPermissions.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
+    val initialMessageCount = settingsRepository.initialMessageCount.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 50
+    )
+
+    val codeWordWrap = settingsRepository.codeWordWrap.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
+    val confirmBeforeSend = settingsRepository.confirmBeforeSend.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
     fun setLanguage(languageCode: String) {
         viewModelScope.launch {
             settingsRepository.setAppLanguage(languageCode)
@@ -35,6 +77,48 @@ class SettingsViewModel @Inject constructor(
     fun setTheme(theme: String) {
         viewModelScope.launch {
             settingsRepository.setAppTheme(theme)
+        }
+    }
+
+    fun setDynamicColor(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setDynamicColor(enabled)
+        }
+    }
+
+    fun setChatFontSize(size: String) {
+        viewModelScope.launch {
+            settingsRepository.setChatFontSize(size)
+        }
+    }
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setNotificationsEnabled(enabled)
+        }
+    }
+
+    fun setAutoAcceptPermissions(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAutoAcceptPermissions(enabled)
+        }
+    }
+
+    fun setInitialMessageCount(count: Int) {
+        viewModelScope.launch {
+            settingsRepository.setInitialMessageCount(count)
+        }
+    }
+
+    fun setCodeWordWrap(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setCodeWordWrap(enabled)
+        }
+    }
+
+    fun setConfirmBeforeSend(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setConfirmBeforeSend(enabled)
         }
     }
 }
