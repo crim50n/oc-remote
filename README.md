@@ -4,6 +4,19 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 
 **This is an unofficial community project, not affiliated with the OpenCode team.**
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/01_home.jpg" width="200" alt="Home screen" />
+  <img src="screenshots/02_chat_light.jpg" width="200" alt="Chat — light theme" />
+  <img src="screenshots/03_chat_dark.jpg" width="200" alt="Chat — dark theme" />
+</p>
+<p align="center">
+  <img src="screenshots/04_session_menu.jpg" width="200" alt="Session menu" />
+  <img src="screenshots/05_settings.jpg" width="200" alt="Settings" />
+  <img src="screenshots/06_notifications.jpg" width="200" alt="Notifications" />
+</p>
+
 ## Features
 
 ### Native UI
