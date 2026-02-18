@@ -50,6 +50,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -111,6 +112,30 @@ val LocalChatFontSize = compositionLocalOf { "medium" }
 
 /** Whether code blocks use word wrap instead of horizontal scroll. */
 val LocalCodeWordWrap = compositionLocalOf { false }
+
+/** Whether compact message spacing is enabled. */
+val LocalCompactMessages = compositionLocalOf { false }
+
+/** Whether tool cards are collapsed by default. */
+val LocalCollapseTools = compositionLocalOf { false }
+
+/** Whether haptic feedback is enabled. */
+val LocalHapticFeedbackEnabled = compositionLocalOf { true }
+
+/**
+ * Perform a light haptic tick if haptic feedback is enabled.
+ * Call from composable context or from a click lambda that has access to a View.
+ */
+@Suppress("DEPRECATION")
+private fun performHaptic(view: android.view.View, enabled: Boolean) {
+    if (enabled) {
+        view.performHapticFeedback(
+            android.view.HapticFeedbackConstants.CLOCK_TICK,
+            android.view.HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
+                    android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+        )
+    }
+}
 
 /**
  * Conditionally applies horizontalScroll for code blocks.
@@ -445,6 +470,7 @@ fun ChatScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val view = LocalView.current
 
     // @ file mention state
     val fileSearchResults by viewModel.fileSearchResults.collectAsState()
@@ -454,9 +480,24 @@ fun ChatScreen(
     val chatFontSize by viewModel.chatFontSize.collectAsState()
     val codeWordWrap by viewModel.codeWordWrap.collectAsState()
     val confirmBeforeSend by viewModel.confirmBeforeSend.collectAsState()
+    val compactMessages by viewModel.compactMessages.collectAsState()
+    val collapseTools by viewModel.collapseTools.collectAsState()
+    val hapticEnabled by viewModel.hapticFeedback.collectAsState()
+    val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     var showSendConfirmDialog by remember { mutableStateOf(false) }
     // Pending send action: stored so the confirm dialog can trigger it
     var pendingSendAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    // Keep screen on while on chat screen (if enabled in settings)
+    DisposableEffect(keepScreenOn) {
+        val window = (context as? android.app.Activity)?.window
+        if (keepScreenOn) {
+            window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
 
     // Image attachments — backed by ViewModel URIs for draft persistence
     val attachments = remember { mutableStateListOf<ImageAttachment>() }
@@ -690,7 +731,10 @@ fun ChatScreen(
 
     CompositionLocalProvider(
         LocalChatFontSize provides chatFontSize,
-        LocalCodeWordWrap provides codeWordWrap
+        LocalCodeWordWrap provides codeWordWrap,
+        LocalCompactMessages provides compactMessages,
+        LocalCollapseTools provides collapseTools,
+        LocalHapticFeedbackEnabled provides hapticEnabled
     ) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -902,6 +946,16 @@ fun ChatScreen(
                 },
                 onSend = {
                     val doSend = {
+                        if (hapticEnabled) {
+                            @Suppress("DEPRECATION")
+                            val flags = android.view.HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
+                                    android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                                view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM, flags)
+                            } else {
+                                view.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK, flags)
+                            }
+                        }
                         val rawText = inputText.text
                         // Build prompt parts: split text around confirmed @file mentions
                         val allParts = buildPromptParts(rawText, confirmedFilePaths, viewModel.getSessionDirectory())
@@ -1118,11 +1172,12 @@ fun ChatScreen(
                     }
                 }
                 else -> {
+                    val messageSpacing = if (LocalCompactMessages.current) 4.dp else 12.dp
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(messageSpacing)
                     ) {
                         // "Load earlier messages" button at the top
                         if (uiState.hasOlderMessages) {
@@ -1592,7 +1647,8 @@ private fun ChatMessageBubble(
     } else {
         MaterialTheme.colorScheme.onSurface
     }
-    val maxWidthFraction = if (isUser) 0.85f else 1f
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
 
     // Separate parts into text/reasoning (shown directly) and step parts (behind toggle)
     val visibleParts = if (isUser) {
@@ -1624,7 +1680,8 @@ private fun ChatMessageBubble(
     }
 
     val hasSteps = stepParts.isNotEmpty()
-    var stepsExpanded by remember { mutableStateOf(false) }
+    val autoExpand = LocalCollapseTools.current
+    var stepsExpanded by remember(autoExpand) { mutableStateOf(autoExpand) }
 
     // Check if any tool is currently running (show spinner)
     val hasRunningTool = stepParts.any { it is Part.Tool && it.state is ToolState.Running }
@@ -1639,12 +1696,16 @@ private fun ChatMessageBubble(
             ),
             color = backgroundColor,
             tonalElevation = if (isUser) 0.dp else 1.dp,
-            modifier = Modifier.fillMaxWidth(maxWidthFraction)
+            modifier = Modifier.fillMaxWidth()
         ) {
             SelectionContainer {
+                val compact = LocalCompactMessages.current
                 Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier = Modifier.padding(
+                        horizontal = if (compact) 10.dp else 16.dp,
+                        vertical = if (compact) 8.dp else 14.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 10.dp)
                 ) {
                     // "Response" header with copy button — assistant messages only
                     if (!isUser) {
@@ -1667,7 +1728,7 @@ private fun ChatMessageBubble(
                                     contentDescription = stringResource(R.string.chat_copy),
                                     modifier = Modifier
                                         .size(15.dp)
-                                        .clickable { onCopyText() },
+                                        .clickable { performHaptic(hapticView, hapticOn); onCopyText() },
                                     tint = textColor.copy(alpha = 0.3f)
                                 )
                             }
@@ -1681,7 +1742,7 @@ private fun ChatMessageBubble(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable { stepsExpanded = !stepsExpanded }
+                                .clickable { performHaptic(hapticView, hapticOn); stepsExpanded = !stepsExpanded }
                                 .padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -1765,10 +1826,20 @@ private fun ChatMessageBubble(
         if (isUser && onRevert != null) {
             // Swipe-to-revert for user messages with confirmation dialog
             var showRevertConfirmation by remember { mutableStateOf(false) }
+            val hapticEnabled = LocalHapticFeedbackEnabled.current
+            val bubbleView = LocalView.current
 
             val dismissState = rememberSwipeToDismissBoxState(
                 confirmValueChange = { value ->
                     if (value != SwipeToDismissBoxValue.Settled) {
+                        if (hapticEnabled) {
+                            @Suppress("DEPRECATION")
+                            bubbleView.performHapticFeedback(
+                                android.view.HapticFeedbackConstants.LONG_PRESS,
+                                android.view.HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
+                                        android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+                            )
+                        }
                         showRevertConfirmation = true
                     }
                     false // don't actually dismiss; wait for dialog confirmation
@@ -1855,13 +1926,15 @@ private fun ChatMessageBubble(
  */
 @Composable
 private fun RevertBanner(onRedo: () -> Unit) {
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .clickable { onRedo() }
+            .clickable { performHaptic(hapticView, hapticOn); onRedo() }
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -2168,7 +2241,10 @@ private fun ToolCallCard(tool: Part.Tool) {
     // Resolve display info based on tool type
     val toolDisplay = resolveToolDisplay(tool.tool, tool.state, input)
 
-    var expanded by remember { mutableStateOf(false) }
+    val autoExpand = LocalCollapseTools.current
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
+    var expanded by remember(autoExpand) { mutableStateOf(autoExpand) }
 
     Surface(
         shape = RoundedCornerShape(8.dp),
@@ -2183,7 +2259,7 @@ private fun ToolCallCard(tool: Part.Tool) {
                     .fillMaxWidth()
                     .let { mod ->
                         if (tool.state is ToolState.Completed || tool.state is ToolState.Error) {
-                            mod.clickable { expanded = !expanded }
+                            mod.clickable { performHaptic(hapticView, hapticOn); expanded = !expanded }
                         } else mod
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -2453,7 +2529,10 @@ private fun EditToolCard(tool: Part.Tool) {
     val additions = if (addCount > 0) addCount else 0
     val deletions = if (addCount < 0) -addCount else 0
 
-    var expanded by remember { mutableStateOf(false) }
+    val autoExpand = LocalCollapseTools.current
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
+    var expanded by remember(autoExpand) { mutableStateOf(autoExpand) }
     val isRunning = tool.state is ToolState.Running
     val isError = tool.state is ToolState.Error
     val hasContent = oldString.isNotBlank() || newString.isNotBlank()
@@ -2470,7 +2549,7 @@ private fun EditToolCard(tool: Part.Tool) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .let { mod ->
-                        if (hasContent && !isRunning) mod.clickable { expanded = !expanded } else mod
+                        if (hasContent && !isRunning) mod.clickable { performHaptic(hapticView, hapticOn); expanded = !expanded } else mod
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -2703,7 +2782,10 @@ private fun WriteToolCard(tool: Part.Tool) {
     val shortPath = filePath.substringAfterLast('/')
     val content = input["content"]?.jsonPrimitive?.contentOrNull ?: ""
 
-    var expanded by remember { mutableStateOf(false) }
+    val autoExpand = LocalCollapseTools.current
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
+    var expanded by remember(autoExpand) { mutableStateOf(autoExpand) }
     val isRunning = tool.state is ToolState.Running
     val isError = tool.state is ToolState.Error
     val hasContent = content.isNotBlank()
@@ -2719,7 +2801,7 @@ private fun WriteToolCard(tool: Part.Tool) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .let { mod ->
-                        if (hasContent && !isRunning) mod.clickable { expanded = !expanded } else mod
+                        if (hasContent && !isRunning) mod.clickable { performHaptic(hapticView, hapticOn); expanded = !expanded } else mod
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -2803,7 +2885,10 @@ private fun BashToolCard(tool: Part.Tool) {
         else -> null
     }
 
-    var expanded by remember { mutableStateOf(false) }
+    val autoExpand = LocalCollapseTools.current
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
+    var expanded by remember(autoExpand) { mutableStateOf(autoExpand) }
     val isRunning = tool.state is ToolState.Running
     val isError = tool.state is ToolState.Error
     val hasContent = command.isNotBlank() || output.isNotBlank()
@@ -2819,7 +2904,7 @@ private fun BashToolCard(tool: Part.Tool) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .let { mod ->
-                        if (hasContent && !isRunning) mod.clickable { expanded = !expanded } else mod
+                        if (hasContent && !isRunning) mod.clickable { performHaptic(hapticView, hapticOn); expanded = !expanded } else mod
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -3016,7 +3101,10 @@ private fun SearchToolCard(tool: Part.Tool) {
         include?.let { add("include=$it") }
     }.takeIf { it.isNotEmpty() }?.joinToString(", ", "[", "]")
 
-    var expanded by remember { mutableStateOf(false) }
+    val autoExpand = LocalCollapseTools.current
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
+    var expanded by remember(autoExpand) { mutableStateOf(autoExpand) }
     val isRunning = tool.state is ToolState.Running
     val hasOutput = output.isNotBlank()
 
@@ -3031,7 +3119,7 @@ private fun SearchToolCard(tool: Part.Tool) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .let { mod ->
-                        if (hasOutput && !isRunning) mod.clickable { expanded = !expanded } else mod
+                        if (hasOutput && !isRunning) mod.clickable { performHaptic(hapticView, hapticOn); expanded = !expanded } else mod
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -3129,7 +3217,10 @@ private fun TaskToolCard(tool: Part.Tool) {
         else -> null
     }
 
-    var expanded by remember { mutableStateOf(false) }
+    val autoExpand = LocalCollapseTools.current
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
+    var expanded by remember(autoExpand) { mutableStateOf(autoExpand) }
     val isRunning = tool.state is ToolState.Running
     val hasOutput = output.isNotBlank()
 
@@ -3144,7 +3235,7 @@ private fun TaskToolCard(tool: Part.Tool) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .let { mod ->
-                        if (hasOutput && !isRunning) mod.clickable { expanded = !expanded } else mod
+                        if (hasOutput && !isRunning) mod.clickable { performHaptic(hapticView, hapticOn); expanded = !expanded } else mod
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -3247,6 +3338,8 @@ private fun TodoListCard(tool: Part.Tool) {
     val completedCount = todos.count { it.status == "completed" }
     val totalCount = todos.size
     var expanded by remember { mutableStateOf(true) }
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
 
     Surface(
         shape = RoundedCornerShape(8.dp),
@@ -3259,7 +3352,7 @@ private fun TodoListCard(tool: Part.Tool) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { expanded = !expanded },
+                    .clickable { performHaptic(hapticView, hapticOn); expanded = !expanded },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -3387,7 +3480,10 @@ private fun StepFinishInfo(step: Part.StepFinish) {
 
 @Composable
 private fun PatchCard(patch: Part.Patch) {
-    var expanded by remember { mutableStateOf(false) }
+    val autoExpand = LocalCollapseTools.current
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
+    var expanded by remember(autoExpand) { mutableStateOf(autoExpand) }
 
     Surface(
         shape = RoundedCornerShape(8.dp),
@@ -3400,7 +3496,7 @@ private fun PatchCard(patch: Part.Patch) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { expanded = !expanded },
+                    .clickable { performHaptic(hapticView, hapticOn); expanded = !expanded },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -3588,6 +3684,8 @@ private fun PermissionCard(
     onAlways: () -> Unit,
     onReject: () -> Unit
 ) {
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
     Card(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.tertiaryContainer
@@ -3635,21 +3733,21 @@ private fun PermissionCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(
-                    onClick = onReject,
+                    onClick = { performHaptic(hapticView, hapticOn); onReject() },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                 ) {
                     Text(stringResource(R.string.permission_deny), maxLines = 1)
                 }
                 OutlinedButton(
-                    onClick = onOnce,
+                    onClick = { performHaptic(hapticView, hapticOn); onOnce() },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                 ) {
                     Text(stringResource(R.string.permission_allow_once), maxLines = 1)
                 }
                 Button(
-                    onClick = onAlways,
+                    onClick = { performHaptic(hapticView, hapticOn); onAlways() },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                 ) {
@@ -4181,6 +4279,9 @@ private fun QuestionCard(
 ) {
     val isSingle = question.questions.size == 1 && question.questions[0].multiple != true
 
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
+
     // Prevent multiple submissions
     var submitted by remember { mutableStateOf(false) }
 
@@ -4300,6 +4401,7 @@ private fun QuestionCard(
                         Surface(
                             onClick = {
                                 if (!submitted) {
+                                    performHaptic(hapticView, hapticOn)
                                     if (isSingle) {
                                         submitted = true
                                         onSubmit(listOf(listOf(option.label)))
@@ -4446,6 +4548,7 @@ private fun QuestionCard(
                                             onClick = {
                                                 val trimmed = customText.trim()
                                                 if (trimmed.isNotBlank()) {
+                                                    performHaptic(hapticView, hapticOn)
                                                     if (isSingle) {
                                                         submitted = true
                                                         onSubmit(listOf(listOf(trimmed)))
@@ -4488,6 +4591,7 @@ private fun QuestionCard(
             ) {
                 TextButton(
                     onClick = {
+                        performHaptic(hapticView, hapticOn)
                         submitted = true
                         onReject()
                     },
@@ -4498,6 +4602,7 @@ private fun QuestionCard(
                 if (!isSingle) {
                     Button(
                         onClick = {
+                            performHaptic(hapticView, hapticOn)
                             submitted = true
                             onSubmit(answersPerQuestion.map { it.toList() })
                         },

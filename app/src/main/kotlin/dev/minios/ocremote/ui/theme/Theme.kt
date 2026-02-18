@@ -65,24 +65,58 @@ private val LightColorScheme = lightColorScheme(
 )
 
 /**
+ * AMOLED dark color scheme — pure black surfaces for OLED battery savings.
+ * Uses true black (#000000) for the main surface and very dark tones for containers,
+ * ensuring cards/sheets are still visually distinguishable from the background.
+ */
+private val AmoledDarkColorScheme = DarkColorScheme.copy(
+    background = Color.Black,
+    surface = Color.Black,
+    onSurface = Color(0xFFE5E1E9),
+    surfaceVariant = Color(0xFF1A1A22),
+    surfaceContainer = Color(0xFF0D0D12),
+    surfaceContainerLow = Color(0xFF080810),
+    surfaceContainerLowest = Color.Black,
+    surfaceContainerHigh = Color(0xFF141419),
+    surfaceContainerHighest = Color(0xFF1C1C24)
+)
+
+/**
  * OpenCode Material 3 Theme
  * 
  * Supports:
  * - Light/Dark theme based on system settings
  * - Dynamic color on Android 12+ (Material You)
+ * - AMOLED dark mode with pure black surfaces
  * - Edge-to-edge display
  */
 @Composable
 fun OpenCodeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    amoledDark: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            val scheme = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (darkTheme && amoledDark) {
+                scheme.copy(
+                    background = Color.Black,
+                    surface = Color.Black,
+                    surfaceVariant = Color(0xFF1A1A22),
+                    surfaceContainer = Color(0xFF0D0D12),
+                    surfaceContainerLow = Color(0xFF080810),
+                    surfaceContainerLowest = Color.Black,
+                    surfaceContainerHigh = Color(0xFF141419),
+                    surfaceContainerHighest = Color(0xFF1C1C24)
+                )
+            } else {
+                scheme
+            }
         }
+        darkTheme && amoledDark -> AmoledDarkColorScheme
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }

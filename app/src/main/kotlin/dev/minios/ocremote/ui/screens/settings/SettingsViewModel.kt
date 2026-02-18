@@ -44,12 +44,6 @@ class SettingsViewModel @Inject constructor(
         initialValue = true
     )
 
-    val autoAcceptPermissions = settingsRepository.autoAcceptPermissions.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = false
-    )
-
     val initialMessageCount = settingsRepository.initialMessageCount.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -63,6 +57,48 @@ class SettingsViewModel @Inject constructor(
     )
 
     val confirmBeforeSend = settingsRepository.confirmBeforeSend.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
+    val amoledDark = settingsRepository.amoledDark.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
+    val compactMessages = settingsRepository.compactMessages.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
+    val collapseTools = settingsRepository.collapseTools.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
+    val hapticFeedback = settingsRepository.hapticFeedback.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = true
+    )
+
+    val reconnectMode = settingsRepository.reconnectMode.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "normal"
+    )
+
+    val keepScreenOn = settingsRepository.keepScreenOn.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
+    val silentNotifications = settingsRepository.silentNotifications.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = false
@@ -98,12 +134,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setAutoAcceptPermissions(enabled: Boolean) {
-        viewModelScope.launch {
-            settingsRepository.setAutoAcceptPermissions(enabled)
-        }
-    }
-
     fun setInitialMessageCount(count: Int) {
         viewModelScope.launch {
             settingsRepository.setInitialMessageCount(count)
@@ -119,6 +149,48 @@ class SettingsViewModel @Inject constructor(
     fun setConfirmBeforeSend(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setConfirmBeforeSend(enabled)
+        }
+    }
+
+    fun setAmoledDark(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAmoledDark(enabled)
+        }
+    }
+
+    fun setCompactMessages(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setCompactMessages(enabled)
+        }
+    }
+
+    fun setCollapseTools(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setCollapseTools(enabled)
+        }
+    }
+
+    fun setHapticFeedback(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setHapticFeedback(enabled)
+        }
+    }
+
+    fun setReconnectMode(mode: String) {
+        viewModelScope.launch {
+            settingsRepository.setReconnectMode(mode)
+        }
+    }
+
+    fun setKeepScreenOn(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setKeepScreenOn(enabled)
+        }
+    }
+
+    fun setSilentNotifications(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setSilentNotifications(enabled)
         }
     }
 }

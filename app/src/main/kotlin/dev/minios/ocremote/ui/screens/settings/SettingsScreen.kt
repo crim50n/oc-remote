@@ -9,13 +9,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.ScreenLockPortrait
+
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.ViewCompact
 import androidx.compose.material.icons.filled.WrapText
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -41,15 +48,23 @@ fun SettingsScreen(
     val dynamicColor by viewModel.dynamicColor.collectAsState()
     val chatFontSize by viewModel.chatFontSize.collectAsState()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
-    val autoAcceptPermissions by viewModel.autoAcceptPermissions.collectAsState()
+
     val initialMessageCount by viewModel.initialMessageCount.collectAsState()
     val codeWordWrap by viewModel.codeWordWrap.collectAsState()
     val confirmBeforeSend by viewModel.confirmBeforeSend.collectAsState()
+    val amoledDark by viewModel.amoledDark.collectAsState()
+    val compactMessages by viewModel.compactMessages.collectAsState()
+    val collapseTools by viewModel.collapseTools.collectAsState()
+    val hapticFeedback by viewModel.hapticFeedback.collectAsState()
+    val reconnectMode by viewModel.reconnectMode.collectAsState()
+    val keepScreenOn by viewModel.keepScreenOn.collectAsState()
+    val silentNotifications by viewModel.silentNotifications.collectAsState()
 
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
     var showFontSizeDialog by remember { mutableStateOf(false) }
     var showMessageCountDialog by remember { mutableStateOf(false) }
+    var showReconnectModeDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -72,6 +87,31 @@ fun SettingsScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
+            // ======== General ========
+            SectionHeader(stringResource(R.string.settings_section_general))
+
+            // Language
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_language)) },
+                supportingContent = { Text(getLanguageDisplayName(currentLanguage)) },
+                leadingContent = {
+                    Icon(Icons.Default.Language, contentDescription = null)
+                },
+                modifier = Modifier.clickable { showLanguageDialog = true }
+            )
+
+            // Reconnect mode
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_reconnect_mode)) },
+                supportingContent = { Text(getReconnectModeDisplayName(reconnectMode)) },
+                leadingContent = {
+                    Icon(Icons.Default.Sync, contentDescription = null)
+                },
+                modifier = Modifier.clickable { showReconnectModeDialog = true }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
             // ======== Appearance ========
             SectionHeader(stringResource(R.string.settings_section_appearance))
 
@@ -103,15 +143,26 @@ fun SettingsScreen(
                 )
             }
 
-            // Language
+            // AMOLED dark mode
             ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_language)) },
-                supportingContent = { Text(getLanguageDisplayName(currentLanguage)) },
+                headlineContent = { Text(stringResource(R.string.settings_amoled_dark)) },
+                supportingContent = { Text(stringResource(R.string.settings_amoled_dark_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.Language, contentDescription = null)
+                    Icon(Icons.Default.DarkMode, contentDescription = null)
                 },
-                modifier = Modifier.clickable { showLanguageDialog = true }
+                trailingContent = {
+                    Switch(
+                        checked = amoledDark,
+                        onCheckedChange = { viewModel.setAmoledDark(it) }
+                    )
+                },
+                modifier = Modifier.clickable { viewModel.setAmoledDark(!amoledDark) }
             )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            // ======== Chat Display ========
+            SectionHeader(stringResource(R.string.settings_section_chat_display))
 
             // Font size
             ListItem(
@@ -123,19 +174,20 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { showFontSizeDialog = true }
             )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-            // ======== Chat ========
-            SectionHeader(stringResource(R.string.settings_section_chat))
-
-            // Initial message count
+            // Compact messages
             ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_initial_messages)) },
-                supportingContent = { Text("$initialMessageCount") },
+                headlineContent = { Text(stringResource(R.string.settings_compact_messages)) },
+                supportingContent = { Text(stringResource(R.string.settings_compact_messages_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.Storage, contentDescription = null)
+                    Icon(Icons.Default.ViewCompact, contentDescription = null)
                 },
-                modifier = Modifier.clickable { showMessageCountDialog = true }
+                trailingContent = {
+                    Switch(
+                        checked = compactMessages,
+                        onCheckedChange = { viewModel.setCompactMessages(it) }
+                    )
+                },
+                modifier = Modifier.clickable { viewModel.setCompactMessages(!compactMessages) }
             )
 
             // Code word wrap
@@ -154,6 +206,37 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { viewModel.setCodeWordWrap(!codeWordWrap) }
             )
 
+            // Auto-expand tool results
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_auto_expand_tools)) },
+                supportingContent = { Text(stringResource(R.string.settings_auto_expand_tools_desc)) },
+                leadingContent = {
+                    Icon(Icons.Default.UnfoldMore, contentDescription = null)
+                },
+                trailingContent = {
+                    Switch(
+                        checked = collapseTools,
+                        onCheckedChange = { viewModel.setCollapseTools(it) }
+                    )
+                },
+                modifier = Modifier.clickable { viewModel.setCollapseTools(!collapseTools) }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            // ======== Chat Behavior ========
+            SectionHeader(stringResource(R.string.settings_section_chat_behavior))
+
+            // Initial message count
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_initial_messages)) },
+                supportingContent = { Text("$initialMessageCount") },
+                leadingContent = {
+                    Icon(Icons.Default.Storage, contentDescription = null)
+                },
+                modifier = Modifier.clickable { showMessageCountDialog = true }
+            )
+
             // Confirm before send
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_confirm_send)) },
@@ -170,10 +253,42 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { viewModel.setConfirmBeforeSend(!confirmBeforeSend) }
             )
 
+            // Haptic feedback
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_haptic_feedback)) },
+                supportingContent = { Text(stringResource(R.string.settings_haptic_feedback_desc)) },
+                leadingContent = {
+                    Icon(Icons.Default.Vibration, contentDescription = null)
+                },
+                trailingContent = {
+                    Switch(
+                        checked = hapticFeedback,
+                        onCheckedChange = { viewModel.setHapticFeedback(it) }
+                    )
+                },
+                modifier = Modifier.clickable { viewModel.setHapticFeedback(!hapticFeedback) }
+            )
+
+            // Keep screen on
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_keep_screen_on)) },
+                supportingContent = { Text(stringResource(R.string.settings_keep_screen_on_desc)) },
+                leadingContent = {
+                    Icon(Icons.Default.ScreenLockPortrait, contentDescription = null)
+                },
+                trailingContent = {
+                    Switch(
+                        checked = keepScreenOn,
+                        onCheckedChange = { viewModel.setKeepScreenOn(it) }
+                    )
+                },
+                modifier = Modifier.clickable { viewModel.setKeepScreenOn(!keepScreenOn) }
+            )
+
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-            // ======== Behavior ========
-            SectionHeader(stringResource(R.string.settings_section_behavior))
+            // ======== Notifications ========
+            SectionHeader(stringResource(R.string.settings_section_notifications))
 
             // Notifications
             ListItem(
@@ -191,21 +306,22 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { viewModel.setNotificationsEnabled(!notificationsEnabled) }
             )
 
-            // Auto-accept permissions
+            // Silent notifications
             ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_auto_accept_permissions)) },
-                supportingContent = { Text(stringResource(R.string.settings_auto_accept_desc)) },
+                headlineContent = { Text(stringResource(R.string.settings_silent_notifications)) },
+                supportingContent = { Text(stringResource(R.string.settings_silent_notifications_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.Security, contentDescription = null)
+                    Icon(Icons.Default.NotificationsOff, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
-                        checked = autoAcceptPermissions,
-                        onCheckedChange = { viewModel.setAutoAcceptPermissions(it) }
+                        checked = silentNotifications,
+                        onCheckedChange = { viewModel.setSilentNotifications(it) }
                     )
                 },
-                modifier = Modifier.clickable { viewModel.setAutoAcceptPermissions(!autoAcceptPermissions) }
+                modifier = Modifier.clickable { viewModel.setSilentNotifications(!silentNotifications) }
             )
+
         }
 
         if (showThemeDialog) {
@@ -249,6 +365,17 @@ fun SettingsScreen(
                     showMessageCountDialog = false
                 },
                 onDismiss = { showMessageCountDialog = false }
+            )
+        }
+
+        if (showReconnectModeDialog) {
+            ReconnectModePickerDialog(
+                currentMode = reconnectMode,
+                onModeSelected = { mode ->
+                    viewModel.setReconnectMode(mode)
+                    showReconnectModeDialog = false
+                },
+                onDismiss = { showReconnectModeDialog = false }
             )
         }
     }
@@ -472,6 +599,55 @@ private fun MessageCountPickerDialog(
 }
 
 @Composable
+private fun ReconnectModePickerDialog(
+    currentMode: String,
+    onModeSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val modes = listOf(
+        "aggressive" to stringResource(R.string.settings_reconnect_aggressive),
+        "normal" to stringResource(R.string.settings_reconnect_normal),
+        "conservative" to stringResource(R.string.settings_reconnect_conservative)
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.dialog_select_reconnect_mode)) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                modes.forEach { (code, name) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onModeSelected(code) }
+                            .padding(vertical = 12.dp, horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = name,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        if (code == currentMode) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = stringResource(R.string.ok),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
+@Composable
 private fun getThemeDisplayName(theme: String): String {
     return when (theme) {
         "system" -> stringResource(R.string.settings_theme_system)
@@ -511,5 +687,15 @@ private fun getLanguageDisplayName(code: String): String {
     
     return locale.getDisplayName(locale).replaceFirstChar { 
         if (it.isLowerCase()) it.titlecase(locale) else it.toString() 
+    }
+}
+
+@Composable
+private fun getReconnectModeDisplayName(mode: String): String {
+    return when (mode) {
+        "aggressive" -> stringResource(R.string.settings_reconnect_aggressive)
+        "normal" -> stringResource(R.string.settings_reconnect_normal)
+        "conservative" -> stringResource(R.string.settings_reconnect_conservative)
+        else -> mode
     }
 }

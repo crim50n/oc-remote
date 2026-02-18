@@ -103,6 +103,7 @@ class MainActivity : ComponentActivity() {
             // Collect theme preference
             val appTheme by settingsRepository.appTheme.collectAsState(initial = "system")
             val dynamicColor by settingsRepository.dynamicColor.collectAsState(initial = true)
+            val amoledDark by settingsRepository.amoledDark.collectAsState(initial = false)
             
             // Determine if dark theme should be used
             val systemDarkTheme = isSystemInDarkTheme()
@@ -112,7 +113,7 @@ class MainActivity : ComponentActivity() {
                 else -> systemDarkTheme
             }
             
-            OpenCodeTheme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
+            OpenCodeTheme(darkTheme = darkTheme, dynamicColor = dynamicColor, amoledDark = amoledDark) {
                 
                 // Set status bar color based on theme
                 SideEffect {

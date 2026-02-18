@@ -217,7 +217,7 @@
     <string name="settings_language">Language</string>
     <string name="settings_language_system">System default</string>
     <string name="settings_notifications">Notifications</string>
-    <string name="settings_auto_accept_permissions">Auto-accept edit permissions</string>
+
     <string name="settings_dynamic_color">Dynamic colors</string>
     <string name="settings_dynamic_color_desc">Use colors from wallpaper (Material You)</string>
     <string name="settings_font_size">Chat font size</string>
@@ -225,18 +225,38 @@
     <string name="settings_font_size_medium">Medium</string>
     <string name="settings_font_size_large">Large</string>
     <string name="settings_notifications_desc">Notify when agent completes a task</string>
-    <string name="settings_auto_accept_desc">Automatically allow file edit permissions</string>
+
     <string name="settings_initial_messages">Initial messages to load</string>
     <string name="settings_code_word_wrap">Word wrap in code blocks</string>
     <string name="settings_code_word_wrap_desc">Wrap long lines instead of horizontal scrolling</string>
     <string name="settings_confirm_send">Confirm before sending</string>
     <string name="settings_confirm_send_desc">Show confirmation dialog before sending a message</string>
+    <string name="settings_section_general">General</string>
     <string name="settings_section_appearance">Appearance</string>
-    <string name="settings_section_chat">Chat</string>
-    <string name="settings_section_behavior">Behavior</string>
+    <string name="settings_section_chat_display">Chat Display</string>
+    <string name="settings_section_chat_behavior">Chat Behavior</string>
+    <string name="settings_section_notifications">Notifications</string>
+    <string name="settings_section_advanced">Advanced</string>
     <string name="settings_confirm_send_title">Send message?</string>
     <string name="settings_confirm_send_body">Do you want to send this message?</string>
     <string name="settings_send">Send</string>
+    <string name="settings_amoled_dark">AMOLED dark mode</string>
+    <string name="settings_amoled_dark_desc">Pure black background for OLED screens</string>
+    <string name="settings_compact_messages">Compact messages</string>
+    <string name="settings_compact_messages_desc">Reduce spacing between messages</string>
+    <string name="settings_auto_expand_tools">Auto-expand tool results</string>
+    <string name="settings_auto_expand_tools_desc">Expand tool cards by default instead of collapsing</string>
+    <string name="settings_haptic_feedback">Haptic feedback</string>
+    <string name="settings_haptic_feedback_desc">Vibrate on send and revert actions</string>
+    <string name="settings_reconnect_mode">Reconnect mode</string>
+    <string name="settings_reconnect_aggressive">Aggressive (1–5s)</string>
+    <string name="settings_reconnect_normal">Normal (1–30s)</string>
+    <string name="settings_reconnect_conservative">Conservative (1–60s)</string>
+    <string name="settings_keep_screen_on">Keep screen on</string>
+    <string name="settings_keep_screen_on_desc">Prevent screen timeout while in chat</string>
+    <string name="settings_silent_notifications">Silent notifications</string>
+    <string name="settings_silent_notifications_desc">Suppress sound and vibration for task notifications</string>
+    <string name="dialog_select_reconnect_mode">Select reconnect mode</string>
     
     <!-- Dialogs -->
     <string name="dialog_select_theme">Select Theme</string>
@@ -247,6 +267,8 @@
     <string name="notification_channel_connection_desc">Persistent connection to OpenCode server</string>
     <string name="notification_channel_tasks">Task Notifications</string>
     <string name="notification_channel_tasks_desc">Notifications when OpenCode tasks are completed</string>
+    <string name="notification_channel_tasks_silent">Task Notifications (Silent)</string>
+    <string name="notification_channel_tasks_silent_desc">Silent notifications when OpenCode tasks are completed</string>
     <string name="notification_channel_permissions">Permission Requests</string>
     <string name="notification_channel_permissions_desc">Notifications when OpenCode needs permissions</string>
     <string name="notification_connected">Connected to %1$s</string>

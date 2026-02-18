@@ -24,10 +24,17 @@ class SettingsRepository @Inject constructor(
         private val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
         private val FONT_SIZE_KEY = stringPreferencesKey("chat_font_size")
         private val NOTIFICATIONS_KEY = booleanPreferencesKey("notifications_enabled")
-        private val AUTO_ACCEPT_PERMISSIONS_KEY = booleanPreferencesKey("auto_accept_permissions")
+
         private val INITIAL_MESSAGE_COUNT_KEY = intPreferencesKey("initial_message_count")
         private val CODE_WORD_WRAP_KEY = booleanPreferencesKey("code_word_wrap")
         private val CONFIRM_BEFORE_SEND_KEY = booleanPreferencesKey("confirm_before_send")
+        private val AMOLED_DARK_KEY = booleanPreferencesKey("amoled_dark")
+        private val COMPACT_MESSAGES_KEY = booleanPreferencesKey("compact_messages")
+        private val COLLAPSE_TOOLS_KEY = booleanPreferencesKey("collapse_tools")
+        private val HAPTIC_FEEDBACK_KEY = booleanPreferencesKey("haptic_feedback")
+        private val RECONNECT_MODE_KEY = stringPreferencesKey("reconnect_mode")
+        private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
+        private val SILENT_NOTIFICATIONS_KEY = booleanPreferencesKey("silent_notifications")
     }
 
     /**
@@ -102,19 +109,6 @@ class SettingsRepository @Inject constructor(
     }
 
     /**
-     * Whether edit permissions are auto-accepted. Default: false.
-     */
-    val autoAcceptPermissions: Flow<Boolean> = dataStore.data.map { preferences ->
-        preferences[AUTO_ACCEPT_PERMISSIONS_KEY] ?: false
-    }
-
-    suspend fun setAutoAcceptPermissions(enabled: Boolean) {
-        dataStore.edit { preferences ->
-            preferences[AUTO_ACCEPT_PERMISSIONS_KEY] = enabled
-        }
-    }
-
-    /**
      * Initial number of messages to load per session. Default: 50.
      */
     val initialMessageCount: Flow<Int> = dataStore.data.map { preferences ->
@@ -150,6 +144,98 @@ class SettingsRepository @Inject constructor(
     suspend fun setConfirmBeforeSend(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[CONFIRM_BEFORE_SEND_KEY] = enabled
+        }
+    }
+
+    /**
+     * Whether AMOLED pure black dark theme is enabled. Default: false.
+     */
+    val amoledDark: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[AMOLED_DARK_KEY] ?: false
+    }
+
+    suspend fun setAmoledDark(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[AMOLED_DARK_KEY] = enabled
+        }
+    }
+
+    /**
+     * Whether compact message spacing is enabled. Default: false.
+     */
+    val compactMessages: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[COMPACT_MESSAGES_KEY] ?: false
+    }
+
+    suspend fun setCompactMessages(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[COMPACT_MESSAGES_KEY] = enabled
+        }
+    }
+
+    /**
+     * Whether tool cards are collapsed by default. Default: false.
+     */
+    val collapseTools: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[COLLAPSE_TOOLS_KEY] ?: false
+    }
+
+    suspend fun setCollapseTools(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[COLLAPSE_TOOLS_KEY] = enabled
+        }
+    }
+
+    /**
+     * Whether haptic feedback is enabled. Default: true.
+     */
+    val hapticFeedback: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[HAPTIC_FEEDBACK_KEY] ?: true
+    }
+
+    suspend fun setHapticFeedback(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[HAPTIC_FEEDBACK_KEY] = enabled
+        }
+    }
+
+    /**
+     * Reconnect mode: "aggressive" (1-5s), "normal" (1-30s), "conservative" (1-60s).
+     * Default: "normal".
+     */
+    val reconnectMode: Flow<String> = dataStore.data.map { preferences ->
+        preferences[RECONNECT_MODE_KEY] ?: "normal"
+    }
+
+    suspend fun setReconnectMode(mode: String) {
+        dataStore.edit { preferences ->
+            preferences[RECONNECT_MODE_KEY] = mode
+        }
+    }
+
+    /**
+     * Whether to keep screen on during streaming. Default: false.
+     */
+    val keepScreenOn: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[KEEP_SCREEN_ON_KEY] ?: false
+    }
+
+    suspend fun setKeepScreenOn(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[KEEP_SCREEN_ON_KEY] = enabled
+        }
+    }
+
+    /**
+     * Whether notifications are silent (no sound/vibration). Default: false.
+     */
+    val silentNotifications: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[SILENT_NOTIFICATIONS_KEY] ?: false
+    }
+
+    suspend fun setSilentNotifications(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SILENT_NOTIFICATIONS_KEY] = enabled
         }
     }
 }

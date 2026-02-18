@@ -31,6 +31,7 @@ import javax.inject.Inject
 private const val TAG = "OpenCodeService"
 private const val NOTIFICATION_CHANNEL_ID = "opencode_connection"
 private const val NOTIFICATION_CHANNEL_TASKS_ID = "opencode_tasks"
+private const val NOTIFICATION_CHANNEL_TASKS_SILENT_ID = "opencode_tasks_silent"
 private const val NOTIFICATION_CHANNEL_PERMISSIONS_ID = "opencode_permissions"
 private const val PERSISTENT_NOTIFICATION_ID = 1001
 private const val WAKELOCK_TAG = "OpenCodeRemote::SSEConnection"
@@ -380,9 +381,14 @@ class OpenCodeConnectionService : Service() {
         }
     }
 
-    private fun calculateBackoff(attempt: Int): Long {
+    private suspend fun calculateBackoff(attempt: Int): Long {
+        val maxDelay = when (settingsRepository.reconnectMode.first()) {
+            "aggressive" -> 5_000L
+            "conservative" -> 60_000L
+            else -> RECONNECT_MAX_DELAY_MS // normal: 30s
+        }
         val delay = (RECONNECT_BASE_DELAY_MS * Math.pow(RECONNECT_BACKOFF_FACTOR, (attempt - 1).coerceAtLeast(0).toDouble())).toLong()
-        return delay.coerceAtMost(RECONNECT_MAX_DELAY_MS)
+        return delay.coerceAtMost(maxDelay)
     }
 
     // ============ Event Processing ============
@@ -415,26 +421,7 @@ class OpenCodeConnectionService : Service() {
             is SseEvent.PermissionAsked -> {
                 if (isChildSession(event.sessionId)) return
                 Log.i(TAG, "[${server.displayName}] Permission asked: ${event.permission}")
-                serviceScope.launch {
-                    if (settingsRepository.autoAcceptPermissions.first()) {
-                        // Auto-accept: reply "always" immediately
-                        try {
-                            val conn = getServerConnection(server)
-                            if (conn != null) {
-                                val directory = eventReducer.sessions.value
-                                    .find { it.id == event.sessionId }?.directory
-                                api.replyToPermission(conn, event.id, "always", directory)
-                                Log.i(TAG, "[${server.displayName}] Auto-accepted permission ${event.id}")
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to auto-accept permission", e)
-                            // Fall back to showing notification
-                            showPermissionNotification(server, event.sessionId, event.permission)
-                        }
-                    } else {
-                        showPermissionNotification(server, event.sessionId, event.permission)
-                    }
-                }
+                showPermissionNotification(server, event.sessionId, event.permission)
             }
             is SseEvent.QuestionAsked -> {
                 if (isChildSession(event.sessionId)) return
@@ -551,6 +538,18 @@ class OpenCodeConnectionService : Service() {
                 enableLights(true)
             }
 
+            val tasksSilentChannel = NotificationChannel(
+                NOTIFICATION_CHANNEL_TASKS_SILENT_ID,
+                getString(R.string.notification_channel_tasks_silent),
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = getString(R.string.notification_channel_tasks_silent_desc)
+                setShowBadge(true)
+                enableVibration(false)
+                enableLights(false)
+                setSound(null, null)
+            }
+
             val permissionsChannel = NotificationChannel(
                 NOTIFICATION_CHANNEL_PERMISSIONS_ID,
                 getString(R.string.notification_channel_permissions),
@@ -564,6 +563,7 @@ class OpenCodeConnectionService : Service() {
 
             notificationManager.createNotificationChannel(connectionChannel)
             notificationManager.createNotificationChannel(tasksChannel)
+            notificationManager.createNotificationChannel(tasksSilentChannel)
             notificationManager.createNotificationChannel(permissionsChannel)
         }
     }
@@ -631,27 +631,32 @@ class OpenCodeConnectionService : Service() {
 
     // ============ Event Notifications (grouped by server) ============
 
-    private fun showTaskCompleteNotification(server: ServerConfig, sessionId: String) {
+    private suspend fun showTaskCompleteNotification(server: ServerConfig, sessionId: String) {
         val (sessionTitle, _) = getSessionInfo(sessionId)
         val body = sessionTitle ?: sessionId
 
         val pendingIntent = createSessionPendingIntent(server, sessionId, sessionId.hashCode())
 
+        val silent = settingsRepository.silentNotifications.first()
+        val channelId = if (silent) NOTIFICATION_CHANNEL_TASKS_SILENT_ID else NOTIFICATION_CHANNEL_TASKS_ID
+
         val notifId = eventNotificationId(server.id, sessionId, 0)
-        val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_TASKS_ID)
+        val builder = NotificationCompat.Builder(this, channelId)
             .setContentTitle(getString(R.string.notification_response_ready))
             .setContentText(body)
             .setSubText(server.displayName)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setVibrate(longArrayOf(0, 500, 200, 500))
+            .setPriority(if (silent) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_HIGH)
             .setGroup("server_${server.id}")
-            .build()
 
-        notificationManager.notify(notifId, notification)
+        if (!silent) {
+            builder.setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setVibrate(longArrayOf(0, 500, 200, 500))
+        }
+
+        notificationManager.notify(notifId, builder.build())
         showServerGroupSummary(server)
     }
 
@@ -748,7 +753,7 @@ class OpenCodeConnectionService : Service() {
      */
     private fun showServerGroupSummary(server: ServerConfig) {
         val summaryId = "server_summary_${server.id}".hashCode()
-        val summary = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_TASKS_ID)
+        val summary = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_TASKS_SILENT_ID)
             .setContentTitle(server.displayName)
             .setContentText(getString(R.string.notification_group_summary))
             .setSmallIcon(R.mipmap.ic_launcher)

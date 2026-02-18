@@ -149,7 +149,18 @@ class ChatViewModel @Inject constructor(
     val confirmBeforeSend = settingsRepository.confirmBeforeSend.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), false
     )
-
+    val compactMessages = settingsRepository.compactMessages.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
+    val collapseTools = settingsRepository.collapseTools.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
+    val hapticFeedback = settingsRepository.hapticFeedback.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), true
+    )
+    val keepScreenOn = settingsRepository.keepScreenOn.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
     // ============ Pagination ============
     /** Current message limit (doubles each time user loads older messages). */
     private var currentMessageLimit = 50
@@ -335,22 +346,6 @@ class ChatViewModel @Inject constructor(
         loadAgents()
         loadCommands()
 
-        // Auto-accept permissions when setting is enabled
-        viewModelScope.launch {
-            eventReducer.permissions.collect { allPermissions ->
-                val pending = allPermissions[sessionId] ?: emptyList()
-                if (pending.isNotEmpty() && settingsRepository.autoAcceptPermissions.first()) {
-                    for (permission in pending) {
-                        try {
-                            api.replyToPermission(conn, permission.id, "always", sessionDirectory)
-                            if (BuildConfig.DEBUG) Log.d(TAG, "Auto-accepted permission ${permission.id}")
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to auto-accept permission ${permission.id}", e)
-                        }
-                    }
-                }
-            }
-        }
     }
 
     /** Load the session info to get its directory for correct project context. */

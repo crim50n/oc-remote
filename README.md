@@ -37,13 +37,21 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Settings** — language and theme selection in Settings screen
 
 ### Settings
+- **Language** — 13 languages with app restart (system default, English, Russian, German, Spanish, French, Italian, Portuguese BR, Japanese, Korean, Chinese Simplified, Ukrainian, Turkish, Arabic, Polish)
+- **Reconnect mode** — aggressive (1–5s), normal (1–30s), or conservative (1–60s) backoff strategy
+- **Theme** — light, dark, or system default
 - **Dynamic colors** — Material You dynamic color support (Android 12+)
+- **AMOLED dark mode** — pure black background for OLED screens (works with both static and dynamic colors)
 - **Chat font size** — small, medium, or large text in chat messages and code blocks
 - **Code word wrap** — toggle horizontal scrolling vs. word wrap in code blocks and tool outputs
-- **Notifications** — toggle task completion notifications
-- **Auto-accept permissions** — automatically approve tool permission requests
+- **Compact messages** — reduce spacing between messages for denser layout
+- **Auto-expand tool results** — show tool card contents expanded by default
 - **Initial message count** — configure how many messages to load per session (10–200)
 - **Confirm before send** — optional confirmation dialog before sending messages
+- **Haptic feedback** — vibrate on send and revert actions (API 30+ uses CONFIRM, older uses CONTEXT_CLICK)
+- **Keep screen on** — prevent screen timeout while agent is working
+- **Notifications** — toggle task completion notifications
+- **Silent notifications** — suppress sound and vibration for task notifications
 
 ### Connection
 - **Multi-server** — connect to multiple OpenCode servers simultaneously
@@ -120,8 +128,8 @@ dev.minios.ocremote/
 ## Recent Changes
 
 ### Settings
-- 7 new settings: dynamic colors, chat font size, code word wrap, notifications toggle, auto-accept permissions, initial message count, confirm before send
-- Settings screen reorganized into Appearance, Chat, and Behavior sections
+- 14 settings total: language, reconnect mode, theme, dynamic colors, AMOLED dark, chat font size, code word wrap, compact messages, auto-expand tools, initial message count, confirm before send, haptic feedback, keep screen on, notifications (regular/silent)
+- Settings screen organized into 6 sections: General, Appearance, Chat Display, Chat Behavior, Notifications, Advanced
 - Font size scales both markdown body text and code blocks
 - Code word wrap toggles horizontal scrolling in all tool output cards and diff views
 
