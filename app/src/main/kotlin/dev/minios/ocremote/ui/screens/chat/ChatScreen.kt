@@ -99,6 +99,7 @@ import android.util.Log
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
 import dev.minios.ocremote.R
+import dev.minios.ocremote.ui.components.ProviderIcon
 
 /**
  * Chat Screen - conversation view with native markdown rendering.
@@ -134,6 +135,30 @@ private fun performHaptic(view: android.view.View, enabled: Boolean) {
             android.view.HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
                     android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
         )
+    }
+}
+
+/**
+ * Agent color matching the TUI's opencode theme.
+ * Color cycle: secondary, accent, success, warning, primary, error, info
+ * (same order as TUI's local.tsx color array).
+ */
+private val agentColorCycle = listOf(
+    Color(0xFF5C9CF5), // secondary — build (blue)
+    Color(0xFF9D7CD8), // accent — plan (purple)
+    Color(0xFF7FD88F), // success (green)
+    Color(0xFFF5A742), // warning (orange)
+    Color(0xFFFAB283), // primary (peach)
+    Color(0xFFE06C75), // error (red)
+    Color(0xFF56B6C2)  // info (cyan)
+)
+
+private fun agentColor(agentName: String, agents: List<AgentInfo> = emptyList()): Color {
+    val index = agents.indexOfFirst { it.name == agentName }
+    return if (index >= 0) {
+        agentColorCycle[index % agentColorCycle.size]
+    } else {
+        agentColorCycle[0]
     }
 }
 
@@ -994,6 +1019,7 @@ fun ChatScreen(
                     }
                 },
                 modelLabel = modelLabel,
+                selectedProviderId = uiState.selectedProviderId,
                 onModelClick = { showModelPicker = true },
                 agents = uiState.agents,
                 selectedAgent = uiState.selectedAgent,
@@ -1519,15 +1545,25 @@ private fun ModelPickerDialog(
 
                     // Provider header
                     item(key = "provider_header_${provider.id}") {
-                        Text(
-                            text = (provider.name.ifEmpty { provider.id }).uppercase(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            letterSpacing = 1.sp,
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = topPad, bottom = 2.dp, start = 4.dp)
-                        )
+                                .padding(top = topPad, bottom = 2.dp, start = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            ProviderIcon(
+                                providerId = provider.id,
+                                size = 14.dp,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                            Text(
+                                text = (provider.name.ifEmpty { provider.id }).uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                letterSpacing = 1.sp
+                            )
+                        }
                     }
 
                     items(
@@ -1707,21 +1743,34 @@ private fun ChatMessageBubble(
                     ),
                     verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 10.dp)
                 ) {
-                    // "Response" header with copy button — assistant messages only
+                    // "Response" header with provider icon and copy button — assistant messages only
                     if (!isUser) {
+                        val assistantMsg = chatMessage.message as? Message.Assistant
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = stringResource(R.string.chat_response),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    letterSpacing = 0.8.sp,
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                color = textColor.copy(alpha = 0.4f)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                if (assistantMsg?.providerId != null) {
+                                    ProviderIcon(
+                                        providerId = assistantMsg.providerId,
+                                        size = 12.dp,
+                                        tint = textColor.copy(alpha = 0.4f)
+                                    )
+                                }
+                                Text(
+                                    text = stringResource(R.string.chat_response),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        letterSpacing = 0.8.sp,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    color = textColor.copy(alpha = 0.4f)
+                                )
+                            }
                             if (onCopyText != null) {
                                 Icon(
                                     Icons.Default.ContentCopy,
@@ -3780,6 +3829,7 @@ private fun ChatInputBar(
     onAttach: () -> Unit = {},
     onRemoveAttachment: (Int) -> Unit = {},
     modelLabel: String = "",
+    selectedProviderId: String? = null,
     onModelClick: () -> Unit = {},
     agents: List<AgentInfo> = emptyList(),
     selectedAgent: String = "build",
@@ -4056,38 +4106,36 @@ private fun ChatInputBar(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        // Agent selector (build/plan toggle) — FIRST
+                        // Agent selector — single button, tap to cycle
+                        // Fixed width: all agent names rendered invisible to reserve max width
                         if (agents.size > 1) {
-                            Row(
+                            val agentColor = agentColor(selectedAgent, agents)
+                            Box(
+                                contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                agents.forEach { agent ->
-                                    val isActive = agent.name == selectedAgent
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .then(
-                                                if (isActive) Modifier.background(
-                                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                                ) else Modifier
-                                            )
-                                            .clickable { onAgentSelect(agent.name) }
-                                            .padding(horizontal = 6.dp, vertical = 3.dp)
-                                    ) {
-                                        Text(
-                                            text = agent.name.replaceFirstChar { it.uppercase() },
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (isActive) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                            }
-                                        )
+                                    .background(agentColor.copy(alpha = 0.18f))
+                                    .clickable {
+                                        val currentIndex = agents.indexOfFirst { it.name == selectedAgent }
+                                        val nextIndex = (currentIndex + 1) % agents.size
+                                        onAgentSelect(agents[nextIndex].name)
                                     }
+                                    .padding(horizontal = 6.dp, vertical = 3.dp)
+                            ) {
+                                // Invisible ghost texts for all agent names — fixes width to the widest
+                                agents.forEach { agent ->
+                                    Text(
+                                        text = agent.name.replaceFirstChar { it.uppercase() },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.Transparent
+                                    )
                                 }
+                                // Visible label with accent color
+                                Text(
+                                    text = selectedAgent.replaceFirstChar { it.uppercase() },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = agentColor
+                                )
                             }
                         }
 
@@ -4101,6 +4149,13 @@ private fun ChatInputBar(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
+                                if (selectedProviderId != null) {
+                                    ProviderIcon(
+                                        providerId = selectedProviderId,
+                                        size = 13.dp,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    )
+                                }
                                 Text(
                                     text = modelLabel,
                                     style = MaterialTheme.typography.labelSmall,

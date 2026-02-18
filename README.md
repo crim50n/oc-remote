@@ -21,23 +21,24 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Session actions** — create, fork, compact, share/unshare, rename via dropdown menu
 - **Load older messages** — pagination for large sessions (initial 50, expandable)
 - **OOM protection** — `largeHeap` enabled, reduced logging, pagination prevents crashes on huge sessions
-- **Session export** — export full session as text file with streaming progress notification
+- **Session export** — export full session as JSON file with streaming progress notification
 - **Draft persistence** — input text, image attachments, and @file mentions saved per session; survives navigation, app restart, and WebUI detours
 
 ### Model & Agent Selection
-- **Model picker** — select provider and model with variant support
-- **Agent toggle** — switch between Build/Plan agents
+- **Model picker** — select provider and model with variant support; provider icons shown in headers
+- **Agent selector** — tap to cycle through agents; each agent colored with its TUI theme color (blue, purple, green…)
+- **Provider icons** — 74 vector icons for AI providers shown in model picker and next to assistant responses
 - **Token usage** — displays total tokens and cost in toolbar subtitle
 - **Context window** — percentage display above input, color-coded (normal < 70%, warning 70-90%, critical > 90%)
 - **Compact layout** — horizontally scrollable toolbar prevents overflow on long translations
 
 ### Localization
-- **13 languages** — English (source), Russian, German, Spanish, French, Italian, Portuguese (BR), Japanese, Korean, Chinese (Simplified), Ukrainian, Turkish, Arabic, Polish
+- **14 languages** — English (source), Russian, German, Spanish, French, Italian, Portuguese (BR), Indonesian, Japanese, Korean, Chinese (Simplified), Ukrainian, Turkish, Arabic, Polish
 - **Auto-translation** — lokit integration for automatic string translation
 - **Settings** — language and theme selection in Settings screen
 
 ### Settings
-- **Language** — 13 languages with app restart (system default, English, Russian, German, Spanish, French, Italian, Portuguese BR, Japanese, Korean, Chinese Simplified, Ukrainian, Turkish, Arabic, Polish)
+- **Language** — 14 languages with app restart (system default, English, Russian, German, Spanish, French, Italian, Portuguese BR, Indonesian, Japanese, Korean, Chinese Simplified, Ukrainian, Turkish, Arabic, Polish)
 - **Reconnect mode** — aggressive (1–5s), normal (1–30s), or conservative (1–60s) backoff strategy
 - **Theme** — light, dark, or system default
 - **Dynamic colors** — Material You dynamic color support (Android 12+)
@@ -46,7 +47,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Code word wrap** — toggle horizontal scrolling vs. word wrap in code blocks and tool outputs
 - **Compact messages** — reduce spacing between messages for denser layout
 - **Auto-expand tool results** — show tool card contents expanded by default
-- **Initial message count** — configure how many messages to load per session (10–200)
+- **Initial message count** — configure how many messages to load per session (25–200)
 - **Confirm before send** — optional confirmation dialog before sending messages
 - **Haptic feedback** — vibrate on send and revert actions (API 30+ uses CONFIRM, older uses CONTEXT_CLICK)
 - **Keep screen on** — prevent screen timeout while agent is working
@@ -94,63 +95,11 @@ opencode web --port 4096 --hostname 0.0.0.0
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Architecture
+### CI/CD
 
-```
-dev.minios.ocremote/
-├── MainActivity.kt                 # Single activity, edge-to-edge, deep-links
-├── OpenCodeApp.kt                  # Hilt application
-├── data/
-│   ├── api/
-│   │   ├── OpenCodeApi.kt          # Stateless REST client (Ktor/OkHttp)
-│   │   └── SseClient.kt            # SSE client for event streaming
-│   └── repository/
-│       ├── DraftRepository.kt      # Per-session draft persistence (text, images, @files)
-│       ├── EventReducer.kt         # Central SSE event state management
-│       ├── ServerRepository.kt     # Server config persistence (DataStore)
-│       └── SettingsRepository.kt   # App settings persistence (DataStore)
-├── domain/model/                   # Data classes (Session, Message, Part, etc.)
-├── service/
-│   └── OpenCodeConnectionService.kt  # Multi-server foreground service
-├── di/
-│   └── NetworkModule.kt            # Hilt DI (Ktor, OkHttp, lokit)
-└── ui/
-    ├── screens/
-    │   ├── home/                   # Server list, session list, battery banner
-    │   ├── chat/                   # Native chat UI with markdown, streaming, scroll
-    │   ├── settings/               # Settings (appearance, chat, behavior)
-    │   └── webview/                # Fallback WebView for "Open in Web" action
-    ├── components/                 # Reusable UI components
-    ├── navigation/                 # Compose Navigation graph
-    └── theme/                      # Material 3 theme (dynamic color support)
-```
-
-## Recent Changes
-
-### Settings
-- 14 settings total: language, reconnect mode, theme, dynamic colors, AMOLED dark, chat font size, code word wrap, compact messages, auto-expand tools, initial message count, confirm before send, haptic feedback, keep screen on, notifications (regular/silent)
-- Settings screen organized into 6 sections: General, Appearance, Chat Display, Chat Behavior, Notifications, Advanced
-- Font size scales both markdown body text and code blocks
-- Code word wrap toggles horizontal scrolling in all tool output cards and diff views
-
-### Draft persistence
-- Input text, image attachments, and `@file` mentions saved per session
-- Restored automatically when returning to a session — survives navigation and app restart
-
-### Session export
-- Export full session as a text file with progress notification
-
-### UI polish
-- Pulsing dots indicator and breathing circle animation for send button
-- Compaction divider with long-press to revert
-- Context window percentage above input area, color-coded by usage level
-- Toolbar subtitle always shows total tokens + cost
-
-### Session management
-- Dropdown menu (⋮) in chat topbar: Open in Web, New Session, Fork, Compact, Share/Unshare, Rename
-- Horizontally scrollable agent/model/variant toolbar
-- Pagination with "Load earlier messages" button
-- Smart auto-scroll with manual override and FAB to re-enable
+GitHub Actions workflows are included:
+- **`release.yml`** — manual trigger, builds and signs a release APK, creates a GitHub Release with release notes
+- **`android_test.yml`** — runs unit tests on every push to `master`
 
 ## License
 

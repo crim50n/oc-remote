@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -22,6 +25,23 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+    }
+
+    val hasPropertiesFile = File("app/keystore/signing.properties").exists()
+    if (hasPropertiesFile) {
+        val props = Properties()
+        props.load(FileInputStream(file("keystore/signing.properties")))
+        val alias = props["keystore.alias"] as String
+        signingConfigs {
+            create("release") {
+                storeFile = file(props["keystore"] as String)
+                storePassword = props["keystore.password"] as String
+                keyAlias = alias
+                keyPassword = props["keystore.password"] as String
+            }
+        }
+        println("[Signature] -> Build will be signed with: $alias")
+        buildTypes.getByName("release").signingConfig = signingConfigs.getByName("release")
     }
 
     buildTypes {

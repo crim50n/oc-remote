@@ -456,6 +456,7 @@ private fun LanguagePickerDialog(
         "de" to "Deutsch",
         "es" to "Español",
         "fr" to "Français",
+        "id" to "Bahasa Indonesia",
         "it" to "Italiano",
         "ja" to "日本語",
         "ko" to "한국어",
