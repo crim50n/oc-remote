@@ -303,4 +303,14 @@
     <string name="chat_session_exported">Sessão exportada</string>
     <string name="chat_session_export_failed">Falha ao exportar sessão</string>
     <string name="chat_session_exporting">Exportando… %s</string>
+    <string name="about_title">Sobre</string>
+    <string name="about_version">Versão %s</string>
+    <string name="about_description">Cliente Android para servidores OpenCode</string>
+    <string name="about_unofficial">Este é um projeto comunitário não oficial, sem vínculo com a equipe do OpenCode.</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_github_url">https://github.com/minios-linux/oc-remote</string>
+    <string name="about_opencode">OpenCode</string>
+    <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
+    <string name="about_license">Licença</string>
+    <string name="about_license_value">MIT</string>
 </resources>

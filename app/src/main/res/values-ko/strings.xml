@@ -303,4 +303,14 @@
     <string name="chat_session_exported">세션 내보내기 완료</string>
     <string name="chat_session_export_failed">세션 내보내기 실패</string>
     <string name="chat_session_exporting">내보내는 중… %s</string>
+    <string name="about_title">정보</string>
+    <string name="about_version">버전 %s</string>
+    <string name="about_description">OpenCode 서버용 Android 클라이언트</string>
+    <string name="about_unofficial">이 앱은 OpenCode 팀과 관련 없는 비공식 커뮤니티 프로젝트입니다.</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_github_url">https://github.com/minios-linux/oc-remote</string>
+    <string name="about_opencode">OpenCode</string>
+    <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
+    <string name="about_license">라이선스</string>
+    <string name="about_license_value">MIT</string>
 </resources>

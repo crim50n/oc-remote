@@ -303,4 +303,14 @@
     <string name="chat_session_exported">会话已导出</string>
     <string name="chat_session_export_failed">会话导出失败</string>
     <string name="chat_session_exporting">正在导出… %s</string>
+    <string name="about_title">关于</string>
+    <string name="about_version">版本 %s</string>
+    <string name="about_description">OpenCode 服务器的 Android 客户端</string>
+    <string name="about_unofficial">这是一个非官方社区项目，与 OpenCode 团队无关。</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_github_url">https://github.com/minios-linux/oc-remote</string>
+    <string name="about_opencode">OpenCode</string>
+    <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
+    <string name="about_license">许可证</string>
+    <string name="about_license_value">MIT</string>
 </resources>

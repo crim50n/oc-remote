@@ -1,5 +1,6 @@
 package dev.minios.ocremote
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -8,7 +9,6 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -19,7 +19,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.core.os.LocaleListCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import dev.minios.ocremote.data.repository.SettingsRepository
@@ -31,7 +30,9 @@ import dev.minios.ocremote.ui.theme.OpenCodeTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import java.util.Locale
 import javax.inject.Inject
 
 private const val TAG = "MainActivity"
@@ -78,19 +79,37 @@ class MainActivity : ComponentActivity() {
     private val _sharedImagesFlow = MutableSharedFlow<List<Uri>>(replay = 1)
     val sharedImagesFlow = _sharedImagesFlow.asSharedFlow()
 
+    /** Language code applied via attachBaseContext for this Activity instance. */
+    private var appliedLanguage: String = ""
+
+    override fun attachBaseContext(newBase: Context) {
+        // Read stored language synchronously from SharedPreferences (no Hilt needed).
+        val languageCode = SettingsRepository.getStoredLanguage(newBase)
+        appliedLanguage = languageCode
+
+        if (languageCode.isNotEmpty()) {
+            val locale = parseLocale(languageCode)
+            Locale.setDefault(locale)
+            val config = newBase.resources.configuration
+            config.setLocale(locale)
+            super.attachBaseContext(newBase.createConfigurationContext(config))
+        } else {
+            super.attachBaseContext(newBase)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        
-        // Apply language preference
+
+        // Watch for language changes AFTER initial value — drop(1) skips the
+        // current value that attachBaseContext already applied, so we only
+        // recreate when the user actually switches language in Settings.
         lifecycleScope.launch {
-            settingsRepository.appLanguage.collect { languageCode ->
-                val localeList = if (languageCode.isEmpty()) {
-                    LocaleListCompat.getEmptyLocaleList()
-                } else {
-                    LocaleListCompat.forLanguageTags(languageCode)
+            settingsRepository.appLanguage.drop(1).collect { languageCode ->
+                if (languageCode != appliedLanguage) {
+                    recreate()
                 }
-                AppCompatDelegate.setApplicationLocales(localeList)
             }
         }
         
@@ -223,6 +242,18 @@ class MainActivity : ComponentActivity() {
             }
             Log.i(TAG, "Received ${uris.size} shared image(s)")
             _sharedImagesFlow.tryEmit(uris)
+        }
+    }
+
+    companion object {
+        /** Parse BCP 47 tag (e.g. "pt-BR", "zh-CN", "en") into a [Locale]. */
+        fun parseLocale(tag: String): Locale {
+            val parts = tag.split("-")
+            return if (parts.size >= 2) {
+                Locale(parts[0], parts[1].uppercase())
+            } else {
+                Locale(parts[0])
+            }
         }
     }
 }

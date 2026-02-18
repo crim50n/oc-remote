@@ -303,4 +303,14 @@
     <string name="chat_session_exported">Oturum dışa aktarıldı</string>
     <string name="chat_session_export_failed">Oturum dışa aktarılamadı</string>
     <string name="chat_session_exporting">Dışa aktarılıyor… %s</string>
+    <string name="about_title">Hakkında</string>
+    <string name="about_version">Sürüm %s</string>
+    <string name="about_description">OpenCode sunucuları için Android istemcisi</string>
+    <string name="about_unofficial">Bu, OpenCode ekibiyle bağlantılı olmayan, resmi olmayan bir topluluk projesidir.</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_github_url">https://github.com/minios-linux/oc-remote</string>
+    <string name="about_opencode">OpenCode</string>
+    <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
+    <string name="about_license">Lisans</string>
+    <string name="about_license_value">MIT</string>
 </resources>

@@ -1,5 +1,6 @@
 package dev.minios.ocremote.data.repository
 
+import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -16,7 +17,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class SettingsRepository @Inject constructor(
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context
 ) {
     companion object {
         private val LANGUAGE_KEY = stringPreferencesKey("app_language")
@@ -35,6 +37,16 @@ class SettingsRepository @Inject constructor(
         private val RECONNECT_MODE_KEY = stringPreferencesKey("reconnect_mode")
         private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
         private val SILENT_NOTIFICATIONS_KEY = booleanPreferencesKey("silent_notifications")
+
+        /** SharedPreferences name used for synchronous locale reads in attachBaseContext. */
+        private const val LOCALE_PREFS = "locale_prefs"
+        private const val LOCALE_PREFS_KEY = "app_language"
+
+        /** Read stored language synchronously — safe to call before Hilt init. */
+        fun getStoredLanguage(context: Context): String {
+            return context.getSharedPreferences(LOCALE_PREFS, Context.MODE_PRIVATE)
+                .getString(LOCALE_PREFS_KEY, "") ?: ""
+        }
     }
 
     /**
@@ -53,8 +65,13 @@ class SettingsRepository @Inject constructor(
 
     /**
      * Set the app language. Pass empty string to use system default.
+     * Also writes to SharedPreferences for synchronous read in attachBaseContext.
      */
     suspend fun setAppLanguage(languageCode: String) {
+        context.getSharedPreferences(LOCALE_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(LOCALE_PREFS_KEY, languageCode)
+            .apply()
         dataStore.edit { preferences ->
             preferences[LANGUAGE_KEY] = languageCode
         }

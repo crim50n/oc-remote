@@ -304,4 +304,14 @@
     <string name="notification_channel_tasks_silent">Уведомления о задачах (Бесшумно)</string>
     <string name="notification_channel_tasks_silent_desc">Бесшумные уведомления при завершении задач OpenCode</string>
     <string name="chat_session_exporting">Экспорт… %s</string>
+    <string name="about_title">О приложении</string>
+    <string name="about_version">Версия %s</string>
+    <string name="about_description">Клиент для Android для серверов OpenCode</string>
+    <string name="about_unofficial">Это неофициальный проект сообщества, не связанный с командой OpenCode.</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_github_url">https://github.com/minios-linux/oc-remote</string>
+    <string name="about_opencode">OpenCode</string>
+    <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
+    <string name="about_license">Лицензия</string>
+    <string name="about_license_value">MIT</string>
 </resources>

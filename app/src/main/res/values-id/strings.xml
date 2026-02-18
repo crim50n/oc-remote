@@ -309,4 +309,14 @@
     <string name="chat_session_exported">Sesi berhasil diekspor</string>
     <string name="chat_session_export_failed">Gagal mengekspor sesi</string>
     <string name="chat_session_exporting">Mengekspor… %s</string>
+    <string name="about_title">Tentang</string>
+    <string name="about_version">Versi %s</string>
+    <string name="about_description">Klien Android untuk server OpenCode</string>
+    <string name="about_unofficial">Ini adalah proyek komunitas tidak resmi, tidak berafiliasi dengan tim OpenCode.</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_github_url">https://github.com/minios-linux/oc-remote</string>
+    <string name="about_opencode">OpenCode</string>
+    <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
+    <string name="about_license">Lisensi</string>
+    <string name="about_license_value">MIT</string>
 </resources>

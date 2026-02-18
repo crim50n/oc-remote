@@ -1,6 +1,7 @@
 package dev.minios.ocremote.service
 
 import android.app.*
+import android.content.Context
 import android.content.Intent
 import android.os.Binder
 import android.os.Build
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import java.util.Locale
 import javax.inject.Inject
 
 private const val TAG = "OpenCodeService"
@@ -68,6 +70,19 @@ private data class ServerConnectionState(
  */
 @AndroidEntryPoint
 class OpenCodeConnectionService : Service() {
+
+    override fun attachBaseContext(newBase: Context) {
+        val languageCode = SettingsRepository.getStoredLanguage(newBase)
+        if (languageCode.isNotEmpty()) {
+            val locale = MainActivity.parseLocale(languageCode)
+            Locale.setDefault(locale)
+            val config = newBase.resources.configuration
+            config.setLocale(locale)
+            super.attachBaseContext(newBase.createConfigurationContext(config))
+        } else {
+            super.attachBaseContext(newBase)
+        }
+    }
 
     @Inject
     lateinit var api: OpenCodeApi
