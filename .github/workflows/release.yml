@@ -47,8 +47,13 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.name }}"
           mkdir -p release-apks
-          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
-            cp app/build/outputs/apk/release/app-release.apk release-apks/ocremote-release-${VERSION}.apk
+          # Find the built APK (signed or unsigned)
+          APK=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
+          if [ -n "$APK" ]; then
+            cp "$APK" release-apks/oc-remote-${VERSION}.apk
+          else
+            echo "::error::No APK found in app/build/outputs/apk/release/"
+            exit 1
           fi
 
       - name: Upload Release APK
