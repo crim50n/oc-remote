@@ -234,14 +234,12 @@ fun SessionListScreen(
                     ) {
                         for (group in uiState.sessionGroups) {
                             items(group.sessions, key = { it.session.id }) { item ->
-                                val sessionDir = item.session.directory
-                                    .trimEnd('/')
-                                    .substringAfterLast('/')
-                                    .ifEmpty { null }
                                 val untitledLabel = stringResource(R.string.session_untitled)
+                                val dirLabel = group.sessionDirLabels[item.session.id]
+                                    ?: group.directory.ifEmpty { group.projectName }
                                 SessionRow(
                                     item = item,
-                                    projectName = sessionDir ?: group.projectName,
+                                    projectName = dirLabel,
                                     onClick = { onNavigateToChat(item.session.id) },
                                     onRename = {
                                         renameSessionId = item.session.id

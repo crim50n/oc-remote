@@ -42,8 +42,13 @@ data class ProjectSessionGroup(
     val projectId: String,
     val projectName: String,
     val directory: String,
-    val sessions: List<SessionItem>
+    val sessions: List<SessionItem>,
+    /** Per-session tilde-path labels (sessionId -> tildePath) for flat display. */
+    val sessionDirLabels: Map<String, String> = emptyMap()
 )
+
+/** Helper for session directory info. */
+private data class SessionDirInfo(val name: String, val tildePath: String)
 
 data class SessionItem(
     val session: Session,
@@ -78,6 +83,7 @@ class SessionListViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     private val _isLoading = MutableStateFlow(true)
     private val _projects = MutableStateFlow<List<Project>>(emptyList())
+    private val _homeDir = MutableStateFlow<String?>(null)
     private val _navigateToSession = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val navigateToSession: SharedFlow<String> = _navigateToSession.asSharedFlow()
 
@@ -89,7 +95,8 @@ class SessionListViewModel @Inject constructor(
             eventReducer.serverSessions,
             _isLoading,
             _error,
-            _projects
+            _projects,
+            _homeDir
         )
     ) { values ->
         val allSessions = values[0] as List<Session>
@@ -98,6 +105,7 @@ class SessionListViewModel @Inject constructor(
         val loading = values[3] as Boolean
         val error = values[4] as String?
         val projects = values[5] as List<Project>
+        val homeDir = values[6] as String?
 
         // Filter sessions belonging to this server
         val serverSessionIds = serverSessions[serverId] ?: emptySet()
@@ -111,22 +119,29 @@ class SessionListViewModel @Inject constructor(
                 )
             }
 
-        // Group by projectId
-        val grouped = sessions.groupBy { it.session.projectId }
-        val groups = grouped.map { (projectId, items) ->
-            val project = projects.find { it.id == projectId }
-            val dir = items.firstOrNull()?.session?.directory ?: ""
-            val pName = project?.displayName?.takeIf { it.isNotBlank() }
-                ?: dir.trimEnd('/').substringAfterLast('/').ifEmpty { null }
-                ?: project?.id?.take(8)
-                ?: "Default"
+        // Build a flat list sorted by time — each session carries its own
+        // tilde-path label derived from session.directory
+        val allItems = sessions.map { item ->
+            val dir = item.session.directory.trimEnd('/').ifEmpty { "/" }
+            val tildePath = if (homeDir != null && dir.startsWith(homeDir)) {
+                "~" + dir.removePrefix(homeDir)
+            } else {
+                dir
+            }
+            val dirName = dir.substringAfterLast('/').ifEmpty { "/" }
+            item to SessionDirInfo(dirName, tildePath)
+        }
+
+        // Single group containing all sessions (flat, sorted by time)
+        val groups = listOf(
             ProjectSessionGroup(
-                projectId = projectId,
-                projectName = pName,
-                directory = project?.worktree ?: dir,
-                sessions = items
+                projectId = "",
+                projectName = "",
+                directory = "",
+                sessions = allItems.map { it.first },
+                sessionDirLabels = allItems.associate { it.first.session.id to it.second.tildePath }
             )
-        }.sortedByDescending { it.sessions.firstOrNull()?.session?.time?.updated ?: 0 }
+        )
 
         SessionListUiState(
             sessionGroups = groups,
@@ -142,8 +157,8 @@ class SessionListViewModel @Inject constructor(
     )
 
     init {
+        loadHomeDir()
         loadSessions()
-        loadProjects()
     }
 
     fun loadSessions() {
@@ -151,9 +166,31 @@ class SessionListViewModel @Inject constructor(
             _isLoading.value = true
             _error.value = null
             try {
-                val sessions = api.listSessions(conn)
-                eventReducer.setSessions(serverId, sessions)
-                if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${sessions.size} sessions for server $serverId")
+                // Load all projects first
+                val projects = api.listProjects(conn)
+                _projects.value = projects
+                if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${projects.size} projects for multi-project session fetch")
+
+                if (projects.isEmpty()) {
+                    // Fallback: load sessions without directory header (server CWD only)
+                    val sessions = api.listSessions(conn)
+                    eventReducer.setSessions(serverId, sessions)
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${sessions.size} sessions (no projects)")
+                } else {
+                    // Load sessions for each project using its worktree as directory
+                    var totalSessions = 0
+                    for (project in projects) {
+                        try {
+                            val sessions = api.listSessions(conn, directory = project.worktree)
+                            eventReducer.setSessions(serverId, sessions)
+                            totalSessions += sessions.size
+                            if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${sessions.size} sessions for project ${project.displayName}")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to load sessions for project ${project.displayName}: ${e.message}")
+                        }
+                    }
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Total: loaded $totalSessions sessions across ${projects.size} projects for server $serverId")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load sessions", e)
                 _error.value = e.message ?: "Failed to load sessions"
@@ -172,6 +209,12 @@ class SessionListViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load projects", e)
             }
+        }
+    }
+
+    private fun loadHomeDir() {
+        viewModelScope.launch {
+            getHomeDirectory()
         }
     }
 
@@ -222,15 +265,13 @@ class SessionListViewModel @Inject constructor(
 
     // ============ Directory browsing for Open Project ============
 
-    private var _homeDir: String? = null
-
     /** Get the server's home directory (cached). */
     suspend fun getHomeDirectory(): String {
-        _homeDir?.let { return it }
+        _homeDir.value?.let { return it }
         return try {
             val paths = api.getServerPaths(conn)
             val home = paths.home
-            _homeDir = home
+            _homeDir.value = home
             if (BuildConfig.DEBUG) Log.d(TAG, "Server home directory: $home")
             home
         } catch (e: Exception) {

@@ -18,7 +18,9 @@ import dev.minios.ocremote.data.repository.DraftRepository
 import dev.minios.ocremote.data.repository.EventReducer
 import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.domain.model.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -130,6 +132,10 @@ class ChatViewModel @Inject constructor(
     /** Draft text for the input field — survives navigation / app restart. */
     private val _draftText = MutableStateFlow("")
     val draftText: StateFlow<String> = _draftText
+
+    /** One-shot event: emits reverted message text so ChatScreen can update the input field. */
+    private val _revertedDraftEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val revertedDraftEvent: SharedFlow<String> = _revertedDraftEvent
 
     /** Draft attachment URIs (content:// URIs as strings) — survives navigation / app restart. */
     private val _draftAttachmentUris = MutableStateFlow<List<String>>(emptyList())
@@ -339,9 +345,9 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             currentMessageLimit = settingsRepository.initialMessageCount.first()
             loadSession()
+            loadMessages()
             loadPendingQuestions()
         }
-        loadMessages()
         loadProviders()
         loadAgents()
         loadCommands()
@@ -882,7 +888,7 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /** Undo the last user message in the session. */
+    /** Undo the last user message in the session, restoring its text to the input field. */
     fun undoMessage(onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
@@ -895,6 +901,14 @@ class ChatViewModel @Inject constructor(
                 }
                 api.revertSession(conn, sessionId, lastUser.message.id)
                 if (BuildConfig.DEBUG) Log.d(TAG, "Reverted session $sessionId to message ${lastUser.message.id}")
+                // Restore the user message text to the input field
+                val revertedText = lastUser.parts
+                    .filterIsInstance<Part.Text>()
+                    .joinToString("\n") { it.text }
+                if (revertedText.isNotBlank()) {
+                    _draftText.value = revertedText
+                    _revertedDraftEvent.tryEmit(revertedText)
+                }
                 onResult(true)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to revert session", e)
@@ -903,12 +917,16 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /** Revert to a specific user message by ID. */
-    fun revertMessage(messageId: String, onResult: (Boolean) -> Unit) {
+    /** Revert to a specific user message by ID, optionally restoring its text to the input field. */
+    fun revertMessage(messageId: String, revertedText: String? = null, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
                 api.revertSession(conn, sessionId, messageId)
                 if (BuildConfig.DEBUG) Log.d(TAG, "Reverted session $sessionId to message $messageId")
+                if (!revertedText.isNullOrBlank()) {
+                    _draftText.value = revertedText
+                    _revertedDraftEvent.tryEmit(revertedText)
+                }
                 onResult(true)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to revert to message $messageId", e)
@@ -963,7 +981,7 @@ class ChatViewModel @Inject constructor(
     fun executeCommand(command: String, arguments: String = "", onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
-                val ok = api.executeCommand(conn, sessionId, command, arguments)
+                val ok = api.executeCommand(conn, sessionId, command, arguments, directory = sessionDirectory)
                 if (BuildConfig.DEBUG) Log.d(TAG, "Executed command /$command in session $sessionId: $ok")
                 onResult(ok)
             } catch (e: Exception) {

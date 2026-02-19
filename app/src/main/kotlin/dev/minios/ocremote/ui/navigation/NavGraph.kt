@@ -51,9 +51,10 @@ private const val TAG = "NavGraph"
 /**
  * Main navigation graph for the app
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Composable
 fun NavGraph(
-    deepLinkFlow: SharedFlow<SessionDeepLink>,
+    deepLinkFlow: MutableSharedFlow<SessionDeepLink>,
     sharedImagesFlow: SharedFlow<List<Uri>>,
     settingsRepository: SettingsRepository,
     serverRepository: ServerRepository,
@@ -154,17 +155,20 @@ fun NavGraph(
     // Listen for deep-link events from notification taps
     LaunchedEffect(Unit) {
         deepLinkFlow.collect { deepLink ->
+            // Consume the event so it's not replayed on recomposition
+            deepLinkFlow.resetReplayCache()
             val currentRoute = navController.currentDestination?.route
-            if (BuildConfig.DEBUG) Log.d(TAG, "Deep-link received: sessionPath=${deepLink.sessionPath}, currentRoute=$currentRoute, useNativeUi=$useNativeUi")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Deep-link received: sessionPath=${deepLink.sessionPath}, sessionId=${deepLink.sessionId}, currentRoute=$currentRoute, useNativeUi=$useNativeUi")
             
             if (useNativeUi) {
                 // ---- Native UI path ----
                 // Deep-links carry a sessionPath like /L2hvbWUv.../session/<sessionId>
-                // Extract the sessionId from the path if present
+                // Extract the sessionId from the path if present, fall back to raw sessionId
                 val sessionId = deepLink.sessionPath
                     .trimEnd('/')
                     .substringAfterLast("/session/", "")
                     .takeIf { it.isNotBlank() }
+                    ?: deepLink.sessionId.takeIf { it.isNotBlank() }
 
                 if (sessionId != null) {
                     // Navigate directly into the chat for this session

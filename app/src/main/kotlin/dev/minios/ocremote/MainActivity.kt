@@ -46,7 +46,8 @@ data class SessionDeepLink(
     val username: String,
     val password: String,
     val serverName: String,
-    val sessionPath: String  // e.g. /L2hvbWUv.../session/abc123
+    val sessionPath: String,  // e.g. /L2hvbWUv.../session/abc123
+    val sessionId: String = "" // raw session ID (fallback when sessionPath is empty)
 )
 
 /**
@@ -66,10 +67,10 @@ class MainActivity : ComponentActivity() {
     
     /**
      * Shared flow for deep-link events from notification taps.
-     * NavGraph subscribes and navigates to WebView when a value is emitted.
+     * NavGraph subscribes and navigates to the target session when a value is emitted.
+     * Uses replay=1 so a cold-start deep-link is not lost before NavGraph starts collecting.
      */
-    private val _deepLinkFlow = MutableSharedFlow<SessionDeepLink>(extraBufferCapacity = 1)
-    val deepLinkFlow = _deepLinkFlow.asSharedFlow()
+    private val _deepLinkFlow = MutableSharedFlow<SessionDeepLink>(replay = 1)
 
     /**
      * Shared flow for images received via ACTION_SEND / ACTION_SEND_MULTIPLE.
@@ -150,7 +151,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     NavGraph(
-                        deepLinkFlow = deepLinkFlow,
+                        deepLinkFlow = _deepLinkFlow,
                         sharedImagesFlow = sharedImagesFlow,
                         settingsRepository = settingsRepository,
                         serverRepository = serverRepository,
@@ -177,8 +178,9 @@ class MainActivity : ComponentActivity() {
         val password = intent.getStringExtra(OpenCodeConnectionService.EXTRA_SERVER_PASSWORD) ?: ""
         val serverName = intent.getStringExtra(OpenCodeConnectionService.EXTRA_SERVER_NAME) ?: serverUrl
         val sessionPath = intent.getStringExtra(OpenCodeConnectionService.EXTRA_SESSION_PATH) ?: ""
+        val sessionId = intent.getStringExtra(OpenCodeConnectionService.EXTRA_SESSION_ID) ?: ""
         
-        Log.i(TAG, "Session deep-link: $serverUrl$sessionPath")
+        Log.i(TAG, "Session deep-link: $serverUrl$sessionPath (sessionId=$sessionId)")
         
         _deepLinkFlow.tryEmit(
             SessionDeepLink(
@@ -186,7 +188,8 @@ class MainActivity : ComponentActivity() {
                 username = username,
                 password = password,
                 serverName = serverName,
-                sessionPath = sessionPath
+                sessionPath = sessionPath,
+                sessionId = sessionId
             )
         )
     }

@@ -487,6 +487,12 @@ fun ChatScreen(
     } else if (!draftTextInitialized) {
         draftTextInitialized = true
     }
+    // Listen for revert events that should restore text to the input field
+    LaunchedEffect(Unit) {
+        viewModel.revertedDraftEvent.collect { text ->
+            inputText = TextFieldValue(text, TextRange(text.length))
+        }
+    }
     val listState = rememberLazyListState()
     var showModelPicker by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
@@ -1315,7 +1321,10 @@ fun ChatScreen(
                                 chatMessage = chatMessage,
                                 onRevert = if (chatMessage.isUser) {
                                     {
-                                        viewModel.revertMessage(chatMessage.message.id) { ok ->
+                                        val revertText = chatMessage.parts
+                                            .filterIsInstance<Part.Text>()
+                                            .joinToString("\n") { it.text }
+                                        viewModel.revertMessage(chatMessage.message.id, revertText) { ok ->
                                             coroutineScope.launch {
                                                 snackbarHostState.showSnackbar(
                                                     if (ok) context.getString(R.string.chat_message_reverted) else context.getString(R.string.chat_message_revert_failed)

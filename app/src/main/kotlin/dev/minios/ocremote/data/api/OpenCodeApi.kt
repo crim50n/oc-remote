@@ -97,9 +97,10 @@ class OpenCodeApi @Inject constructor(
 
     // ============ Session ============
 
-    suspend fun listSessions(conn: ServerConnection): List<Session> {
+    suspend fun listSessions(conn: ServerConnection, directory: String? = null): List<Session> {
         return httpClient.get("${conn.baseUrl}/session") {
             conn.authHeader?.let { header("Authorization", it) }
+            directory?.let { header("x-opencode-directory", it) }
             parameter("roots", "true")
         }.body()
     }
@@ -243,10 +244,12 @@ class OpenCodeApi @Inject constructor(
         conn: ServerConnection,
         sessionId: String,
         command: String,
-        arguments: String = ""
+        arguments: String = "",
+        directory: String? = null
     ): Boolean {
         val response = httpClient.post("${conn.baseUrl}/session/$sessionId/command") {
             conn.authHeader?.let { header("Authorization", it) }
+            directory?.let { header("x-opencode-directory", it) }
             contentType(ContentType.Application.Json)
             setBody(mapOf("command" to command, "arguments" to arguments))
         }

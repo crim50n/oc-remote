@@ -337,11 +337,27 @@ class OpenCodeConnectionService : Service() {
                 attempt++
                 Log.i(TAG, "[${server.displayName}] SSE connection attempt #$attempt")
 
-                // Pre-load sessions via REST API
+                // Pre-load sessions via REST API for all projects
                 try {
-                    val sessions = api.listSessions(conn)
-                    eventReducer.setSessions(server.id, sessions)
-                    Log.i(TAG, "[${server.displayName}] Pre-loaded ${sessions.size} sessions")
+                    val projects = api.listProjects(conn)
+                    if (projects.isEmpty()) {
+                        // Fallback: load sessions without directory header (server CWD only)
+                        val sessions = api.listSessions(conn)
+                        eventReducer.setSessions(server.id, sessions)
+                        Log.i(TAG, "[${server.displayName}] Pre-loaded ${sessions.size} sessions (no projects)")
+                    } else {
+                        var totalSessions = 0
+                        for (project in projects) {
+                            try {
+                                val sessions = api.listSessions(conn, directory = project.worktree)
+                                eventReducer.setSessions(server.id, sessions)
+                                totalSessions += sessions.size
+                            } catch (e: Exception) {
+                                Log.w(TAG, "[${server.displayName}] Failed to pre-load sessions for project ${project.displayName}: ${e.message}")
+                            }
+                        }
+                        Log.i(TAG, "[${server.displayName}] Pre-loaded $totalSessions sessions across ${projects.size} projects")
+                    }
                 } catch (e: Exception) {
                     Log.w(TAG, "[${server.displayName}] Failed to pre-load sessions: ${e.message}")
                 }
