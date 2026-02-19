@@ -32,6 +32,7 @@ import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.ui.theme.StatusConnected
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -276,16 +277,28 @@ private fun ServerCard(
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
+    val cardContainerColor = if (isAmoled) {
+        Color.Black
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHighest
+    }
+    val cardContentColor = if (isConnected && !isAmoled) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (isConnected) {
-                MaterialTheme.colorScheme.surfaceVariant
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        )
+            containerColor = cardContainerColor
+        ),
+        border = if (isAmoled) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
+        } else {
+            null
+        }
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -301,20 +314,12 @@ private fun ServerCard(
                     Text(
                         text = server.displayName,
                         style = MaterialTheme.typography.titleMedium,
-                        color = if (isConnected) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        }
+                        color = cardContentColor
                     )
                     Text(
                         text = server.url,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (isConnected) {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        } else {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        }
+                        color = cardContentColor.copy(alpha = 0.7f)
                     )
                     if (isConnected) {
                         Text(
@@ -338,7 +343,9 @@ private fun ServerCard(
                     }
                     DropdownMenu(
                         expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
+                        onDismissRequest = { showMenu = false },
+                        containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+                        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null
                     ) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.home_edit)) },
@@ -381,7 +388,20 @@ private fun ServerCard(
                 if (isConnected) {
                     Button(
                         onClick = onOpenSessions,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        colors = if (isAmoled) {
+                            ButtonDefaults.buttonColors(
+                                containerColor = Color.Black,
+                                contentColor = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            ButtonDefaults.buttonColors()
+                        },
+                        border = if (isAmoled) {
+                            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
+                        } else {
+                            null
+                        }
                     ) {
                         Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
@@ -396,7 +416,20 @@ private fun ServerCard(
                 ) {
                     OutlinedButton(
                         onClick = onDisconnect,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = if (isAmoled) {
+                            ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color.Black,
+                                contentColor = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            ButtonDefaults.outlinedButtonColors()
+                        },
+                        border = if (isAmoled) {
+                            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
+                        } else {
+                            ButtonDefaults.outlinedButtonBorder
+                        }
                     ) {
                         Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
@@ -408,7 +441,20 @@ private fun ServerCard(
                 Button(
                     onClick = onConnect,
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !isConnecting
+                    enabled = !isConnecting,
+                    colors = if (isAmoled) {
+                        ButtonDefaults.buttonColors(
+                            containerColor = Color.Black,
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        ButtonDefaults.buttonColors()
+                    },
+                    border = if (isAmoled) {
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
+                    } else {
+                        null
+                    }
                 ) {
                     if (isConnecting) {
                         CircularProgressIndicator(

@@ -1,6 +1,8 @@
 package dev.minios.ocremote.ui.screens.sessions
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,6 +46,12 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.animation.core.*
 import androidx.compose.ui.graphics.graphicsLayer
+
+@Composable
+private fun isAmoledTheme(): Boolean {
+    val colors = MaterialTheme.colorScheme
+    return colors.background == Color.Black && colors.surface == Color.Black
+}
 
 /** Pulsing dots loading indicator — 3 dots that scale up/down in sequence. */
 @Composable
@@ -104,6 +112,7 @@ fun SessionListScreen(
     viewModel: SessionListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isAmoled = isAmoledTheme()
 
     // Navigate to newly created session
     LaunchedEffect(viewModel) {
@@ -156,6 +165,27 @@ fun SessionListScreen(
                     } else {
                         showOpenProject = true
                     }
+                },
+                containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.primaryContainer,
+                contentColor = if (isAmoled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer,
+                elevation = if (isAmoled) {
+                    FloatingActionButtonDefaults.elevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 0.dp,
+                        focusedElevation = 0.dp,
+                        hoveredElevation = 0.dp
+                    )
+                } else {
+                    FloatingActionButtonDefaults.elevation()
+                },
+                modifier = if (isAmoled) {
+                    Modifier.border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        shape = FloatingActionButtonDefaults.shape
+                    )
+                } else {
+                    Modifier
                 }
             ) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sessions_new))
@@ -292,64 +322,90 @@ fun SessionListScreen(
 
     // Rename dialog
     if (showRenameDialog) {
-        AlertDialog(
-            onDismissRequest = { showRenameDialog = false },
-            title = { Text(stringResource(R.string.session_rename)) },
-            text = {
-                OutlinedTextField(
-                    value = renameText,
-                    onValueChange = { renameText = it },
-                    label = { Text(stringResource(R.string.session_rename_title)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.renameSession(renameSessionId, renameText)
-                        showRenameDialog = false
-                    },
-                    enabled = renameText.isNotBlank()
+        BasicAlertDialog(onDismissRequest = { showRenameDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+                tonalElevation = if (isAmoled) 0.dp else 6.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(stringResource(R.string.session_rename_button))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRenameDialog = false }) {
-                    Text(stringResource(R.string.cancel))
+                    Text(
+                        text = stringResource(R.string.session_rename),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    OutlinedTextField(
+                        value = renameText,
+                        onValueChange = { renameText = it },
+                        label = { Text(stringResource(R.string.session_rename_title)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showRenameDialog = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        TextButton(
+                            onClick = {
+                                viewModel.renameSession(renameSessionId, renameText)
+                                showRenameDialog = false
+                            },
+                            enabled = renameText.isNotBlank()
+                        ) {
+                            Text(stringResource(R.string.session_rename_button))
+                        }
+                    }
                 }
             }
-        )
+        }
     }
 
     // Delete confirmation dialog
     if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text(stringResource(R.string.session_delete)) },
-            text = {
-                Text(stringResource(R.string.session_delete_confirm, deleteSessionTitle))
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteSession(deleteSessionId)
-                        showDeleteDialog = false
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
+        BasicAlertDialog(onDismissRequest = { showDeleteDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+                tonalElevation = if (isAmoled) 0.dp else 6.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(stringResource(R.string.delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text(stringResource(R.string.cancel))
+                    Text(
+                        text = stringResource(R.string.session_delete),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Text(stringResource(R.string.session_delete_confirm, deleteSessionTitle))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showDeleteDialog = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        TextButton(
+                            onClick = {
+                                viewModel.deleteSession(deleteSessionId)
+                                showDeleteDialog = false
+                            },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text(stringResource(R.string.delete))
+                        }
+                    }
                 }
             }
-        )
+        }
     }
 }
 
@@ -399,6 +455,7 @@ private fun OpenProjectDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val isAmoled = isAmoledTheme()
     val scope = rememberCoroutineScope()
     var searchQuery by remember { mutableStateOf("") }
     var currentDir by remember { mutableStateOf<String?>(null) }
@@ -470,8 +527,9 @@ private fun OpenProjectDialog(
                 .fillMaxWidth(0.92f)
                 .fillMaxHeight(0.75f),
             shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+            tonalElevation = if (isAmoled) 0.dp else 6.dp
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Header
@@ -497,7 +555,24 @@ private fun OpenProjectDialog(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .background(
+                            if (isAmoled) {
+                                Color.Black
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            }
+                        )
+                        .then(
+                            if (isAmoled) {
+                                Modifier.border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                            } else {
+                                Modifier
+                            }
+                        )
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -753,6 +828,7 @@ private fun NewSessionQuickDialog(
     onBrowse: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val isAmoled = isAmoledTheme()
     // Group sessions by directory, keep most recently updated first
     data class DirEntry(val directory: String, val name: String, val count: Int, val lastUsed: Long)
     val dirEntries = remember(sessions) {
@@ -780,8 +856,9 @@ private fun NewSessionQuickDialog(
                 .fillMaxWidth(0.88f)
                 .wrapContentHeight(),
             shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+            tonalElevation = if (isAmoled) 0.dp else 6.dp
         ) {
             Column(modifier = Modifier.padding(vertical = 16.dp)) {
                 // Header
@@ -878,6 +955,7 @@ private fun SessionRow(
     onRename: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val isAmoled = isAmoledTheme()
     val dateFormat = remember { SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()) }
 
     val addColor = Color(0xFF4CAF50)
@@ -979,7 +1057,13 @@ private fun SessionRow(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .clickable(onClick = onClick),
+            colors = if (isAmoled) {
+                CardDefaults.cardColors(containerColor = Color.Black)
+            } else {
+                CardDefaults.cardColors()
+            },
+            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null
         ) {
             Row(
                 modifier = Modifier

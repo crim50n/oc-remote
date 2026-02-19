@@ -10,7 +10,9 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -122,6 +124,12 @@ val LocalCollapseTools = compositionLocalOf { false }
 
 /** Whether haptic feedback is enabled. */
 val LocalHapticFeedbackEnabled = compositionLocalOf { true }
+
+@Composable
+private fun isAmoledTheme(): Boolean {
+    val colors = MaterialTheme.colorScheme
+    return colors.background == Color.Black && colors.surface == Color.Black
+}
 
 /**
  * Perform a light haptic tick if haptic feedback is enabled.
@@ -815,12 +823,15 @@ fun ChatScreen(
                         }
                     }
                     Box {
+                        val isAmoled = isAmoledTheme()
                         IconButton(onClick = { showMenu = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                         }
                         DropdownMenu(
                             expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
+                            onDismissRequest = { showMenu = false },
+                            containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+                            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.menu_open_in_web)) },
@@ -1515,6 +1526,7 @@ fun ChatScreen(
     } // CompositionLocalProvider
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ModelPickerDialog(
     providers: List<ProviderInfo>,
@@ -1523,6 +1535,7 @@ private fun ModelPickerDialog(
     onSelect: (providerId: String, modelId: String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val isAmoled = isAmoledTheme()
     fun isModelFree(providerId: String, model: ProviderModel): Boolean {
         if (providerId != "opencode") return false
         val cost = model.cost ?: return true
@@ -1536,23 +1549,27 @@ private fun ModelPickerDialog(
             .sortedWith(compareBy<ProviderInfo> { it.id != "opencode" }.thenBy { it.name.lowercase() })
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = null,
-        text = {
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+            tonalElevation = if (isAmoled) 0.dp else 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 560.dp)
+        ) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 480.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 for ((index, provider) in sortedProviders.withIndex()) {
                     val topPad = if (index == 0) 0.dp else 12.dp
 
-                    // Sort models: free first, then by name
                     val sortedModels = provider.models.values
                         .sortedWith(compareBy<ProviderModel> { !isModelFree(provider.id, it) }.thenBy { it.name.lowercase() })
 
-                    // Provider header
                     item(key = "provider_header_${provider.id}") {
                         Row(
                             modifier = Modifier
@@ -1597,7 +1614,7 @@ private fun ModelPickerDialog(
                                     text = model.name.ifEmpty { model.id },
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurface,
+                                    else MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -1621,9 +1638,8 @@ private fun ModelPickerDialog(
                     }
                 }
             }
-        },
-        confirmButton = {}
-    )
+        }
+    }
 }
 
 /**
@@ -1681,16 +1697,33 @@ private fun ChatMessageBubble(
     onCopyText: (() -> Unit)? = null
 ) {
     val isUser = chatMessage.isUser
+    val isAmoled = isAmoledTheme()
     val alignment = if (isUser) Alignment.End else Alignment.Start
-    val backgroundColor = if (isUser) {
+    val backgroundColor = if (isAmoled) {
+        Color.Black
+    } else if (isUser) {
         MaterialTheme.colorScheme.primaryContainer
     } else {
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
-    val textColor = if (isUser) {
+    val textColor = if (isAmoled) {
+        MaterialTheme.colorScheme.onSurface
+    } else if (isUser) {
         MaterialTheme.colorScheme.onPrimaryContainer
     } else {
         MaterialTheme.colorScheme.onSurface
+    }
+    val bubbleBorder = if (isAmoled) {
+        BorderStroke(
+            1.dp,
+            if (isUser) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)
+            }
+        )
+    } else {
+        null
     }
     val hapticView = LocalView.current
     val hapticOn = LocalHapticFeedbackEnabled.current
@@ -1740,7 +1773,8 @@ private fun ChatMessageBubble(
                 bottomEnd = 18.dp
             ),
             color = backgroundColor,
-            tonalElevation = if (isUser) 0.dp else 1.dp,
+            border = bubbleBorder,
+            tonalElevation = if (isAmoled || isUser) 0.dp else 1.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
             SelectionContainer {
@@ -2242,9 +2276,11 @@ private fun MarkdownContent(
 
 @Composable
 private fun ReasoningBlock(text: String) {
+    val isAmoled = isAmoledTheme()
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
@@ -2281,6 +2317,7 @@ private fun ReasoningBlock(text: String) {
 
 @Composable
 private fun ToolCallCard(tool: Part.Tool) {
+    val isAmoled = isAmoledTheme()
     val stateColor = when (tool.state) {
         is ToolState.Pending -> MaterialTheme.colorScheme.outline
         is ToolState.Running -> MaterialTheme.colorScheme.tertiary
@@ -2306,8 +2343,9 @@ private fun ToolCallCard(tool: Part.Tool) {
 
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+        tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
@@ -2388,7 +2426,8 @@ private fun ToolCallCard(tool: Part.Tool) {
                     if (output.isNotBlank()) {
                         Surface(
                             shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
+                            border = if (isAmoled) BorderStroke(1.dp, stateColor.copy(alpha = 0.6f)) else null,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
@@ -2563,6 +2602,7 @@ private fun extractToolOutput(tool: Part.Tool): String {
  */
 @Composable
 private fun EditToolCard(tool: Part.Tool) {
+    val isAmoled = isAmoledTheme()
     val input = extractToolInput(tool)
     val filePath = input["filePath"]?.jsonPrimitive?.contentOrNull ?: ""
     val shortPath = filePath.substringAfterLast('/')
@@ -2597,8 +2637,9 @@ private fun EditToolCard(tool: Part.Tool) {
 
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+        tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
@@ -2672,7 +2713,8 @@ private fun EditToolCard(tool: Part.Tool) {
                         val errorText = (tool.state as ToolState.Error).error
                         Surface(
                             shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.errorContainer,
+                            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.errorContainer,
+                            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.7f)) else null,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
@@ -2719,6 +2761,7 @@ private fun DiffChangesInline(additions: Int, deletions: Int) {
  */
 @Composable
 private fun DiffView(before: String, after: String) {
+    val isAmoled = isAmoledTheme()
     val addColor = Color(0xFF4CAF50)
     val delColor = Color(0xFFE53935)
     val addBg = Color(0xFF4CAF50).copy(alpha = 0.1f)
@@ -2734,7 +2777,8 @@ private fun DiffView(before: String, after: String) {
 
     Surface(
         shape = RoundedCornerShape(4.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(max = 400.dp)
@@ -2834,6 +2878,7 @@ private fun computeSimpleDiff(before: List<String>, after: List<String>): List<D
  */
 @Composable
 private fun WriteToolCard(tool: Part.Tool) {
+    val isAmoled = isAmoledTheme()
     val input = extractToolInput(tool)
     val filePath = input["filePath"]?.jsonPrimitive?.contentOrNull
         ?: input["path"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -2850,8 +2895,9 @@ private fun WriteToolCard(tool: Part.Tool) {
 
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+        tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
@@ -2906,7 +2952,8 @@ private fun WriteToolCard(tool: Part.Tool) {
             AnimatedVisibility(visible = expanded && hasContent) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
+                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 6.dp)
@@ -2932,6 +2979,7 @@ private fun WriteToolCard(tool: Part.Tool) {
  */
 @Composable
 private fun BashToolCard(tool: Part.Tool) {
+    val isAmoled = isAmoledTheme()
     val input = extractToolInput(tool)
     val command = input["command"]?.jsonPrimitive?.contentOrNull ?: ""
     val description = input["description"]?.jsonPrimitive?.contentOrNull
@@ -2953,8 +3001,9 @@ private fun BashToolCard(tool: Part.Tool) {
 
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+        tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
@@ -3011,7 +3060,8 @@ private fun BashToolCard(tool: Part.Tool) {
             AnimatedVisibility(visible = expanded && hasContent) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
+                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 6.dp)
@@ -3046,6 +3096,7 @@ private fun BashToolCard(tool: Part.Tool) {
  */
 @Composable
 private fun ReadToolCard(tool: Part.Tool) {
+    val isAmoled = isAmoledTheme()
     val input = extractToolInput(tool)
     val filePath = input["filePath"]?.jsonPrimitive?.contentOrNull
         ?: input["path"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -3070,8 +3121,9 @@ private fun ReadToolCard(tool: Part.Tool) {
 
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+        tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -3135,6 +3187,7 @@ private fun ReadToolCard(tool: Part.Tool) {
  */
 @Composable
 private fun SearchToolCard(tool: Part.Tool) {
+    val isAmoled = isAmoledTheme()
     val input = extractToolInput(tool)
     val pattern = input["pattern"]?.jsonPrimitive?.contentOrNull
     val include = input["include"]?.jsonPrimitive?.contentOrNull
@@ -3168,8 +3221,9 @@ private fun SearchToolCard(tool: Part.Tool) {
 
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+        tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
@@ -3239,7 +3293,8 @@ private fun SearchToolCard(tool: Part.Tool) {
             AnimatedVisibility(visible = expanded && hasOutput) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
+                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 6.dp)
@@ -3265,6 +3320,7 @@ private fun SearchToolCard(tool: Part.Tool) {
  */
 @Composable
 private fun TaskToolCard(tool: Part.Tool) {
+    val isAmoled = isAmoledTheme()
     val input = extractToolInput(tool)
     val description = input["description"]?.jsonPrimitive?.contentOrNull
     val output = extractToolOutput(tool)
@@ -3284,8 +3340,9 @@ private fun TaskToolCard(tool: Part.Tool) {
 
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+        tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
@@ -3341,7 +3398,8 @@ private fun TaskToolCard(tool: Part.Tool) {
             AnimatedVisibility(visible = expanded && hasOutput) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
+                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 6.dp)
@@ -3362,6 +3420,7 @@ private fun TaskToolCard(tool: Part.Tool) {
 }
 @Composable
 private fun TodoListCard(tool: Part.Tool) {
+    val isAmoled = isAmoledTheme()
     // Extract todos from metadata first, then fall back to input
     val todos = remember(tool) {
         val source = when (val state = tool.state) {
@@ -3401,8 +3460,9 @@ private fun TodoListCard(tool: Part.Tool) {
 
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+        tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
@@ -3538,6 +3598,7 @@ private fun StepFinishInfo(step: Part.StepFinish) {
 
 @Composable
 private fun PatchCard(patch: Part.Patch) {
+    val isAmoled = isAmoledTheme()
     val autoExpand = LocalCollapseTools.current
     val hapticView = LocalView.current
     val hapticOn = LocalHapticFeedbackEnabled.current
@@ -3545,8 +3606,9 @@ private fun PatchCard(patch: Part.Patch) {
 
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+        tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
@@ -3708,10 +3770,12 @@ private fun FileCard(file: Part.File) {
 
 @Composable
 private fun FileCardFallback(file: Part.File) {
+    val isAmoled = isAmoledTheme()
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+        tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -3742,12 +3806,16 @@ private fun PermissionCard(
     onAlways: () -> Unit,
     onReject: () -> Unit
 ) {
+    val isAmoled = isAmoledTheme()
     val hapticView = LocalView.current
     val hapticOn = LocalHapticFeedbackEnabled.current
+    val containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.tertiaryContainer
+    val contentColor = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onTertiaryContainer
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            containerColor = containerColor
         ),
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f)) else null,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -3762,25 +3830,25 @@ private fun PermissionCard(
                     Icons.Default.Security,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onTertiaryContainer
+                    tint = if (isAmoled) MaterialTheme.colorScheme.tertiary else contentColor
                 )
                 Text(
                     text = stringResource(R.string.permission_title),
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                    color = contentColor
                 )
             }
             Text(
                 text = permission.permission,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onTertiaryContainer
+                color = contentColor
             )
             if (permission.patterns.isNotEmpty()) {
                 Text(
                     text = permission.patterns.joinToString(", "),
                     style = CodeTypography.copy(
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                        color = contentColor.copy(alpha = 0.7f)
                     ),
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
@@ -3854,6 +3922,7 @@ private fun ChatInputBar(
     contextWindow: Int = 0,
     lastContextTokens: Int = 0
 ) {
+    val isAmoled = isAmoledTheme()
     // Rotate placeholder hint every 4 seconds
     val hintIndex = remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
@@ -3911,7 +3980,7 @@ private fun ChatInputBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = maxHeight)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .background(if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh)
                     .padding(vertical = 4.dp)
             ) {
                 items(filteredCommands, key = { it.name }) { cmd ->
@@ -3960,7 +4029,7 @@ private fun ChatInputBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = maxHeight)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .background(if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh)
                     .padding(vertical = 4.dp)
             ) {
                 items(
@@ -4270,7 +4339,24 @@ private fun ChatInputBar(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(22.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .background(
+                            if (isAmoled) {
+                                Color.Black
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            }
+                        )
+                        .then(
+                            if (isAmoled) {
+                                Modifier.border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f),
+                                    shape = RoundedCornerShape(22.dp)
+                                )
+                            } else {
+                                Modifier
+                            }
+                        )
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
                     BasicTextField(
@@ -4341,6 +4427,7 @@ private fun QuestionCard(
     onSubmit: (answers: List<List<String>>) -> Unit,
     onReject: () -> Unit
 ) {
+    val isAmoled = isAmoledTheme()
     val isSingle = question.questions.size == 1 && question.questions[0].multiple != true
 
     val hapticView = LocalView.current
@@ -4356,12 +4443,13 @@ private fun QuestionCard(
         }
     }
 
-    val containerColor = MaterialTheme.colorScheme.surfaceVariant
-    val contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceVariant
+    val contentColor = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
     val accentColor = MaterialTheme.colorScheme.primary
 
     Card(
         colors = CardDefaults.cardColors(containerColor = containerColor),
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -4476,11 +4564,12 @@ private fun QuestionCard(
                                     }
                                 }
                             },
-                            enabled = !submitted,
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isSelected) accentColor.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                                enabled = !submitted,
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) accentColor.copy(alpha = 0.12f) else if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                                border = if (!isSelected && isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)) else null,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,

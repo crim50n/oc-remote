@@ -55,7 +55,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Reconnect mode** — aggressive (1–5s), normal (1–30s), or conservative (1–60s) backoff strategy
 - **Theme** — light, dark, or system default
 - **Dynamic colors** — Material You dynamic color support (Android 12+)
-- **AMOLED dark mode** — pure black background for OLED screens (works with both static and dynamic colors)
+- **AMOLED dark mode** — pure black surfaces with accent borders across chat bubbles, cards, menus, dialogs, and input blocks (works with both static and dynamic colors)
 - **Chat font size** — small, medium, or large text in chat messages and code blocks
 - **Code word wrap** — toggle horizontal scrolling vs. word wrap in code blocks and tool outputs
 - **Compact messages** — reduce spacing between messages for denser layout

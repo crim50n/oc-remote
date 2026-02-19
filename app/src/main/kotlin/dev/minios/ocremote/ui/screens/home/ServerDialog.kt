@@ -1,10 +1,13 @@
 package dev.minios.ocremote.ui.screens.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -70,16 +73,27 @@ fun ServerDialog(
     val urlRequiredText = stringResource(R.string.server_url)
     val urlInvalidText = stringResource(R.string.server_invalid_url)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(text = if (server != null) stringResource(R.string.home_edit) else stringResource(R.string.server_add))
-        },
-        text = {
+    val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
+
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+            tonalElevation = if (isAmoled) 0.dp else 6.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                Text(
+                    text = if (server != null) stringResource(R.string.home_edit) else stringResource(R.string.server_add),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = {
@@ -133,37 +147,38 @@ fun ServerDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    // Validate inputs
-                    nameError = name.isBlank()
-                    val normalizedUrl = validateAndNormalizeUrl(url)
-                    urlError = when {
-                        url.isBlank() -> urlRequiredText
-                        normalizedUrl == null -> urlInvalidText
-                        else -> null
-                    }
 
-                    if (!nameError && urlError == null && normalizedUrl != null) {
-                        onSave(
-                            name,
-                            normalizedUrl,
-                            username.ifBlank { "opencode" },
-                            password
-                        )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.server_cancel))
+                    }
+                    TextButton(
+                        onClick = {
+                            nameError = name.isBlank()
+                            val normalizedUrl = validateAndNormalizeUrl(url)
+                            urlError = when {
+                                url.isBlank() -> urlRequiredText
+                                normalizedUrl == null -> urlInvalidText
+                                else -> null
+                            }
+
+                            if (!nameError && urlError == null && normalizedUrl != null) {
+                                onSave(
+                                    name,
+                                    normalizedUrl,
+                                    username.ifBlank { "opencode" },
+                                    password
+                                )
+                            }
+                        }
+                    ) {
+                        Text(stringResource(R.string.server_save))
                     }
                 }
-            ) {
-                Text(stringResource(R.string.server_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.server_cancel))
             }
         }
-    )
+    }
 }
