@@ -2,6 +2,9 @@ name: Build Release APK
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build-release:
@@ -63,7 +66,7 @@ jobs:
           path: release-apks/*.apk
           retention-days: 90
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -74,15 +77,21 @@ jobs:
           git tag $TAG || true
           git push origin $TAG || true
 
-          # Create release (use release notes file if exists, otherwise auto-generate)
-          if [ -f "RELEASE_NOTES_${VERSION}.md" ]; then
-            gh release create $TAG \
-              --title "${VERSION}" \
-              --notes-file "RELEASE_NOTES_${VERSION}.md" \
-              release-apks/*.apk
+          # Check if release already exists
+          if gh release view $TAG > /dev/null 2>&1; then
+            echo "Release $TAG already exists, uploading APK..."
+            gh release upload $TAG release-apks/*.apk --clobber
           else
-            gh release create $TAG \
-              --title "${VERSION}" \
-              --generate-notes \
-              release-apks/*.apk
+            echo "Creating new release $TAG..."
+            if [ -f "RELEASE_NOTES_${VERSION}.md" ]; then
+              gh release create $TAG \
+                --title "${VERSION}" \
+                --notes-file "RELEASE_NOTES_${VERSION}.md" \
+                release-apks/*.apk
+            else
+              gh release create $TAG \
+                --title "${VERSION}" \
+                --generate-notes \
+                release-apks/*.apk
+            fi
           fi
