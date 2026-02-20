@@ -313,4 +313,11 @@
     <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
     <string name="about_license">라이선스</string>
     <string name="about_license_value">MIT</string>
+    <string name="server_settings_title">서버 설정</string>
+    <string name="server_settings_model_filter">모델 필터</string>
+    <string name="server_settings_model_filter_desc">선택기에 표시할 모델 선택</string>
+    <string name="server_settings_search_placeholder">모델 검색</string>
+    <string name="server_settings_empty">모델을 찾을 수 없습니다</string>
+    <string name="server_settings_load_error">모델 로드 실패</string>
+    <string name="loading">로딩 중…</string>
 </resources>

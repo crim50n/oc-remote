@@ -28,6 +28,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -65,6 +66,21 @@ fun SettingsScreen(
     var showFontSizeDialog by remember { mutableStateOf(false) }
     var showMessageCountDialog by remember { mutableStateOf(false) }
     var showReconnectModeDialog by remember { mutableStateOf(false) }
+
+    val isAmoledTheme = MaterialTheme.colorScheme.background == Color.Black &&
+        MaterialTheme.colorScheme.surface == Color.Black
+    val switchColors = if (isAmoledTheme) {
+        SwitchDefaults.colors(
+            checkedThumbColor = MaterialTheme.colorScheme.primary,
+            checkedTrackColor = Color.Black,
+            checkedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+            uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+            uncheckedTrackColor = Color.Black,
+            uncheckedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)
+        )
+    } else {
+        SwitchDefaults.colors()
+    }
 
     Scaffold(
         topBar = {
@@ -136,7 +152,8 @@ fun SettingsScreen(
                     trailingContent = {
                         Switch(
                             checked = dynamicColor,
-                            onCheckedChange = { viewModel.setDynamicColor(it) }
+                            onCheckedChange = { viewModel.setDynamicColor(it) },
+                            colors = switchColors
                         )
                     },
                     modifier = Modifier.clickable { viewModel.setDynamicColor(!dynamicColor) }
@@ -153,7 +170,8 @@ fun SettingsScreen(
                 trailingContent = {
                     Switch(
                         checked = amoledDark,
-                        onCheckedChange = { viewModel.setAmoledDark(it) }
+                        onCheckedChange = { viewModel.setAmoledDark(it) },
+                        colors = switchColors
                     )
                 },
                 modifier = Modifier.clickable { viewModel.setAmoledDark(!amoledDark) }
@@ -184,7 +202,8 @@ fun SettingsScreen(
                 trailingContent = {
                     Switch(
                         checked = compactMessages,
-                        onCheckedChange = { viewModel.setCompactMessages(it) }
+                        onCheckedChange = { viewModel.setCompactMessages(it) },
+                        colors = switchColors
                     )
                 },
                 modifier = Modifier.clickable { viewModel.setCompactMessages(!compactMessages) }
@@ -200,7 +219,8 @@ fun SettingsScreen(
                 trailingContent = {
                     Switch(
                         checked = codeWordWrap,
-                        onCheckedChange = { viewModel.setCodeWordWrap(it) }
+                        onCheckedChange = { viewModel.setCodeWordWrap(it) },
+                        colors = switchColors
                     )
                 },
                 modifier = Modifier.clickable { viewModel.setCodeWordWrap(!codeWordWrap) }
@@ -216,7 +236,8 @@ fun SettingsScreen(
                 trailingContent = {
                     Switch(
                         checked = collapseTools,
-                        onCheckedChange = { viewModel.setCollapseTools(it) }
+                        onCheckedChange = { viewModel.setCollapseTools(it) },
+                        colors = switchColors
                     )
                 },
                 modifier = Modifier.clickable { viewModel.setCollapseTools(!collapseTools) }
@@ -247,7 +268,8 @@ fun SettingsScreen(
                 trailingContent = {
                     Switch(
                         checked = confirmBeforeSend,
-                        onCheckedChange = { viewModel.setConfirmBeforeSend(it) }
+                        onCheckedChange = { viewModel.setConfirmBeforeSend(it) },
+                        colors = switchColors
                     )
                 },
                 modifier = Modifier.clickable { viewModel.setConfirmBeforeSend(!confirmBeforeSend) }
@@ -263,7 +285,8 @@ fun SettingsScreen(
                 trailingContent = {
                     Switch(
                         checked = hapticFeedback,
-                        onCheckedChange = { viewModel.setHapticFeedback(it) }
+                        onCheckedChange = { viewModel.setHapticFeedback(it) },
+                        colors = switchColors
                     )
                 },
                 modifier = Modifier.clickable { viewModel.setHapticFeedback(!hapticFeedback) }
@@ -279,7 +302,8 @@ fun SettingsScreen(
                 trailingContent = {
                     Switch(
                         checked = keepScreenOn,
-                        onCheckedChange = { viewModel.setKeepScreenOn(it) }
+                        onCheckedChange = { viewModel.setKeepScreenOn(it) },
+                        colors = switchColors
                     )
                 },
                 modifier = Modifier.clickable { viewModel.setKeepScreenOn(!keepScreenOn) }
@@ -300,7 +324,8 @@ fun SettingsScreen(
                 trailingContent = {
                     Switch(
                         checked = notificationsEnabled,
-                        onCheckedChange = { viewModel.setNotificationsEnabled(it) }
+                        onCheckedChange = { viewModel.setNotificationsEnabled(it) },
+                        colors = switchColors
                     )
                 },
                 modifier = Modifier.clickable { viewModel.setNotificationsEnabled(!notificationsEnabled) }
@@ -316,7 +341,8 @@ fun SettingsScreen(
                 trailingContent = {
                     Switch(
                         checked = silentNotifications,
-                        onCheckedChange = { viewModel.setSilentNotifications(it) }
+                        onCheckedChange = { viewModel.setSilentNotifications(it) },
+                        colors = switchColors
                     )
                 },
                 modifier = Modifier.clickable { viewModel.setSilentNotifications(!silentNotifications) }

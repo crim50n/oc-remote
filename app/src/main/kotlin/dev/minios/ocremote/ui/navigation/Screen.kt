@@ -60,6 +60,57 @@ sealed class Screen(val route: String) {
             return "chat?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId&sessionId=$encodedSessionId"
         }
     }
+
+    data object ServerSettings : Screen("server_settings") {
+        fun createRoute(
+            serverUrl: String,
+            username: String,
+            password: String,
+            serverName: String,
+            serverId: String
+        ): String {
+            val encodedUrl = URLEncoder.encode(serverUrl, "UTF-8")
+            val encodedUsername = URLEncoder.encode(username, "UTF-8")
+            val encodedPassword = URLEncoder.encode(password, "UTF-8")
+            val encodedName = URLEncoder.encode(serverName, "UTF-8")
+            val encodedServerId = URLEncoder.encode(serverId, "UTF-8")
+            return "server_settings?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
+        }
+    }
+
+    data object ServerProviders : Screen("server_providers") {
+        fun createRoute(
+            serverUrl: String,
+            username: String,
+            password: String,
+            serverName: String,
+            serverId: String
+        ): String {
+            val encodedUrl = URLEncoder.encode(serverUrl, "UTF-8")
+            val encodedUsername = URLEncoder.encode(username, "UTF-8")
+            val encodedPassword = URLEncoder.encode(password, "UTF-8")
+            val encodedName = URLEncoder.encode(serverName, "UTF-8")
+            val encodedServerId = URLEncoder.encode(serverId, "UTF-8")
+            return "server_providers?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
+        }
+    }
+
+    data object ServerModelFilter : Screen("server_model_filter") {
+        fun createRoute(
+            serverUrl: String,
+            username: String,
+            password: String,
+            serverName: String,
+            serverId: String
+        ): String {
+            val encodedUrl = URLEncoder.encode(serverUrl, "UTF-8")
+            val encodedUsername = URLEncoder.encode(username, "UTF-8")
+            val encodedPassword = URLEncoder.encode(password, "UTF-8")
+            val encodedName = URLEncoder.encode(serverName, "UTF-8")
+            val encodedServerId = URLEncoder.encode(serverId, "UTF-8")
+            return "server_model_filter?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
+        }
+    }
     
     data object Settings : Screen("settings")
     data object About : Screen("about")

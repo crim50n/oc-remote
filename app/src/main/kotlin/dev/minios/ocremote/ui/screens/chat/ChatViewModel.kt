@@ -46,6 +46,7 @@ data class ChatUiState(
     val error: String? = null,
     val isSending: Boolean = false,
     val providers: List<ProviderInfo> = emptyList(),
+    val hasServerModelCatalog: Boolean = false,
     val defaultModels: Map<String, String> = emptyMap(),
     val selectedProviderId: String? = null,
     val selectedModelId: String? = null,
@@ -114,7 +115,9 @@ class ChatViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(true)
     private val _error = MutableStateFlow<String?>(null)
     private val _isSending = MutableStateFlow(false)
+    private val _allProviders = MutableStateFlow<List<ProviderInfo>>(emptyList())
     private val _providers = MutableStateFlow<List<ProviderInfo>>(emptyList())
+    private val _hiddenModels = MutableStateFlow<Set<String>>(emptySet())
     private val _defaultModels = MutableStateFlow<Map<String, String>>(emptyMap())
     private val _selectedProviderId = MutableStateFlow<String?>(null)
     private val _selectedModelId = MutableStateFlow<String?>(null)
@@ -187,6 +190,7 @@ class ChatViewModel @Inject constructor(
         _isSending,
         _selectedProviderId,
         _selectedModelId,
+        _allProviders,
         _providers,
         _defaultModels,
         _agents,
@@ -208,17 +212,18 @@ class ChatViewModel @Inject constructor(
         val sending = args[8] as Boolean
         val selProviderId = args[9] as String?
         val selModelId = args[10] as String?
-        val providers = args[11] as List<ProviderInfo>
-        val defaultModels = args[12] as Map<String, String>
-        val agents = args[13] as List<AgentInfo>
+        val allProviders = args[11] as List<ProviderInfo>
+        val providers = args[12] as List<ProviderInfo>
+        val defaultModels = args[13] as Map<String, String>
+        val agents = args[14] as List<AgentInfo>
         @Suppress("UNCHECKED_CAST")
-        val agentSelection = args[14] as Pair<String, Boolean>
+        val agentSelection = args[15] as Pair<String, Boolean>
         val selectedAgent = agentSelection.first
         val isAgentExplicitlySelected = agentSelection.second
-        val selectedVariant = args[15] as String?
-        val commands = args[16] as List<CommandInfo>
-        val hasOlderMessages = args[17] as Boolean
-        val isLoadingOlder = args[18] as Boolean
+        val selectedVariant = args[16] as String?
+        val commands = args[17] as List<CommandInfo>
+        val hasOlderMessages = args[18] as Boolean
+        val isLoadingOlder = args[19] as Boolean
 
         val session = allSessions.find { it.id == sessionId }
         val sessionMessages = allMessages[sessionId] ?: emptyList()
@@ -288,11 +293,21 @@ class ChatViewModel @Inject constructor(
             t.input + t.output + t.reasoning + t.cache.read + t.cache.write
         } ?: 0
 
-        // Resolve available variants for the currently selected model
-        val currentModel = if (effectiveProviderId != null && effectiveModelId != null) {
+        // Resolve available variants for the currently selected model.
+        // If selected model is no longer visible (filtered out), fall back to first visible model.
+        var currentModel = if (effectiveProviderId != null && effectiveModelId != null) {
             providers.find { it.id == effectiveProviderId }
                 ?.models?.get(effectiveModelId)
         } else null
+        if (currentModel == null) {
+            val firstProvider = providers.firstOrNull()
+            val firstModel = firstProvider?.models?.values?.firstOrNull()
+            if (firstProvider != null && firstModel != null) {
+                effectiveProviderId = firstProvider.id
+                effectiveModelId = firstModel.id
+                currentModel = firstModel
+            }
+        }
         val availableVariants = currentModel?.variants?.keys?.toList()?.sorted() ?: emptyList()
 
         ChatUiState(
@@ -307,6 +322,7 @@ class ChatViewModel @Inject constructor(
             error = error,
             isSending = sending,
             providers = providers,
+            hasServerModelCatalog = allProviders.any { it.models.isNotEmpty() },
             defaultModels = defaultModels,
             selectedProviderId = effectiveProviderId,
             selectedModelId = effectiveModelId,
@@ -338,6 +354,13 @@ class ChatViewModel @Inject constructor(
             _draftAttachmentUris.value = draft.imageUris
             if (draft.confirmedFilePaths.isNotEmpty()) {
                 _confirmedFilePaths.value = draft.confirmedFilePaths.toSet()
+            }
+        }
+
+        viewModelScope.launch {
+            settingsRepository.hiddenModels(serverId).collect { hidden ->
+                _hiddenModels.value = hidden
+                applyProviderFilter()
             }
         }
 
@@ -473,7 +496,8 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val response = api.getProviders(conn)
-                _providers.value = response.providers
+                _allProviders.value = response.providers
+                applyProviderFilter()
                 _defaultModels.value = response.default
                 if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${response.providers.size} providers, defaults: ${response.default}")
                 // No need to set default here, combine block handles fallback
@@ -481,6 +505,20 @@ class ChatViewModel @Inject constructor(
                 Log.e(TAG, "Failed to load providers", e)
             }
         }
+    }
+
+    private fun applyProviderFilter() {
+        val hidden = _hiddenModels.value
+        val filtered = _allProviders.value
+            .map { provider ->
+                provider.copy(
+                    models = provider.models.filterKeys { modelId ->
+                        "${provider.id}:$modelId" !in hidden
+                    }
+                )
+            }
+            .filter { it.models.isNotEmpty() }
+        _providers.value = filtered
     }
 
     private fun loadAgents() {

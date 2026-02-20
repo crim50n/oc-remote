@@ -38,6 +38,9 @@ import dev.minios.ocremote.ui.screens.home.HomeScreen
 import dev.minios.ocremote.ui.screens.about.AboutScreen
 import dev.minios.ocremote.ui.screens.sessions.SessionListScreen
 import dev.minios.ocremote.ui.screens.settings.SettingsScreen
+import dev.minios.ocremote.ui.screens.server.ServerModelFilterScreen
+import dev.minios.ocremote.ui.screens.server.ServerProvidersScreen
+import dev.minios.ocremote.ui.screens.server.ServerSettingsScreen
 import dev.minios.ocremote.ui.screens.webview.WebViewScreen
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -180,8 +183,25 @@ fun NavGraph(
                         serverId = "", // not available from deep-link; ViewModel handles it
                         sessionId = sessionId
                     )
-                    Log.i(TAG, "Deep-link → native Chat: $route")
-                    navController.navigate(route) { launchSingleTop = true }
+                    val currentSessionId = navController.currentBackStackEntry
+                        ?.arguments
+                        ?.getString("sessionId")
+                        ?.let { URLDecoder.decode(it, "UTF-8") }
+
+                    Log.i(
+                        TAG,
+                        "Deep-link → native Chat: targetSession=$sessionId currentSession=$currentSessionId"
+                    )
+
+                    if (currentRoute?.startsWith("chat") == true && currentSessionId != sessionId) {
+                        // Replace current chat screen when switching sessions from notification.
+                        // launchSingleTop alone can keep the same top chat destination and skip
+                        // visible transition to a different session.
+                        navController.popBackStack()
+                        navController.navigate(route)
+                    } else {
+                        navController.navigate(route) { launchSingleTop = true }
+                    }
                 } else {
                     // No specific session — open session list (placeholder; the
                     // user can also just stay on Home if preferred)
@@ -222,6 +242,11 @@ fun NavGraph(
                         Screen.SessionList.createRoute(serverUrl, username, password, serverName, serverId)
                     )
                 },
+                onNavigateToServerSettings = { serverUrl, username, password, serverName, serverId ->
+                    navController.navigate(
+                        Screen.ServerSettings.createRoute(serverUrl, username, password, serverName, serverId)
+                    )
+                },
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
                 },
@@ -237,6 +262,78 @@ fun NavGraph(
                 onNavigateBack = {
                     navController.popBackStack()
                 }
+            )
+        }
+
+        composable(
+            route = "server_settings?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}",
+            arguments = listOf(
+                navArgument("serverUrl") { type = NavType.StringType },
+                navArgument("username") { type = NavType.StringType },
+                navArgument("password") { type = NavType.StringType },
+                navArgument("serverName") { type = NavType.StringType },
+                navArgument("serverId") { type = NavType.StringType },
+            )
+        ) {
+            val serverUrl = URLDecoder.decode(it.arguments?.getString("serverUrl") ?: "", "UTF-8")
+            val username = URLDecoder.decode(it.arguments?.getString("username") ?: "", "UTF-8")
+            val password = URLDecoder.decode(it.arguments?.getString("password") ?: "", "UTF-8")
+            val serverName = URLDecoder.decode(it.arguments?.getString("serverName") ?: "", "UTF-8")
+            val serverId = URLDecoder.decode(it.arguments?.getString("serverId") ?: "", "UTF-8")
+            ServerSettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenProviders = {
+                    navController.navigate(
+                        Screen.ServerProviders.createRoute(
+                            serverUrl = serverUrl,
+                            username = username,
+                            password = password,
+                            serverName = serverName,
+                            serverId = serverId
+                        )
+                    )
+                },
+                onOpenModels = {
+                    navController.navigate(
+                        Screen.ServerModelFilter.createRoute(
+                            serverUrl = serverUrl,
+                            username = username,
+                            password = password,
+                            serverName = serverName,
+                            serverId = serverId
+                        )
+                    )
+                }
+            )
+        }
+
+        composable(
+            route = "server_providers?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}",
+            arguments = listOf(
+                navArgument("serverUrl") { type = NavType.StringType },
+                navArgument("username") { type = NavType.StringType },
+                navArgument("password") { type = NavType.StringType },
+                navArgument("serverName") { type = NavType.StringType },
+                navArgument("serverId") { type = NavType.StringType },
+            )
+        ) {
+            ServerProvidersScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "server_model_filter?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}",
+            arguments = listOf(
+                navArgument("serverUrl") { type = NavType.StringType },
+                navArgument("username") { type = NavType.StringType },
+                navArgument("password") { type = NavType.StringType },
+                navArgument("serverName") { type = NavType.StringType },
+                navArgument("serverId") { type = NavType.StringType },
+            )
+        ) {
+            ServerModelFilterScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

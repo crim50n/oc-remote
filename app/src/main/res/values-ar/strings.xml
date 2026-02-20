@@ -313,4 +313,11 @@
     <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
     <string name="about_license">الترخيص</string>
     <string name="about_license_value">MIT</string>
+    <string name="server_settings_title">إعدادات الخادم</string>
+    <string name="server_settings_model_filter">تصفية النموذج</string>
+    <string name="server_settings_model_filter_desc">اختر النماذج التي تظهر في قوائم الاختيار</string>
+    <string name="server_settings_search_placeholder">بحث عن النماذج</string>
+    <string name="server_settings_empty">لم يتم العثور على نماذج</string>
+    <string name="server_settings_load_error">فشل في تحميل النماذج</string>
+    <string name="loading">جارٍ التحميل…</string>
 </resources>

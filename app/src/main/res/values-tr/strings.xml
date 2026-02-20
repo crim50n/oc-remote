@@ -313,4 +313,11 @@
     <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
     <string name="about_license">Lisans</string>
     <string name="about_license_value">MIT</string>
+    <string name="server_settings_title">Sunucu Ayarları</string>
+    <string name="server_settings_model_filter">Model filtresi</string>
+    <string name="server_settings_model_filter_desc">Seçicilerde hangi modellerin görüneceğini seçin</string>
+    <string name="server_settings_search_placeholder">Modelleri ara</string>
+    <string name="server_settings_empty">Model bulunamadı</string>
+    <string name="server_settings_load_error">Modeller yüklenemedi</string>
+    <string name="loading">Yükleniyor…</string>
 </resources>

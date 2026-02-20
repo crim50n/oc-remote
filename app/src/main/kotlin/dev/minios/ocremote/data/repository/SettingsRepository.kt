@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -42,12 +43,17 @@ class SettingsRepository @Inject constructor(
         private const val LOCALE_PREFS = "locale_prefs"
         private const val LOCALE_PREFS_KEY = "app_language"
 
+        private const val SERVER_MODEL_HIDDEN_PREFIX = "server_model_hidden_"
+
         /** Read stored language synchronously — safe to call before Hilt init. */
         fun getStoredLanguage(context: Context): String {
             return context.getSharedPreferences(LOCALE_PREFS, Context.MODE_PRIVATE)
                 .getString(LOCALE_PREFS_KEY, "") ?: ""
         }
     }
+
+    private fun serverModelHiddenKey(serverId: String) =
+        stringSetPreferencesKey(SERVER_MODEL_HIDDEN_PREFIX + serverId)
 
     /**
      * Selected language code (e.g. "en", "ru", "de") or empty string for system default.
@@ -253,6 +259,30 @@ class SettingsRepository @Inject constructor(
     suspend fun setSilentNotifications(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[SILENT_NOTIFICATIONS_KEY] = enabled
+        }
+    }
+
+    /**
+     * Hidden model keys for a server. Key format: "providerId:modelId".
+     */
+    fun hiddenModels(serverId: String): Flow<Set<String>> = dataStore.data.map { preferences ->
+        preferences[serverModelHiddenKey(serverId)] ?: emptySet()
+    }
+
+    /**
+     * Set model visibility for a server.
+     * visible=true removes it from hidden set, visible=false adds it.
+     */
+    suspend fun setModelVisibility(serverId: String, providerId: String, modelId: String, visible: Boolean) {
+        val key = "$providerId:$modelId"
+        val prefsKey = serverModelHiddenKey(serverId)
+        dataStore.edit { preferences ->
+            val current = preferences[prefsKey] ?: emptySet()
+            preferences[prefsKey] = if (visible) {
+                current - key
+            } else {
+                current + key
+            }
         }
     }
 }

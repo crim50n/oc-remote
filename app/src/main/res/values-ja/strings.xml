@@ -313,4 +313,11 @@
     <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
     <string name="about_license">ライセンス</string>
     <string name="about_license_value">MIT</string>
+    <string name="server_settings_title">サーバー設定</string>
+    <string name="server_settings_model_filter">モデルフィルター</string>
+    <string name="server_settings_model_filter_desc">セレクターに表示するモデルを選択</string>
+    <string name="server_settings_search_placeholder">モデルを検索</string>
+    <string name="server_settings_empty">モデルが見つかりません</string>
+    <string name="server_settings_load_error">モデルの読み込みに失敗しました</string>
+    <string name="loading">読み込み中…</string>
 </resources>

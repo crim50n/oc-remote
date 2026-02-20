@@ -257,6 +257,47 @@
     <string name="settings_silent_notifications">Silent notifications</string>
     <string name="settings_silent_notifications_desc">Suppress sound and vibration for task notifications</string>
     <string name="dialog_select_reconnect_mode">Select reconnect mode</string>
+
+    <!-- Server Settings -->
+    <string name="server_settings_title">Server Settings</string>
+    <string name="server_settings_providers">Providers</string>
+    <string name="server_settings_providers_desc">Enable or disable providers for this server</string>
+    <string name="server_settings_providers_connected">Connected</string>
+    <string name="server_settings_providers_available">Available</string>
+    <string name="server_settings_provider_connected">Connected</string>
+    <string name="server_settings_provider_source_env">Source: Environment</string>
+    <string name="server_settings_provider_source_api">Source: API key</string>
+    <string name="server_settings_provider_source_config">Source: Config</string>
+    <string name="server_settings_provider_source_custom">Source: Custom</string>
+    <string name="server_settings_provider_source_other">Source: Other</string>
+    <string name="server_settings_provider_env_connected">Connected from environment variables</string>
+    <string name="server_settings_provider_unavailable">Unavailable</string>
+    <string name="server_settings_connect_provider">Connect %1$s</string>
+    <string name="server_settings_no_connect_methods">No connection methods are available for this provider</string>
+    <string name="server_settings_api_key_title">API key for %1$s</string>
+    <string name="server_settings_api_key_placeholder">Paste API key</string>
+    <string name="server_settings_oauth_title">OAuth for %1$s</string>
+    <string name="server_settings_oauth_open_browser">Open in browser</string>
+    <string name="server_settings_oauth_code_placeholder">Paste authorization code</string>
+    <string name="server_settings_oauth_complete">Complete</string>
+    <string name="server_settings_auth_method_api">API key</string>
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="server_settings_models">Models</string>
+    <string name="server_settings_models_desc">Model visibility and defaults</string>
+    <string name="server_settings_defaults">Defaults</string>
+    <string name="server_settings_default_model">Default model</string>
+    <string name="server_settings_small_model">Small model</string>
+    <string name="server_settings_default_agent">Default agent</string>
+    <string name="server_settings_auto">Auto</string>
+    <string name="server_settings_model_filter">Model filter</string>
+    <string name="server_settings_model_filter_desc">Choose which models appear in selectors</string>
+    <string name="server_settings_search_placeholder">Search models</string>
+    <string name="server_settings_empty">No models found</string>
+    <string name="server_settings_load_error">Failed to load models</string>
+
+    <!-- Common -->
+    <string name="loading">Loading…</string>
     
     <!-- Dialogs -->
     <string name="dialog_select_theme">Select Theme</string>

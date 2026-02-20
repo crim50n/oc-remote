@@ -1,0 +1,114 @@
+version: 1
+checksums:
+    OC Remote Android/ar:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+    OC Remote Android/de:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+    OC Remote Android/es:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+    OC Remote Android/fr:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+    OC Remote Android/id:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+    OC Remote Android/it:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+    OC Remote Android/ja:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+    OC Remote Android/ko:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+    OC Remote Android/pl:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+    OC Remote Android/pt-BR:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+    OC Remote Android/ru:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+    OC Remote Android/tr:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+    OC Remote Android/uk:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+    OC Remote Android/zh-CN:
+        loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_empty: 25043979d5b514569e04176c8195da2c
+        server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
+        server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
+        server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979

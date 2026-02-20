@@ -11,6 +11,8 @@ import android.util.Log
 import dev.minios.ocremote.BuildConfig
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import dev.minios.ocremote.data.api.OpenCodeApi
+import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.repository.ServerRepository
 import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.service.OpenCodeConnectionService
@@ -28,6 +30,7 @@ private const val TAG = "HomeViewModel"
 data class HomeUiState(
     val servers: List<ServerConfig> = emptyList(),
     val connectedServerIds: Set<String> = emptySet(),
+    val serverSettingsReadyIds: Set<String> = emptySet(),
     val connectingServerIds: Set<String> = emptySet(),
     val connectionErrors: Map<String, String> = emptyMap(),
     val showAddServerDialog: Boolean = false,
@@ -38,7 +41,8 @@ data class HomeUiState(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     application: Application,
-    private val serverRepository: ServerRepository
+    private val serverRepository: ServerRepository,
+    private val api: OpenCodeApi
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -46,6 +50,7 @@ class HomeViewModel @Inject constructor(
 
     private var serviceBinder: OpenCodeConnectionService.LocalBinder? = null
     private var sseObserverJob: Job? = null
+    private val serverSettingsCheckJobs = mutableMapOf<String, Job>()
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -89,7 +94,13 @@ class HomeViewModel @Inject constructor(
             launch {
                 service.connectedServerIds.collect { ids ->
                     if (BuildConfig.DEBUG) Log.d(TAG, "Service connected server IDs changed: $ids")
-                    _uiState.update { it.copy(connectedServerIds = ids) }
+                    _uiState.update {
+                        it.copy(
+                            connectedServerIds = ids,
+                            serverSettingsReadyIds = it.serverSettingsReadyIds.intersect(ids)
+                        )
+                    }
+                    refreshServerSettingsAvailability(ids)
                 }
             }
             launch {
@@ -109,6 +120,45 @@ class HomeViewModel @Inject constructor(
                         servers = servers,
                         isLoading = false
                     )
+                }
+                refreshServerSettingsAvailability(_uiState.value.connectedServerIds)
+            }
+        }
+    }
+
+    private fun refreshServerSettingsAvailability(connectedIds: Set<String>) {
+        // Cancel checks for disconnected servers
+        val disconnected = serverSettingsCheckJobs.keys - connectedIds
+        disconnected.forEach { id ->
+            serverSettingsCheckJobs.remove(id)?.cancel()
+        }
+
+        // Start or restart checks for connected servers
+        connectedIds.forEach { serverId ->
+            serverSettingsCheckJobs.remove(serverId)?.cancel()
+            serverSettingsCheckJobs[serverId] = viewModelScope.launch {
+                val server = _uiState.value.servers.find { it.id == serverId }
+                if (server == null) {
+                    _uiState.update { it.copy(serverSettingsReadyIds = it.serverSettingsReadyIds - serverId) }
+                    return@launch
+                }
+
+                try {
+                    val conn = ServerConnection.from(server.url, server.username, server.password)
+                    val response = api.getProviders(conn)
+                    val hasModels = response.providers.any { it.models.isNotEmpty() }
+                    _uiState.update {
+                        it.copy(
+                            serverSettingsReadyIds = if (hasModels) {
+                                it.serverSettingsReadyIds + serverId
+                            } else {
+                                it.serverSettingsReadyIds - serverId
+                            }
+                        )
+                    }
+                } catch (e: Exception) {
+                    _uiState.update { it.copy(serverSettingsReadyIds = it.serverSettingsReadyIds - serverId) }
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Providers check failed for $serverId: ${e.message}")
                 }
             }
         }
@@ -247,6 +297,8 @@ class HomeViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         sseObserverJob?.cancel()
+        serverSettingsCheckJobs.values.forEach { it.cancel() }
+        serverSettingsCheckJobs.clear()
         try {
             getApplication<Application>().unbindService(serviceConnection)
         } catch (e: Exception) {

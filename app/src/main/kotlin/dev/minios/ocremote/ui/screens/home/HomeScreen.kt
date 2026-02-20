@@ -94,6 +94,7 @@ private fun PulsingDotsIndicator(
 @Composable
 fun HomeScreen(
     onNavigateToSessions: (serverUrl: String, username: String, password: String, serverName: String, serverId: String) -> Unit = { _, _, _, _, _ -> },
+    onNavigateToServerSettings: (serverUrl: String, username: String, password: String, serverName: String, serverId: String) -> Unit = { _, _, _, _, _ -> },
     onNavigateToSettings: () -> Unit = {},
     onNavigateToAbout: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
@@ -200,10 +201,20 @@ fun HomeScreen(
                                 isConnected = server.id in uiState.connectedServerIds,
                                 isConnecting = server.id in uiState.connectingServerIds,
                                 connectionError = uiState.connectionErrors[server.id],
+                                showServerSettings = server.id in uiState.serverSettingsReadyIds,
                                 onConnect = { requestNotificationPermissionAndConnect(server.id) },
                                 onDisconnect = { viewModel.disconnectFromServer(server.id) },
                                 onOpenSessions = {
                                     onNavigateToSessions(
+                                        server.url,
+                                        server.username,
+                                        server.password ?: "",
+                                        server.displayName,
+                                        server.id
+                                    )
+                                },
+                                onServerSettings = {
+                                    onNavigateToServerSettings(
                                         server.url,
                                         server.username,
                                         server.password ?: "",
@@ -270,9 +281,11 @@ private fun ServerCard(
     isConnected: Boolean,
     isConnecting: Boolean,
     connectionError: String?,
+    showServerSettings: Boolean,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onOpenSessions: () -> Unit,
+    onServerSettings: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -336,37 +349,43 @@ private fun ServerCard(
                     }
                 }
 
-                // Menu button
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (showServerSettings) {
+                        IconButton(onClick = onServerSettings) {
+                            Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.server_settings_title))
+                        }
                     }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                        containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-                        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.home_edit)) },
-                            onClick = {
-                                showMenu = false
-                                onEdit()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Edit, contentDescription = null)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.server_delete)) },
-                            onClick = {
-                                showMenu = false
-                                onDelete()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Delete, contentDescription = null)
-                            }
-                        )
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+                            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.home_edit)) },
+                                onClick = {
+                                    showMenu = false
+                                    onEdit()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Edit, contentDescription = null)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.server_delete)) },
+                                onClick = {
+                                    showMenu = false
+                                    onDelete()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Delete, contentDescription = null)
+                                }
+                            )
+                        }
                     }
                 }
             }

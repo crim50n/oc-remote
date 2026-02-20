@@ -470,6 +470,131 @@ class OpenCodeApi @Inject constructor(
         }.body()
     }
 
+    /**
+     * Get provider catalog with connection status.
+     * GET /provider
+     */
+    suspend fun listProviderCatalog(conn: ServerConnection): ProviderCatalogResponse {
+        return httpClient.get("${conn.baseUrl}/provider") {
+            conn.authHeader?.let { header("Authorization", it) }
+        }.body()
+    }
+
+    /**
+     * Get available auth methods for providers.
+     * GET /provider/auth
+     */
+    suspend fun getProviderAuthMethods(conn: ServerConnection): Map<String, List<ProviderAuthMethod>> {
+        return httpClient.get("${conn.baseUrl}/provider/auth") {
+            conn.authHeader?.let { header("Authorization", it) }
+        }.body()
+    }
+
+    /**
+     * Start OAuth authorization for a provider.
+     * POST /provider/{providerID}/oauth/authorize
+     */
+    suspend fun authorizeProviderOauth(
+        conn: ServerConnection,
+        providerId: String,
+        methodIndex: Int
+    ): ProviderOauthAuthorization? {
+        return httpClient.post("${conn.baseUrl}/provider/$providerId/oauth/authorize") {
+            conn.authHeader?.let { header("Authorization", it) }
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("method" to methodIndex))
+        }.body()
+    }
+
+    /**
+     * Complete OAuth authorization for a provider.
+     * POST /provider/{providerID}/oauth/callback
+     */
+    suspend fun completeProviderOauth(
+        conn: ServerConnection,
+        providerId: String,
+        methodIndex: Int,
+        code: String? = null
+    ): Boolean {
+        val response = httpClient.post("${conn.baseUrl}/provider/$providerId/oauth/callback") {
+            conn.authHeader?.let { header("Authorization", it) }
+            contentType(ContentType.Application.Json)
+            setBody(
+                if (code != null) mapOf("method" to methodIndex, "code" to code)
+                else mapOf("method" to methodIndex)
+            )
+        }
+        return response.status.isSuccess()
+    }
+
+    /**
+     * Set API key auth for provider.
+     * PUT /auth/{providerID}
+     */
+    suspend fun setProviderApiKey(conn: ServerConnection, providerId: String, apiKey: String): Boolean {
+        val response = httpClient.put("${conn.baseUrl}/auth/$providerId") {
+            conn.authHeader?.let { header("Authorization", it) }
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("type" to "api", "key" to apiKey))
+        }
+        return response.status.isSuccess()
+    }
+
+    /**
+     * Remove stored auth for provider.
+     * DELETE /auth/{providerID}
+     */
+    suspend fun removeProviderAuth(conn: ServerConnection, providerId: String): Boolean {
+        val response = httpClient.delete("${conn.baseUrl}/auth/$providerId") {
+            conn.authHeader?.let { header("Authorization", it) }
+        }
+        return response.status.isSuccess()
+    }
+
+    /**
+     * Get current server config.
+     * GET /config
+     */
+    suspend fun getConfig(conn: ServerConnection): ServerConfigResponse {
+        return httpClient.get("${conn.baseUrl}/config") {
+            conn.authHeader?.let { header("Authorization", it) }
+        }.body()
+    }
+
+    /**
+     * Get global server config.
+     * GET /global/config
+     */
+    suspend fun getGlobalConfig(conn: ServerConnection): ServerConfigResponse {
+        return httpClient.get("${conn.baseUrl}/global/config") {
+            conn.authHeader?.let { header("Authorization", it) }
+        }.body()
+    }
+
+    /**
+     * Patch server config.
+     * PATCH /config
+     */
+    suspend fun updateConfig(conn: ServerConnection, patch: ServerConfigPatch): ServerConfigResponse {
+        return httpClient.patch("${conn.baseUrl}/config") {
+            conn.authHeader?.let { header("Authorization", it) }
+            contentType(ContentType.Application.Json)
+            setBody(patch)
+        }.body()
+    }
+
+    /**
+     * Patch global server config.
+     * PATCH /global/config
+     */
+    suspend fun updateGlobalConfig(conn: ServerConnection, patch: ServerConfigPatch): ServerConfigResponse {
+        return httpClient.patch("${conn.baseUrl}/global/config") {
+            conn.authHeader?.let { header("Authorization", it) }
+            contentType(ContentType.Application.Json)
+            setBody(patch)
+        }.body()
+    }
+
     // ============ Commands ============
 
     /**
@@ -625,6 +750,43 @@ data class QuestionOption(
 data class ProvidersResponse(
     val providers: List<ProviderInfo>,
     val default: Map<String, String> = emptyMap()
+)
+
+@Serializable
+data class ProviderCatalogResponse(
+    val all: List<ProviderInfo>,
+    val default: Map<String, String> = emptyMap(),
+    val connected: List<String> = emptyList()
+)
+
+@Serializable
+data class ProviderAuthMethod(
+    val type: String,
+    val label: String
+)
+
+@Serializable
+data class ProviderOauthAuthorization(
+    val url: String,
+    val method: String,
+    val instructions: String
+)
+
+@Serializable
+data class ServerConfigResponse(
+    @SerialName("disabled_providers") val disabledProviders: List<String> = emptyList(),
+    @SerialName("enabled_providers") val enabledProviders: List<String>? = null,
+    val model: String? = null,
+    @SerialName("small_model") val smallModel: String? = null,
+    @SerialName("default_agent") val defaultAgent: String? = null
+)
+
+@Serializable
+data class ServerConfigPatch(
+    @SerialName("disabled_providers") val disabledProviders: List<String>? = null,
+    val model: String? = null,
+    @SerialName("small_model") val smallModel: String? = null,
+    @SerialName("default_agent") val defaultAgent: String? = null
 )
 
 @Serializable

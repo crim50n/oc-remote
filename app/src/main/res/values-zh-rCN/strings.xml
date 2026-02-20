@@ -313,4 +313,11 @@
     <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
     <string name="about_license">许可证</string>
     <string name="about_license_value">MIT</string>
+    <string name="server_settings_title">服务器设置</string>
+    <string name="server_settings_model_filter">模型筛选器</string>
+    <string name="server_settings_model_filter_desc">选择要在选择器中显示的模型</string>
+    <string name="server_settings_search_placeholder">搜索模型</string>
+    <string name="server_settings_empty">未找到模型</string>
+    <string name="server_settings_load_error">模型加载失败</string>
+    <string name="loading">正在加载…</string>
 </resources>
