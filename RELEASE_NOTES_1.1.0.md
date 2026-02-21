@@ -1,4 +1,4 @@
-# OpenCode Android v1.1.0 — Release Notes
+# OC Remote v1.1.0 — Release Notes
 
 Feature release focused on server settings parity with the official OpenCode web interface.
 

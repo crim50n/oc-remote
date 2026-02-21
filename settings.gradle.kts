@@ -15,5 +15,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "OpenCode Android"
+rootProject.name = "OC Remote"
 include(":app")

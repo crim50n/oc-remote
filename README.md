@@ -1,4 +1,4 @@
-# OpenCode Android
+# OC Remote
 
 Android client for [OpenCode](https://github.com/anomalyco/opencode) servers with native UI and full feature parity.
 
@@ -117,12 +117,6 @@ opencode web --port 4096 --hostname 0.0.0.0
 # Install on connected device
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
-
-### CI/CD
-
-GitHub Actions workflows are included:
-- **`release.yml`** — manual trigger or tag push (`v*`), builds and signs a release APK, creates/updates a GitHub Release; uses `RELEASE_NOTES_<version>.md` when present
-- **`android_test.yml`** — runs unit tests on every push to `master`
 
 ## License
 

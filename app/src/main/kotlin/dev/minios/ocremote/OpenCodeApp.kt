@@ -4,7 +4,7 @@ import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
 
 /**
- * OpenCode Android Application
+ * OC Remote Application
  * Entry point for Hilt dependency injection
  */
 @HiltAndroidApp

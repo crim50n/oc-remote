@@ -1,4 +1,4 @@
-# OpenCode Android v1.0.2 — Release Notes
+# OC Remote v1.0.2 — Release Notes
 
 Patch release focused on AMOLED visual consistency and UI polish.
 

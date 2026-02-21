@@ -1,4 +1,4 @@
-# OpenCode Android v1.0.1 — Release Notes
+# OC Remote v1.0.1 — Release Notes
 
 Bug fix release focused on multi-project session visibility and UI improvements.
 
