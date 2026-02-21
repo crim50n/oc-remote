@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -82,6 +83,20 @@ class MainActivity : ComponentActivity() {
 
     /** Language code applied via attachBaseContext for this Activity instance. */
     private var appliedLanguage: String = ""
+
+    // Optional key interceptor used by terminal screen (e.g., virtual CTRL/FN via volume keys).
+    private var terminalKeyInterceptor: ((KeyEvent) -> Boolean)? = null
+
+    fun setTerminalKeyInterceptor(interceptor: ((KeyEvent) -> Boolean)?) {
+        terminalKeyInterceptor = interceptor
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (terminalKeyInterceptor?.invoke(event) == true) {
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     override fun attachBaseContext(newBase: Context) {
         // Read stored language synchronously from SharedPreferences (no Hilt needed).

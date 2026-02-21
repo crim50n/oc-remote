@@ -16,7 +16,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.WindowInsets
@@ -32,6 +37,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -42,6 +48,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,14 +56,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
@@ -64,13 +83,16 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
@@ -87,21 +109,26 @@ import dev.minios.ocremote.data.api.CommandInfo
 import dev.minios.ocremote.data.api.PromptPart
 import dev.minios.ocremote.data.api.ProviderInfo
 import dev.minios.ocremote.data.api.ProviderModel
+import dev.minios.ocremote.MainActivity
 import dev.minios.ocremote.ui.theme.CodeTypography
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+
 import android.net.Uri
 import android.content.Intent
 import android.content.res.Configuration
+import android.media.AudioManager
 import android.util.Base64
 import android.util.Log
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
 import dev.minios.ocremote.R
 import dev.minios.ocremote.ui.components.ProviderIcon
+
 
 /**
  * Chat Screen - conversation view with native markdown rendering.
@@ -195,18 +222,29 @@ private data class SlashCommand(
     val type: String // "server" or "client"
 )
 
+private enum class ChatInputMode {
+    NORMAL,
+    SHELL
+}
+
 /** Client-side slash commands that mirror the original opencode TUI. */
 @Composable
-private fun clientCommands(): List<SlashCommand> = listOf(
-    SlashCommand("new", stringResource(R.string.cmd_new), "client"),
-    SlashCommand("compact", stringResource(R.string.cmd_compact), "client"),
-    SlashCommand("fork", stringResource(R.string.cmd_fork), "client"),
-    SlashCommand("share", stringResource(R.string.cmd_share), "client"),
-    SlashCommand("unshare", stringResource(R.string.cmd_unshare), "client"),
-    SlashCommand("undo", stringResource(R.string.cmd_undo), "client"),
-    SlashCommand("redo", stringResource(R.string.cmd_redo), "client"),
-    SlashCommand("rename", stringResource(R.string.cmd_rename), "client"),
-)
+private fun clientCommands(showShellCommand: Boolean): List<SlashCommand> {
+    val commands = mutableListOf(
+        SlashCommand("new", stringResource(R.string.cmd_new), "client"),
+        SlashCommand("compact", stringResource(R.string.cmd_compact), "client"),
+        SlashCommand("fork", stringResource(R.string.cmd_fork), "client"),
+        SlashCommand("share", stringResource(R.string.cmd_share), "client"),
+        SlashCommand("unshare", stringResource(R.string.cmd_unshare), "client"),
+        SlashCommand("undo", stringResource(R.string.cmd_undo), "client"),
+        SlashCommand("redo", stringResource(R.string.cmd_redo), "client"),
+        SlashCommand("rename", stringResource(R.string.cmd_rename), "client"),
+    )
+    if (showShellCommand) {
+        commands += SlashCommand("shell", stringResource(R.string.cmd_shell_mode), "client")
+    }
+    return commands
+}
 
 /** Pulsing dots loading indicator — 3 dots that scale up/down in sequence. */
 @Composable
@@ -505,11 +543,22 @@ fun ChatScreen(
     var showModelPicker by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var isTerminalMode by rememberSaveable { mutableStateOf(false) }
+    var terminalCtrlLatched by rememberSaveable { mutableStateOf(false) }
+    var terminalAltLatched by rememberSaveable { mutableStateOf(false) }
+    var terminalVirtualCtrlDown by remember { mutableStateOf(false) }
+    var terminalVirtualFnDown by remember { mutableStateOf(false) }
+    val terminalFocusRequester = remember { FocusRequester() }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val isAmoled = isAmoledTheme()
+    val keyboardController = LocalSoftwareKeyboardController.current
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     val view = LocalView.current
+    val density = LocalDensity.current
+    val imeVisible = WindowInsets.ime.getBottom(density) > 0
+    var terminalOverlayHeightPx by remember { mutableStateOf(0) }
 
     // @ file mention state
     val fileSearchResults by viewModel.fileSearchResults.collectAsState()
@@ -523,9 +572,135 @@ fun ChatScreen(
     val collapseTools by viewModel.collapseTools.collectAsState()
     val hapticEnabled by viewModel.hapticFeedback.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
+    val showShellButton by viewModel.showShellButton.collectAsState()
+    val terminalVersion by viewModel.terminalVersion.collectAsState()
+    val terminalConnected by viewModel.terminalConnected.collectAsState()
+    val terminalTabs by viewModel.terminalTabs.collectAsState()
+    val activeTerminalTabId by viewModel.activeTerminalTabId.collectAsState()
+    val terminalFontSizeSp by viewModel.terminalFontSizeSp.collectAsState()
+    val terminalDrawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     var showSendConfirmDialog by remember { mutableStateOf(false) }
     // Pending send action: stored so the confirm dialog can trigger it
     var pendingSendAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var inputMode by rememberSaveable { mutableStateOf(ChatInputMode.NORMAL.name) }
+    val isShellMode = inputMode == ChatInputMode.SHELL.name
+
+    LaunchedEffect(showShellButton) {
+        if (!showShellButton && isShellMode) {
+            inputMode = ChatInputMode.NORMAL.name
+        }
+    }
+
+    BackHandler(enabled = isTerminalMode) {
+        if (terminalDrawerState.isOpen) {
+            coroutineScope.launch { terminalDrawerState.close() }
+        } else {
+            isTerminalMode = false
+        }
+    }
+
+    LaunchedEffect(isTerminalMode) {
+        if (isTerminalMode) {
+            viewModel.openTerminalSession { ok ->
+                if (!ok) {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(context.getString(R.string.chat_terminal_connect_failed))
+                    }
+                    isTerminalMode = false
+                }
+            }
+        } else {
+            terminalCtrlLatched = false
+            terminalAltLatched = false
+            terminalVirtualCtrlDown = false
+            terminalVirtualFnDown = false
+        }
+    }
+
+    DisposableEffect(isTerminalMode) {
+        val activity = context as? MainActivity
+        if (isTerminalMode && activity != null) {
+            activity.setTerminalKeyInterceptor { event ->
+                when (event.keyCode) {
+                    android.view.KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                        terminalVirtualCtrlDown = event.action == android.view.KeyEvent.ACTION_DOWN
+                        true
+                    }
+                    android.view.KeyEvent.KEYCODE_VOLUME_UP -> {
+                        terminalVirtualFnDown = event.action == android.view.KeyEvent.ACTION_DOWN
+                        true
+                    }
+                    else -> false
+                }
+            }
+        } else {
+            activity?.setTerminalKeyInterceptor(null)
+        }
+        onDispose {
+            activity?.setTerminalKeyInterceptor(null)
+            terminalVirtualCtrlDown = false
+            terminalVirtualFnDown = false
+        }
+    }
+
+    LaunchedEffect(isTerminalMode, terminalConnected) {
+        if (isTerminalMode && terminalConnected) {
+            terminalFocusRequester.requestFocus()
+        }
+    }
+
+    fun sendTerminalChunk(chunk: String) {
+        val ctrlActive = terminalCtrlLatched || terminalVirtualCtrlDown
+        val altActive = terminalAltLatched
+
+        // Termux-compatible shortcut: Ctrl+Alt+V pastes clipboard into terminal.
+        if (!terminalVirtualFnDown && ctrlActive && altActive && chunk.length == 1 && chunk[0].lowercaseChar() == 'v') {
+            if (terminalConnected) {
+                val clip = clipboardManager.getText()?.text
+                if (!clip.isNullOrEmpty()) {
+                    val cleaned = clip
+                        .replace(Regex("[\u001B\u0080-\u009F]"), "")
+                        .replace("\r\n", "\r")
+                        .replace('\n', '\r')
+                    if (cleaned.isNotEmpty()) viewModel.sendTerminalInput(cleaned)
+                }
+            }
+            if (terminalCtrlLatched) terminalCtrlLatched = false
+            if (terminalAltLatched) terminalAltLatched = false
+            return
+        }
+
+        val processed = if (terminalVirtualFnDown) {
+            val fnResult = applyTermuxFnBindings(chunk, viewModel.terminalEmulator.cursorKeysApplicationMode)
+            if (fnResult.showVolumeUi) {
+                val audio = context.getSystemService(AudioManager::class.java)
+                audio?.adjustSuggestedStreamVolume(
+                    AudioManager.ADJUST_SAME,
+                    AudioManager.USE_DEFAULT_STREAM_TYPE,
+                    AudioManager.FLAG_SHOW_UI
+                )
+            }
+            if (fnResult.toggleKeyboard) {
+                if (imeVisible) {
+                    keyboardController?.hide()
+                } else {
+                    terminalFocusRequester.requestFocus()
+                    keyboardController?.show()
+                }
+            }
+            fnResult.output
+        } else {
+            applyTerminalModifiers(
+                input = chunk,
+                ctrl = ctrlActive,
+                alt = altActive
+            )
+        }
+        if (processed.isEmpty()) return
+        viewModel.sendTerminalInput(processed)
+        if (terminalCtrlLatched) terminalCtrlLatched = false
+        if (terminalAltLatched) terminalAltLatched = false
+    }
 
     // Keep screen on while on chat screen (if enabled in settings)
     DisposableEffect(keepScreenOn) {
@@ -778,6 +953,7 @@ fun ChatScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
+            if (!isTerminalMode) {
             TopAppBar(
                 title = {
                     Column {
@@ -821,6 +997,12 @@ fun ChatScreen(
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
+                    }
+                    IconButton(onClick = { isTerminalMode = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Terminal,
+                            contentDescription = stringResource(R.string.tool_terminal)
+                        )
                     }
                     Box {
                         val isAmoled = isAmoledTheme()
@@ -962,6 +1144,7 @@ fun ChatScreen(
                     }
                 }
             )
+            }
         },
         bottomBar = {
             val modelLabel = if (uiState.selectedModelId != null && uiState.providers.isNotEmpty()) {
@@ -970,14 +1153,35 @@ fun ChatScreen(
                 model?.name ?: uiState.selectedModelId ?: ""
             } else ""
 
+            if (!isTerminalMode) {
             ChatInputBar(
                 textFieldValue = inputText,
                 onTextFieldValueChange = { newValue ->
-                    inputText = newValue
-                    viewModel.updateDraftText(newValue.text)
+                    val shouldAutoShell = showShellButton && !isShellMode && newValue.text.startsWith("!")
+                    val normalizedValue = if (shouldAutoShell) {
+                        val stripped = newValue.text.drop(1).trimStart()
+                        val newCursor = (newValue.selection.start - 1).coerceAtLeast(0)
+                        TextFieldValue(
+                            text = stripped,
+                            selection = TextRange(newCursor.coerceAtMost(stripped.length))
+                        )
+                    } else {
+                        newValue
+                    }
+
+                    if (shouldAutoShell) {
+                        inputMode = ChatInputMode.SHELL.name
+                    }
+
+                    inputText = normalizedValue
+                    viewModel.updateDraftText(normalizedValue.text)
+                    if (isShellMode || shouldAutoShell) {
+                        viewModel.clearFileSearch()
+                        return@ChatInputBar
+                    }
                     // Detect @query before cursor for file mention
-                    val cursorPos = newValue.selection.start
-                    val textBefore = newValue.text.substring(0, cursorPos)
+                    val cursorPos = normalizedValue.selection.start
+                    val textBefore = normalizedValue.text.substring(0, cursorPos)
                     val atMatch = Regex("@(\\S*)$").find(textBefore)
                     if (atMatch != null) {
                         val query = atMatch.groupValues[1]
@@ -987,7 +1191,7 @@ fun ChatScreen(
                     }
                 },
                 onSend = {
-                    val doSend = {
+                    val doSend = doSend@{
                         if (hapticEnabled) {
                             @Suppress("DEPRECATION")
                             val flags = android.view.HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
@@ -999,6 +1203,41 @@ fun ChatScreen(
                             }
                         }
                         val rawText = inputText.text
+                        val shellCommand = when {
+                            isShellMode -> rawText.trim()
+                            rawText.startsWith("!") -> rawText.drop(1).trimStart()
+                            else -> null
+                        }
+                        if (shellCommand != null) {
+                            if (shellCommand.isBlank()) {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(context.getString(R.string.chat_shell_empty))
+                                }
+                                return@doSend
+                            }
+                            if (attachments.isNotEmpty()) {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(context.getString(R.string.chat_shell_attachments_unsupported))
+                                }
+                                return@doSend
+                            }
+                            viewModel.runShellCommand(shellCommand) { ok ->
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        if (ok) context.getString(R.string.chat_shell_executed)
+                                        else context.getString(R.string.chat_shell_failed)
+                                    )
+                                }
+                            }
+                            inputText = TextFieldValue("")
+                            if (isShellMode) {
+                                inputMode = ChatInputMode.NORMAL.name
+                            }
+                            viewModel.clearConfirmedPaths()
+                            viewModel.clearFileSearch()
+                            viewModel.clearDraft()
+                            return@doSend
+                        }
                         // Build prompt parts: split text around confirmed @file mentions
                         val allParts = buildPromptParts(rawText, confirmedFilePaths, viewModel.getSessionDirectory())
                         // Add image attachments
@@ -1024,6 +1263,14 @@ fun ChatScreen(
                         doSend()
                     }
                 },
+                inputMode = if (isShellMode) ChatInputMode.SHELL else ChatInputMode.NORMAL,
+                onInputModeChange = {
+                    inputMode = it.name
+                    if (it == ChatInputMode.SHELL) {
+                        viewModel.clearFileSearch()
+                    }
+                },
+                showShellButton = showShellButton,
                 isSending = uiState.isSending,
                 isBusy = uiState.sessionStatus is SessionStatus.Busy,
                 messages = uiState.messages,
@@ -1142,6 +1389,11 @@ fun ChatScreen(
                         "rename" -> {
                             showRenameDialog = true
                         }
+                        "shell" -> {
+                            if (showShellButton) {
+                                inputMode = ChatInputMode.SHELL.name
+                            }
+                        }
                         else -> {
                             // Server command — execute via API
                             viewModel.executeCommand(cmd.name) { ok ->
@@ -1157,6 +1409,7 @@ fun ChatScreen(
                 contextWindow = uiState.contextWindow,
                 lastContextTokens = uiState.lastContextTokens
             )
+            }
         }
     ) { padding ->
         Box(
@@ -1165,6 +1418,235 @@ fun ChatScreen(
                 .padding(padding)
         ) {
             when {
+                isTerminalMode -> {
+                    // IME inset relative to content area. Some devices report 0 for
+                    // ime.exclude(navigationBars), so keep a robust fallback to raw ime.
+                    val imeBottomRaw = WindowInsets.ime.getBottom(density)
+                    val navBottom = WindowInsets.navigationBars.getBottom(density)
+                    val imeBottomPx = (imeBottomRaw - navBottom).coerceAtLeast(0).let { adjusted ->
+                        if (adjusted == 0 && imeBottomRaw > 0) imeBottomRaw else adjusted
+                    }
+                    val imeBottomDp = with(density) { imeBottomPx.toDp() }
+                    val overlayHeightDp = with(density) { terminalOverlayHeightPx.toDp() }
+
+                    ModalNavigationDrawer(
+                        drawerState = terminalDrawerState,
+                        gesturesEnabled = true,
+                        drawerContent = {
+                            ModalDrawerSheet(
+                                drawerContainerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+                                drawerContentColor = MaterialTheme.colorScheme.onSurface,
+                                drawerTonalElevation = 0.dp,
+                                drawerShape = RoundedCornerShape(0.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .widthIn(min = 240.dp, max = 320.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .padding(vertical = 8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                    LazyColumn(
+                                        modifier = Modifier.weight(1f),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        items(terminalTabs, key = { it.id }) { tab ->
+                                            val selected = tab.id == activeTerminalTabId
+                                            val drawerItemShape = RoundedCornerShape(12.dp)
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(drawerItemShape)
+                                                    .then(
+                                                        if (isAmoled && selected) {
+                                                            Modifier.border(
+                                                                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                                                drawerItemShape
+                                                            )
+                                                        } else Modifier
+                                                    )
+                                            ) {
+                                                NavigationDrawerItem(
+                                                    label = {
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = tab.title + if (!tab.connected) " (offline)" else "",
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis,
+                                                                modifier = Modifier.weight(1f)
+                                                            )
+                                                            IconButton(onClick = { viewModel.closeTerminalTab(tab.id) }) {
+                                                                Icon(Icons.Default.Close, contentDescription = "Close tab")
+                                                            }
+                                                        }
+                                                    },
+                                                    selected = selected,
+                                                    shape = drawerItemShape,
+                                                    colors = NavigationDrawerItemDefaults.colors(
+                                                        selectedContainerColor = if (isAmoled) {
+                                                            Color.Black
+                                                        } else {
+                                                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+                                                        },
+                                                        unselectedContainerColor = if (isAmoled) Color.Black else Color.Transparent,
+                                                        selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                                        unselectedTextColor = MaterialTheme.colorScheme.onSurface
+                                                    ),
+                                                    onClick = {
+                                                        viewModel.switchTerminalTab(tab.id)
+                                                        coroutineScope.launch { terminalDrawerState.close() }
+                                                    },
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    HorizontalDivider()
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                viewModel.createTerminalTab { ok ->
+                                                    if (!ok) {
+                                                        coroutineScope.launch {
+                                                            snackbarHostState.showSnackbar(context.getString(R.string.chat_terminal_connect_failed))
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(40.dp),
+                                            shape = RoundedCornerShape(10.dp),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+                                                contentColor = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        ) {
+                                            Icon(Icons.Default.Add, contentDescription = null)
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("New")
+                                        }
+                                        OutlinedButton(
+                                            onClick = {
+                                                keyboardController?.show()
+                                                coroutineScope.launch { terminalDrawerState.close() }
+                                            },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(40.dp),
+                                            shape = RoundedCornerShape(10.dp),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+                                                contentColor = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        ) {
+                                            Icon(Icons.Default.Keyboard, contentDescription = null)
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("Keyboard")
+                                        }
+                                    }
+
+                                    }
+
+                                    if (isAmoled) {
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.CenterEnd)
+                                                .fillMaxHeight()
+                                                .width(1.dp)
+                                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            SessionTerminalInline(
+                                emulator = viewModel.terminalEmulator,
+                                terminalVersion = terminalVersion,
+                                connected = terminalConnected,
+                                focusRequester = terminalFocusRequester,
+                                onSendInput = ::sendTerminalChunk,
+                                onResize = { cols, rows ->
+                                    viewModel.resizeTerminal(cols, rows)
+                                },
+                                fontSizeSp = terminalFontSizeSp,
+                                onFontSizeChange = viewModel::setTerminalFontSize,
+                                contentBottomPadding = overlayHeightDp + imeBottomDp,
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                        TerminalKeyboardOverlay(
+                            connected = terminalConnected,
+                            ctrlLatched = terminalCtrlLatched,
+                            altLatched = terminalAltLatched,
+                            cursorApp = viewModel.terminalEmulator.cursorKeysApplicationMode,
+                            onToggleDrawer = { coroutineScope.launch { terminalDrawerState.apply { if (isOpen) close() else open() } } },
+                            onToggleCtrl = { terminalCtrlLatched = !terminalCtrlLatched },
+                            onToggleAlt = { terminalAltLatched = !terminalAltLatched },
+                            onSendInput = ::sendTerminalChunk,
+                            onCtrlC = { viewModel.sendTerminalInput("\u0003") },
+                            onClear = { viewModel.clearTerminalBuffer() },
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .padding(bottom = imeBottomDp)
+                                    .onSizeChanged { terminalOverlayHeightPx = it.height }
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .fillMaxHeight()
+                                    .width(48.dp)
+                                    .pointerInput(terminalDrawerState) {
+                                        detectTapGestures(
+                                            onLongPress = {
+                                                if (!terminalDrawerState.isOpen) {
+                                                    coroutineScope.launch { terminalDrawerState.open() }
+                                                }
+                                            }
+                                        )
+                                    }
+                                    .pointerInput(terminalDrawerState) {
+                                        var dragged = 0f
+                                        detectHorizontalDragGestures(
+                                            onHorizontalDrag = { _, dragAmount ->
+                                                if (terminalDrawerState.isOpen) return@detectHorizontalDragGestures
+                                                dragged += dragAmount
+                                                if (dragged > 0.5f) {
+                                                    coroutineScope.launch { terminalDrawerState.open() }
+                                                    dragged = 0f
+                                                }
+                                            },
+                                            onDragEnd = { dragged = 0f },
+                                            onDragCancel = { dragged = 0f }
+                                        )
+                                    }
+                            )
+
+                        }
+                    }
+                }
                 uiState.isLoading && uiState.messages.isEmpty() -> {
                     PulsingDotsIndicator(
                         modifier = Modifier.align(Alignment.Center)
@@ -1642,6 +2124,435 @@ private fun ModelPickerDialog(
     }
 }
 
+@Composable
+private fun SessionTerminalInline(
+    emulator: TerminalEmulator,
+    terminalVersion: Long,
+    connected: Boolean,
+    focusRequester: FocusRequester,
+    onSendInput: (String) -> Unit,
+    onResize: (cols: Int, rows: Int) -> Unit,
+    fontSizeSp: Float,
+    onFontSizeChange: (Float) -> Unit,
+    contentBottomPadding: Dp = 0.dp,
+    modifier: Modifier = Modifier,
+) {
+    val isAmoled = isAmoledTheme()
+    val renderedOutput = remember(terminalVersion) { emulator.render() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    var inputCapture by remember { mutableStateOf(TextFieldValue("")) }
+
+    val terminalStyle = remember(fontSizeSp) {
+        CodeTypography.copy(
+            fontSize = fontSizeSp.sp,
+            // Tight line spacing is required for continuous box-drawing in TUIs (mc, htop).
+            lineHeight = fontSizeSp.sp,
+            platformStyle = PlatformTextStyle(includeFontPadding = false)
+        )
+    }
+    val latestFontSizeSp by rememberUpdatedState(fontSizeSp)
+
+    Column(
+        modifier = modifier
+            .background(if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        BasicTextField(
+            value = inputCapture,
+            onValueChange = { next ->
+                if (!connected) {
+                    inputCapture = TextFieldValue("")
+                    return@BasicTextField
+                }
+                val old = inputCapture.text
+                val now = next.text
+                val delta = when {
+                    now.startsWith(old) -> now.drop(old.length)
+                    old.startsWith(now) -> "\u007F".repeat((old.length - now.length).coerceAtLeast(0))
+                    else -> now
+                }
+                if (delta.isNotEmpty()) {
+                    val mapped = delta
+                        .replace("\r\n", "\r")
+                        .replace('\n', '\r')
+                    onSendInput(mapped)
+                }
+                inputCapture = TextFieldValue("")
+            },
+            modifier = Modifier
+                .size(1.dp)
+                .focusRequester(focusRequester)
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    when (event.key) {
+                        Key.Enter, Key.NumPadEnter -> {
+                            onSendInput("\r")
+                            true
+                        }
+                        Key.Backspace -> {
+                            onSendInput("\u007F")
+                            true
+                        }
+                        else -> false
+                    }
+                },
+            singleLine = false,
+            textStyle = terminalStyle,
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.None,
+                autoCorrectEnabled = false,
+                imeAction = ImeAction.Send
+            ),
+            keyboardActions = KeyboardActions(
+                onSend = { onSendInput("\r") },
+                onDone = { onSendInput("\r") },
+                onGo = { onSendInput("\r") }
+            )
+        )
+
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = contentBottomPadding)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = {
+                            focusRequester.requestFocus()
+                            keyboard?.show()
+                        }
+                    )
+                }
+                .pointerInput(Unit) {
+                    var liveFontSize = latestFontSizeSp
+                    detectTransformGestures { _, _, zoom, _ ->
+                        if (zoom != 1f) {
+                            // Keep accumulating from the latest known value without restarting pointerInput.
+                            if (kotlin.math.abs(liveFontSize - latestFontSizeSp) > 0.001f) {
+                                liveFontSize = latestFontSizeSp
+                            }
+                            liveFontSize = (liveFontSize * zoom).coerceIn(6f, 32f)
+                            onFontSizeChange(liveFontSize)
+                        }
+                    }
+                }
+        ) {
+            // Measure character dimensions for accurate grid sizing.
+            val textMeasurer = rememberTextMeasurer()
+            val charWidthPx = remember(fontSizeSp) {
+                val result = textMeasurer.measure(
+                    text = AnnotatedString("0000000000"),
+                    style = terminalStyle
+                )
+                // Use 10 chars to reduce rounding error in per-glyph width.
+                (result.size.width / 10f).coerceAtLeast(1f)
+            }
+            val rowHeightPx = remember(fontSizeSp) {
+                val oneLine = textMeasurer.measure(
+                    text = AnnotatedString("M"),
+                    style = terminalStyle
+                )
+                val twoLines = textMeasurer.measure(
+                    text = AnnotatedString("M\nM"),
+                    style = terminalStyle
+                )
+                (twoLines.size.height - oneLine.size.height).toFloat().coerceAtLeast(1f)
+            }
+            // Use inner constraints from BoxWithConstraints (already reflects bottom padding).
+            val viewportWidthPx = constraints.maxWidth
+            val viewportHeightPx = constraints.maxHeight
+            val termCols = if (viewportWidthPx > 0) {
+                (viewportWidthPx / charWidthPx).toInt().coerceAtLeast(20)
+            } else 80
+            val termRows = if (viewportHeightPx > 0) {
+                (viewportHeightPx / rowHeightPx).toInt().coerceAtLeast(8)
+            } else 24
+            LaunchedEffect(termCols, termRows, connected) {
+                if (connected && viewportWidthPx > 0 && viewportHeightPx > 0) {
+                    onResize(termCols, termRows)
+                    // Retry shortly after to handle race conditions around PTY startup/IME transitions.
+                    delay(120)
+                    onResize(termCols, termRows)
+                }
+            }
+
+            // Build display text: rendered screen + cursor overlay
+            val cursorPos = remember(terminalVersion) { emulator.getCursorPosition() }
+            val displayText = remember(terminalVersion, connected) {
+                if (!connected) {
+                    renderedOutput
+                } else {
+                    buildAnnotatedString {
+                        // Insert cursor into the rendered output
+                        // The rendered output has rows separated by '\n'
+                        // Cursor is at cursorPos.first (row), cursorPos.second (col)
+                        val lines = renderedOutput.text.split('\n')
+                        var charOffset = 0
+                        for (lineIdx in lines.indices) {
+                            val lineLen = lines[lineIdx].length
+                            if (lineIdx == cursorPos.first) {
+                                // This line contains the cursor
+                                val cursorCol = cursorPos.second
+                                if (cursorCol <= lineLen) {
+                                    // Cursor is within (or at end of) the rendered text
+                                    if (cursorCol > 0) {
+                                        append(renderedOutput, charOffset, charOffset + cursorCol)
+                                    }
+                                    val cursorChar = if (cursorCol < lineLen) lines[lineIdx][cursorCol] else ' '
+                                    withStyle(SpanStyle(
+                                        color = Color(0xFF0B0F19),
+                                        background = Color(0xFFD3D7CF)
+                                    )) {
+                                        append(cursorChar)
+                                    }
+                                    if (cursorCol + 1 < lineLen) {
+                                        append(renderedOutput, charOffset + cursorCol + 1, charOffset + lineLen)
+                                    }
+                                } else {
+                                    // Cursor is beyond the trimmed line — pad with spaces
+                                    if (lineLen > 0) {
+                                        append(renderedOutput, charOffset, charOffset + lineLen)
+                                    }
+                                    append(" ".repeat(cursorCol - lineLen))
+                                    withStyle(SpanStyle(
+                                        color = Color(0xFF0B0F19),
+                                        background = Color(0xFFD3D7CF)
+                                    )) {
+                                        append(' ')
+                                    }
+                                }
+                            } else {
+                                // Non-cursor line — copy as-is
+                                append(renderedOutput, charOffset, charOffset + lineLen)
+                            }
+                            if (lineIdx < lines.lastIndex) append('\n')
+                            charOffset += lineLen + 1 // +1 for the '\n'
+                        }
+                    }
+                }
+            }
+
+            // Termux-like: always allow text selection via long-press (native handles + copy toolbar).
+            SelectionContainer {
+                Text(
+                    text = displayText,
+                    style = terminalStyle,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    softWrap = false,
+                    maxLines = Int.MAX_VALUE,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TerminalKeyboardOverlay(
+    connected: Boolean,
+    ctrlLatched: Boolean,
+    altLatched: Boolean,
+    cursorApp: Boolean,
+    onToggleDrawer: () -> Unit,
+    onToggleCtrl: () -> Unit,
+    onToggleAlt: () -> Unit,
+    onSendInput: (String) -> Unit,
+    onCtrlC: () -> Unit,
+    onClear: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Arrow / Home / End sequences depend on DECCKM
+    val arrowUp    = if (cursorApp) "\u001BOA" else "\u001B[A"
+    val arrowDown  = if (cursorApp) "\u001BOB" else "\u001B[B"
+    val arrowRight = if (cursorApp) "\u001BOC" else "\u001B[C"
+    val arrowLeft  = if (cursorApp) "\u001BOD" else "\u001B[D"
+    val home       = if (cursorApp) "\u001BOH" else "\u001B[H"
+    val end        = if (cursorApp) "\u001BOF" else "\u001B[F"
+
+    Surface(
+        modifier = modifier,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            // Row 1: matches Termux default extra keys
+            TerminalKeyRow(
+                keys = listOf(
+                    TerminalKey("ESC", popupLabel = "☰", popupAction = onToggleDrawer) { onSendInput("\u001B") },
+                    TerminalKey("/") { onSendInput("/") },
+                    TerminalKey("-", popupLabel = "|", popupAction = { onSendInput("|") }) { onSendInput("-") },
+                    TerminalKey("HOME") { onSendInput(home) },
+                    TerminalKey("\u2191") { onSendInput(arrowUp) },
+                    TerminalKey("END") { onSendInput(end) },
+                    TerminalKey("PGUP") { onSendInput("\u001B[5~") },
+                )
+            )
+            // Row 2: matches Termux default extra keys
+            TerminalKeyRow(
+                keys = listOf(
+                    TerminalKey("\u21B9") { onSendInput("\t") },
+                    TerminalKey("CTRL", active = ctrlLatched, action = onToggleCtrl),
+                    TerminalKey("ALT", active = altLatched, action = onToggleAlt),
+                    TerminalKey("\u2190") { onSendInput(arrowLeft) },
+                    TerminalKey("\u2193") { onSendInput(arrowDown) },
+                    TerminalKey("\u2192") { onSendInput(arrowRight) },
+                    TerminalKey("PGDN") { onSendInput("\u001B[6~") },
+                )
+            )
+        }
+    }
+}
+
+private data class TerminalKey(
+    val label: String,
+    val active: Boolean = false,
+    val popupLabel: String? = null,
+    val popupAction: (() -> Unit)? = null,
+    val action: () -> Unit
+)
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun TerminalKeyRow(keys: List<TerminalKey>) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        keys.forEach { key ->
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (key.active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                border = BorderStroke(
+                    1.dp,
+                    if (key.active) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(30.dp)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .combinedClickable(
+                            onClick = key.action,
+                            onLongClick = { key.popupAction?.invoke() }
+                        )
+                        .padding(horizontal = 4.dp)
+                ) {
+                    Text(
+                        text = key.label,
+                        maxLines = 1,
+                        softWrap = false,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (key.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun applyTerminalModifiers(input: String, ctrl: Boolean, alt: Boolean): String {
+    if (input.isEmpty()) return input
+    var out = input
+    if (ctrl) {
+        out = out.map { ch -> ctrlTransform(ch) }.joinToString("")
+    }
+    if (alt) {
+        out = "\u001B$out"
+    }
+    return out
+}
+
+private data class FnBindingResult(
+    val output: String,
+    val showVolumeUi: Boolean = false,
+    val toggleKeyboard: Boolean = false,
+)
+
+private fun applyTermuxFnBindings(input: String, cursorApp: Boolean): FnBindingResult {
+    if (input.isEmpty()) return FnBindingResult(output = "")
+
+    val up = if (cursorApp) "\u001BOA" else "\u001B[A"
+    val down = if (cursorApp) "\u001BOB" else "\u001B[B"
+    val right = if (cursorApp) "\u001BOC" else "\u001B[C"
+    val left = if (cursorApp) "\u001BOD" else "\u001B[D"
+
+    val out = StringBuilder()
+    var showVolumeUi = false
+    var toggleKeyboard = false
+    for (ch in input) {
+        when (ch.lowercaseChar()) {
+            'w' -> out.append(up)
+            'a' -> out.append(left)
+            's' -> out.append(down)
+            'd' -> out.append(right)
+
+            'p' -> out.append("\u001B[5~")
+            'n' -> out.append("\u001B[6~")
+
+            't' -> out.append('\t')
+            'i' -> out.append("\u001B[2~")
+            'h' -> out.append('~')
+            'u' -> out.append('_')
+            'l' -> out.append('|')
+
+            '1' -> out.append("\u001BOP")
+            '2' -> out.append("\u001BOQ")
+            '3' -> out.append("\u001BOR")
+            '4' -> out.append("\u001BOS")
+            '5' -> out.append("\u001B[15~")
+            '6' -> out.append("\u001B[17~")
+            '7' -> out.append("\u001B[18~")
+            '8' -> out.append("\u001B[19~")
+            '9' -> out.append("\u001B[20~")
+            '0' -> out.append("\u001B[21~")
+
+            'e' -> out.append('\u001B')
+            '.' -> out.append(28.toChar()) // Ctrl+\
+
+            'b', 'f', 'x' -> {
+                out.append('\u001B')
+                out.append(ch.lowercaseChar())
+            }
+
+            // Termux also handles FN+v (volume UI) and FN+q/k (toggle toolbar),
+            // which are app-specific actions. We consume them with no terminal output.
+            'v' -> showVolumeUi = true
+            'q', 'k' -> toggleKeyboard = true
+
+            else -> Unit
+        }
+    }
+    return FnBindingResult(
+        output = out.toString(),
+        showVolumeUi = showVolumeUi,
+        toggleKeyboard = toggleKeyboard,
+    )
+}
+
+private fun ctrlTransform(ch: Char): Char {
+    return when {
+        ch in 'a'..'z' -> (ch.code - 96).toChar()
+        ch in 'A'..'Z' -> (ch.code - 64).toChar()
+        ch == ' ' -> 0.toChar()
+        ch == '[' -> 27.toChar()
+        ch == '\\' -> 28.toChar()
+        ch == ']' -> 29.toChar()
+        ch == '^' -> 30.toChar()
+        ch == '_' -> 31.toChar()
+        else -> ch
+    }
+}
+
 /**
  * Determine the "status text" for a group of step parts (like WebUI).
  * E.g., "Making edits", "Running commands", "Searching codebase", "Thinking"
@@ -1738,6 +2649,14 @@ private fun ChatMessageBubble(
         }
     } else {
         chatMessage.parts
+    }
+
+    val userMessage = chatMessage.message as? Message.User
+    val userFallbackText = userMessage?.summary?.body?.takeIf { it.isNotBlank() }
+        ?: userMessage?.summary?.title?.takeIf { it.isNotBlank() }
+    val hasRenderableUserContent = !isUser || visibleParts.isNotEmpty() || userFallbackText != null
+    if (!hasRenderableUserContent) {
+        return
     }
 
     // For assistant messages: split into "content" (text, reasoning, patch) and "steps" (tool calls, step markers)
@@ -1898,10 +2817,10 @@ private fun ChatMessageBubble(
                         )
                     }
 
-                    // If no visible content, show empty state for user messages
-                    if (visibleParts.isEmpty() && isUser) {
+                    // If text parts are absent but server provided a summary, render it.
+                    if (visibleParts.isEmpty() && isUser && userFallbackText != null) {
                         Text(
-                            text = stringResource(R.string.chat_empty_message),
+                            text = userFallbackText,
                             style = MaterialTheme.typography.bodyMedium,
                             color = textColor.copy(alpha = 0.5f)
                         )
@@ -3919,10 +4838,14 @@ private fun ChatInputBar(
     confirmedFilePaths: Set<String> = emptySet(),
     onFileSelected: (String) -> Unit = {},
     onSlashCommand: (SlashCommand) -> Unit = {},
+    inputMode: ChatInputMode = ChatInputMode.NORMAL,
+    onInputModeChange: (ChatInputMode) -> Unit = {},
+    showShellButton: Boolean = true,
     contextWindow: Int = 0,
     lastContextTokens: Int = 0
 ) {
     val isAmoled = isAmoledTheme()
+    val isShellMode = inputMode == ChatInputMode.SHELL
     // Rotate placeholder hint every 4 seconds
     val hintIndex = remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
@@ -3931,13 +4854,17 @@ private fun ChatInputBar(
             hintIndex.intValue = (hintIndex.intValue + 1) % placeholderHintResIds.size
         }
     }
-    val placeholder = stringResource(placeholderHintResIds[hintIndex.intValue])
+    val placeholder = if (isShellMode) {
+        stringResource(R.string.chat_shell_placeholder)
+    } else {
+        stringResource(placeholderHintResIds[hintIndex.intValue])
+    }
 
     val text = textFieldValue.text
     val canSend = (text.isNotBlank() || attachments.isNotEmpty()) && !isSending
 
     // Build merged slash commands: client commands + server commands (deduplicated)
-    val clientCmds = clientCommands()
+    val clientCmds = clientCommands(showShellButton)
     val allCommands = remember(commands, clientCmds) {
         val clientNames = clientCmds.map { it.name }.toSet()
         val serverSlash = commands
@@ -3947,7 +4874,7 @@ private fun ChatInputBar(
     }
 
     // Slash command suggestions
-    val showSlashSuggestions = text.startsWith("/") && !text.contains(" ")
+    val showSlashSuggestions = !isShellMode && text.startsWith("/") && !text.contains(" ")
     val slashQuery = if (showSlashSuggestions) text.removePrefix("/").lowercase() else ""
     val filteredCommands = if (showSlashSuggestions) {
         allCommands.filter { cmd ->
@@ -4018,7 +4945,7 @@ private fun ChatInputBar(
 
         // @ file mention suggestions popup
         AnimatedVisibility(
-            visible = fileSearchResults.isNotEmpty(),
+            visible = !isShellMode && fileSearchResults.isNotEmpty(),
             enter = fadeIn(),
             exit = fadeOut()
         ) {
@@ -4264,19 +5191,56 @@ private fun ChatInputBar(
                                     .padding(horizontal = 3.dp, vertical = 3.dp)
                             )
                         }
+
                     }
 
-                    // Attach button (paperclip) — always visible, pinned right, aligned with Send button
-                    IconButton(
-                        onClick = onAttach,
-                        modifier = Modifier.size(44.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
-                        Icon(
-                            Icons.Default.AttachFile,
-                            contentDescription = stringResource(R.string.chat_attach),
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
+                        if (showShellButton) {
+                            // Shell toggle button — fixed and pinned left of attachment
+                            Surface(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        onInputModeChange(if (isShellMode) ChatInputMode.NORMAL else ChatInputMode.SHELL)
+                                    },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isShellMode) {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                } else {
+                                    Color.Transparent
+                                }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Terminal,
+                                        contentDescription = "shell",
+                                        modifier = Modifier.size(18.dp),
+                                        tint = if (isShellMode) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Attach button (paperclip) — always visible, pinned right, aligned with Send button
+                        IconButton(
+                            onClick = onAttach,
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.AttachFile,
+                                contentDescription = stringResource(R.string.chat_attach),
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
                     }
                 }
             }
@@ -4332,7 +5296,11 @@ private fun ChatInputBar(
                 val mentionHighlightColor = MaterialTheme.colorScheme.primary
                 val mentionBgColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 val visualTransformation = remember(confirmedFilePaths, mentionHighlightColor, mentionBgColor) {
-                    FileMentionVisualTransformation(confirmedFilePaths, mentionHighlightColor, mentionBgColor)
+                    if (isShellMode) {
+                        VisualTransformation.None
+                    } else {
+                        FileMentionVisualTransformation(confirmedFilePaths, mentionHighlightColor, mentionBgColor)
+                    }
                 }
 
                 Box(
@@ -4347,14 +5315,22 @@ private fun ChatInputBar(
                             }
                         )
                         .then(
-                            if (isAmoled) {
-                                Modifier.border(
+                            when {
+                                isShellMode -> Modifier.border(
+                                    width = if (isAmoled) 1.5.dp else 1.dp,
+                                    color = if (isAmoled) {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+                                    } else {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.65f)
+                                    },
+                                    shape = RoundedCornerShape(22.dp)
+                                )
+                                isAmoled -> Modifier.border(
                                     width = 1.dp,
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f),
                                     shape = RoundedCornerShape(22.dp)
                                 )
-                            } else {
-                                Modifier
+                                else -> Modifier
                             }
                         )
                         .padding(horizontal = 16.dp, vertical = 10.dp)
@@ -4366,7 +5342,8 @@ private fun ChatInputBar(
                             .fillMaxWidth()
                             .heightIn(min = 24.dp),
                         textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontFamily = if (isShellMode) FontFamily.Monospace else FontFamily.Default
                         ),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                         maxLines = 5,

@@ -173,6 +173,7 @@
     <string name="cmd_undo">Undo the last message</string>
     <string name="cmd_redo">Redo the last undone message</string>
     <string name="cmd_rename">Rename this session</string>
+    <string name="cmd_shell_mode">Switch to shell mode</string>
     <string name="cmd_copy">Copy last assistant response</string>
     <string name="cmd_abort">Abort the running session</string>
     <string name="cmd_help">Show available commands</string>
@@ -190,6 +191,20 @@
     <string name="tool_apply_patch">Apply patch</string>
     <string name="tool_shell">Shell</string>
     <string name="tool_read">Read</string>
+    <string name="chat_input_mode_normal">Prompt</string>
+    <string name="chat_shell_placeholder">Enter shell command…</string>
+    <string name="chat_shell_executed">Shell command sent</string>
+    <string name="chat_shell_failed">Failed to run shell command</string>
+    <string name="chat_shell_empty">Enter a shell command first</string>
+    <string name="chat_shell_attachments_unsupported">Shell mode does not support attachments</string>
+    <string name="chat_terminal_empty">No terminal commands yet</string>
+    <string name="chat_terminal_run">Run</string>
+    <string name="chat_terminal_connected">Connected</string>
+    <string name="chat_terminal_disconnected">Disconnected</string>
+    <string name="chat_terminal_ctrl_c">Ctrl+C</string>
+    <string name="chat_terminal_clear">Clear</string>
+    <string name="chat_terminal_connect_failed">Failed to open terminal</string>
+    <string name="chat_terminal_tap_keyboard">Tap to open keyboard</string>
     
     <!-- Patch File Actions -->
     <string name="patch_created">Created</string>
@@ -254,6 +269,8 @@
     <string name="settings_reconnect_conservative">Conservative (1–60s)</string>
     <string name="settings_keep_screen_on">Keep screen on</string>
     <string name="settings_keep_screen_on_desc">Prevent screen timeout while in chat</string>
+    <string name="settings_show_shell_button">Show shell button</string>
+    <string name="settings_show_shell_button_desc">Show shell mode toggle near attachment button in chat</string>
     <string name="settings_silent_notifications">Silent notifications</string>
     <string name="settings_silent_notifications_desc">Suppress sound and vibration for task notifications</string>
     <string name="dialog_select_reconnect_mode">Select reconnect mode</string>

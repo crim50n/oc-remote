@@ -214,6 +214,7 @@
     <string name="cmd_undo">Отменить последнее сообщение</string>
     <string name="cmd_redo">Повторить последнее отменённое сообщение</string>
     <string name="cmd_rename">Переименовать эту сессию</string>
+    <string name="cmd_shell_mode">Переключиться в режим shell</string>
     <string name="cmd_copy">Скопировать последний ответ ассистента</string>
     <string name="cmd_abort">Прервать выполняемую сессию</string>
     <string name="cmd_help">Показать доступные команды</string>
@@ -229,6 +230,20 @@
     <string name="tool_apply_patch">Применить патч</string>
     <string name="tool_shell">Shell</string>
     <string name="tool_read">Чтение</string>
+    <string name="chat_input_mode_normal">Промпт</string>
+    <string name="chat_shell_placeholder">Введите команду shell…</string>
+    <string name="chat_shell_executed">Команда shell отправлена</string>
+    <string name="chat_shell_failed">Не удалось выполнить команду shell</string>
+    <string name="chat_shell_empty">Сначала введите команду shell</string>
+    <string name="chat_shell_attachments_unsupported">В режиме shell вложения не поддерживаются</string>
+    <string name="chat_terminal_empty">Команды терминала пока не выполнялись</string>
+    <string name="chat_terminal_run">Запустить</string>
+    <string name="chat_terminal_connected">Подключено</string>
+    <string name="chat_terminal_disconnected">Отключено</string>
+    <string name="chat_terminal_ctrl_c">Ctrl+C</string>
+    <string name="chat_terminal_clear">Очистить</string>
+    <string name="chat_terminal_connect_failed">Не удалось открыть терминал</string>
+    <string name="chat_terminal_tap_keyboard">Нажмите, чтобы открыть клавиатуру</string>
     <string name="patch_created">Создано</string>
     <string name="patch_deleted">Удалено</string>
     <string name="patch_moved">Перемещено</string>
@@ -298,6 +313,8 @@
     <string name="settings_reconnect_conservative">Консервативный (1–60 с)</string>
     <string name="settings_keep_screen_on">Не выключать экран</string>
     <string name="settings_keep_screen_on_desc">Предотвращать отключение экрана во время чата</string>
+    <string name="settings_show_shell_button">Показывать кнопку shell</string>
+    <string name="settings_show_shell_button_desc">Показывать переключатель режима shell рядом со скрепкой в чате</string>
     <string name="settings_silent_notifications">Бесшумные уведомления</string>
     <string name="settings_silent_notifications_desc">Отключить звук и вибрацию для уведомлений о задачах</string>
     <string name="dialog_select_reconnect_mode">Выберите режим переподключения</string>

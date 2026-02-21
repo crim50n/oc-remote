@@ -130,6 +130,14 @@ class ChatViewModel @Inject constructor(
     private val _selectedAgent = MutableStateFlow("build" to false)
     private val _selectedVariant = MutableStateFlow<String?>(null)
     private val _commands = MutableStateFlow<List<CommandInfo>>(emptyList())
+    private val terminalWorkspace = ServerTerminalRegistry.workspaceFor(serverId, api, conn)
+    val terminalTabs: StateFlow<List<TerminalTabUi>> = terminalWorkspace.tabList
+    val activeTerminalTabId: StateFlow<String?> = terminalWorkspace.activeTabId
+    /** Incremented on active terminal tab updates — observe to trigger recomposition. */
+    val terminalVersion: StateFlow<Long> = terminalWorkspace.activeVersion
+    val terminalConnected: StateFlow<Boolean> = terminalWorkspace.activeConnected
+    val terminalFontSizeSp: StateFlow<Float> = terminalWorkspace.activeFontSizeSp
+    val terminalEmulator: TerminalEmulator get() = terminalWorkspace.activeEmulator()
 
     // ============ Draft Persistence ============
     /** Draft text for the input field — survives navigation / app restart. */
@@ -169,6 +177,9 @@ class ChatViewModel @Inject constructor(
     )
     val keepScreenOn = settingsRepository.keepScreenOn.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), false
+    )
+    val showShellButton = settingsRepository.showShellButton.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), true
     )
     // ============ Pagination ============
     /** Current message limit (doubles each time user loads older messages). */
@@ -681,6 +692,7 @@ class ChatViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        closeTerminalSession()
         super.onCleared()
         saveDraft()
     }
@@ -1027,6 +1039,74 @@ class ChatViewModel @Inject constructor(
                 onResult(false)
             }
         }
+    }
+
+    /** Execute shell command in current session. */
+    fun runShellCommand(command: String, onResult: (Boolean) -> Unit) {
+        val trimmed = command.trim()
+        if (trimmed.isBlank()) {
+            onResult(false)
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val model = if (_selectedProviderId.value != null && _selectedModelId.value != null) {
+                    ModelSelection(
+                        providerId = _selectedProviderId.value!!,
+                        modelId = _selectedModelId.value!!
+                    )
+                } else null
+                val ok = api.runShellCommand(
+                    conn = conn,
+                    sessionId = sessionId,
+                    command = trimmed,
+                    agent = _selectedAgent.value.first,
+                    model = model,
+                    directory = sessionDirectory
+                )
+                if (BuildConfig.DEBUG) Log.d(TAG, "Executed shell command in session $sessionId: $ok")
+                onResult(ok)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to execute shell command", e)
+                onResult(false)
+            }
+        }
+    }
+
+    fun openTerminalSession(onResult: (Boolean) -> Unit = {}) {
+        terminalWorkspace.ensureActiveTab(cwd = sessionDirectory, directory = sessionDirectory, onResult = onResult)
+    }
+
+    fun createTerminalTab(onResult: (Boolean) -> Unit = {}) {
+        terminalWorkspace.createTab(cwd = sessionDirectory, directory = sessionDirectory, onResult = onResult)
+    }
+
+    fun switchTerminalTab(tabId: String) {
+        terminalWorkspace.switchTab(tabId)
+    }
+
+    fun closeTerminalTab(tabId: String) {
+        terminalWorkspace.closeTab(tabId)
+    }
+
+    fun setTerminalFontSize(fontSizeSp: Float) {
+        terminalWorkspace.setActiveFontSize(fontSizeSp)
+    }
+
+    fun sendTerminalInput(input: String) {
+        terminalWorkspace.sendActiveInput(input)
+    }
+
+    fun clearTerminalBuffer() {
+        terminalWorkspace.clearActiveBuffer()
+    }
+
+    fun resizeTerminal(cols: Int, rows: Int) {
+        terminalWorkspace.resizeActive(cols, rows, directory = sessionDirectory)
+    }
+
+    fun closeTerminalSession() {
+        // Global terminal workspaces are server-scoped and survive chat screen changes.
     }
 
     /** Create a new session and return it. */

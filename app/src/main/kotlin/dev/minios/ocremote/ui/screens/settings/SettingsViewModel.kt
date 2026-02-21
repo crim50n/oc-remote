@@ -98,6 +98,12 @@ class SettingsViewModel @Inject constructor(
         initialValue = false
     )
 
+    val showShellButton = settingsRepository.showShellButton.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = true
+    )
+
     val silentNotifications = settingsRepository.silentNotifications.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -191,6 +197,12 @@ class SettingsViewModel @Inject constructor(
     fun setSilentNotifications(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setSilentNotifications(enabled)
+        }
+    }
+
+    fun setShowShellButton(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setShowShellButton(enabled)
         }
     }
 }

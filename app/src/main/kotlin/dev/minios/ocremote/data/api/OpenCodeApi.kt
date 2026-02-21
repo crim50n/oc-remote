@@ -5,9 +5,17 @@ import dev.minios.ocremote.BuildConfig
 import dev.minios.ocremote.domain.model.*
 import io.ktor.client.*
 import io.ktor.client.call.*
+import io.ktor.client.plugins.websocket.ClientWebSocketSession
+import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.http.HttpMethod
 import io.ktor.http.*
+import io.ktor.websocket.CloseReason
+import io.ktor.websocket.close
+import io.ktor.websocket.Frame
+import io.ktor.websocket.readText
+import io.ktor.websocket.send
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -254,6 +262,90 @@ class OpenCodeApi @Inject constructor(
             setBody(mapOf("command" to command, "arguments" to arguments))
         }
         return response.status.isSuccess()
+    }
+
+    /**
+     * Run a shell command in a session.
+     * POST /session/{sessionId}/shell
+     */
+    suspend fun runShellCommand(
+        conn: ServerConnection,
+        sessionId: String,
+        command: String,
+        agent: String,
+        model: ModelSelection? = null,
+        directory: String? = null
+    ): Boolean {
+        val response = httpClient.post("${conn.baseUrl}/session/$sessionId/shell") {
+            conn.authHeader?.let { header("Authorization", it) }
+            directory?.let { header("x-opencode-directory", it) }
+            contentType(ContentType.Application.Json)
+            setBody(
+                ShellRequest(
+                    agent = agent,
+                    model = model,
+                    command = command
+                )
+            )
+        }
+        return response.status.isSuccess()
+    }
+
+    suspend fun createPty(
+        conn: ServerConnection,
+        title: String? = null,
+        cwd: String? = null,
+        directory: String? = null
+    ): PtyInfo {
+        return httpClient.post("${conn.baseUrl}/pty") {
+            conn.authHeader?.let { header("Authorization", it) }
+            directory?.let { header("x-opencode-directory", it) }
+            contentType(ContentType.Application.Json)
+            setBody(PtyCreateRequest(title = title, cwd = cwd))
+        }.body()
+    }
+
+    suspend fun removePty(conn: ServerConnection, ptyId: String): Boolean {
+        val response = httpClient.delete("${conn.baseUrl}/pty/$ptyId") {
+            conn.authHeader?.let { header("Authorization", it) }
+        }
+        return response.status.isSuccess()
+    }
+
+    suspend fun updatePtySize(
+        conn: ServerConnection,
+        ptyId: String,
+        cols: Int,
+        rows: Int,
+        directory: String? = null
+    ): Boolean {
+        val response = httpClient.put("${conn.baseUrl}/pty/$ptyId") {
+            conn.authHeader?.let { header("Authorization", it) }
+            directory?.let { header("x-opencode-directory", it) }
+            contentType(ContentType.Application.Json)
+            setBody(PtyUpdateRequest(size = PtySize(rows = rows, cols = cols)))
+        }
+        return response.status.isSuccess()
+    }
+
+    suspend fun openPtySocket(
+        conn: ServerConnection,
+        ptyId: String,
+        cursor: Int = -1,
+        directory: String? = null
+    ): PtySocket {
+        val wsBase = when {
+            conn.baseUrl.startsWith("https://") -> conn.baseUrl.replaceFirst("https://", "wss://")
+            conn.baseUrl.startsWith("http://") -> conn.baseUrl.replaceFirst("http://", "ws://")
+            else -> conn.baseUrl
+        }
+        val session = httpClient.webSocketSession {
+            method = HttpMethod.Get
+            url("$wsBase/pty/$ptyId/connect?cursor=$cursor")
+            conn.authHeader?.let { header("Authorization", it) }
+            directory?.let { header("x-opencode-directory", it) }
+        }
+        return PtySocket(session)
     }
 
     // ============ Messages ============
@@ -643,6 +735,42 @@ class OpenCodeApi @Inject constructor(
     }
 }
 
+class PtySocket(
+    private val session: ClientWebSocketSession
+) {
+    suspend fun send(input: String) {
+        session.send(input)
+    }
+
+    suspend fun close() {
+        session.close(CloseReason(CloseReason.Codes.NORMAL, "closed"))
+    }
+
+    suspend fun readLoop(onText: suspend (String) -> Unit) {
+        for (frame in session.incoming) {
+            when (frame) {
+                is Frame.Text -> {
+                    val text = frame.readText()
+                    Log.d("PtySocket", "Text frame: ${text.length} chars, first50=${text.take(50).replace("\u001B","<ESC>").replace("\r","<CR>").replace("\n","<LF>")}")
+                    onText(text)
+                }
+                is Frame.Binary -> {
+                    val data = frame.data
+                    Log.d("PtySocket", "Binary frame: ${data.size} bytes, first=${if (data.isNotEmpty()) data[0].toInt() else -1}")
+                    // Server may send cursor metadata as 0x00 + JSON. Ignore it for now.
+                    if (data.isNotEmpty() && data[0].toInt() == 0) continue
+                    val text = data.toString(Charsets.UTF_8)
+                    Log.d("PtySocket", "Binary->text: ${text.length} chars")
+                    onText(text)
+                }
+                else -> {
+                    Log.d("PtySocket", "Other frame: ${frame.frameType}")
+                }
+            }
+        }
+    }
+}
+
 // ============ Request/Response DTOs ============
 
 @Serializable
@@ -664,6 +792,42 @@ data class PromptPart(
     val mime: String? = null,
     val url: String? = null,
     val filename: String? = null
+)
+
+@Serializable
+data class ShellRequest(
+    val agent: String,
+    val model: ModelSelection? = null,
+    val command: String
+)
+
+@Serializable
+data class PtyCreateRequest(
+    val title: String? = null,
+    val cwd: String? = null
+)
+
+@Serializable
+data class PtyInfo(
+    val id: String,
+    val title: String,
+    val command: String,
+    val args: List<String>,
+    val cwd: String,
+    val status: String,
+    val pid: Int
+)
+
+@Serializable
+data class PtyUpdateRequest(
+    val title: String? = null,
+    val size: PtySize? = null
+)
+
+@Serializable
+data class PtySize(
+    val rows: Int,
+    val cols: Int
 )
 
 @Serializable

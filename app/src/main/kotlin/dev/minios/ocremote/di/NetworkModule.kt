@@ -16,6 +16,7 @@ import io.ktor.client.plugins.auth.*
 import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
+import io.ktor.client.plugins.websocket.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 import javax.inject.Singleton
@@ -54,6 +55,8 @@ object NetworkModule {
             connectTimeoutMillis = 15_000
             socketTimeoutMillis = 120_000
         }
+
+        install(WebSockets)
         
         install(Auth) {
             // Auth will be configured per-request based on server config
