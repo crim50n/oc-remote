@@ -26,8 +26,16 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **File mentions** — `@file` completion with fuzzy search
 - **Image support** — inline base64 images in chat
 - **Tool outputs** — expandable tool call results with syntax highlighting
-- **Slash commands** — `/new`, `/fork`, `/compact`, `/share`, `/rename`, `/undo`, `/redo`
+- **Slash commands** — `/new`, `/fork`, `/compact`, `/share`, `/rename`, `/undo`, `/redo`, `/shell` (if enabled in settings)
 - **Swipe to revert** — swipe user messages to undo (with confirmation dialog)
+
+### Terminal Mode
+- **Termux-like terminal mode** — full-screen terminal UI with dedicated extra keys and mobile-first interactions
+- **Server-scoped terminal tabs** — tabs are shared across sessions for the same server and managed from a drawer
+- **PTY over WebSocket** — low-latency interactive I/O for CLI/TUI apps
+- **Reliable PTY resize** — rows/cols update with viewport changes and IME transitions
+- **TUI rendering improvements** — better full-grid rendering behavior for apps like `mc`
+- **Terminal shortcuts** — Ctrl/Alt latching, volume-key virtual modifiers (Ctrl/Fn), and `Ctrl+Alt+V` paste
 
 ### Session Management  
 - **Multi-session** — switch between sessions, view history
@@ -66,10 +74,12 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Keep screen on** — prevent screen timeout while agent is working
 - **Notifications** — toggle task completion notifications
 - **Silent notifications** — suppress sound and vibration for task notifications
+- **Shell mode toggle** — show or hide shell-mode controls in chat input
 
 ### Connection
 - **Multi-server** — connect to multiple OpenCode servers simultaneously
 - **SSE event stream** — real-time session status, permissions, questions
+- **WebSocket transport** — used for terminal PTY streams
 - **Auto-reconnect** — exponential backoff (1s to 30s)
 - **Background service** — foreground service keeps connections alive when app is minimized
 
@@ -111,7 +121,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ### CI/CD
 
 GitHub Actions workflows are included:
-- **`release.yml`** — manual trigger, builds and signs a release APK, creates a GitHub Release with release notes
+- **`release.yml`** — manual trigger or tag push (`v*`), builds and signs a release APK, creates/updates a GitHub Release; uses `RELEASE_NOTES_<version>.md` when present
 - **`android_test.yml`** — runs unit tests on every push to `master`
 
 ## License
