@@ -326,4 +326,9 @@
     <string name="server_settings_empty">Tidak ada model ditemukan</string>
     <string name="server_settings_load_error">Gagal memuat model</string>
     <string name="loading">Memuat…</string>
+
+    <string name="server_auto_connect">Sambungkan otomatis saat aplikasi diluncurkan</string>
+    <string name="server_auto_connect_desc">Sambungkan secara otomatis ketika aplikasi dimulai</string>
+    <string name="settings_terminal_font_size">Ukuran font default terminal</string>
+    <string name="settings_terminal_font_size_value">%1$d sp</string>
 </resources>

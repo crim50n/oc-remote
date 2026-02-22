@@ -320,4 +320,9 @@
     <string name="server_settings_empty">Model bulunamadı</string>
     <string name="server_settings_load_error">Modeller yüklenemedi</string>
     <string name="loading">Yükleniyor…</string>
+
+    <string name="server_auto_connect">Uygulama başlatıldığında otomatik bağlan</string>
+    <string name="server_auto_connect_desc">Uygulama açıldığında otomatik olarak bağlan</string>
+    <string name="settings_terminal_font_size">Terminal varsayılan yazı tipi boyutu</string>
+    <string name="settings_terminal_font_size_value">%1$d sp</string>
 </resources>

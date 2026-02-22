@@ -2525,7 +2525,7 @@ private fun SessionTerminalInline(
                                 val increase = accumulatedScale > 1f
                                 val current = latestFontSizeSp
                                 val next = (current + if (increase) 1f else -1f)
-                                    .coerceIn(4f, 96f)
+                                    .coerceIn(6f, 20f)
                                 if (BuildConfig.DEBUG) {
                                     Log.d("TerminalZoom", "threshold hit: increase=$increase current=$current next=$next")
                                 }
@@ -3754,7 +3754,7 @@ private fun ToolCallCard(tool: Part.Tool) {
                                 text = output.take(3000),
                                 style = CodeTypography.copy(
                                     fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    color = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer
                                 ),
                                 modifier = Modifier
                                     .padding(8.dp)
@@ -4113,7 +4113,7 @@ private fun DiffView(before: String, after: String) {
                 val (prefix, text, bgColor, fgColor) = when (line.type) {
                     DiffLineType.REMOVED -> DiffLineStyle("-", line.text, delBg, delColor)
                     DiffLineType.ADDED -> DiffLineStyle("+", line.text, addBg, addColor)
-                    DiffLineType.UNCHANGED -> DiffLineStyle(" ", line.text, Color.Transparent, MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f))
+                    DiffLineType.UNCHANGED -> DiffLineStyle(" ", line.text, Color.Transparent, if (isAmoled) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f))
                 }
                 Row(
                     modifier = Modifier
@@ -4273,7 +4273,7 @@ private fun WriteToolCard(tool: Part.Tool) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
                     color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
-                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)) else null,
+                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 6.dp)
@@ -4281,7 +4281,7 @@ private fun WriteToolCard(tool: Part.Tool) {
                 ) {
                     Text(
                         text = content.take(5000),
-                        style = CodeTypography.copy(fontSize = 13.sp, color = MaterialTheme.colorScheme.onSecondaryContainer),
+                        style = CodeTypography.copy(fontSize = 13.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer),
                         modifier = Modifier
                             .padding(8.dp)
                             .codeHorizontalScroll()
@@ -4381,7 +4381,7 @@ private fun BashToolCard(tool: Part.Tool) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
                     color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
-                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)) else null,
+                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 6.dp)
@@ -4399,7 +4399,7 @@ private fun BashToolCard(tool: Part.Tool) {
                     }
                     Text(
                         text = displayText,
-                        style = CodeTypography.copy(fontSize = 13.sp, color = MaterialTheme.colorScheme.onSecondaryContainer),
+                        style = CodeTypography.copy(fontSize = 13.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer),
                         modifier = Modifier
                             .padding(8.dp)
                             .codeHorizontalScroll()
@@ -4614,7 +4614,7 @@ private fun SearchToolCard(tool: Part.Tool) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
                     color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
-                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)) else null,
+                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 6.dp)
@@ -4622,7 +4622,7 @@ private fun SearchToolCard(tool: Part.Tool) {
                 ) {
                     Text(
                         text = output.take(5000),
-                        style = CodeTypography.copy(fontSize = 13.sp, color = MaterialTheme.colorScheme.onSecondaryContainer),
+                        style = CodeTypography.copy(fontSize = 13.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer),
                         modifier = Modifier
                             .padding(8.dp)
                             .codeHorizontalScroll()
@@ -4719,7 +4719,7 @@ private fun TaskToolCard(tool: Part.Tool) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
                     color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
-                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)) else null,
+                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 6.dp)
@@ -4727,7 +4727,7 @@ private fun TaskToolCard(tool: Part.Tool) {
                 ) {
                     Text(
                         text = output.take(5000),
-                        style = CodeTypography.copy(fontSize = 13.sp, color = MaterialTheme.colorScheme.onSecondaryContainer),
+                        style = CodeTypography.copy(fontSize = 13.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer),
                         modifier = Modifier
                             .padding(8.dp)
                             .codeHorizontalScroll()

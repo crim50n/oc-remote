@@ -383,6 +383,12 @@ class ChatViewModel @Inject constructor(
             }
         }
 
+        viewModelScope.launch {
+            settingsRepository.terminalFontSize.collect { size ->
+                terminalWorkspace.setDefaultFontSize(size)
+            }
+        }
+
         // Load initial message count from settings, then load data
         viewModelScope.launch {
             currentMessageLimit = settingsRepository.initialMessageCount.first()

@@ -60,7 +60,8 @@ class ServerRepository @Inject constructor(
         url: String,
         username: String = "opencode",
         password: String? = null,
-        name: String? = null
+        name: String? = null,
+        autoConnect: Boolean = false
     ): ServerConfig {
         val server = ServerConfig(
             id = UUID.randomUUID().toString(),
@@ -68,6 +69,7 @@ class ServerRepository @Inject constructor(
             username = username,
             password = password,
             name = name,
+            autoConnect = autoConnect,
             lastConnected = null,
             isHealthy = false
         )
@@ -90,6 +92,11 @@ class ServerRepository @Inject constructor(
         }
         
         saveServers(updatedServers)
+    }
+
+    suspend fun setAutoConnect(serverId: String, autoConnect: Boolean) {
+        val server = getServer(serverId) ?: return
+        updateServer(server.copy(autoConnect = autoConnect))
     }
     
     /**

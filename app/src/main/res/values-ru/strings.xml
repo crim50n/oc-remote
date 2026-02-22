@@ -368,4 +368,9 @@
     <string name="server_settings_empty">Модели не найдены</string>
     <string name="server_settings_load_error">Не удалось загрузить модели</string>
     <string name="loading">Загрузка…</string>
+
+    <string name="server_auto_connect">Автоподключение при запуске приложения</string>
+    <string name="server_auto_connect_desc">Автоматически подключаться при запуске приложения</string>
+    <string name="settings_terminal_font_size">Шрифт по умолчанию для терминала</string>
+    <string name="settings_terminal_font_size_value">%1$d sp</string>
 </resources>

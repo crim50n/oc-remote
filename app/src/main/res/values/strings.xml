@@ -32,6 +32,8 @@
     <string name="server_delete">Delete</string>
     <string name="server_add">Add Server</string>
     <string name="server_invalid_url">Invalid URL format</string>
+    <string name="server_auto_connect">Auto-connect on app launch</string>
+    <string name="server_auto_connect_desc">Automatically connect when the app starts</string>
     
     <!-- Session Screen -->
     <string name="sessions_title">Sessions</string>
@@ -271,6 +273,8 @@
     <string name="settings_keep_screen_on_desc">Prevent screen timeout while in chat</string>
     <string name="settings_show_shell_button">Show shell button</string>
     <string name="settings_show_shell_button_desc">Show shell mode toggle near attachment button in chat</string>
+    <string name="settings_terminal_font_size">Terminal default font size</string>
+    <string name="settings_terminal_font_size_value">%1$d sp</string>
     <string name="settings_silent_notifications">Silent notifications</string>
     <string name="settings_silent_notifications_desc">Suppress sound and vibration for task notifications</string>
     <string name="dialog_select_reconnect_mode">Select reconnect mode</string>

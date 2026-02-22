@@ -16,6 +16,7 @@ import dev.minios.ocremote.data.api.OpenCodeApi
 import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.api.SseClient
 import dev.minios.ocremote.data.repository.EventReducer
+import dev.minios.ocremote.data.repository.ServerRepository
 import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.domain.model.SseEvent
@@ -96,6 +97,9 @@ class OpenCodeConnectionService : Service() {
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
+    @Inject
+    lateinit var serverRepository: ServerRepository
+
     private val binder = LocalBinder()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -106,6 +110,7 @@ class OpenCodeConnectionService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
 
     private lateinit var notificationManager: NotificationManager
+    private var foregroundStarted: Boolean = false
 
     /** Observable set of server IDs that are actually connected (SSE stream active). */
     private val _connectedServerIds = MutableStateFlow<Set<String>>(emptySet())
@@ -125,6 +130,10 @@ class OpenCodeConnectionService : Service() {
 
         notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannels()
+
+        serviceScope.launch {
+            autoConnectConfiguredServers()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -146,8 +155,7 @@ class OpenCodeConnectionService : Service() {
             }
         }
 
-        // Start as foreground service with persistent notification
-        startForeground(PERSISTENT_NOTIFICATION_ID, createPersistentNotification())
+        ensureForegroundStarted()
 
         // Read server details from intent and connect
         intent?.let { i ->
@@ -197,6 +205,8 @@ class OpenCodeConnectionService : Service() {
 
         if (BuildConfig.DEBUG) Log.d(TAG, "Connecting to server: ${server.displayName} (${server.url})")
 
+        ensureForegroundStarted()
+
         val conn = ServerConnection.from(server.url, server.username, server.password)
 
         // Acquire wake lock (shared — first connect acquires, last disconnect releases)
@@ -241,6 +251,7 @@ class OpenCodeConnectionService : Service() {
             notificationWatchdogJob?.cancel()
             notificationWatchdogJob = null
             stopForeground(STOP_FOREGROUND_REMOVE)
+            foregroundStarted = false
             stopSelf()
         } else {
             updatePersistentNotification()
@@ -276,8 +287,26 @@ class OpenCodeConnectionService : Service() {
 
         if (stopService) {
             stopForeground(STOP_FOREGROUND_REMOVE)
+            foregroundStarted = false
             stopSelf()
         }
+    }
+
+    private suspend fun autoConnectConfiguredServers() {
+        try {
+            val autoConnectServers = serverRepository.servers.first().filter { it.autoConnect }
+            if (autoConnectServers.isEmpty()) return
+            Log.i(TAG, "Auto-connecting ${autoConnectServers.size} server(s)")
+            autoConnectServers.forEach { connect(it) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to auto-connect servers", e)
+        }
+    }
+
+    private fun ensureForegroundStarted() {
+        if (foregroundStarted) return
+        startForeground(PERSISTENT_NOTIFICATION_ID, createPersistentNotification())
+        foregroundStarted = true
     }
 
     /**

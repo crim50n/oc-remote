@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -39,6 +40,7 @@ class SettingsRepository @Inject constructor(
         private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
         private val SILENT_NOTIFICATIONS_KEY = booleanPreferencesKey("silent_notifications")
         private val SHOW_SHELL_BUTTON_KEY = booleanPreferencesKey("show_shell_button")
+        private val TERMINAL_FONT_SIZE_KEY = floatPreferencesKey("terminal_font_size")
 
         /** SharedPreferences name used for synchronous locale reads in attachBaseContext. */
         private const val LOCALE_PREFS = "locale_prefs"
@@ -273,6 +275,19 @@ class SettingsRepository @Inject constructor(
     suspend fun setShowShellButton(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[SHOW_SHELL_BUTTON_KEY] = enabled
+        }
+    }
+
+    /**
+     * Default terminal font size in sp. Default: 13.
+     */
+    val terminalFontSize: Flow<Float> = dataStore.data.map { preferences ->
+        (preferences[TERMINAL_FONT_SIZE_KEY] ?: 13f).coerceIn(6f, 20f)
+    }
+
+    suspend fun setTerminalFontSize(size: Float) {
+        dataStore.edit { preferences ->
+            preferences[TERMINAL_FONT_SIZE_KEY] = size.coerceIn(6f, 20f)
         }
     }
 

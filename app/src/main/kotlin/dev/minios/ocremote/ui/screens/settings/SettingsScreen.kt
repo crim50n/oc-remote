@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.minios.ocremote.R
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * Settings Screen - global app preferences.
@@ -62,12 +63,14 @@ fun SettingsScreen(
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val silentNotifications by viewModel.silentNotifications.collectAsState()
     val showShellButton by viewModel.showShellButton.collectAsState()
+    val terminalFontSize by viewModel.terminalFontSize.collectAsState()
 
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
     var showFontSizeDialog by remember { mutableStateOf(false) }
     var showMessageCountDialog by remember { mutableStateOf(false) }
     var showReconnectModeDialog by remember { mutableStateOf(false) }
+    var showTerminalFontSizeDialog by remember { mutableStateOf(false) }
 
     val isAmoledTheme = MaterialTheme.colorScheme.background == Color.Black &&
         MaterialTheme.colorScheme.surface == Color.Black
@@ -328,6 +331,17 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { viewModel.setShowShellButton(!showShellButton) }
             )
 
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_terminal_font_size)) },
+                supportingContent = {
+                    Text(stringResource(R.string.settings_terminal_font_size_value, terminalFontSize.roundToInt()))
+                },
+                leadingContent = {
+                    Icon(Icons.Default.Terminal, contentDescription = null)
+                },
+                modifier = Modifier.clickable { showTerminalFontSizeDialog = true }
+            )
+
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
             // ======== Notifications ========
@@ -421,6 +435,17 @@ fun SettingsScreen(
                     showReconnectModeDialog = false
                 },
                 onDismiss = { showReconnectModeDialog = false }
+            )
+        }
+
+        if (showTerminalFontSizeDialog) {
+            TerminalFontSizeDialog(
+                currentSize = terminalFontSize,
+                onSizeSelected = { size ->
+                    viewModel.setTerminalFontSize(size)
+                    showTerminalFontSizeDialog = false
+                },
+                onDismiss = { showTerminalFontSizeDialog = false }
             )
         }
     }
@@ -686,6 +711,45 @@ private fun ReconnectModePickerDialog(
             }
         },
         confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun TerminalFontSizeDialog(
+    currentSize: Float,
+    onSizeSelected: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selected by remember(currentSize) { mutableFloatStateOf(currentSize.coerceIn(6f, 20f)) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_terminal_font_size)) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(R.string.settings_terminal_font_size_value, selected.roundToInt()),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                Slider(
+                    value = selected,
+                    onValueChange = { selected = it },
+                    valueRange = 6f..20f,
+                    steps = 13
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSizeSelected(selected.roundToInt().toFloat()) }) {
+                Text(stringResource(R.string.ok))
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.cancel))
             }

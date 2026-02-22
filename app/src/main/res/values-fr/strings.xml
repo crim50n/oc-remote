@@ -320,4 +320,9 @@
     <string name="server_settings_empty">Aucun modèle trouvé</string>
     <string name="server_settings_load_error">Échec du chargement des modèles</string>
     <string name="loading">Chargement…</string>
+
+    <string name="server_auto_connect">Connexion automatique au lancement de l\'application</string>
+    <string name="server_auto_connect_desc">Se connecter automatiquement au démarrage de l\'application</string>
+    <string name="settings_terminal_font_size">Taille de police par défaut du terminal</string>
+    <string name="settings_terminal_font_size_value">%1$d sp</string>
 </resources>

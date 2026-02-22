@@ -15,6 +15,7 @@ import java.util.UUID
 
 private const val WORKSPACE_TAG = "ServerTerminalWorkspace"
 private val RECONNECT_BACKOFF_MS = longArrayOf(1_000L, 2_000L, 5_000L, 10_000L, 30_000L)
+private const val DEFAULT_TERMINAL_FONT_SIZE_SP = 13f
 
 data class TerminalTabUi(
     val id: String,
@@ -30,7 +31,7 @@ internal class ServerTerminalWorkspace(
         val id: String,
         var title: String,
         val emulator: TerminalEmulator = TerminalEmulator(),
-        var fontSizeSp: Float = 13f,
+        var fontSizeSp: Float = DEFAULT_TERMINAL_FONT_SIZE_SP,
         var directory: String? = null,
         var ptyId: String? = null,
         var socket: PtySocket? = null,
@@ -44,6 +45,7 @@ internal class ServerTerminalWorkspace(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val tabs = mutableListOf<RuntimeTab>()
     private val lock = Any()
+    private var defaultFontSizeSp: Float = DEFAULT_TERMINAL_FONT_SIZE_SP
 
     private val _tabList = MutableStateFlow<List<TerminalTabUi>>(emptyList())
     val tabList: StateFlow<List<TerminalTabUi>> = _tabList
@@ -57,7 +59,7 @@ internal class ServerTerminalWorkspace(
     private val _activeConnected = MutableStateFlow(false)
     val activeConnected: StateFlow<Boolean> = _activeConnected
 
-    private val _activeFontSizeSp = MutableStateFlow(13f)
+    private val _activeFontSizeSp = MutableStateFlow(DEFAULT_TERMINAL_FONT_SIZE_SP)
     val activeFontSizeSp: StateFlow<Float> = _activeFontSizeSp
 
     val fallbackEmulator = TerminalEmulator()
@@ -85,6 +87,7 @@ internal class ServerTerminalWorkspace(
             RuntimeTab(
                 id = UUID.randomUUID().toString(),
                 title = "Tab $index",
+                fontSizeSp = defaultFontSizeSp,
                 directory = directory,
             ).also {
                 tabs.add(it)
@@ -181,7 +184,7 @@ internal class ServerTerminalWorkspace(
     }
 
     fun setActiveFontSize(fontSizeSp: Float) {
-        val clamped = fontSizeSp.coerceIn(4f, 96f)
+        val clamped = fontSizeSp.coerceIn(6f, 20f)
         val tab = synchronized(lock) { activeTabLocked() } ?: run {
             android.util.Log.w("TerminalZoom", "setActiveFontSize: no active tab!")
             return
@@ -191,6 +194,16 @@ internal class ServerTerminalWorkspace(
         if (_activeTabId.value == tab.id) {
             _activeFontSizeSp.value = clamped
             android.util.Log.d("TerminalZoom", "setActiveFontSize: StateFlow updated to ${_activeFontSizeSp.value}")
+        }
+    }
+
+    fun setDefaultFontSize(fontSizeSp: Float) {
+        val clamped = fontSizeSp.coerceIn(6f, 20f)
+        synchronized(lock) {
+            defaultFontSizeSp = clamped
+            if (activeTabLocked() == null) {
+                _activeFontSizeSp.value = clamped
+            }
         }
     }
 
@@ -406,7 +419,7 @@ internal class ServerTerminalWorkspace(
         if (active == null) {
             _activeConnected.value = false
             _activeVersion.value = 0L
-            _activeFontSizeSp.value = 13f
+            _activeFontSizeSp.value = defaultFontSizeSp
             return
         }
         _activeConnected.value = active.connected

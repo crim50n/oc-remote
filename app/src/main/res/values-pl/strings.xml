@@ -320,4 +320,9 @@
     <string name="server_settings_empty">Nie znaleziono modeli</string>
     <string name="server_settings_load_error">Nie udało się załadować modeli</string>
     <string name="loading">Ładowanie…</string>
+
+    <string name="server_auto_connect">Automatyczne łączenie przy uruchomieniu aplikacji</string>
+    <string name="server_auto_connect_desc">Automatyczne połączenie podczas startu aplikacji</string>
+    <string name="settings_terminal_font_size">Domyślny rozmiar czcionki terminala</string>
+    <string name="settings_terminal_font_size_value">%1$d sp</string>
 </resources>

@@ -110,6 +110,12 @@ class SettingsViewModel @Inject constructor(
         initialValue = false
     )
 
+    val terminalFontSize = settingsRepository.terminalFontSize.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 13f
+    )
+
     fun setLanguage(languageCode: String) {
         viewModelScope.launch {
             settingsRepository.setAppLanguage(languageCode)
@@ -203,6 +209,12 @@ class SettingsViewModel @Inject constructor(
     fun setShowShellButton(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setShowShellButton(enabled)
+        }
+    }
+
+    fun setTerminalFontSize(size: Float) {
+        viewModelScope.launch {
+            settingsRepository.setTerminalFontSize(size)
         }
     }
 }

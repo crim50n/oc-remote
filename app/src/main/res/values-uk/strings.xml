@@ -320,4 +320,9 @@
     <string name="server_settings_empty">Моделі не знайдено</string>
     <string name="server_settings_load_error">Не вдалося завантажити моделі</string>
     <string name="loading">Завантаження…</string>
+
+    <string name="server_auto_connect">Автопідключення при запуску додатка</string>
+    <string name="server_auto_connect_desc">Автоматично підключатися під час запуску додатка</string>
+    <string name="settings_terminal_font_size">Розмір шрифту за замовчуванням для термінала</string>
+    <string name="settings_terminal_font_size_value">%1$d sp</string>
 </resources>

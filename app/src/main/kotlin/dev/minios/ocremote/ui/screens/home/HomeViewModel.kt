@@ -189,7 +189,8 @@ class HomeViewModel @Inject constructor(
         name: String,
         url: String,
         username: String,
-        password: String
+        password: String,
+        autoConnect: Boolean
     ) {
         viewModelScope.launch {
             val editingServer = _uiState.value.editingServer
@@ -199,7 +200,8 @@ class HomeViewModel @Inject constructor(
                     name = name,
                     url = url,
                     username = username,
-                    password = password
+                    password = password,
+                    autoConnect = autoConnect
                 )
                 serverRepository.updateServer(updatedServer)
             } else {
@@ -207,7 +209,8 @@ class HomeViewModel @Inject constructor(
                     url = url,
                     username = username,
                     password = password,
-                    name = name
+                    name = name,
+                    autoConnect = autoConnect
                 )
             }
             

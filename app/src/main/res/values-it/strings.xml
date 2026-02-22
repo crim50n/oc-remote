@@ -320,4 +320,9 @@
     <string name="server_settings_empty">Nessun modello trovato</string>
     <string name="server_settings_load_error">Impossibile caricare i modelli</string>
     <string name="loading">Caricamento…</string>
+
+    <string name="server_auto_connect">Connessione automatica all\'avvio dell\'app</string>
+    <string name="server_auto_connect_desc">Connetti automaticamente all\'avvio dell\'app</string>
+    <string name="settings_terminal_font_size">Dimensione predefinita del carattere del terminale</string>
+    <string name="settings_terminal_font_size_value">%1$d sp</string>
 </resources>
