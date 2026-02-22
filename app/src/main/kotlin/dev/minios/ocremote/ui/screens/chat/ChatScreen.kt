@@ -39,6 +39,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.TextSelectionColors
@@ -169,6 +170,15 @@ val LocalHapticFeedbackEnabled = compositionLocalOf { true }
 private fun isAmoledTheme(): Boolean {
     val colors = MaterialTheme.colorScheme
     return colors.background == Color.Black && colors.surface == Color.Black
+}
+
+@Composable
+private fun toolOutputContainerColor(isAmoled: Boolean): Color {
+    return when {
+        isAmoled -> Color.Black
+        isSystemInDarkTheme() -> MaterialTheme.colorScheme.secondaryContainer
+        else -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.82f)
+    }
 }
 
 /**
@@ -3746,7 +3756,7 @@ private fun ToolCallCard(tool: Part.Tool) {
                     if (output.isNotBlank()) {
                         Surface(
                             shape = RoundedCornerShape(4.dp),
-                            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
+                            color = toolOutputContainerColor(isAmoled),
                             border = if (isAmoled) BorderStroke(1.dp, stateColor.copy(alpha = 0.6f)) else null,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -3754,7 +3764,7 @@ private fun ToolCallCard(tool: Part.Tool) {
                                 text = output.take(3000),
                                 style = CodeTypography.copy(
                                     fontSize = 11.sp,
-                                    color = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer
+                                    color = if (isAmoled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f) else MaterialTheme.colorScheme.onSecondaryContainer
                                 ),
                                 modifier = Modifier
                                     .padding(8.dp)
@@ -4272,7 +4282,7 @@ private fun WriteToolCard(tool: Part.Tool) {
             AnimatedVisibility(visible = expanded && hasContent) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
-                    color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
+                    color = toolOutputContainerColor(isAmoled),
                     border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -4281,7 +4291,7 @@ private fun WriteToolCard(tool: Part.Tool) {
                 ) {
                     Text(
                         text = content.take(5000),
-                        style = CodeTypography.copy(fontSize = 13.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer),
+                        style = CodeTypography.copy(fontSize = 12.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f) else MaterialTheme.colorScheme.onSecondaryContainer),
                         modifier = Modifier
                             .padding(8.dp)
                             .codeHorizontalScroll()
@@ -4380,7 +4390,7 @@ private fun BashToolCard(tool: Part.Tool) {
             AnimatedVisibility(visible = expanded && hasContent) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
-                    color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
+                    color = toolOutputContainerColor(isAmoled),
                     border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -4399,7 +4409,7 @@ private fun BashToolCard(tool: Part.Tool) {
                     }
                     Text(
                         text = displayText,
-                        style = CodeTypography.copy(fontSize = 13.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer),
+                        style = CodeTypography.copy(fontSize = 12.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f) else MaterialTheme.colorScheme.onSecondaryContainer),
                         modifier = Modifier
                             .padding(8.dp)
                             .codeHorizontalScroll()
@@ -4613,7 +4623,7 @@ private fun SearchToolCard(tool: Part.Tool) {
             AnimatedVisibility(visible = expanded && hasOutput) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
-                    color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
+                    color = toolOutputContainerColor(isAmoled),
                     border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -4622,7 +4632,7 @@ private fun SearchToolCard(tool: Part.Tool) {
                 ) {
                     Text(
                         text = output.take(5000),
-                        style = CodeTypography.copy(fontSize = 13.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer),
+                        style = CodeTypography.copy(fontSize = 12.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f) else MaterialTheme.colorScheme.onSecondaryContainer),
                         modifier = Modifier
                             .padding(8.dp)
                             .codeHorizontalScroll()
@@ -4718,7 +4728,7 @@ private fun TaskToolCard(tool: Part.Tool) {
             AnimatedVisibility(visible = expanded && hasOutput) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
-                    color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.secondaryContainer,
+                    color = toolOutputContainerColor(isAmoled),
                     border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -4727,7 +4737,7 @@ private fun TaskToolCard(tool: Part.Tool) {
                 ) {
                     Text(
                         text = output.take(5000),
-                        style = CodeTypography.copy(fontSize = 13.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondaryContainer),
+                        style = CodeTypography.copy(fontSize = 12.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f) else MaterialTheme.colorScheme.onSecondaryContainer),
                         modifier = Modifier
                             .padding(8.dp)
                             .codeHorizontalScroll()
