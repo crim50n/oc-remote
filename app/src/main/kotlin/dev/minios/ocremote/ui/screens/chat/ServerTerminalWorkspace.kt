@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 private const val WORKSPACE_TAG = "ServerTerminalWorkspace"
+private val RECONNECT_BACKOFF_MS = longArrayOf(1_000L, 2_000L, 5_000L, 10_000L, 30_000L)
 
 data class TerminalTabUi(
     val id: String,
@@ -30,9 +31,12 @@ internal class ServerTerminalWorkspace(
         var title: String,
         val emulator: TerminalEmulator = TerminalEmulator(),
         var fontSizeSp: Float = 13f,
+        var directory: String? = null,
         var ptyId: String? = null,
         var socket: PtySocket? = null,
         var readerJob: Job? = null,
+        var reconnectJob: Job? = null,
+        var reconnectAttempt: Int = 0,
         var connected: Boolean = false,
         var lastSize: Pair<Int, Int>? = null,
     )
@@ -81,6 +85,7 @@ internal class ServerTerminalWorkspace(
             RuntimeTab(
                 id = UUID.randomUUID().toString(),
                 title = "Tab $index",
+                directory = directory,
             ).also {
                 tabs.add(it)
                 _activeTabId.value = it.id
@@ -101,28 +106,7 @@ internal class ServerTerminalWorkspace(
 
                 synchronized(lock) {
                     tab.ptyId = info.id
-                    tab.socket = socket
-                    tab.connected = true
-                    tab.lastSize = null
-                    tab.readerJob = scope.launch {
-                        try {
-                            socket.readLoop { chunk ->
-                                tab.emulator.process(chunk)
-                                if (_activeTabId.value == tab.id) {
-                                    _activeVersion.value = tab.emulator.version
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Log.w(WORKSPACE_TAG, "Tab stream closed: ${tab.id}", e)
-                        } finally {
-                            synchronized(lock) {
-                                tab.connected = false
-                                publishTabsLocked()
-                            }
-                            publishActiveState()
-                        }
-                    }
-                    publishTabsLocked()
+                    bindConnectedSocketLocked(tab, socket)
                 }
 
                 publishActiveState()
@@ -163,6 +147,7 @@ internal class ServerTerminalWorkspace(
         }
 
         removed.readerJob?.cancel()
+        removed.reconnectJob?.cancel()
         scope.launch {
             try {
                 removed.socket?.close()
@@ -214,9 +199,10 @@ internal class ServerTerminalWorkspace(
         }
 
         val ptyId = tab.ptyId ?: return
-        if (!tab.connected) return
         val size = cols to rows
-        if (tab.lastSize == size) return
+        if (tab.lastSize == size && tab.connected) return
+        tab.lastSize = size
+        if (!tab.connected) return
 
         scope.launch {
             try {
@@ -227,13 +213,25 @@ internal class ServerTerminalWorkspace(
                     rows = rows,
                     directory = directory,
                 )
-                if (ok) {
-                    tab.lastSize = size
-                }
+                if (!ok) Log.w(WORKSPACE_TAG, "Resize rejected for tab ${tab.id}")
             } catch (e: Exception) {
                 Log.w(WORKSPACE_TAG, "Failed to resize tab ${tab.id}: ${cols}x$rows", e)
             }
         }
+    }
+
+    fun reconnectTab(tabId: String, onResult: (Boolean) -> Unit = {}) {
+        val scheduled = synchronized(lock) {
+            val tab = tabs.firstOrNull { it.id == tabId } ?: return@synchronized false
+            if (tab.connected) return@synchronized true
+            if (tab.ptyId == null) return@synchronized false
+            if (tab.reconnectJob?.isActive == true) return@synchronized true
+            tab.reconnectJob = scope.launch {
+                reconnectLoop(tabId = tab.id, immediate = true, onFirstResult = null)
+            }
+            true
+        }
+        onResult(scheduled)
     }
 
     fun closeAll() {
@@ -246,6 +244,7 @@ internal class ServerTerminalWorkspace(
         }
         all.forEach { tab ->
             tab.readerJob?.cancel()
+            tab.reconnectJob?.cancel()
             scope.launch {
                 try {
                     tab.socket?.close()
@@ -263,6 +262,117 @@ internal class ServerTerminalWorkspace(
     private fun activeTabLocked(): RuntimeTab? {
         val id = _activeTabId.value ?: return null
         return tabs.firstOrNull { it.id == id }
+    }
+
+    private fun bindConnectedSocketLocked(tab: RuntimeTab, socket: PtySocket) {
+        tab.socket = socket
+        tab.connected = true
+        tab.reconnectAttempt = 0
+        tab.reconnectJob?.cancel()
+        tab.reconnectJob = null
+        tab.readerJob?.cancel()
+        tab.readerJob = scope.launch {
+            try {
+                socket.readLoop { chunk ->
+                    tab.emulator.process(chunk)
+                    if (_activeTabId.value == tab.id) {
+                        _activeVersion.value = tab.emulator.version
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(WORKSPACE_TAG, "Tab stream closed: ${tab.id}", e)
+            } finally {
+                onSocketClosed(tab.id, socket)
+            }
+        }
+        publishTabsLocked()
+        tab.lastSize?.let { (cols, rows) ->
+            scope.launch {
+                try {
+                    val ptyId = synchronized(lock) { tabs.firstOrNull { it.id == tab.id }?.ptyId } ?: return@launch
+                    api.updatePtySize(
+                        conn = conn,
+                        ptyId = ptyId,
+                        cols = cols,
+                        rows = rows,
+                        directory = tab.directory,
+                    )
+                } catch (e: Exception) {
+                    Log.w(WORKSPACE_TAG, "Failed to apply pending resize for tab ${tab.id}", e)
+                }
+            }
+        }
+    }
+
+    private fun onSocketClosed(tabId: String, socket: PtySocket) {
+        var shouldReconnect = false
+        synchronized(lock) {
+            val tab = tabs.firstOrNull { it.id == tabId } ?: return
+            if (tab.socket !== socket) return
+            tab.socket = null
+            tab.connected = false
+            tab.readerJob = null
+            publishTabsLocked()
+            shouldReconnect = tab.ptyId != null && tab.reconnectJob?.isActive != true
+            if (shouldReconnect) {
+                tab.reconnectJob = scope.launch {
+                    reconnectLoop(tabId = tabId, immediate = false, onFirstResult = null)
+                }
+            }
+        }
+        publishActiveState()
+    }
+
+    private suspend fun reconnectLoop(tabId: String, immediate: Boolean, onFirstResult: ((Boolean) -> Unit)?) {
+        var firstAttempt = true
+        while (true) {
+            val snapshot = synchronized(lock) {
+                val tab = tabs.firstOrNull { it.id == tabId } ?: return
+                if (tab.connected) {
+                    tab.reconnectJob = null
+                    if (firstAttempt) onFirstResult?.invoke(true)
+                    return
+                }
+                val pty = tab.ptyId
+                if (pty == null) {
+                    tab.reconnectJob = null
+                    if (firstAttempt) onFirstResult?.invoke(false)
+                    return
+                }
+                Triple(pty, tab.directory, tab.reconnectAttempt)
+            }
+
+            val delayMs = if (firstAttempt && immediate) {
+                0L
+            } else {
+                RECONNECT_BACKOFF_MS[snapshot.third.coerceIn(0, RECONNECT_BACKOFF_MS.lastIndex)]
+            }
+            if (delayMs > 0) kotlinx.coroutines.delay(delayMs)
+
+            try {
+                val socket = api.openPtySocket(conn, snapshot.first, cursor = -1, directory = snapshot.second)
+                synchronized(lock) {
+                    val tab = tabs.firstOrNull { it.id == tabId }
+                    if (tab == null || tab.ptyId != snapshot.first) {
+                        scope.launch { socket.close() }
+                        return@synchronized
+                    }
+                    bindConnectedSocketLocked(tab, socket)
+                }
+                publishActiveState()
+                if (firstAttempt) onFirstResult?.invoke(true)
+                return
+            } catch (e: Exception) {
+                Log.w(WORKSPACE_TAG, "Reconnect failed for tab $tabId", e)
+                synchronized(lock) {
+                    val tab = tabs.firstOrNull { it.id == tabId } ?: return
+                    tab.reconnectAttempt += 1
+                    publishTabsLocked()
+                }
+                if (firstAttempt) onFirstResult?.invoke(false)
+                firstAttempt = false
+            }
+        }
     }
 
     private fun publishTabsLocked() {

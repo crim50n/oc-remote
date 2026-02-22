@@ -91,6 +91,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
@@ -122,6 +123,7 @@ import android.net.Uri
 import android.content.Intent
 import android.content.res.Configuration
 import android.media.AudioManager
+import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
 import androidx.compose.ui.graphics.asImageBitmap
@@ -548,6 +550,7 @@ fun ChatScreen(
     var terminalAltLatched by rememberSaveable { mutableStateOf(false) }
     var terminalVirtualCtrlDown by remember { mutableStateOf(false) }
     var terminalVirtualFnDown by remember { mutableStateOf(false) }
+    var suppressFnTildeUntil by remember { mutableStateOf(0L) }
     val terminalFocusRequester = remember { FocusRequester() }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -650,6 +653,19 @@ fun ChatScreen(
     }
 
     fun sendTerminalChunk(chunk: String) {
+        if (!terminalVirtualFnDown) {
+            val now = SystemClock.elapsedRealtime()
+            if (chunk == "~" && now < suppressFnTildeUntil) {
+                // Guard against a leaked standalone '~' after Fn+0/F10.
+                suppressFnTildeUntil = 0L
+                return
+            }
+            if (chunk.isNotEmpty() && chunk != "~") {
+                // Any other explicit input clears the temporary suppression window.
+                suppressFnTildeUntil = 0L
+            }
+        }
+
         val ctrlActive = terminalCtrlLatched || terminalVirtualCtrlDown
         val altActive = terminalAltLatched
 
@@ -687,6 +703,11 @@ fun ChatScreen(
                     terminalFocusRequester.requestFocus()
                     keyboardController?.show()
                 }
+            }
+            if (fnResult.output.contains("\u001B[21~")) {
+                // Some IMEs leak a delayed standalone '~' after Fn+0/F10.
+                // Keep a wider window since app/UI transitions from mc -> shell may add latency.
+                suppressFnTildeUntil = SystemClock.elapsedRealtime() + 3_000L
             }
             fnResult.output
         } else {
@@ -1447,7 +1468,8 @@ fun ChatScreen(
                                     Column(
                                         modifier = Modifier
                                             .fillMaxHeight()
-                                            .padding(vertical = 8.dp),
+                                            .padding(vertical = 8.dp)
+                                            .imePadding(),
                                         verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                     LazyColumn(
@@ -1476,15 +1498,78 @@ fun ChatScreen(
                                                         Row(
                                                             modifier = Modifier.fillMaxWidth(),
                                                             verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                                                         ) {
-                                                            Text(
-                                                                text = tab.title + if (!tab.connected) " (offline)" else "",
-                                                                maxLines = 1,
-                                                                overflow = TextOverflow.Ellipsis,
-                                                                modifier = Modifier.weight(1f)
-                                                            )
-                                                            IconButton(onClick = { viewModel.closeTerminalTab(tab.id) }) {
+                                                            Column(
+                                                                modifier = Modifier.weight(1f),
+                                                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                                                            ) {
+                                                                Text(
+                                                                    text = tab.title,
+                                                                    maxLines = 1,
+                                                                    overflow = TextOverflow.Ellipsis,
+                                                                    style = MaterialTheme.typography.titleMedium,
+                                                                    fontWeight = FontWeight.SemiBold
+                                                                )
+                                                                if (!tab.connected) {
+                                                                    Surface(
+                                                                        shape = RoundedCornerShape(999.dp),
+                                                                        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
+                                                                    ) {
+                                                                        Row(
+                                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                                            verticalAlignment = Alignment.CenterVertically,
+                                                                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                                                        ) {
+                                                                            Box(
+                                                                                modifier = Modifier
+                                                                                    .size(6.dp)
+                                                                                    .background(MaterialTheme.colorScheme.error, CircleShape)
+                                                                            )
+                                                                            Text(
+                                                                                text = "Offline",
+                                                                                style = MaterialTheme.typography.labelSmall,
+                                                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                            if (!tab.connected) {
+                                                                IconButton(
+                                                                    onClick = {
+                                                                        viewModel.reconnectTerminalTab(tab.id) { ok ->
+                                                                            if (!ok) {
+                                                                                coroutineScope.launch {
+                                                                                    snackbarHostState.showSnackbar(context.getString(R.string.chat_terminal_connect_failed))
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    modifier = Modifier.size(34.dp),
+                                                                    colors = IconButtonDefaults.iconButtonColors(
+                                                                        containerColor = if (isAmoled) {
+                                                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
+                                                                        } else {
+                                                                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
+                                                                        }
+                                                                    )
+                                                                ) {
+                                                                    Icon(Icons.Default.Refresh, contentDescription = "Reconnect tab")
+                                                                }
+                                                            }
+                                                            IconButton(
+                                                                onClick = { viewModel.closeTerminalTab(tab.id) },
+                                                                modifier = Modifier.size(34.dp),
+                                                                colors = IconButtonDefaults.iconButtonColors(
+                                                                    containerColor = if (isAmoled) {
+                                                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
+                                                                    } else {
+                                                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                                                    }
+                                                                )
+                                                            ) {
                                                                 Icon(Icons.Default.Close, contentDescription = "Close tab")
                                                             }
                                                         }
@@ -1516,7 +1601,7 @@ fun ChatScreen(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 12.dp),
+                                            .padding(horizontal = 12.dp, vertical = 4.dp),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         OutlinedButton(
@@ -1595,29 +1680,13 @@ fun ChatScreen(
                                 modifier = Modifier.fillMaxSize()
                             )
 
-                        TerminalKeyboardOverlay(
-                            connected = terminalConnected,
-                            ctrlLatched = terminalCtrlLatched,
-                            altLatched = terminalAltLatched,
-                            cursorApp = viewModel.terminalEmulator.cursorKeysApplicationMode,
-                            onToggleDrawer = { coroutineScope.launch { terminalDrawerState.apply { if (isOpen) close() else open() } } },
-                            onToggleCtrl = { terminalCtrlLatched = !terminalCtrlLatched },
-                            onToggleAlt = { terminalAltLatched = !terminalAltLatched },
-                            onSendInput = ::sendTerminalChunk,
-                            onCtrlC = { viewModel.sendTerminalInput("\u0003") },
-                            onClear = { viewModel.clearTerminalBuffer() },
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .fillMaxWidth()
-                                    .padding(bottom = imeBottomDp)
-                                    .onSizeChanged { terminalOverlayHeightPx = it.height }
-                            )
-
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.CenterStart)
                                     .fillMaxHeight()
-                                    .width(48.dp)
+                                    .padding(bottom = overlayHeightDp + imeBottomDp)
+                                    .width(18.dp)
+                                    .zIndex(0f)
                                     .pointerInput(terminalDrawerState) {
                                         detectTapGestures(
                                             onLongPress = {
@@ -1633,7 +1702,7 @@ fun ChatScreen(
                                             onHorizontalDrag = { _, dragAmount ->
                                                 if (terminalDrawerState.isOpen) return@detectHorizontalDragGestures
                                                 dragged += dragAmount
-                                                if (dragged > 0.5f) {
+                                                if (dragged > 2f) {
                                                     coroutineScope.launch { terminalDrawerState.open() }
                                                     dragged = 0f
                                                 }
@@ -1642,6 +1711,25 @@ fun ChatScreen(
                                             onDragCancel = { dragged = 0f }
                                         )
                                     }
+                            )
+
+                        TerminalKeyboardOverlay(
+                            connected = terminalConnected,
+                            ctrlLatched = terminalCtrlLatched,
+                            altLatched = terminalAltLatched,
+                            cursorApp = viewModel.terminalEmulator.cursorKeysApplicationMode,
+                            onToggleDrawer = { coroutineScope.launch { terminalDrawerState.apply { if (isOpen) close() else open() } } },
+                            onToggleCtrl = { terminalCtrlLatched = !terminalCtrlLatched },
+                            onToggleAlt = { terminalAltLatched = !terminalAltLatched },
+                            onSendInput = ::sendTerminalChunk,
+                            onCtrlC = { viewModel.sendTerminalInput("\u0003") },
+                            onClear = { viewModel.clearTerminalBuffer() },
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .zIndex(1f)
+                                    .fillMaxWidth()
+                                    .padding(bottom = imeBottomDp)
+                                    .onSizeChanged { terminalOverlayHeightPx = it.height }
                             )
 
                         }
@@ -2275,72 +2363,46 @@ private fun SessionTerminalInline(
                 }
             }
 
-            // Build display text: rendered screen + cursor overlay
             val cursorPos = remember(terminalVersion) { emulator.getCursorPosition() }
-            val displayText = remember(terminalVersion, connected) {
-                if (!connected) {
-                    renderedOutput
-                } else {
-                    buildAnnotatedString {
-                        // Insert cursor into the rendered output
-                        // The rendered output has rows separated by '\n'
-                        // Cursor is at cursorPos.first (row), cursorPos.second (col)
-                        val lines = renderedOutput.text.split('\n')
-                        var charOffset = 0
-                        for (lineIdx in lines.indices) {
-                            val lineLen = lines[lineIdx].length
-                            if (lineIdx == cursorPos.first) {
-                                // This line contains the cursor
-                                val cursorCol = cursorPos.second
-                                if (cursorCol <= lineLen) {
-                                    // Cursor is within (or at end of) the rendered text
-                                    if (cursorCol > 0) {
-                                        append(renderedOutput, charOffset, charOffset + cursorCol)
-                                    }
-                                    val cursorChar = if (cursorCol < lineLen) lines[lineIdx][cursorCol] else ' '
-                                    withStyle(SpanStyle(
-                                        color = Color(0xFF0B0F19),
-                                        background = Color(0xFFD3D7CF)
-                                    )) {
-                                        append(cursorChar)
-                                    }
-                                    if (cursorCol + 1 < lineLen) {
-                                        append(renderedOutput, charOffset + cursorCol + 1, charOffset + lineLen)
-                                    }
-                                } else {
-                                    // Cursor is beyond the trimmed line — pad with spaces
-                                    if (lineLen > 0) {
-                                        append(renderedOutput, charOffset, charOffset + lineLen)
-                                    }
-                                    append(" ".repeat(cursorCol - lineLen))
-                                    withStyle(SpanStyle(
-                                        color = Color(0xFF0B0F19),
-                                        background = Color(0xFFD3D7CF)
-                                    )) {
-                                        append(' ')
-                                    }
-                                }
-                            } else {
-                                // Non-cursor line — copy as-is
-                                append(renderedOutput, charOffset, charOffset + lineLen)
-                            }
-                            if (lineIdx < lines.lastIndex) append('\n')
-                            charOffset += lineLen + 1 // +1 for the '\n'
-                        }
-                    }
-                }
-            }
+            val cursorAnim = rememberInfiniteTransition(label = "terminal_cursor")
+            val cursorAlpha by cursorAnim.animateFloat(
+                initialValue = 1f,
+                targetValue = 0f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 700),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "terminal_cursor_alpha"
+            )
 
-            // Termux-like: always allow text selection via long-press (native handles + copy toolbar).
-            SelectionContainer {
-                Text(
-                    text = displayText,
-                    style = terminalStyle,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    softWrap = false,
-                    maxLines = Int.MAX_VALUE,
-                    modifier = Modifier.fillMaxWidth()
-                )
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Termux-like: always allow text selection via long-press (native handles + copy toolbar).
+                SelectionContainer {
+                    Text(
+                        text = renderedOutput,
+                        style = terminalStyle,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        softWrap = false,
+                        maxLines = Int.MAX_VALUE,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                if (connected) {
+                    val cursorCol = cursorPos.second.coerceIn(0, (termCols - 1).coerceAtLeast(0))
+                    val cursorRow = cursorPos.first.coerceIn(0, (termRows - 1).coerceAtLeast(0))
+                    val cursorX = with(LocalDensity.current) { (cursorCol * charWidthPx).toDp() }
+                    val cursorY = with(LocalDensity.current) { (cursorRow * rowHeightPx).toDp() }
+                    val cursorW = with(LocalDensity.current) { charWidthPx.toDp() }
+                    val cursorH = with(LocalDensity.current) { rowHeightPx.toDp() }
+
+                    Box(
+                        modifier = Modifier
+                            .offset(x = cursorX, y = cursorY)
+                            .size(width = cursorW, height = cursorH)
+                            .background(Color(0xFFD3D7CF).copy(alpha = cursorAlpha))
+                    )
+                }
             }
         }
     }

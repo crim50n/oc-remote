@@ -1031,8 +1031,34 @@ class ChatViewModel @Inject constructor(
     fun executeCommand(command: String, arguments: String = "", onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
-                val ok = api.executeCommand(conn, sessionId, command, arguments, directory = sessionDirectory)
-                if (BuildConfig.DEBUG) Log.d(TAG, "Executed command /$command in session $sessionId: $ok")
+                if (sessionDirectory.isNullOrBlank()) {
+                    loadSession()
+                }
+
+                val normalizedCommand = command.removePrefix("/").trim()
+                val effectiveDirectory = sessionDirectory
+                // /init expects a target path. If omitted, default to session directory.
+                val effectiveArguments = if (
+                    normalizedCommand.equals("init", ignoreCase = true) && arguments.isBlank()
+                ) {
+                    effectiveDirectory.orEmpty()
+                } else {
+                    arguments
+                }
+
+                val ok = api.executeCommand(
+                    conn = conn,
+                    sessionId = sessionId,
+                    command = normalizedCommand,
+                    arguments = effectiveArguments,
+                    directory = effectiveDirectory
+                )
+                if (BuildConfig.DEBUG) {
+                    Log.d(
+                        TAG,
+                        "Executed command /$normalizedCommand in session $sessionId: $ok (directory=$effectiveDirectory, arguments=$effectiveArguments)"
+                    )
+                }
                 onResult(ok)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to execute command /$command", e)
@@ -1087,6 +1113,10 @@ class ChatViewModel @Inject constructor(
 
     fun closeTerminalTab(tabId: String) {
         terminalWorkspace.closeTab(tabId)
+    }
+
+    fun reconnectTerminalTab(tabId: String, onResult: (Boolean) -> Unit = {}) {
+        terminalWorkspace.reconnectTab(tabId, onResult)
     }
 
     fun setTerminalFontSize(fontSizeSp: Float) {
