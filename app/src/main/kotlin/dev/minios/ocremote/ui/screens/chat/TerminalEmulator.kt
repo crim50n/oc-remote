@@ -4,7 +4,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 
 /**
@@ -186,7 +188,7 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
     @Synchronized
     fun render(): AnnotatedString {
         val defaultFg = Color(0xFFD3D7CF)
-        val defaultBg = Color(0xFF0B0F19)
+        val defaultBg = Color.Black
 
         return buildAnnotatedString {
             for (r in 0 until rows) {
@@ -223,6 +225,68 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
                 if (r < rows - 1) append('\n')
             }
         }
+    }
+
+    /**
+     * A horizontal span of identically-styled characters in a terminal row.
+     * [col] is the 0-based starting column.
+     */
+    data class TerminalRun(
+        val col: Int,
+        val text: String,
+        val fg: Color,
+        val bg: Color,
+        val bold: Boolean,
+        val italic: Boolean,
+        val underline: Boolean,
+    )
+
+    /**
+     * Render the screen buffer as a list of rows, each containing a list of styled runs.
+     * Each run is placed at an exact column position so the caller can draw it at
+     * `col * charWidth` — this avoids glyph-width misalignment for box-drawing characters.
+     */
+    @Synchronized
+    fun renderRuns(): List<List<TerminalRun>> {
+        val defaultFg = Color(0xFFD3D7CF)
+        val defaultBg = Color.Black
+
+        val result = ArrayList<List<TerminalRun>>(rows)
+        for (r in 0 until rows) {
+            val runs = mutableListOf<TerminalRun>()
+            var runStart = 0
+            while (runStart < cols) {
+                val refCell = screen[r][runStart]
+                val sb = StringBuilder()
+                sb.append(refCell.ch)
+                var runEnd = runStart + 1
+                while (runEnd < cols && sameStyle(screen[r][runEnd], refCell)) {
+                    sb.append(screen[r][runEnd].ch)
+                    runEnd++
+                }
+                val effFg: Color
+                val effBg: Color
+                if (refCell.reverse) {
+                    effFg = refCell.bg ?: defaultBg
+                    effBg = refCell.fg ?: defaultFg
+                } else {
+                    effFg = refCell.fg ?: defaultFg
+                    effBg = refCell.bg ?: Color.Unspecified
+                }
+                runs.add(TerminalRun(
+                    col = runStart,
+                    text = sb.toString(),
+                    fg = effFg,
+                    bg = effBg,
+                    bold = refCell.bold,
+                    italic = refCell.italic,
+                    underline = refCell.underline,
+                ))
+                runStart = runEnd
+            }
+            result.add(runs)
+        }
+        return result
     }
 
     /** Get cursor position for rendering. */

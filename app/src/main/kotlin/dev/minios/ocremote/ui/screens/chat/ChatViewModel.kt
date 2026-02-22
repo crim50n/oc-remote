@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -125,12 +126,19 @@ class ChatViewModel @Inject constructor(
     private var isModelExplicitlySelected = false
     /** The directory of this session's project — sent as x-opencode-directory so the server resolves the correct project context. */
     private var sessionDirectory: String? = null
+    /** Signals when [loadSession] has finished (successfully or with error), so that terminal
+     *  creation can wait for [sessionDirectory] to be populated. */
+    private val sessionLoaded = CompletableDeferred<Unit>()
     private val _agents = MutableStateFlow<List<AgentInfo>>(emptyList())
     /** Pair(agentName, explicitlySelected) — using a single flow avoids race between flag and value */
     private val _selectedAgent = MutableStateFlow("build" to false)
     private val _selectedVariant = MutableStateFlow<String?>(null)
     private val _commands = MutableStateFlow<List<CommandInfo>>(emptyList())
-    private val terminalWorkspace = ServerTerminalRegistry.workspaceFor(serverId, api, conn)
+    private val terminalWorkspace = ServerTerminalRegistry.workspaceFor(serverId, api, conn).also {
+        if (BuildConfig.DEBUG) {
+            Log.d("TerminalZoom", "ChatViewModel init: workspaceId=${System.identityHashCode(it)} flowId=${System.identityHashCode(it.activeFontSizeSp)} serverId=$serverId vmId=${System.identityHashCode(this)}")
+        }
+    }
     val terminalTabs: StateFlow<List<TerminalTabUi>> = terminalWorkspace.tabList
     val activeTerminalTabId: StateFlow<String?> = terminalWorkspace.activeTabId
     /** Incremented on active terminal tab updates — observe to trigger recomposition. */
@@ -398,6 +406,8 @@ class ChatViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load session info", e)
+        } finally {
+            sessionLoaded.complete(Unit)
         }
     }
 
@@ -1100,11 +1110,21 @@ class ChatViewModel @Inject constructor(
     }
 
     fun openTerminalSession(onResult: (Boolean) -> Unit = {}) {
-        terminalWorkspace.ensureActiveTab(cwd = sessionDirectory, directory = sessionDirectory, onResult = onResult)
+        viewModelScope.launch {
+            // Wait for loadSession() to finish so sessionDirectory is populated.
+            // This prevents the race condition where the PTY is created with directory=null
+            // and then resize is attempted with the real directory.
+            sessionLoaded.await()
+            if (BuildConfig.DEBUG) Log.d(TAG, "openTerminalSession: sessionDirectory=$sessionDirectory")
+            terminalWorkspace.ensureActiveTab(cwd = sessionDirectory, directory = sessionDirectory, onResult = onResult)
+        }
     }
 
     fun createTerminalTab(onResult: (Boolean) -> Unit = {}) {
-        terminalWorkspace.createTab(cwd = sessionDirectory, directory = sessionDirectory, onResult = onResult)
+        viewModelScope.launch {
+            sessionLoaded.await()
+            terminalWorkspace.createTab(cwd = sessionDirectory, directory = sessionDirectory, onResult = onResult)
+        }
     }
 
     fun switchTerminalTab(tabId: String) {
@@ -1132,7 +1152,7 @@ class ChatViewModel @Inject constructor(
     }
 
     fun resizeTerminal(cols: Int, rows: Int) {
-        terminalWorkspace.resizeActive(cols, rows, directory = sessionDirectory)
+        terminalWorkspace.resizeActive(cols, rows)
     }
 
     fun closeTerminalSession() {

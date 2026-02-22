@@ -297,12 +297,20 @@ class OpenCodeApi @Inject constructor(
         cwd: String? = null,
         directory: String? = null
     ): PtyInfo {
-        return httpClient.post("${conn.baseUrl}/pty") {
+        if (BuildConfig.DEBUG) {
+            Log.d("OpenCodeApi", "createPty: POST ${conn.baseUrl}/pty title=$title cwd=$cwd directory=$directory")
+        }
+        val response = httpClient.post("${conn.baseUrl}/pty") {
             conn.authHeader?.let { header("Authorization", it) }
             directory?.let { header("x-opencode-directory", it) }
             contentType(ContentType.Application.Json)
             setBody(PtyCreateRequest(title = title, cwd = cwd))
-        }.body()
+        }
+        val info: PtyInfo = response.body()
+        if (BuildConfig.DEBUG) {
+            Log.d("OpenCodeApi", "createPty: response status=${response.status} ptyId=${info.id}")
+        }
+        return info
     }
 
     suspend fun removePty(conn: ServerConnection, ptyId: String): Boolean {
@@ -319,11 +327,20 @@ class OpenCodeApi @Inject constructor(
         rows: Int,
         directory: String? = null
     ): Boolean {
+        val body = PtyUpdateRequest(size = PtySize(rows = rows, cols = cols))
+        if (BuildConfig.DEBUG) {
+            val jsonStr = json.encodeToString(PtyUpdateRequest.serializer(), body)
+            Log.d("OpenCodeApi", "updatePtySize: PUT ${conn.baseUrl}/pty/$ptyId body=$jsonStr directory=$directory")
+        }
         val response = httpClient.put("${conn.baseUrl}/pty/$ptyId") {
             conn.authHeader?.let { header("Authorization", it) }
             directory?.let { header("x-opencode-directory", it) }
             contentType(ContentType.Application.Json)
-            setBody(PtyUpdateRequest(size = PtySize(rows = rows, cols = cols)))
+            setBody(body)
+        }
+        if (BuildConfig.DEBUG) {
+            val respBody = try { response.bodyAsText() } catch (_: Exception) { "<no body>" }
+            Log.d("OpenCodeApi", "updatePtySize: response status=${response.status} body=$respBody")
         }
         return response.status.isSuccess()
     }
@@ -749,23 +766,14 @@ class PtySocket(
     suspend fun readLoop(onText: suspend (String) -> Unit) {
         for (frame in session.incoming) {
             when (frame) {
-                is Frame.Text -> {
-                    val text = frame.readText()
-                    Log.d("PtySocket", "Text frame: ${text.length} chars, first50=${text.take(50).replace("\u001B","<ESC>").replace("\r","<CR>").replace("\n","<LF>")}")
-                    onText(text)
-                }
+                is Frame.Text -> onText(frame.readText())
                 is Frame.Binary -> {
                     val data = frame.data
-                    Log.d("PtySocket", "Binary frame: ${data.size} bytes, first=${if (data.isNotEmpty()) data[0].toInt() else -1}")
-                    // Server may send cursor metadata as 0x00 + JSON. Ignore it for now.
+                    // Server sends cursor metadata as 0x00 + JSON. Skip it.
                     if (data.isNotEmpty() && data[0].toInt() == 0) continue
-                    val text = data.toString(Charsets.UTF_8)
-                    Log.d("PtySocket", "Binary->text: ${text.length} chars")
-                    onText(text)
+                    onText(data.toString(Charsets.UTF_8))
                 }
-                else -> {
-                    Log.d("PtySocket", "Other frame: ${frame.frameType}")
-                }
+                else -> { /* ignore */ }
             }
         }
     }

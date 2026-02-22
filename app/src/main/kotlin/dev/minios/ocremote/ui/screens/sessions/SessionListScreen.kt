@@ -113,18 +113,11 @@ fun SessionListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isAmoled = isAmoledTheme()
-    var openNextCreatedInTerminal by remember { mutableStateOf(false) }
-
-    val latestSessionId = remember(uiState.sessionGroups) {
-        uiState.sessionGroups.firstOrNull()?.sessions?.firstOrNull()?.session?.id
-    }
-
     // Navigate to newly created session
     LaunchedEffect(viewModel) {
         viewModel.navigateToSession
             .onEach { sessionId ->
-                onNavigateToChat(sessionId, openNextCreatedInTerminal)
-                openNextCreatedInTerminal = false
+                onNavigateToChat(sessionId, false)
             }
             .launchIn(this)
     }
@@ -160,22 +153,6 @@ fun SessionListScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = {
-                            val sessionId = latestSessionId
-                            if (sessionId != null) {
-                                onNavigateToChat(sessionId, true)
-                            } else {
-                                openNextCreatedInTerminal = true
-                                viewModel.createNewSession()
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Terminal,
-                            contentDescription = stringResource(R.string.tool_terminal)
-                        )
-                    }
                 }
             )
         },

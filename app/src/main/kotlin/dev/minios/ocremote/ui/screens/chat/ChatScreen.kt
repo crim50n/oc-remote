@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -39,6 +40,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -53,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -77,6 +81,7 @@ import androidx.compose.ui.platform.TextToolbar
 import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -89,9 +94,10 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -130,6 +136,7 @@ import android.media.AudioManager
 import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
+import dev.minios.ocremote.BuildConfig
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
 import dev.minios.ocremote.R
@@ -586,6 +593,11 @@ fun ChatScreen(
     val terminalTabs by viewModel.terminalTabs.collectAsState()
     val activeTerminalTabId by viewModel.activeTerminalTabId.collectAsState()
     val terminalFontSizeSp by viewModel.terminalFontSizeSp.collectAsState()
+    if (BuildConfig.DEBUG) {
+        LaunchedEffect(terminalFontSizeSp) {
+            Log.d("TerminalZoom", "ChatScreen: terminalFontSizeSp CHANGED to $terminalFontSizeSp (flow identity=${System.identityHashCode(viewModel.terminalFontSizeSp)})")
+        }
+    }
     val terminalDrawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     var showSendConfirmDialog by remember { mutableStateOf(false) }
     // Pending send action: stored so the confirm dialog can trigger it
@@ -602,6 +614,10 @@ fun ChatScreen(
     BackHandler(enabled = isTerminalMode) {
         if (terminalDrawerState.isOpen) {
             coroutineScope.launch { terminalDrawerState.close() }
+        } else if (startInTerminalMode) {
+            // Opened directly in terminal mode (e.g. from sessions list) —
+            // back should navigate away, not show the chat view.
+            onNavigateBack()
         } else {
             isTerminalMode = false
         }
@@ -635,7 +651,20 @@ fun ChatScreen(
                         true
                     }
                     android.view.KeyEvent.KEYCODE_VOLUME_UP -> {
+                        val wasDown = terminalVirtualFnDown
                         terminalVirtualFnDown = event.action == android.view.KeyEvent.ACTION_DOWN
+                        if (BuildConfig.DEBUG) {
+                            Log.d("TerminalInput", "VOL_UP: action=${if (event.action == android.view.KeyEvent.ACTION_DOWN) "DOWN" else "UP"} wasDown=$wasDown nowDown=$terminalVirtualFnDown")
+                        }
+                        if (wasDown && !terminalVirtualFnDown) {
+                            // FN key released — some IMEs leak a delayed '~' character
+                            // from the underlying key (e.g., Shift+` or dead-key residue).
+                            // Suppress any standalone '~' arriving shortly after release.
+                            suppressFnTildeUntil = SystemClock.elapsedRealtime() + 3_000L
+                            if (BuildConfig.DEBUG) {
+                                Log.d("TerminalInput", "FN released -> suppressFnTildeUntil set for 3s")
+                            }
+                        }
                         true
                     }
                     else -> false
@@ -648,6 +677,25 @@ fun ChatScreen(
             activity?.setTerminalKeyInterceptor(null)
             terminalVirtualCtrlDown = false
             terminalVirtualFnDown = false
+        }
+    }
+
+    // Force status bar black while terminal is visible.
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    DisposableEffect(isTerminalMode) {
+        val activity = context as? android.app.Activity
+        if (isTerminalMode && activity != null) {
+            activity.window.statusBarColor = android.graphics.Color.BLACK
+            androidx.core.view.WindowCompat.getInsetsController(
+                activity.window, activity.window.decorView
+            ).isAppearanceLightStatusBars = false
+        }
+        onDispose {
+            val act = context as? android.app.Activity ?: return@onDispose
+            act.window.statusBarColor = android.graphics.Color.TRANSPARENT
+            androidx.core.view.WindowCompat.getInsetsController(
+                act.window, act.window.decorView
+            ).isAppearanceLightStatusBars = !isDarkTheme
         }
     }
 
@@ -671,14 +719,36 @@ fun ChatScreen(
     }
 
     fun sendTerminalChunk(chunk: String) {
+        if (BuildConfig.DEBUG) {
+            val codes = chunk.map { String.format("%04x", it.code) }
+            val remain = suppressFnTildeUntil - SystemClock.elapsedRealtime()
+            Log.d("TerminalInput", "sendTerminalChunk: chunk=$codes fnDown=$terminalVirtualFnDown suppressRemain=${remain}ms")
+        }
         if (!terminalVirtualFnDown) {
             val now = SystemClock.elapsedRealtime()
-            if (chunk == "~" && now < suppressFnTildeUntil) {
-                // Guard against a leaked standalone '~' after Fn+0/F10.
+            if (now < suppressFnTildeUntil && chunk.contains('~')) {
+                // Guard against a leaked '~' after an FN key combo (e.g., Fn+0/F10).
+                // The tilde may arrive alone ("~") or bundled with other characters.
+                if (BuildConfig.DEBUG) {
+                    Log.d("TerminalInput", "SUPPRESSING tilde from chunk='$chunk'")
+                }
+                val stripped = chunk.replace("~", "")
                 suppressFnTildeUntil = 0L
+                if (stripped.isEmpty()) return
+                // Forward the non-tilde remainder.
+                @Suppress("NAME_SHADOWING")
+                val chunk = stripped
+                // fall through with the cleaned chunk
+                val ctrlActive2 = terminalCtrlLatched || terminalVirtualCtrlDown
+                val altActive2 = terminalAltLatched
+                val processed = applyTerminalModifiers(input = chunk, ctrl = ctrlActive2, alt = altActive2)
+                if (processed.isEmpty()) return
+                viewModel.sendTerminalInput(processed)
+                if (terminalCtrlLatched) terminalCtrlLatched = false
+                if (terminalAltLatched) terminalAltLatched = false
                 return
             }
-            if (chunk.isNotEmpty() && chunk != "~") {
+            if (chunk.isNotEmpty() && !chunk.contains('~')) {
                 // Any other explicit input clears the temporary suppression window.
                 suppressFnTildeUntil = 0L
             }
@@ -713,9 +783,10 @@ fun ChatScreen(
                     keyboardController?.show()
                 }
             }
-            if (fnResult.output.contains("\u001B[21~")) {
-                // Some IMEs leak a delayed standalone '~' after Fn+0/F10.
-                // Keep a wider window since app/UI transitions from mc -> shell may add latency.
+            if (fnResult.output.contains("~")) {
+                // Any FN binding that produces '~' in its escape sequence (F5-F12, Insert,
+                // Delete, PageUp, PageDown) may cause the IME to leak a standalone '~' after
+                // the Volume-Up (FN) key is released.
                 suppressFnTildeUntil = SystemClock.elapsedRealtime() + 3_000L
             }
             fnResult.output
@@ -727,6 +798,9 @@ fun ChatScreen(
             )
         }
         if (processed.isEmpty()) return
+        if (BuildConfig.DEBUG && processed.contains('~')) {
+            Log.d("TerminalInput", "SENDING to server: '${processed.map { String.format("%04x", it.code) }}' fnDown=$terminalVirtualFnDown")
+        }
         viewModel.sendTerminalInput(processed)
         if (terminalCtrlLatched) terminalCtrlLatched = false
         if (terminalAltLatched) terminalAltLatched = false
@@ -2238,9 +2312,15 @@ private fun SessionTerminalInline(
 ) {
     val isAmoled = isAmoledTheme()
     val renderedOutput = remember(terminalVersion) { emulator.render() }
+    val renderedRuns = remember(terminalVersion) { emulator.renderRuns() }
     val keyboard = LocalSoftwareKeyboardController.current
     val baseTextToolbar = LocalTextToolbar.current
     var inputCapture by remember { mutableStateOf(TextFieldValue("")) }
+    // Dedup: IME can fire onValueChange twice for a single keystroke.
+    // After we reset inputCapture to "", the second callback sees old="" again
+    // and computes the same delta.  Track the last chunk + timestamp to suppress.
+    var lastSentChunk by remember { mutableStateOf("") }
+    var lastSentTime by remember { mutableStateOf(0L) }
 
     val terminalTextToolbar = remember(baseTextToolbar, onPaste) {
         object : TextToolbar {
@@ -2284,7 +2364,7 @@ private fun SessionTerminalInline(
 
     Column(
         modifier = modifier
-            .background(if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface)
+            .background(Color.Black)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         BasicTextField(
@@ -2302,6 +2382,20 @@ private fun SessionTerminalInline(
                     else -> now
                 }
                 if (delta.isNotEmpty()) {
+                    if (BuildConfig.DEBUG && delta.contains('~')) {
+                        Log.d("TerminalInput", "onValueChange: delta='$delta' old='$old' now='$now'")
+                    }
+                    // Dedup: suppress identical chunk within 100ms (IME double-fire).
+                    val ts = SystemClock.elapsedRealtime()
+                    if (delta == lastSentChunk && ts - lastSentTime < 100) {
+                        if (BuildConfig.DEBUG) {
+                            Log.d("TerminalInput", "DEDUP: suppressed duplicate delta='$delta'")
+                        }
+                        inputCapture = TextFieldValue("")
+                        return@BasicTextField
+                    }
+                    lastSentChunk = delta
+                    lastSentTime = ts
                     val mapped = delta
                         .replace("\r\n", "\r")
                         .replace('\n', '\r')
@@ -2353,39 +2447,65 @@ private fun SessionTerminalInline(
                     )
                 }
                 .pointerInput(Unit) {
-                    var liveFontSize = latestFontSizeSp
+                    // Termux-style threshold zoom: accumulate pinch scale factor,
+                    // change font by 1sp when it deviates >10%, then reset.
+                    var accumulatedScale = 1f
                     detectTransformGestures { _, _, zoom, _ ->
                         if (zoom != 1f) {
-                            // Keep accumulating from the latest known value without restarting pointerInput.
-                            if (kotlin.math.abs(liveFontSize - latestFontSizeSp) > 0.001f) {
-                                liveFontSize = latestFontSizeSp
+                            accumulatedScale *= zoom
+                            if (BuildConfig.DEBUG) {
+                                Log.d("TerminalZoom", "gesture: zoom=$zoom accumulated=$accumulatedScale")
                             }
-                            liveFontSize = (liveFontSize * zoom).coerceIn(6f, 32f)
-                            onFontSizeChange(liveFontSize)
+                            if (accumulatedScale < 0.9f || accumulatedScale > 1.1f) {
+                                val increase = accumulatedScale > 1f
+                                val current = latestFontSizeSp
+                                val next = (current + if (increase) 1f else -1f)
+                                    .coerceIn(4f, 96f)
+                                if (BuildConfig.DEBUG) {
+                                    Log.d("TerminalZoom", "threshold hit: increase=$increase current=$current next=$next")
+                                }
+                                if (next != current) {
+                                    onFontSizeChange(next)
+                                }
+                                accumulatedScale = 1f
+                            }
                         }
                     }
                 }
         ) {
-            // Measure character dimensions for accurate grid sizing.
-            val textMeasurer = rememberTextMeasurer()
-            val charWidthPx = remember(fontSizeSp) {
-                val result = textMeasurer.measure(
-                    text = AnnotatedString("0000000000"),
-                    style = terminalStyle
-                )
-                // Use 10 chars to reduce rounding error in per-glyph width.
-                (result.size.width / 10f).coerceAtLeast(1f)
+            // Measure character dimensions using native Paint for consistency with
+            // Canvas rendering. This avoids mismatches between Compose textMeasurer
+            // line height and native Paint font metrics that cause vertical gaps.
+            val density = LocalDensity.current
+            if (BuildConfig.DEBUG) {
+                Log.d("TerminalZoom", "BoxWithConstraints recompose: fontSizeSp=$fontSizeSp connected=$connected viewW=${constraints.maxWidth} viewH=${constraints.maxHeight}")
             }
+            val charWidthPx = remember(fontSizeSp) {
+                val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                    typeface = android.graphics.Typeface.MONOSPACE
+                    textSize = with(density) { fontSizeSp.sp.toPx() }
+                }
+                paint.measureText("X").also { w ->
+                    if (BuildConfig.DEBUG) {
+                        Log.d("TerminalZoom", "charWidthPx RECOMPUTED: fontSizeSp=$fontSizeSp -> charW=$w textSizePx=${paint.textSize}")
+                    }
+                }
+            }
+            // Row height: ceil(descent - ascent) snapped to int pixels.
+            // This excludes inter-line leading so rows are compact and fill
+            // the viewport correctly.  Anti-aliased seams are prevented by
+            // drawing with nativeCanvas + isAntiAlias=false.
             val rowHeightPx = remember(fontSizeSp) {
-                val oneLine = textMeasurer.measure(
-                    text = AnnotatedString("M"),
-                    style = terminalStyle
-                )
-                val twoLines = textMeasurer.measure(
-                    text = AnnotatedString("M\nM"),
-                    style = terminalStyle
-                )
-                (twoLines.size.height - oneLine.size.height).toFloat().coerceAtLeast(1f)
+                val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                    typeface = android.graphics.Typeface.MONOSPACE
+                    textSize = with(density) { fontSizeSp.sp.toPx() }
+                }
+                val fm = paint.fontMetrics
+                kotlin.math.ceil((fm.descent - fm.ascent).toDouble()).toInt().also { h ->
+                    if (BuildConfig.DEBUG) {
+                        Log.d("TerminalZoom", "rowHeightPx RECOMPUTED: fontSizeSp=$fontSizeSp -> rowH=$h textSizePx=${paint.textSize}")
+                    }
+                }
             }
             // Use inner constraints from BoxWithConstraints (already reflects bottom padding).
             val viewportWidthPx = constraints.maxWidth
@@ -2393,13 +2513,24 @@ private fun SessionTerminalInline(
             val termCols = if (viewportWidthPx > 0) {
                 (viewportWidthPx / charWidthPx).toInt().coerceAtLeast(20)
             } else 80
+            // Simple integer division — our rows start at y=0 so no offset needed.
             val termRows = if (viewportHeightPx > 0) {
-                (viewportHeightPx / rowHeightPx).toInt().coerceAtLeast(8)
+                (viewportHeightPx / rowHeightPx).coerceAtLeast(8)
             } else 24
+            if (BuildConfig.DEBUG) {
+                Log.d("TerminalZoom", "GRID CALC: fontSp=$fontSizeSp charW=$charWidthPx rowH=$rowHeightPx viewW=$viewportWidthPx viewH=$viewportHeightPx -> cols=$termCols rows=$termRows")
+            }
+            // Send resize immediately then retry after a short delay to handle
+            // race conditions around PTY startup and IME transitions.
             LaunchedEffect(termCols, termRows, connected) {
+                if (BuildConfig.DEBUG) {
+                    Log.d("TerminalZoom", "LaunchedEffect FIRED: cols=$termCols rows=$termRows connected=$connected viewW=$viewportWidthPx viewH=$viewportHeightPx fontSp=$fontSizeSp")
+                }
                 if (connected && viewportWidthPx > 0 && viewportHeightPx > 0) {
+                    if (BuildConfig.DEBUG) {
+                        Log.d("TerminalInput", "resize: cols=$termCols rows=$termRows viewW=$viewportWidthPx viewH=$viewportHeightPx charW=$charWidthPx rowH=$rowHeightPx fontSp=$fontSizeSp")
+                    }
                     onResize(termCols, termRows)
-                    // Retry shortly after to handle race conditions around PTY startup/IME transitions.
                     delay(120)
                     onResize(termCols, termRows)
                 }
@@ -2417,17 +2548,109 @@ private fun SessionTerminalInline(
                 label = "terminal_cursor_alpha"
             )
 
+            val terminalBgColor = Color.Black
             Box(modifier = Modifier.fillMaxSize()) {
-                // Termux-like: always allow text selection via long-press (native handles + copy toolbar).
-                CompositionLocalProvider(LocalTextToolbar provides terminalTextToolbar) {
+                // Canvas layer: draw each character at its exact grid position to
+                // guarantee monospaced alignment for box-drawing characters.
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val nativeCanvas = drawContext.canvas.nativeCanvas
+
+                    // Paint for background fills — no anti-aliasing for pixel-perfect
+                    // row tiling (matches Termux approach).
+                    val bgPaint = android.graphics.Paint().apply {
+                        isAntiAlias = false
+                        style = android.graphics.Paint.Style.FILL
+                    }
+
+                    // Fill the entire terminal area with the default background.
+                    bgPaint.color = terminalBgColor.toArgb()
+                    nativeCanvas.drawRect(0f, 0f, size.width, size.height, bgPaint)
+
+                    val textPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                        textSize = terminalStyle.fontSize.toPx()
+                        typeface = android.graphics.Typeface.MONOSPACE
+                    }
+                    // Baseline offset: -ascent positions glyphs correctly within
+                    // each row (ascent is negative, so -ascent is positive).
+                    val baseline = -textPaint.fontMetrics.ascent
+                    val rowH = rowHeightPx.toFloat()
+
+                    for ((rowIdx, runs) in renderedRuns.withIndex()) {
+                        val y = (rowIdx * rowHeightPx).toFloat()
+                        for (run in runs) {
+                            val x = run.col * charWidthPx
+                            // Draw background rectangle for the whole run.
+                            // Integer row height with integer y-positions tiles exactly —
+                            // no overlap needed (matches Termux).
+                            if (run.bg != Color.Unspecified && run.bg != terminalBgColor) {
+                                bgPaint.color = run.bg.toArgb()
+                                nativeCanvas.drawRect(
+                                    x, y,
+                                    x + run.text.length * charWidthPx, y + rowH,
+                                    bgPaint
+                                )
+                            }
+                            // Configure paint for this run's style.
+                            textPaint.color = run.fg.toArgb()
+                            val typefaceStyle = when {
+                                run.bold && run.italic -> android.graphics.Typeface.BOLD_ITALIC
+                                run.bold -> android.graphics.Typeface.BOLD
+                                run.italic -> android.graphics.Typeface.ITALIC
+                                else -> android.graphics.Typeface.NORMAL
+                            }
+                            textPaint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, typefaceStyle)
+                            textPaint.isUnderlineText = run.underline
+                            // Draw each character individually at its grid position.
+                            val textY = y + baseline
+                            for ((i, ch) in run.text.withIndex()) {
+                                if (ch != ' ') {
+                                    nativeCanvas.drawText(
+                                        ch.toString(),
+                                        x + i * charWidthPx,
+                                        textY,
+                                        textPaint
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Invisible text layer for native text selection (long-press copy).
+                // We strip all explicit span colors so text is invisible, but the
+                // Compose SelectionContainer still draws a visible selection highlight.
+                val selectionOutput = remember(terminalVersion) {
+                    buildAnnotatedString {
+                        // Re-use the rendered AnnotatedString text but drop color spans
+                        // so that the transparent text color from the style takes effect.
+                        append(renderedOutput.text)
+                    }
+                }
+                // Match the selection overlay line height to the canvas row height
+                // so selection handles align with the rendered text.
+                val selectionLineHeight = with(LocalDensity.current) { rowHeightPx.toSp() }
+                val selectionStyle = remember(fontSizeSp, selectionLineHeight) {
+                    terminalStyle.copy(
+                        color = Color.Transparent,
+                        lineHeight = selectionLineHeight,
+                    )
+                }
+                val selectionColors = TextSelectionColors(
+                    handleColor = Color(0xFF4FC3F7),
+                    backgroundColor = Color(0xFF4FC3F7).copy(alpha = 0.4f)
+                )
+                CompositionLocalProvider(
+                    LocalTextToolbar provides terminalTextToolbar,
+                    LocalTextSelectionColors provides selectionColors
+                ) {
                     SelectionContainer {
                         Text(
-                            text = renderedOutput,
-                            style = terminalStyle,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            text = selectionOutput,
+                            style = selectionStyle,
                             softWrap = false,
                             maxLines = Int.MAX_VALUE,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
                         )
                     }
                 }
@@ -2479,13 +2702,12 @@ private fun TerminalKeyboardOverlay(
         modifier = modifier,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+        color = Color(0xFF1A1A1A)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 2.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(vertical = 0.dp),
         ) {
             // Row 1: matches Termux default extra keys
             TerminalKeyRow(
@@ -2498,6 +2720,13 @@ private fun TerminalKeyboardOverlay(
                     TerminalKey("END") { onSendInput(end) },
                     TerminalKey("PGUP") { onSendInput("\u001B[5~") },
                 )
+            )
+            // Thin divider between rows
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Color(0xFF333333))
             )
             // Row 2: matches Termux default extra keys
             TerminalKeyRow(
@@ -2528,39 +2757,40 @@ private data class TerminalKey(
 private fun TerminalKeyRow(keys: List<TerminalKey>) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        keys.forEach { key ->
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = if (key.active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                border = BorderStroke(
-                    1.dp,
-                    if (key.active) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-                ),
+        keys.forEachIndexed { index, key ->
+            if (index > 0) {
+                // Thin vertical divider between keys
+                Box(
+                    Modifier
+                        .width(1.dp)
+                        .height(34.dp)
+                        .background(Color(0xFF333333))
+                )
+            }
+            Box(
+                contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .weight(1f)
-                    .height(30.dp)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .combinedClickable(
-                            onClick = key.action,
-                            onLongClick = { key.popupAction?.invoke() }
-                        )
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Text(
-                        text = key.label,
-                        maxLines = 1,
-                        softWrap = false,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (key.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    .height(34.dp)
+                    .then(
+                        if (key.active) Modifier.background(Color(0xFF333333))
+                        else Modifier
                     )
-                }
+                    .combinedClickable(
+                        onClick = key.action,
+                        onLongClick = { key.popupAction?.invoke() }
+                    )
+            ) {
+                Text(
+                    text = key.label,
+                    maxLines = 1,
+                    softWrap = false,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 13.sp
+                    ),
+                    color = if (key.active) Color(0xFF80CBC4) else Color(0xFFCCCCCC)
+                )
             }
         }
     }

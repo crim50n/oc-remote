@@ -102,7 +102,7 @@ internal class ServerTerminalWorkspace(
                     cwd = cwd,
                     directory = directory,
                 )
-                val socket = api.openPtySocket(conn, info.id, cursor = -1, directory = directory)
+                val socket = api.openPtySocket(conn, info.id, cursor = 0, directory = directory)
 
                 synchronized(lock) {
                     tab.ptyId = info.id
@@ -181,29 +181,50 @@ internal class ServerTerminalWorkspace(
     }
 
     fun setActiveFontSize(fontSizeSp: Float) {
-        val clamped = fontSizeSp.coerceIn(6f, 32f)
-        val tab = synchronized(lock) { activeTabLocked() } ?: return
+        val clamped = fontSizeSp.coerceIn(4f, 96f)
+        val tab = synchronized(lock) { activeTabLocked() } ?: run {
+            android.util.Log.w("TerminalZoom", "setActiveFontSize: no active tab!")
+            return
+        }
+        android.util.Log.d("TerminalZoom", "setActiveFontSize: clamped=$clamped old=${tab.fontSizeSp} tabId=${tab.id} activeId=${_activeTabId.value} flowId=${System.identityHashCode(_activeFontSizeSp)} workspaceId=${System.identityHashCode(this)}")
         tab.fontSizeSp = clamped
         if (_activeTabId.value == tab.id) {
             _activeFontSizeSp.value = clamped
+            android.util.Log.d("TerminalZoom", "setActiveFontSize: StateFlow updated to ${_activeFontSizeSp.value}")
         }
     }
 
-    fun resizeActive(cols: Int, rows: Int, directory: String?) {
+    fun resizeActive(cols: Int, rows: Int) {
         if (cols <= 0 || rows <= 0) return
         val tab = synchronized(lock) { activeTabLocked() } ?: return
+
+        android.util.Log.d("TerminalZoom", "resizeActive: cols=$cols rows=$rows ptyId=${tab.ptyId} lastSize=${tab.lastSize} connected=${tab.connected} tabDir=${tab.directory}")
 
         tab.emulator.resize(cols, rows)
         if (_activeTabId.value == tab.id) {
             _activeVersion.value = tab.emulator.version
         }
 
-        val ptyId = tab.ptyId ?: return
+        val ptyId = tab.ptyId ?: run {
+            android.util.Log.w("TerminalZoom", "resizeActive: no ptyId, skipping server resize")
+            return
+        }
         val size = cols to rows
-        if (tab.lastSize == size && tab.connected) return
+        if (tab.lastSize == size && tab.connected) {
+            android.util.Log.d("TerminalZoom", "resizeActive: dedup, same size and connected")
+            return
+        }
         tab.lastSize = size
-        if (!tab.connected) return
+        if (!tab.connected) {
+            android.util.Log.d("TerminalZoom", "resizeActive: not connected, skipping server resize")
+            return
+        }
 
+        // Use the directory stored on the tab (the one used when creating the PTY)
+        // rather than the caller's sessionDirectory, which may differ if loadSession()
+        // completed after the PTY was created.
+        val tabDirectory = tab.directory
+        android.util.Log.d("TerminalZoom", "resizeActive: sending updatePtySize cols=$cols rows=$rows dir=$tabDirectory")
         scope.launch {
             try {
                 val ok = api.updatePtySize(
@@ -211,8 +232,9 @@ internal class ServerTerminalWorkspace(
                     ptyId = ptyId,
                     cols = cols,
                     rows = rows,
-                    directory = directory,
+                    directory = tabDirectory,
                 )
+                android.util.Log.d("TerminalZoom", "resizeActive: updatePtySize result=$ok")
                 if (!ok) Log.w(WORKSPACE_TAG, "Resize rejected for tab ${tab.id}")
             } catch (e: Exception) {
                 Log.w(WORKSPACE_TAG, "Failed to resize tab ${tab.id}: ${cols}x$rows", e)
