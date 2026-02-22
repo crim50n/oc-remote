@@ -2413,11 +2413,76 @@ private fun SessionTerminalInline(
                             onSendInput("\r")
                             true
                         }
+                        Key.Tab -> {
+                            onSendInput("\t")
+                            true
+                        }
                         Key.Backspace -> {
                             onSendInput("\u007F")
                             true
                         }
-                        else -> false
+                        else -> {
+                            val native = event.nativeKeyEvent
+                            val unicode = native.unicodeChar
+                            if (unicode > 0 && (unicode and android.view.KeyCharacterMap.COMBINING_ACCENT) == 0) {
+                                if (native.isCtrlPressed) {
+                                    val lower = unicode.toChar().lowercaseChar()
+                                    if (lower in 'a'..'z') {
+                                        val ctrl = (lower.code - 'a'.code + 1).toChar().toString()
+                                        onSendInput(ctrl)
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                } else {
+                                    onSendInput(String(Character.toChars(unicode)))
+                                    true
+                                }
+                            } else {
+                                val baseLetter = when (event.key) {
+                                    Key.A -> 'a'
+                                    Key.B -> 'b'
+                                    Key.C -> 'c'
+                                    Key.D -> 'd'
+                                    Key.E -> 'e'
+                                    Key.F -> 'f'
+                                    Key.G -> 'g'
+                                    Key.H -> 'h'
+                                    Key.I -> 'i'
+                                    Key.J -> 'j'
+                                    Key.K -> 'k'
+                                    Key.L -> 'l'
+                                    Key.M -> 'm'
+                                    Key.N -> 'n'
+                                    Key.O -> 'o'
+                                    Key.P -> 'p'
+                                    Key.Q -> 'q'
+                                    Key.R -> 'r'
+                                    Key.S -> 's'
+                                    Key.T -> 't'
+                                    Key.U -> 'u'
+                                    Key.V -> 'v'
+                                    Key.W -> 'w'
+                                    Key.X -> 'x'
+                                    Key.Y -> 'y'
+                                    Key.Z -> 'z'
+                                    else -> null
+                                }
+                                if (baseLetter != null) {
+                                    val upper = native.isShiftPressed.xor(native.isCapsLockOn)
+                                    val out = if (upper) baseLetter.uppercaseChar() else baseLetter
+                                    if (native.isCtrlPressed) {
+                                        val ctrl = (baseLetter.code - 'a'.code + 1).toChar().toString()
+                                        onSendInput(ctrl)
+                                    } else {
+                                        onSendInput(out.toString())
+                                    }
+                                    true
+                                } else {
+                                    false
+                                }
+                            }
+                        }
                     }
                 },
             singleLine = false,
