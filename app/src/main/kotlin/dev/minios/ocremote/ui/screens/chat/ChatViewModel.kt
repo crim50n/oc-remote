@@ -301,6 +301,11 @@ class ChatViewModel @Inject constructor(
             selectedAgent
         }
 
+        // Keep raw state in sync so sendParts()/runShellCommand() always use the displayed value
+        if (effectiveAgent != selectedAgent && !isAgentExplicitlySelected) {
+            _selectedAgent.value = effectiveAgent to false
+        }
+
         // Compute cost/token totals from assistant messages
         val assistantMessages = sessionMessages.filterIsInstance<Message.Assistant>()
         val totalCost = assistantMessages.sumOf { it.cost ?: 0.0 }
@@ -373,6 +378,12 @@ class ChatViewModel @Inject constructor(
             _draftAttachmentUris.value = draft.imageUris
             if (draft.confirmedFilePaths.isNotEmpty()) {
                 _confirmedFilePaths.value = draft.confirmedFilePaths.toSet()
+            }
+            if (!draft.selectedAgent.isNullOrBlank()) {
+                _selectedAgent.value = draft.selectedAgent to true
+            }
+            if (!draft.selectedVariant.isNullOrBlank()) {
+                _selectedVariant.value = draft.selectedVariant
             }
         }
 
@@ -699,10 +710,13 @@ class ChatViewModel @Inject constructor(
 
     /** Persist current draft to disk. */
     private fun saveDraft() {
+        val agentPair = _selectedAgent.value
         val draft = dev.minios.ocremote.data.repository.Draft(
             text = _draftText.value,
             imageUris = _draftAttachmentUris.value,
-            confirmedFilePaths = _confirmedFilePaths.value.toList()
+            confirmedFilePaths = _confirmedFilePaths.value.toList(),
+            selectedAgent = agentPair.first.takeIf { agentPair.second },
+            selectedVariant = _selectedVariant.value
         )
         draftRepository.saveDraft(sessionId, draft)
     }
@@ -749,7 +763,7 @@ class ChatViewModel @Inject constructor(
                     sessionId = sessionId,
                     parts = parts,
                     model = model,
-                    agent = _selectedAgent.value.first,
+                    agent = uiState.value.selectedAgent,
                     variant = _selectedVariant.value,
                     directory = sessionDirectory
                 )
@@ -1102,7 +1116,7 @@ class ChatViewModel @Inject constructor(
                     conn = conn,
                     sessionId = sessionId,
                     command = trimmed,
-                    agent = _selectedAgent.value.first,
+                    agent = uiState.value.selectedAgent,
                     model = model,
                     directory = sessionDirectory
                 )

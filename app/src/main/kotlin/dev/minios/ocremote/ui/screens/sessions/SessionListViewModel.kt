@@ -23,6 +23,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
 import javax.inject.Inject
@@ -34,7 +37,9 @@ data class SessionListUiState(
     val projects: List<Project> = emptyList(),
     val serverName: String = "",
     val isLoading: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val selectedIds: Set<String> = emptySet(),
+    val isSelectionMode: Boolean = false,
 )
 
 /** A group of sessions belonging to a project. */
@@ -84,6 +89,7 @@ class SessionListViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(true)
     private val _projects = MutableStateFlow<List<Project>>(emptyList())
     private val _homeDir = MutableStateFlow<String?>(null)
+    private val _selectedIds = MutableStateFlow<Set<String>>(emptySet())
     private val _navigateToSession = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val navigateToSession: SharedFlow<String> = _navigateToSession.asSharedFlow()
 
@@ -96,7 +102,8 @@ class SessionListViewModel @Inject constructor(
             _isLoading,
             _error,
             _projects,
-            _homeDir
+            _homeDir,
+            _selectedIds,
         )
     ) { values ->
         val allSessions = values[0] as List<Session>
@@ -106,6 +113,7 @@ class SessionListViewModel @Inject constructor(
         val error = values[4] as String?
         val projects = values[5] as List<Project>
         val homeDir = values[6] as String?
+        val selectedIds = values[7] as Set<String>
 
         // Filter sessions belonging to this server
         val serverSessionIds = serverSessions[serverId] ?: emptySet()
@@ -143,12 +151,20 @@ class SessionListViewModel @Inject constructor(
             )
         )
 
+        val visibleSessionIds = allItems.map { it.first.session.id }.toSet()
+        val validSelectedIds = selectedIds.intersect(visibleSessionIds)
+        if (validSelectedIds != selectedIds) {
+            _selectedIds.value = validSelectedIds
+        }
+
         SessionListUiState(
             sessionGroups = groups,
             projects = projects,
             serverName = serverName,
             isLoading = loading,
-            error = error
+            error = error,
+            selectedIds = validSelectedIds,
+            isSelectionMode = validSelectedIds.isNotEmpty(),
         )
     }.stateIn(
         viewModelScope,
@@ -246,6 +262,48 @@ class SessionListViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to delete session", e)
                 _error.value = e.message ?: "Failed to delete session"
+            }
+        }
+    }
+
+    fun toggleSelection(sessionId: String) {
+        _selectedIds.update { selected ->
+            if (sessionId in selected) selected - sessionId else selected + sessionId
+        }
+    }
+
+    fun clearSelection() {
+        _selectedIds.value = emptySet()
+    }
+
+    fun selectAll() {
+        val allIds = uiState.value.sessionGroups
+            .flatMap { group -> group.sessions.map { it.session.id } }
+            .toSet()
+        _selectedIds.value = allIds
+    }
+
+    fun deleteSelected() {
+        viewModelScope.launch {
+            val ids = _selectedIds.value
+            if (ids.isEmpty()) return@launch
+            try {
+                val results = coroutineScope {
+                    ids.map { id ->
+                        async {
+                            id to api.deleteSession(conn, id)
+                        }
+                    }.awaitAll()
+                }
+                val failed = results.filterNot { it.second }
+                if (failed.isNotEmpty()) {
+                    _error.value = "Failed to delete ${failed.size} session(s)"
+                }
+                clearSelection()
+                loadSessions()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to delete selected sessions", e)
+                _error.value = e.message ?: "Failed to delete selected sessions"
             }
         }
     }

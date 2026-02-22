@@ -1,9 +1,16 @@
 package dev.minios.ocremote.ui.screens.sessions
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.activity.compose.BackHandler
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.minios.ocremote.R
 import dev.minios.ocremote.data.api.FileNode
@@ -131,65 +139,102 @@ fun SessionListScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteSessionId by remember { mutableStateOf("") }
     var deleteSessionTitle by remember { mutableStateOf("") }
+    var showDeleteSelectedDialog by remember { mutableStateOf(false) }
 
     // Project picker dialog state
     var showOpenProject by remember { mutableStateOf(false) }
     var showQuickNewSession by remember { mutableStateOf(false) }
 
+    BackHandler(enabled = uiState.isSelectionMode) {
+        viewModel.clearSelection()
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
+            if (uiState.isSelectionMode) {
+                TopAppBar(
+                    title = {
                         Text(
-                            text = uiState.serverName.ifEmpty { stringResource(R.string.sessions_title) },
+                            text = stringResource(R.string.sessions_selected_count, uiState.selectedIds.size),
                             style = MaterialTheme.typography.titleMedium
                         )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-                actions = {
-                }
-            )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { viewModel.clearSelection() }) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                        }
+                    },
+                    actions = {
+                        TextButton(onClick = { viewModel.selectAll() }) {
+                            Text(stringResource(R.string.sessions_select_all))
+                        }
+                        IconButton(onClick = { showDeleteSelectedDialog = true }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.sessions_delete_selected),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = if (isAmoledTheme()) Color(0xFF1E1E1E) else MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
+            } else {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                text = uiState.serverName.ifEmpty { stringResource(R.string.sessions_title) },
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        }
+                    },
+                    actions = {}
+                )
+            }
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    // If there are known projects, show the quick dialog first;
-                    // otherwise go straight to the full directory browser.
-                    if (uiState.sessionGroups.isNotEmpty()) {
-                        showQuickNewSession = true
+            if (!uiState.isSelectionMode) {
+                FloatingActionButton(
+                    onClick = {
+                        // If there are known projects, show the quick dialog first;
+                        // otherwise go straight to the full directory browser.
+                        if (uiState.sessionGroups.isNotEmpty()) {
+                            showQuickNewSession = true
+                        } else {
+                            showOpenProject = true
+                        }
+                    },
+                    containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = if (isAmoled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer,
+                    elevation = if (isAmoled) {
+                        FloatingActionButtonDefaults.elevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 0.dp,
+                            focusedElevation = 0.dp,
+                            hoveredElevation = 0.dp
+                        )
                     } else {
-                        showOpenProject = true
+                        FloatingActionButtonDefaults.elevation()
+                    },
+                    modifier = if (isAmoled) {
+                        Modifier.border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                            shape = FloatingActionButtonDefaults.shape
+                        )
+                    } else {
+                        Modifier
                     }
-                },
-                containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.primaryContainer,
-                contentColor = if (isAmoled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer,
-                elevation = if (isAmoled) {
-                    FloatingActionButtonDefaults.elevation(
-                        defaultElevation = 0.dp,
-                        pressedElevation = 0.dp,
-                        focusedElevation = 0.dp,
-                        hoveredElevation = 0.dp
-                    )
-                } else {
-                    FloatingActionButtonDefaults.elevation()
-                },
-                modifier = if (isAmoled) {
-                    Modifier.border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                        shape = FloatingActionButtonDefaults.shape
-                    )
-                } else {
-                    Modifier
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sessions_new))
                 }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sessions_new))
             }
         }
     ) { padding ->
@@ -271,7 +316,16 @@ fun SessionListScreen(
                                 SessionRow(
                                     item = item,
                                     projectName = dirLabel,
-                                    onClick = { onNavigateToChat(item.session.id, false) },
+                                    isSelectionMode = uiState.isSelectionMode,
+                                    isSelected = item.session.id in uiState.selectedIds,
+                                    onClick = {
+                                        if (uiState.isSelectionMode) {
+                                            viewModel.toggleSelection(item.session.id)
+                                        } else {
+                                            onNavigateToChat(item.session.id, false)
+                                        }
+                                    },
+                                    onLongClick = { viewModel.toggleSelection(item.session.id) },
                                     onRename = {
                                         renameSessionId = item.session.id
                                         renameText = item.session.title ?: ""
@@ -319,6 +373,46 @@ fun SessionListScreen(
             },
             onDismiss = { showOpenProject = false }
         )
+    }
+
+    if (showDeleteSelectedDialog) {
+        BasicAlertDialog(onDismissRequest = { showDeleteSelectedDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+                tonalElevation = if (isAmoled) 0.dp else 6.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.sessions_delete_selected),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Text(stringResource(R.string.sessions_delete_selected_confirm, uiState.selectedIds.size))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showDeleteSelectedDialog = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        TextButton(
+                            onClick = {
+                                viewModel.deleteSelected()
+                                showDeleteSelectedDialog = false
+                            },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text(stringResource(R.string.delete))
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // Rename dialog
@@ -947,12 +1041,15 @@ private fun NewSessionQuickDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun SessionRow(
     item: SessionItem,
     projectName: String? = null,
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -979,92 +1076,35 @@ private fun SessionRow(
         positionalThreshold = { it * 0.3f }
     )
 
-    SwipeToDismissBox(
-        state = dismissState,
-        backgroundContent = {
-            val direction = dismissState.dismissDirection
+    val cardContent: @Composable () -> Unit = {
+        val baseContainerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceVariant
+        
+        val containerColor = if (isSelected) {
+            MaterialTheme.colorScheme.primary.copy(alpha = if (isAmoled) 0.15f else 0.08f)
+        } else {
+            if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceVariant
+        }
 
-            // Rename background (swipe right)
-            val renameColor = MaterialTheme.colorScheme.primaryContainer
-            // Delete background (swipe left)
-            val deleteColor = MaterialTheme.colorScheme.errorContainer
+        val cardColors = CardDefaults.cardColors(containerColor = containerColor)
 
-            val bgColor = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> renameColor
-                SwipeToDismissBoxValue.EndToStart -> deleteColor
-                else -> Color.Transparent
-            }
-            val iconTint = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.onPrimaryContainer
-                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.onErrorContainer
-                else -> Color.Transparent
-            }
+        val cardBorder = when {
+            isSelected -> BorderStroke(
+                1.5.dp,
+                MaterialTheme.colorScheme.primary.copy(alpha = if (isAmoled) 0.75f else 0.5f)
+            )
+            isAmoled -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
+            else -> null
+        }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CardDefaults.shape)
-                    .background(bgColor)
-                    .padding(horizontal = 20.dp),
-                contentAlignment = when (direction) {
-                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                    else -> Alignment.CenterEnd
-                }
-            ) {
-                when (direction) {
-                    SwipeToDismissBoxValue.StartToEnd -> {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Edit,
-                                contentDescription = stringResource(R.string.session_rename),
-                                tint = iconTint,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                stringResource(R.string.session_rename),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = iconTint
-                            )
-                        }
-                    }
-                    SwipeToDismissBoxValue.EndToStart -> {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                stringResource(R.string.delete),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = iconTint
-                            )
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = stringResource(R.string.delete),
-                                tint = iconTint,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    else -> {}
-                }
-            }
-        },
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = true
-    ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick),
-            colors = if (isAmoled) {
-                CardDefaults.cardColors(containerColor = Color.Black)
-            } else {
-                CardDefaults.cardColors()
-            },
-            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
+            colors = cardColors,
+            border = cardBorder
         ) {
             Row(
                 modifier = Modifier
@@ -1072,6 +1112,19 @@ private fun SessionRow(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                AnimatedVisibility(
+                    visible = isSelectionMode,
+                    enter = expandHorizontally(expandFrom = Alignment.Start) + fadeIn(),
+                    exit = shrinkHorizontally(shrinkTowards = Alignment.Start) + fadeOut()
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = { onClick() },
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                }
                 // Content column
                 Column(modifier = Modifier.weight(1f)) {
                     // Project name label
@@ -1177,5 +1230,84 @@ private fun SessionRow(
                 }
             }
         }
+    }
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            val direction = dismissState.dismissDirection
+
+            // Rename background (swipe right)
+            val renameColor = MaterialTheme.colorScheme.primaryContainer
+            // Delete background (swipe left)
+            val deleteColor = MaterialTheme.colorScheme.errorContainer
+
+            val bgColor = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> renameColor
+                SwipeToDismissBoxValue.EndToStart -> deleteColor
+                else -> Color.Transparent
+            }
+            val iconTint = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.onPrimaryContainer
+                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.onErrorContainer
+                else -> Color.Transparent
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CardDefaults.shape)
+                    .background(bgColor)
+                    .padding(horizontal = 20.dp),
+                contentAlignment = when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                    else -> Alignment.CenterEnd
+                }
+            ) {
+                when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = stringResource(R.string.session_rename),
+                                tint = iconTint,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                stringResource(R.string.session_rename),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = iconTint
+                            )
+                        }
+                    }
+                    SwipeToDismissBoxValue.EndToStart -> {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                stringResource(R.string.delete),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = iconTint
+                            )
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.delete),
+                                tint = iconTint,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        },
+        enableDismissFromStartToEnd = !isSelectionMode,
+        enableDismissFromEndToStart = !isSelectionMode
+    ) {
+        cardContent()
     }
 }

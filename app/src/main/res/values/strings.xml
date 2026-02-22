@@ -50,6 +50,10 @@
     <string name="sessions_empty_directory">Empty directory</string>
     <string name="sessions_working">Working</string>
     <string name="sessions_retrying">Retrying</string>
+    <string name="sessions_selected_count">%1$d selected</string>
+    <string name="sessions_select_all">Select all</string>
+    <string name="sessions_delete_selected">Delete selected</string>
+    <string name="sessions_delete_selected_confirm">Delete %1$d sessions? This cannot be undone.</string>
     <string name="session_status_idle">Idle</string>
     <string name="session_status_busy">Working…</string>
     <string name="session_status_retry">Retrying (%1$d/%2$d)</string>

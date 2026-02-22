@@ -1,85 +1,595 @@
 version: 1
 checksums:
     OC Remote Android/ar:
+        chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
+        chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
+        chat_shell_executed: a66a123808864f1b1515c04f2434e03c
+        chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
+        chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_terminal_clear: 90c7446b02c813f9625ae0066bd16e50
+        chat_terminal_connect_failed: c816eced82f98f86a386d6273b9e734a
+        chat_terminal_connected: 9d16b85d61ed5d0a72cef82fbc9bce90
+        chat_terminal_ctrl_c: e28660b6af4c2d629ab1ca42209e89ff
+        chat_terminal_disconnected: bda754152b7188fb14e77029915bd217
+        chat_terminal_empty: 20b06b1f92f656d686c90f04c4c6ab40
+        chat_terminal_run: 4ddd02645604a78c6f52bc2cd6e5457a
+        chat_terminal_tap_keyboard: b9de90cc013709b1d69f30f0380d48ae
+        cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
+        connect: 3823850ca815607e71802e301da2d082
+        disconnect: eadb7beea3cb00eadad12f674dba9871
         loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
+        server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
+        server_settings_auth_method_api: 05a823e45e5d28f32367f8e7d4fcbedd
+        server_settings_auto: f9b0470a5743b18b3e580b48d9021afb
+        server_settings_connect_provider: 4f256bffe9803346f3521baa1c876758
+        server_settings_default_agent: 5dc3b1a40efc498d2b0ca167aba637db
+        server_settings_default_model: 14b75308d260ec13c644d10251f5661f
+        server_settings_defaults: 2201c35a15a4b53343c439c9919d7be8
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
         server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_models: 5600799b0d72391d4d75dfc8f60b5271
+        server_settings_models_desc: c045ebd3b0bfc1d2c0b743f96de80040
+        server_settings_no_connect_methods: c9430e79e164fba36a9908e6f41ed7e5
+        server_settings_oauth_code_placeholder: 0646f772c066d966068845eb87c6d064
+        server_settings_oauth_complete: e71ddf6e178d742f8026083e885a4122
+        server_settings_oauth_open_browser: 058149fc2b0f205cfd934f2b9f4fc1ab
+        server_settings_oauth_title: 9fb29f2087a545dc0c0897bd862b2f23
+        server_settings_provider_connected: 37c8b870c0b7f44ec108bddeaec1f9ac
+        server_settings_provider_env_connected: 55cecc883e4a8b8157ca7d9031087f3a
+        server_settings_provider_source_api: 95dde771ad8895c7e218872da451fbf8
+        server_settings_provider_source_config: b64335a809c21afefcf95193d6d85198
+        server_settings_provider_source_custom: e6ddca0a2a90676b25c131eb9f3e8d5b
+        server_settings_provider_source_env: 00a6c1f0c5a201a57ebb8ba9d88d9979
+        server_settings_provider_source_other: 7cdb56350c2c669db5d9524bd197278b
+        server_settings_provider_unavailable: 58c26c64140ebe7b08d5e66ee59ea59b
+        server_settings_providers: cf0c9374ab3d04b9ada5d7b12bda92fa
+        server_settings_providers_available: 9eb8b79092bb3074067c554703e985d5
+        server_settings_providers_connected: 6c6b5e959b1b968b57deea3ba48dafee
+        server_settings_providers_desc: 4a69790353ff22e5c086fdf7a1bb8f8d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_small_model: 52c9d645b36d63f59bb7f17745af1e0c
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
+        settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/de:
+        chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
+        chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
+        chat_shell_executed: a66a123808864f1b1515c04f2434e03c
+        chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
+        chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_terminal_clear: 90c7446b02c813f9625ae0066bd16e50
+        chat_terminal_connect_failed: c816eced82f98f86a386d6273b9e734a
+        chat_terminal_connected: 9d16b85d61ed5d0a72cef82fbc9bce90
+        chat_terminal_ctrl_c: e28660b6af4c2d629ab1ca42209e89ff
+        chat_terminal_disconnected: bda754152b7188fb14e77029915bd217
+        chat_terminal_empty: 20b06b1f92f656d686c90f04c4c6ab40
+        chat_terminal_run: 4ddd02645604a78c6f52bc2cd6e5457a
+        chat_terminal_tap_keyboard: b9de90cc013709b1d69f30f0380d48ae
+        cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
+        connect: 3823850ca815607e71802e301da2d082
+        disconnect: eadb7beea3cb00eadad12f674dba9871
         loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
+        server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
+        server_settings_auth_method_api: 05a823e45e5d28f32367f8e7d4fcbedd
+        server_settings_auto: f9b0470a5743b18b3e580b48d9021afb
+        server_settings_connect_provider: 4f256bffe9803346f3521baa1c876758
+        server_settings_default_agent: 5dc3b1a40efc498d2b0ca167aba637db
+        server_settings_default_model: 14b75308d260ec13c644d10251f5661f
+        server_settings_defaults: 2201c35a15a4b53343c439c9919d7be8
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
         server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_models: 5600799b0d72391d4d75dfc8f60b5271
+        server_settings_models_desc: c045ebd3b0bfc1d2c0b743f96de80040
+        server_settings_no_connect_methods: c9430e79e164fba36a9908e6f41ed7e5
+        server_settings_oauth_code_placeholder: 0646f772c066d966068845eb87c6d064
+        server_settings_oauth_complete: e71ddf6e178d742f8026083e885a4122
+        server_settings_oauth_open_browser: 058149fc2b0f205cfd934f2b9f4fc1ab
+        server_settings_oauth_title: 9fb29f2087a545dc0c0897bd862b2f23
+        server_settings_provider_connected: 37c8b870c0b7f44ec108bddeaec1f9ac
+        server_settings_provider_env_connected: 55cecc883e4a8b8157ca7d9031087f3a
+        server_settings_provider_source_api: 95dde771ad8895c7e218872da451fbf8
+        server_settings_provider_source_config: b64335a809c21afefcf95193d6d85198
+        server_settings_provider_source_custom: e6ddca0a2a90676b25c131eb9f3e8d5b
+        server_settings_provider_source_env: 00a6c1f0c5a201a57ebb8ba9d88d9979
+        server_settings_provider_source_other: 7cdb56350c2c669db5d9524bd197278b
+        server_settings_provider_unavailable: 58c26c64140ebe7b08d5e66ee59ea59b
+        server_settings_providers: cf0c9374ab3d04b9ada5d7b12bda92fa
+        server_settings_providers_available: 9eb8b79092bb3074067c554703e985d5
+        server_settings_providers_connected: 6c6b5e959b1b968b57deea3ba48dafee
+        server_settings_providers_desc: 4a69790353ff22e5c086fdf7a1bb8f8d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_small_model: 52c9d645b36d63f59bb7f17745af1e0c
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
+        settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/es:
+        chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
+        chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
+        chat_shell_executed: a66a123808864f1b1515c04f2434e03c
+        chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
+        chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_terminal_clear: 90c7446b02c813f9625ae0066bd16e50
+        chat_terminal_connect_failed: c816eced82f98f86a386d6273b9e734a
+        chat_terminal_connected: 9d16b85d61ed5d0a72cef82fbc9bce90
+        chat_terminal_ctrl_c: e28660b6af4c2d629ab1ca42209e89ff
+        chat_terminal_disconnected: bda754152b7188fb14e77029915bd217
+        chat_terminal_empty: 20b06b1f92f656d686c90f04c4c6ab40
+        chat_terminal_run: 4ddd02645604a78c6f52bc2cd6e5457a
+        chat_terminal_tap_keyboard: b9de90cc013709b1d69f30f0380d48ae
+        cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
+        connect: 3823850ca815607e71802e301da2d082
+        disconnect: eadb7beea3cb00eadad12f674dba9871
         loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
+        server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
+        server_settings_auth_method_api: 05a823e45e5d28f32367f8e7d4fcbedd
+        server_settings_auto: f9b0470a5743b18b3e580b48d9021afb
+        server_settings_connect_provider: 4f256bffe9803346f3521baa1c876758
+        server_settings_default_agent: 5dc3b1a40efc498d2b0ca167aba637db
+        server_settings_default_model: 14b75308d260ec13c644d10251f5661f
+        server_settings_defaults: 2201c35a15a4b53343c439c9919d7be8
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
         server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_models: 5600799b0d72391d4d75dfc8f60b5271
+        server_settings_models_desc: c045ebd3b0bfc1d2c0b743f96de80040
+        server_settings_no_connect_methods: c9430e79e164fba36a9908e6f41ed7e5
+        server_settings_oauth_code_placeholder: 0646f772c066d966068845eb87c6d064
+        server_settings_oauth_complete: e71ddf6e178d742f8026083e885a4122
+        server_settings_oauth_open_browser: 058149fc2b0f205cfd934f2b9f4fc1ab
+        server_settings_oauth_title: 9fb29f2087a545dc0c0897bd862b2f23
+        server_settings_provider_connected: 37c8b870c0b7f44ec108bddeaec1f9ac
+        server_settings_provider_env_connected: 55cecc883e4a8b8157ca7d9031087f3a
+        server_settings_provider_source_api: 95dde771ad8895c7e218872da451fbf8
+        server_settings_provider_source_config: b64335a809c21afefcf95193d6d85198
+        server_settings_provider_source_custom: e6ddca0a2a90676b25c131eb9f3e8d5b
+        server_settings_provider_source_env: 00a6c1f0c5a201a57ebb8ba9d88d9979
+        server_settings_provider_source_other: 7cdb56350c2c669db5d9524bd197278b
+        server_settings_provider_unavailable: 58c26c64140ebe7b08d5e66ee59ea59b
+        server_settings_providers: cf0c9374ab3d04b9ada5d7b12bda92fa
+        server_settings_providers_available: 9eb8b79092bb3074067c554703e985d5
+        server_settings_providers_connected: 6c6b5e959b1b968b57deea3ba48dafee
+        server_settings_providers_desc: 4a69790353ff22e5c086fdf7a1bb8f8d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_small_model: 52c9d645b36d63f59bb7f17745af1e0c
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
+        settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/fr:
+        chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
+        chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
+        chat_shell_executed: a66a123808864f1b1515c04f2434e03c
+        chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
+        chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_terminal_clear: 90c7446b02c813f9625ae0066bd16e50
+        chat_terminal_connect_failed: c816eced82f98f86a386d6273b9e734a
+        chat_terminal_connected: 9d16b85d61ed5d0a72cef82fbc9bce90
+        chat_terminal_ctrl_c: e28660b6af4c2d629ab1ca42209e89ff
+        chat_terminal_disconnected: bda754152b7188fb14e77029915bd217
+        chat_terminal_empty: 20b06b1f92f656d686c90f04c4c6ab40
+        chat_terminal_run: 4ddd02645604a78c6f52bc2cd6e5457a
+        chat_terminal_tap_keyboard: b9de90cc013709b1d69f30f0380d48ae
+        cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
+        connect: 3823850ca815607e71802e301da2d082
+        disconnect: eadb7beea3cb00eadad12f674dba9871
         loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
+        server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
+        server_settings_auth_method_api: 05a823e45e5d28f32367f8e7d4fcbedd
+        server_settings_auto: f9b0470a5743b18b3e580b48d9021afb
+        server_settings_connect_provider: 4f256bffe9803346f3521baa1c876758
+        server_settings_default_agent: 5dc3b1a40efc498d2b0ca167aba637db
+        server_settings_default_model: 14b75308d260ec13c644d10251f5661f
+        server_settings_defaults: 2201c35a15a4b53343c439c9919d7be8
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
         server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_models: 5600799b0d72391d4d75dfc8f60b5271
+        server_settings_models_desc: c045ebd3b0bfc1d2c0b743f96de80040
+        server_settings_no_connect_methods: c9430e79e164fba36a9908e6f41ed7e5
+        server_settings_oauth_code_placeholder: 0646f772c066d966068845eb87c6d064
+        server_settings_oauth_complete: e71ddf6e178d742f8026083e885a4122
+        server_settings_oauth_open_browser: 058149fc2b0f205cfd934f2b9f4fc1ab
+        server_settings_oauth_title: 9fb29f2087a545dc0c0897bd862b2f23
+        server_settings_provider_connected: 37c8b870c0b7f44ec108bddeaec1f9ac
+        server_settings_provider_env_connected: 55cecc883e4a8b8157ca7d9031087f3a
+        server_settings_provider_source_api: 95dde771ad8895c7e218872da451fbf8
+        server_settings_provider_source_config: b64335a809c21afefcf95193d6d85198
+        server_settings_provider_source_custom: e6ddca0a2a90676b25c131eb9f3e8d5b
+        server_settings_provider_source_env: 00a6c1f0c5a201a57ebb8ba9d88d9979
+        server_settings_provider_source_other: 7cdb56350c2c669db5d9524bd197278b
+        server_settings_provider_unavailable: 58c26c64140ebe7b08d5e66ee59ea59b
+        server_settings_providers: cf0c9374ab3d04b9ada5d7b12bda92fa
+        server_settings_providers_available: 9eb8b79092bb3074067c554703e985d5
+        server_settings_providers_connected: 6c6b5e959b1b968b57deea3ba48dafee
+        server_settings_providers_desc: 4a69790353ff22e5c086fdf7a1bb8f8d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_small_model: 52c9d645b36d63f59bb7f17745af1e0c
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
+        settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/id:
+        chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
+        chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
+        chat_shell_executed: a66a123808864f1b1515c04f2434e03c
+        chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
+        chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_terminal_clear: 90c7446b02c813f9625ae0066bd16e50
+        chat_terminal_connect_failed: c816eced82f98f86a386d6273b9e734a
+        chat_terminal_connected: 9d16b85d61ed5d0a72cef82fbc9bce90
+        chat_terminal_ctrl_c: e28660b6af4c2d629ab1ca42209e89ff
+        chat_terminal_disconnected: bda754152b7188fb14e77029915bd217
+        chat_terminal_empty: 20b06b1f92f656d686c90f04c4c6ab40
+        chat_terminal_run: 4ddd02645604a78c6f52bc2cd6e5457a
+        chat_terminal_tap_keyboard: b9de90cc013709b1d69f30f0380d48ae
+        cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
+        connect: 3823850ca815607e71802e301da2d082
+        disconnect: eadb7beea3cb00eadad12f674dba9871
         loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
+        server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
+        server_settings_auth_method_api: 05a823e45e5d28f32367f8e7d4fcbedd
+        server_settings_auto: f9b0470a5743b18b3e580b48d9021afb
+        server_settings_connect_provider: 4f256bffe9803346f3521baa1c876758
+        server_settings_default_agent: 5dc3b1a40efc498d2b0ca167aba637db
+        server_settings_default_model: 14b75308d260ec13c644d10251f5661f
+        server_settings_defaults: 2201c35a15a4b53343c439c9919d7be8
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
         server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_models: 5600799b0d72391d4d75dfc8f60b5271
+        server_settings_models_desc: c045ebd3b0bfc1d2c0b743f96de80040
+        server_settings_no_connect_methods: c9430e79e164fba36a9908e6f41ed7e5
+        server_settings_oauth_code_placeholder: 0646f772c066d966068845eb87c6d064
+        server_settings_oauth_complete: e71ddf6e178d742f8026083e885a4122
+        server_settings_oauth_open_browser: 058149fc2b0f205cfd934f2b9f4fc1ab
+        server_settings_oauth_title: 9fb29f2087a545dc0c0897bd862b2f23
+        server_settings_provider_connected: 37c8b870c0b7f44ec108bddeaec1f9ac
+        server_settings_provider_env_connected: 55cecc883e4a8b8157ca7d9031087f3a
+        server_settings_provider_source_api: 95dde771ad8895c7e218872da451fbf8
+        server_settings_provider_source_config: b64335a809c21afefcf95193d6d85198
+        server_settings_provider_source_custom: e6ddca0a2a90676b25c131eb9f3e8d5b
+        server_settings_provider_source_env: 00a6c1f0c5a201a57ebb8ba9d88d9979
+        server_settings_provider_source_other: 7cdb56350c2c669db5d9524bd197278b
+        server_settings_provider_unavailable: 58c26c64140ebe7b08d5e66ee59ea59b
+        server_settings_providers: cf0c9374ab3d04b9ada5d7b12bda92fa
+        server_settings_providers_available: 9eb8b79092bb3074067c554703e985d5
+        server_settings_providers_connected: 6c6b5e959b1b968b57deea3ba48dafee
+        server_settings_providers_desc: 4a69790353ff22e5c086fdf7a1bb8f8d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_small_model: 52c9d645b36d63f59bb7f17745af1e0c
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
+        settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/it:
+        chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
+        chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
+        chat_shell_executed: a66a123808864f1b1515c04f2434e03c
+        chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
+        chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_terminal_clear: 90c7446b02c813f9625ae0066bd16e50
+        chat_terminal_connect_failed: c816eced82f98f86a386d6273b9e734a
+        chat_terminal_connected: 9d16b85d61ed5d0a72cef82fbc9bce90
+        chat_terminal_ctrl_c: e28660b6af4c2d629ab1ca42209e89ff
+        chat_terminal_disconnected: bda754152b7188fb14e77029915bd217
+        chat_terminal_empty: 20b06b1f92f656d686c90f04c4c6ab40
+        chat_terminal_run: 4ddd02645604a78c6f52bc2cd6e5457a
+        chat_terminal_tap_keyboard: b9de90cc013709b1d69f30f0380d48ae
+        cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
+        connect: 3823850ca815607e71802e301da2d082
+        disconnect: eadb7beea3cb00eadad12f674dba9871
         loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
+        server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
+        server_settings_auth_method_api: 05a823e45e5d28f32367f8e7d4fcbedd
+        server_settings_auto: f9b0470a5743b18b3e580b48d9021afb
+        server_settings_connect_provider: 4f256bffe9803346f3521baa1c876758
+        server_settings_default_agent: 5dc3b1a40efc498d2b0ca167aba637db
+        server_settings_default_model: 14b75308d260ec13c644d10251f5661f
+        server_settings_defaults: 2201c35a15a4b53343c439c9919d7be8
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
         server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_models: 5600799b0d72391d4d75dfc8f60b5271
+        server_settings_models_desc: c045ebd3b0bfc1d2c0b743f96de80040
+        server_settings_no_connect_methods: c9430e79e164fba36a9908e6f41ed7e5
+        server_settings_oauth_code_placeholder: 0646f772c066d966068845eb87c6d064
+        server_settings_oauth_complete: e71ddf6e178d742f8026083e885a4122
+        server_settings_oauth_open_browser: 058149fc2b0f205cfd934f2b9f4fc1ab
+        server_settings_oauth_title: 9fb29f2087a545dc0c0897bd862b2f23
+        server_settings_provider_connected: 37c8b870c0b7f44ec108bddeaec1f9ac
+        server_settings_provider_env_connected: 55cecc883e4a8b8157ca7d9031087f3a
+        server_settings_provider_source_api: 95dde771ad8895c7e218872da451fbf8
+        server_settings_provider_source_config: b64335a809c21afefcf95193d6d85198
+        server_settings_provider_source_custom: e6ddca0a2a90676b25c131eb9f3e8d5b
+        server_settings_provider_source_env: 00a6c1f0c5a201a57ebb8ba9d88d9979
+        server_settings_provider_source_other: 7cdb56350c2c669db5d9524bd197278b
+        server_settings_provider_unavailable: 58c26c64140ebe7b08d5e66ee59ea59b
+        server_settings_providers: cf0c9374ab3d04b9ada5d7b12bda92fa
+        server_settings_providers_available: 9eb8b79092bb3074067c554703e985d5
+        server_settings_providers_connected: 6c6b5e959b1b968b57deea3ba48dafee
+        server_settings_providers_desc: 4a69790353ff22e5c086fdf7a1bb8f8d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_small_model: 52c9d645b36d63f59bb7f17745af1e0c
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
+        settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/ja:
+        chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
+        chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
+        chat_shell_executed: a66a123808864f1b1515c04f2434e03c
+        chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
+        chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_terminal_clear: 90c7446b02c813f9625ae0066bd16e50
+        chat_terminal_connect_failed: c816eced82f98f86a386d6273b9e734a
+        chat_terminal_connected: 9d16b85d61ed5d0a72cef82fbc9bce90
+        chat_terminal_ctrl_c: e28660b6af4c2d629ab1ca42209e89ff
+        chat_terminal_disconnected: bda754152b7188fb14e77029915bd217
+        chat_terminal_empty: 20b06b1f92f656d686c90f04c4c6ab40
+        chat_terminal_run: 4ddd02645604a78c6f52bc2cd6e5457a
+        chat_terminal_tap_keyboard: b9de90cc013709b1d69f30f0380d48ae
+        cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
+        connect: 3823850ca815607e71802e301da2d082
+        disconnect: eadb7beea3cb00eadad12f674dba9871
         loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
+        server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
+        server_settings_auth_method_api: 05a823e45e5d28f32367f8e7d4fcbedd
+        server_settings_auto: f9b0470a5743b18b3e580b48d9021afb
+        server_settings_connect_provider: 4f256bffe9803346f3521baa1c876758
+        server_settings_default_agent: 5dc3b1a40efc498d2b0ca167aba637db
+        server_settings_default_model: 14b75308d260ec13c644d10251f5661f
+        server_settings_defaults: 2201c35a15a4b53343c439c9919d7be8
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
         server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_models: 5600799b0d72391d4d75dfc8f60b5271
+        server_settings_models_desc: c045ebd3b0bfc1d2c0b743f96de80040
+        server_settings_no_connect_methods: c9430e79e164fba36a9908e6f41ed7e5
+        server_settings_oauth_code_placeholder: 0646f772c066d966068845eb87c6d064
+        server_settings_oauth_complete: e71ddf6e178d742f8026083e885a4122
+        server_settings_oauth_open_browser: 058149fc2b0f205cfd934f2b9f4fc1ab
+        server_settings_oauth_title: 9fb29f2087a545dc0c0897bd862b2f23
+        server_settings_provider_connected: 37c8b870c0b7f44ec108bddeaec1f9ac
+        server_settings_provider_env_connected: 55cecc883e4a8b8157ca7d9031087f3a
+        server_settings_provider_source_api: 95dde771ad8895c7e218872da451fbf8
+        server_settings_provider_source_config: b64335a809c21afefcf95193d6d85198
+        server_settings_provider_source_custom: e6ddca0a2a90676b25c131eb9f3e8d5b
+        server_settings_provider_source_env: 00a6c1f0c5a201a57ebb8ba9d88d9979
+        server_settings_provider_source_other: 7cdb56350c2c669db5d9524bd197278b
+        server_settings_provider_unavailable: 58c26c64140ebe7b08d5e66ee59ea59b
+        server_settings_providers: cf0c9374ab3d04b9ada5d7b12bda92fa
+        server_settings_providers_available: 9eb8b79092bb3074067c554703e985d5
+        server_settings_providers_connected: 6c6b5e959b1b968b57deea3ba48dafee
+        server_settings_providers_desc: 4a69790353ff22e5c086fdf7a1bb8f8d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_small_model: 52c9d645b36d63f59bb7f17745af1e0c
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
+        settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/ko:
+        chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
+        chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
+        chat_shell_executed: a66a123808864f1b1515c04f2434e03c
+        chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
+        chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_terminal_clear: 90c7446b02c813f9625ae0066bd16e50
+        chat_terminal_connect_failed: c816eced82f98f86a386d6273b9e734a
+        chat_terminal_connected: 9d16b85d61ed5d0a72cef82fbc9bce90
+        chat_terminal_ctrl_c: e28660b6af4c2d629ab1ca42209e89ff
+        chat_terminal_disconnected: bda754152b7188fb14e77029915bd217
+        chat_terminal_empty: 20b06b1f92f656d686c90f04c4c6ab40
+        chat_terminal_run: 4ddd02645604a78c6f52bc2cd6e5457a
+        chat_terminal_tap_keyboard: b9de90cc013709b1d69f30f0380d48ae
+        cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
+        connect: 3823850ca815607e71802e301da2d082
+        disconnect: eadb7beea3cb00eadad12f674dba9871
         loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
+        server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
+        server_settings_auth_method_api: 05a823e45e5d28f32367f8e7d4fcbedd
+        server_settings_auto: f9b0470a5743b18b3e580b48d9021afb
+        server_settings_connect_provider: 4f256bffe9803346f3521baa1c876758
+        server_settings_default_agent: 5dc3b1a40efc498d2b0ca167aba637db
+        server_settings_default_model: 14b75308d260ec13c644d10251f5661f
+        server_settings_defaults: 2201c35a15a4b53343c439c9919d7be8
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
         server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_models: 5600799b0d72391d4d75dfc8f60b5271
+        server_settings_models_desc: c045ebd3b0bfc1d2c0b743f96de80040
+        server_settings_no_connect_methods: c9430e79e164fba36a9908e6f41ed7e5
+        server_settings_oauth_code_placeholder: 0646f772c066d966068845eb87c6d064
+        server_settings_oauth_complete: e71ddf6e178d742f8026083e885a4122
+        server_settings_oauth_open_browser: 058149fc2b0f205cfd934f2b9f4fc1ab
+        server_settings_oauth_title: 9fb29f2087a545dc0c0897bd862b2f23
+        server_settings_provider_connected: 37c8b870c0b7f44ec108bddeaec1f9ac
+        server_settings_provider_env_connected: 55cecc883e4a8b8157ca7d9031087f3a
+        server_settings_provider_source_api: 95dde771ad8895c7e218872da451fbf8
+        server_settings_provider_source_config: b64335a809c21afefcf95193d6d85198
+        server_settings_provider_source_custom: e6ddca0a2a90676b25c131eb9f3e8d5b
+        server_settings_provider_source_env: 00a6c1f0c5a201a57ebb8ba9d88d9979
+        server_settings_provider_source_other: 7cdb56350c2c669db5d9524bd197278b
+        server_settings_provider_unavailable: 58c26c64140ebe7b08d5e66ee59ea59b
+        server_settings_providers: cf0c9374ab3d04b9ada5d7b12bda92fa
+        server_settings_providers_available: 9eb8b79092bb3074067c554703e985d5
+        server_settings_providers_connected: 6c6b5e959b1b968b57deea3ba48dafee
+        server_settings_providers_desc: 4a69790353ff22e5c086fdf7a1bb8f8d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_small_model: 52c9d645b36d63f59bb7f17745af1e0c
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
+        settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/pl:
+        chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
+        chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
+        chat_shell_executed: a66a123808864f1b1515c04f2434e03c
+        chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
+        chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_terminal_clear: 90c7446b02c813f9625ae0066bd16e50
+        chat_terminal_connect_failed: c816eced82f98f86a386d6273b9e734a
+        chat_terminal_connected: 9d16b85d61ed5d0a72cef82fbc9bce90
+        chat_terminal_ctrl_c: e28660b6af4c2d629ab1ca42209e89ff
+        chat_terminal_disconnected: bda754152b7188fb14e77029915bd217
+        chat_terminal_empty: 20b06b1f92f656d686c90f04c4c6ab40
+        chat_terminal_run: 4ddd02645604a78c6f52bc2cd6e5457a
+        chat_terminal_tap_keyboard: b9de90cc013709b1d69f30f0380d48ae
+        cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
+        connect: 3823850ca815607e71802e301da2d082
+        disconnect: eadb7beea3cb00eadad12f674dba9871
         loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
+        server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
+        server_settings_auth_method_api: 05a823e45e5d28f32367f8e7d4fcbedd
+        server_settings_auto: f9b0470a5743b18b3e580b48d9021afb
+        server_settings_connect_provider: 4f256bffe9803346f3521baa1c876758
+        server_settings_default_agent: 5dc3b1a40efc498d2b0ca167aba637db
+        server_settings_default_model: 14b75308d260ec13c644d10251f5661f
+        server_settings_defaults: 2201c35a15a4b53343c439c9919d7be8
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
         server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_models: 5600799b0d72391d4d75dfc8f60b5271
+        server_settings_models_desc: c045ebd3b0bfc1d2c0b743f96de80040
+        server_settings_no_connect_methods: c9430e79e164fba36a9908e6f41ed7e5
+        server_settings_oauth_code_placeholder: 0646f772c066d966068845eb87c6d064
+        server_settings_oauth_complete: e71ddf6e178d742f8026083e885a4122
+        server_settings_oauth_open_browser: 058149fc2b0f205cfd934f2b9f4fc1ab
+        server_settings_oauth_title: 9fb29f2087a545dc0c0897bd862b2f23
+        server_settings_provider_connected: 37c8b870c0b7f44ec108bddeaec1f9ac
+        server_settings_provider_env_connected: 55cecc883e4a8b8157ca7d9031087f3a
+        server_settings_provider_source_api: 95dde771ad8895c7e218872da451fbf8
+        server_settings_provider_source_config: b64335a809c21afefcf95193d6d85198
+        server_settings_provider_source_custom: e6ddca0a2a90676b25c131eb9f3e8d5b
+        server_settings_provider_source_env: 00a6c1f0c5a201a57ebb8ba9d88d9979
+        server_settings_provider_source_other: 7cdb56350c2c669db5d9524bd197278b
+        server_settings_provider_unavailable: 58c26c64140ebe7b08d5e66ee59ea59b
+        server_settings_providers: cf0c9374ab3d04b9ada5d7b12bda92fa
+        server_settings_providers_available: 9eb8b79092bb3074067c554703e985d5
+        server_settings_providers_connected: 6c6b5e959b1b968b57deea3ba48dafee
+        server_settings_providers_desc: 4a69790353ff22e5c086fdf7a1bb8f8d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_small_model: 52c9d645b36d63f59bb7f17745af1e0c
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
+        settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/pt-BR:
+        chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
+        chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
+        chat_shell_executed: a66a123808864f1b1515c04f2434e03c
+        chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
+        chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_terminal_clear: 90c7446b02c813f9625ae0066bd16e50
+        chat_terminal_connect_failed: c816eced82f98f86a386d6273b9e734a
+        chat_terminal_connected: 9d16b85d61ed5d0a72cef82fbc9bce90
+        chat_terminal_ctrl_c: e28660b6af4c2d629ab1ca42209e89ff
+        chat_terminal_disconnected: bda754152b7188fb14e77029915bd217
+        chat_terminal_empty: 20b06b1f92f656d686c90f04c4c6ab40
+        chat_terminal_run: 4ddd02645604a78c6f52bc2cd6e5457a
+        chat_terminal_tap_keyboard: b9de90cc013709b1d69f30f0380d48ae
+        cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
+        connect: 3823850ca815607e71802e301da2d082
+        disconnect: eadb7beea3cb00eadad12f674dba9871
         loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
+        server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
+        server_settings_auth_method_api: 05a823e45e5d28f32367f8e7d4fcbedd
+        server_settings_auto: f9b0470a5743b18b3e580b48d9021afb
+        server_settings_connect_provider: 4f256bffe9803346f3521baa1c876758
+        server_settings_default_agent: 5dc3b1a40efc498d2b0ca167aba637db
+        server_settings_default_model: 14b75308d260ec13c644d10251f5661f
+        server_settings_defaults: 2201c35a15a4b53343c439c9919d7be8
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
         server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_models: 5600799b0d72391d4d75dfc8f60b5271
+        server_settings_models_desc: c045ebd3b0bfc1d2c0b743f96de80040
+        server_settings_no_connect_methods: c9430e79e164fba36a9908e6f41ed7e5
+        server_settings_oauth_code_placeholder: 0646f772c066d966068845eb87c6d064
+        server_settings_oauth_complete: e71ddf6e178d742f8026083e885a4122
+        server_settings_oauth_open_browser: 058149fc2b0f205cfd934f2b9f4fc1ab
+        server_settings_oauth_title: 9fb29f2087a545dc0c0897bd862b2f23
+        server_settings_provider_connected: 37c8b870c0b7f44ec108bddeaec1f9ac
+        server_settings_provider_env_connected: 55cecc883e4a8b8157ca7d9031087f3a
+        server_settings_provider_source_api: 95dde771ad8895c7e218872da451fbf8
+        server_settings_provider_source_config: b64335a809c21afefcf95193d6d85198
+        server_settings_provider_source_custom: e6ddca0a2a90676b25c131eb9f3e8d5b
+        server_settings_provider_source_env: 00a6c1f0c5a201a57ebb8ba9d88d9979
+        server_settings_provider_source_other: 7cdb56350c2c669db5d9524bd197278b
+        server_settings_provider_unavailable: 58c26c64140ebe7b08d5e66ee59ea59b
+        server_settings_providers: cf0c9374ab3d04b9ada5d7b12bda92fa
+        server_settings_providers_available: 9eb8b79092bb3074067c554703e985d5
+        server_settings_providers_connected: 6c6b5e959b1b968b57deea3ba48dafee
+        server_settings_providers_desc: 4a69790353ff22e5c086fdf7a1bb8f8d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_small_model: 52c9d645b36d63f59bb7f17745af1e0c
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
+        settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/ru:
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_empty: 25043979d5b514569e04176c8195da2c
@@ -88,27 +598,184 @@ checksums:
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
     OC Remote Android/tr:
+        chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
+        chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
+        chat_shell_executed: a66a123808864f1b1515c04f2434e03c
+        chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
+        chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_terminal_clear: 90c7446b02c813f9625ae0066bd16e50
+        chat_terminal_connect_failed: c816eced82f98f86a386d6273b9e734a
+        chat_terminal_connected: 9d16b85d61ed5d0a72cef82fbc9bce90
+        chat_terminal_ctrl_c: e28660b6af4c2d629ab1ca42209e89ff
+        chat_terminal_disconnected: bda754152b7188fb14e77029915bd217
+        chat_terminal_empty: 20b06b1f92f656d686c90f04c4c6ab40
+        chat_terminal_run: 4ddd02645604a78c6f52bc2cd6e5457a
+        chat_terminal_tap_keyboard: b9de90cc013709b1d69f30f0380d48ae
+        cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
+        connect: 3823850ca815607e71802e301da2d082
+        disconnect: eadb7beea3cb00eadad12f674dba9871
         loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
+        server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
+        server_settings_auth_method_api: 05a823e45e5d28f32367f8e7d4fcbedd
+        server_settings_auto: f9b0470a5743b18b3e580b48d9021afb
+        server_settings_connect_provider: 4f256bffe9803346f3521baa1c876758
+        server_settings_default_agent: 5dc3b1a40efc498d2b0ca167aba637db
+        server_settings_default_model: 14b75308d260ec13c644d10251f5661f
+        server_settings_defaults: 2201c35a15a4b53343c439c9919d7be8
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
         server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_models: 5600799b0d72391d4d75dfc8f60b5271
+        server_settings_models_desc: c045ebd3b0bfc1d2c0b743f96de80040
+        server_settings_no_connect_methods: c9430e79e164fba36a9908e6f41ed7e5
+        server_settings_oauth_code_placeholder: 0646f772c066d966068845eb87c6d064
+        server_settings_oauth_complete: e71ddf6e178d742f8026083e885a4122
+        server_settings_oauth_open_browser: 058149fc2b0f205cfd934f2b9f4fc1ab
+        server_settings_oauth_title: 9fb29f2087a545dc0c0897bd862b2f23
+        server_settings_provider_connected: 37c8b870c0b7f44ec108bddeaec1f9ac
+        server_settings_provider_env_connected: 55cecc883e4a8b8157ca7d9031087f3a
+        server_settings_provider_source_api: 95dde771ad8895c7e218872da451fbf8
+        server_settings_provider_source_config: b64335a809c21afefcf95193d6d85198
+        server_settings_provider_source_custom: e6ddca0a2a90676b25c131eb9f3e8d5b
+        server_settings_provider_source_env: 00a6c1f0c5a201a57ebb8ba9d88d9979
+        server_settings_provider_source_other: 7cdb56350c2c669db5d9524bd197278b
+        server_settings_provider_unavailable: 58c26c64140ebe7b08d5e66ee59ea59b
+        server_settings_providers: cf0c9374ab3d04b9ada5d7b12bda92fa
+        server_settings_providers_available: 9eb8b79092bb3074067c554703e985d5
+        server_settings_providers_connected: 6c6b5e959b1b968b57deea3ba48dafee
+        server_settings_providers_desc: 4a69790353ff22e5c086fdf7a1bb8f8d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_small_model: 52c9d645b36d63f59bb7f17745af1e0c
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
+        settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/uk:
+        chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
+        chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
+        chat_shell_executed: a66a123808864f1b1515c04f2434e03c
+        chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
+        chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_terminal_clear: 90c7446b02c813f9625ae0066bd16e50
+        chat_terminal_connect_failed: c816eced82f98f86a386d6273b9e734a
+        chat_terminal_connected: 9d16b85d61ed5d0a72cef82fbc9bce90
+        chat_terminal_ctrl_c: e28660b6af4c2d629ab1ca42209e89ff
+        chat_terminal_disconnected: bda754152b7188fb14e77029915bd217
+        chat_terminal_empty: 20b06b1f92f656d686c90f04c4c6ab40
+        chat_terminal_run: 4ddd02645604a78c6f52bc2cd6e5457a
+        chat_terminal_tap_keyboard: b9de90cc013709b1d69f30f0380d48ae
+        cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
+        connect: 3823850ca815607e71802e301da2d082
+        disconnect: eadb7beea3cb00eadad12f674dba9871
         loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
+        server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
+        server_settings_auth_method_api: 05a823e45e5d28f32367f8e7d4fcbedd
+        server_settings_auto: f9b0470a5743b18b3e580b48d9021afb
+        server_settings_connect_provider: 4f256bffe9803346f3521baa1c876758
+        server_settings_default_agent: 5dc3b1a40efc498d2b0ca167aba637db
+        server_settings_default_model: 14b75308d260ec13c644d10251f5661f
+        server_settings_defaults: 2201c35a15a4b53343c439c9919d7be8
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
         server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_models: 5600799b0d72391d4d75dfc8f60b5271
+        server_settings_models_desc: c045ebd3b0bfc1d2c0b743f96de80040
+        server_settings_no_connect_methods: c9430e79e164fba36a9908e6f41ed7e5
+        server_settings_oauth_code_placeholder: 0646f772c066d966068845eb87c6d064
+        server_settings_oauth_complete: e71ddf6e178d742f8026083e885a4122
+        server_settings_oauth_open_browser: 058149fc2b0f205cfd934f2b9f4fc1ab
+        server_settings_oauth_title: 9fb29f2087a545dc0c0897bd862b2f23
+        server_settings_provider_connected: 37c8b870c0b7f44ec108bddeaec1f9ac
+        server_settings_provider_env_connected: 55cecc883e4a8b8157ca7d9031087f3a
+        server_settings_provider_source_api: 95dde771ad8895c7e218872da451fbf8
+        server_settings_provider_source_config: b64335a809c21afefcf95193d6d85198
+        server_settings_provider_source_custom: e6ddca0a2a90676b25c131eb9f3e8d5b
+        server_settings_provider_source_env: 00a6c1f0c5a201a57ebb8ba9d88d9979
+        server_settings_provider_source_other: 7cdb56350c2c669db5d9524bd197278b
+        server_settings_provider_unavailable: 58c26c64140ebe7b08d5e66ee59ea59b
+        server_settings_providers: cf0c9374ab3d04b9ada5d7b12bda92fa
+        server_settings_providers_available: 9eb8b79092bb3074067c554703e985d5
+        server_settings_providers_connected: 6c6b5e959b1b968b57deea3ba48dafee
+        server_settings_providers_desc: 4a69790353ff22e5c086fdf7a1bb8f8d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_small_model: 52c9d645b36d63f59bb7f17745af1e0c
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
+        settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/zh-CN:
+        chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
+        chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
+        chat_shell_executed: a66a123808864f1b1515c04f2434e03c
+        chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
+        chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_terminal_clear: 90c7446b02c813f9625ae0066bd16e50
+        chat_terminal_connect_failed: c816eced82f98f86a386d6273b9e734a
+        chat_terminal_connected: 9d16b85d61ed5d0a72cef82fbc9bce90
+        chat_terminal_ctrl_c: e28660b6af4c2d629ab1ca42209e89ff
+        chat_terminal_disconnected: bda754152b7188fb14e77029915bd217
+        chat_terminal_empty: 20b06b1f92f656d686c90f04c4c6ab40
+        chat_terminal_run: 4ddd02645604a78c6f52bc2cd6e5457a
+        chat_terminal_tap_keyboard: b9de90cc013709b1d69f30f0380d48ae
+        cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
+        connect: 3823850ca815607e71802e301da2d082
+        disconnect: eadb7beea3cb00eadad12f674dba9871
         loading: a59711a98c591a8cf02d5fd9c104aec7
+        server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
+        server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
+        server_settings_auth_method_api: 05a823e45e5d28f32367f8e7d4fcbedd
+        server_settings_auto: f9b0470a5743b18b3e580b48d9021afb
+        server_settings_connect_provider: 4f256bffe9803346f3521baa1c876758
+        server_settings_default_agent: 5dc3b1a40efc498d2b0ca167aba637db
+        server_settings_default_model: 14b75308d260ec13c644d10251f5661f
+        server_settings_defaults: 2201c35a15a4b53343c439c9919d7be8
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
         server_settings_model_filter: 02ecc257b5aa6fee29c623c257659cf2
         server_settings_model_filter_desc: 8dbfec38042af6878843c5de9395201d
+        server_settings_models: 5600799b0d72391d4d75dfc8f60b5271
+        server_settings_models_desc: c045ebd3b0bfc1d2c0b743f96de80040
+        server_settings_no_connect_methods: c9430e79e164fba36a9908e6f41ed7e5
+        server_settings_oauth_code_placeholder: 0646f772c066d966068845eb87c6d064
+        server_settings_oauth_complete: e71ddf6e178d742f8026083e885a4122
+        server_settings_oauth_open_browser: 058149fc2b0f205cfd934f2b9f4fc1ab
+        server_settings_oauth_title: 9fb29f2087a545dc0c0897bd862b2f23
+        server_settings_provider_connected: 37c8b870c0b7f44ec108bddeaec1f9ac
+        server_settings_provider_env_connected: 55cecc883e4a8b8157ca7d9031087f3a
+        server_settings_provider_source_api: 95dde771ad8895c7e218872da451fbf8
+        server_settings_provider_source_config: b64335a809c21afefcf95193d6d85198
+        server_settings_provider_source_custom: e6ddca0a2a90676b25c131eb9f3e8d5b
+        server_settings_provider_source_env: 00a6c1f0c5a201a57ebb8ba9d88d9979
+        server_settings_provider_source_other: 7cdb56350c2c669db5d9524bd197278b
+        server_settings_provider_unavailable: 58c26c64140ebe7b08d5e66ee59ea59b
+        server_settings_providers: cf0c9374ab3d04b9ada5d7b12bda92fa
+        server_settings_providers_available: 9eb8b79092bb3074067c554703e985d5
+        server_settings_providers_connected: 6c6b5e959b1b968b57deea3ba48dafee
+        server_settings_providers_desc: 4a69790353ff22e5c086fdf7a1bb8f8d
         server_settings_search_placeholder: e4b96b20c637901086dc6784fac36041
+        server_settings_small_model: 52c9d645b36d63f59bb7f17745af1e0c
         server_settings_title: 18cf5b1e3344f529941c3f9cf5d9e979
+        sessions_delete_selected: 02d9affb916de12629faca8e3cb6d320
+        sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
+        sessions_select_all: 00410497fa6957c2c9d7593808dca615
+        sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
+        settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587

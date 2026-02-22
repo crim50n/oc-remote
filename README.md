@@ -45,11 +45,13 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Load older messages** — pagination for large sessions (initial 50, expandable)
 - **OOM protection** — `largeHeap` enabled, reduced logging, pagination prevents crashes on huge sessions
 - **Session export** — export full session as JSON file with streaming progress notification
+- **Multi-select in sessions** — long-press to enter selection mode, select multiple sessions, and delete in one action
 - **Draft persistence** — input text, image attachments, and @file mentions saved per session; survives navigation, app restart, and WebUI detours
 
 ### Model & Agent Selection
 - **Model picker** — select provider and model with variant support; provider icons shown in headers
 - **Agent selector** — tap to cycle through agents; each agent colored with its TUI theme color (blue, purple, green…)
+- **Reliable agent mode persistence** — explicit Plan/Build choice is preserved correctly between UI state and sent commands
 - **Provider icons** — 74 vector icons for AI providers shown in model picker and next to assistant responses
 - **Token usage** — displays total tokens and cost in toolbar subtitle
 - **Context window** — percentage display above input, color-coded (normal < 70%, warning 70-90%, critical > 90%)
