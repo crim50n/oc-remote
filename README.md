@@ -36,10 +36,12 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Reliable PTY resize** — rows/cols update with viewport changes and IME transitions
 - **TUI rendering improvements** — better full-grid rendering behavior for apps like `mc`
 - **Terminal shortcuts** — Ctrl/Alt latching, volume-key virtual modifiers (Ctrl/Fn), and `Ctrl+Alt+V` paste
+- **Selection toolbar paste** — terminal selection menu includes paste action integrated with terminal input
 
 ### Session Management  
 - **Multi-session** — switch between sessions, view history
 - **Session actions** — create, fork, compact, share/unshare, rename via dropdown menu
+- **Quick terminal launch** — open the latest session directly in terminal mode from the sessions top bar
 - **Load older messages** — pagination for large sessions (initial 50, expandable)
 - **OOM protection** — `largeHeap` enabled, reduced logging, pagination prevents crashes on huge sessions
 - **Session export** — export full session as JSON file with streaming progress notification

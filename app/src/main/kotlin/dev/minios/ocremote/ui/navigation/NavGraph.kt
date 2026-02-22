@@ -429,7 +429,7 @@ fun NavGraph(
             )
 
             SessionListScreen(
-                onNavigateToChat = { sessionId ->
+                onNavigateToChat = { sessionId, openTerminal ->
                     navController.navigate(
                         Screen.Chat.createRoute(
                             serverUrl = serverUrl,
@@ -437,7 +437,8 @@ fun NavGraph(
                             password = password,
                             serverName = serverName,
                             serverId = serverId,
-                            sessionId = sessionId
+                            sessionId = sessionId,
+                            openTerminal = openTerminal
                         )
                     )
                 },
@@ -449,14 +450,15 @@ fun NavGraph(
         
         // ============ Chat Screen (native) ============
         composable(
-            route = "chat?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}&sessionId={sessionId}",
+            route = "chat?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}&sessionId={sessionId}&openTerminal={openTerminal}",
             arguments = listOf(
                 navArgument("serverUrl") { type = NavType.StringType },
                 navArgument("username") { type = NavType.StringType },
                 navArgument("password") { type = NavType.StringType },
                 navArgument("serverName") { type = NavType.StringType },
                 navArgument("serverId") { type = NavType.StringType },
-                navArgument("sessionId") { type = NavType.StringType }
+                navArgument("sessionId") { type = NavType.StringType },
+                navArgument("openTerminal") { type = NavType.BoolType; defaultValue = false }
             )
         ) { backStackEntry ->
             val serverUrl = URLDecoder.decode(
@@ -477,6 +479,7 @@ fun NavGraph(
             val sessionId = URLDecoder.decode(
                 backStackEntry.arguments?.getString("sessionId") ?: "", "UTF-8"
             )
+            val openTerminal = backStackEntry.arguments?.getBoolean("openTerminal") ?: false
 
             // Only pass shared images to the targeted session, then clear them
             val imagesForThisSession = if (pendingShareSessionId == sessionId && pendingShareUris.isNotEmpty()) {
@@ -527,7 +530,8 @@ fun NavGraph(
                 onSharedImagesConsumed = {
                     pendingShareUris = emptyList()
                     pendingShareSessionId = null
-                }
+                },
+                startInTerminalMode = openTerminal
             )
         }
     }

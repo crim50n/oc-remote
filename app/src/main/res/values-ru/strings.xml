@@ -326,7 +326,7 @@
     <string name="about_description">Клиент для Android для серверов OpenCode</string>
     <string name="about_unofficial">Это неофициальный проект сообщества, не связанный с командой OpenCode.</string>
     <string name="about_github">GitHub</string>
-    <string name="about_github_url">https://github.com/minios-linux/oc-remote</string>
+    <string name="about_github_url">https://github.com/crim50n/oc-remote</string>
     <string name="about_opencode">OpenCode</string>
     <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
     <string name="about_license">Лицензия</string>

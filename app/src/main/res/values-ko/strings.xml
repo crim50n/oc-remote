@@ -308,7 +308,7 @@
     <string name="about_description">OpenCode 서버용 Android 클라이언트</string>
     <string name="about_unofficial">이 앱은 OpenCode 팀과 관련 없는 비공식 커뮤니티 프로젝트입니다.</string>
     <string name="about_github">GitHub</string>
-    <string name="about_github_url">https://github.com/minios-linux/oc-remote</string>
+    <string name="about_github_url">https://github.com/crim50n/oc-remote</string>
     <string name="about_opencode">OpenCode</string>
     <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
     <string name="about_license">라이선스</string>

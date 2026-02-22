@@ -61,6 +61,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -70,7 +71,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.TextToolbar
+import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -521,6 +525,7 @@ fun ChatScreen(
     onOpenInWebView: () -> Unit = {},
     initialSharedImages: List<Uri> = emptyList(),
     onSharedImagesConsumed: () -> Unit = {},
+    startInTerminalMode: Boolean = false,
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -545,7 +550,7 @@ fun ChatScreen(
     var showModelPicker by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
-    var isTerminalMode by rememberSaveable { mutableStateOf(false) }
+    var isTerminalMode by rememberSaveable { mutableStateOf(startInTerminalMode) }
     var terminalCtrlLatched by rememberSaveable { mutableStateOf(false) }
     var terminalAltLatched by rememberSaveable { mutableStateOf(false) }
     var terminalVirtualCtrlDown by remember { mutableStateOf(false) }
@@ -652,6 +657,19 @@ fun ChatScreen(
         }
     }
 
+    fun pasteClipboardToTerminal() {
+        if (!terminalConnected) return
+        val clip = clipboardManager.getText()?.text ?: return
+        if (clip.isEmpty()) return
+        val cleaned = clip
+            .replace(Regex("[\u001B\u0080-\u009F]"), "")
+            .replace("\r\n", "\r")
+            .replace('\n', '\r')
+        if (cleaned.isNotEmpty()) {
+            viewModel.sendTerminalInput(cleaned)
+        }
+    }
+
     fun sendTerminalChunk(chunk: String) {
         if (!terminalVirtualFnDown) {
             val now = SystemClock.elapsedRealtime()
@@ -671,16 +689,7 @@ fun ChatScreen(
 
         // Termux-compatible shortcut: Ctrl+Alt+V pastes clipboard into terminal.
         if (!terminalVirtualFnDown && ctrlActive && altActive && chunk.length == 1 && chunk[0].lowercaseChar() == 'v') {
-            if (terminalConnected) {
-                val clip = clipboardManager.getText()?.text
-                if (!clip.isNullOrEmpty()) {
-                    val cleaned = clip
-                        .replace(Regex("[\u001B\u0080-\u009F]"), "")
-                        .replace("\r\n", "\r")
-                        .replace('\n', '\r')
-                    if (cleaned.isNotEmpty()) viewModel.sendTerminalInput(cleaned)
-                }
-            }
+            pasteClipboardToTerminal()
             if (terminalCtrlLatched) terminalCtrlLatched = false
             if (terminalAltLatched) terminalAltLatched = false
             return
@@ -1671,6 +1680,7 @@ fun ChatScreen(
                                 connected = terminalConnected,
                                 focusRequester = terminalFocusRequester,
                                 onSendInput = ::sendTerminalChunk,
+                                onPaste = ::pasteClipboardToTerminal,
                                 onResize = { cols, rows ->
                                     viewModel.resizeTerminal(cols, rows)
                                 },
@@ -2219,6 +2229,7 @@ private fun SessionTerminalInline(
     connected: Boolean,
     focusRequester: FocusRequester,
     onSendInput: (String) -> Unit,
+    onPaste: () -> Unit,
     onResize: (cols: Int, rows: Int) -> Unit,
     fontSizeSp: Float,
     onFontSizeChange: (Float) -> Unit,
@@ -2228,7 +2239,38 @@ private fun SessionTerminalInline(
     val isAmoled = isAmoledTheme()
     val renderedOutput = remember(terminalVersion) { emulator.render() }
     val keyboard = LocalSoftwareKeyboardController.current
+    val baseTextToolbar = LocalTextToolbar.current
     var inputCapture by remember { mutableStateOf(TextFieldValue("")) }
+
+    val terminalTextToolbar = remember(baseTextToolbar, onPaste) {
+        object : TextToolbar {
+            override val status: TextToolbarStatus
+                get() = baseTextToolbar.status
+
+            override fun hide() {
+                baseTextToolbar.hide()
+            }
+
+            override fun showMenu(
+                rect: Rect,
+                onCopyRequested: (() -> Unit)?,
+                onPasteRequested: (() -> Unit)?,
+                onCutRequested: (() -> Unit)?,
+                onSelectAllRequested: (() -> Unit)?
+            ) {
+                baseTextToolbar.showMenu(
+                    rect = rect,
+                    onCopyRequested = onCopyRequested,
+                    onPasteRequested = {
+                        onPaste()
+                        onPasteRequested?.invoke()
+                    },
+                    onCutRequested = onCutRequested,
+                    onSelectAllRequested = onSelectAllRequested
+                )
+            }
+        }
+    }
 
     val terminalStyle = remember(fontSizeSp) {
         CodeTypography.copy(
@@ -2377,15 +2419,17 @@ private fun SessionTerminalInline(
 
             Box(modifier = Modifier.fillMaxSize()) {
                 // Termux-like: always allow text selection via long-press (native handles + copy toolbar).
-                SelectionContainer {
-                    Text(
-                        text = renderedOutput,
-                        style = terminalStyle,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        softWrap = false,
-                        maxLines = Int.MAX_VALUE,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                CompositionLocalProvider(LocalTextToolbar provides terminalTextToolbar) {
+                    SelectionContainer {
+                        Text(
+                            text = renderedOutput,
+                            style = terminalStyle,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            softWrap = false,
+                            maxLines = Int.MAX_VALUE,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
 
                 if (connected) {

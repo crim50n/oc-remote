@@ -107,17 +107,25 @@ private fun PulsingDotsIndicator(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionListScreen(
-    onNavigateToChat: (sessionId: String) -> Unit,
+    onNavigateToChat: (sessionId: String, openTerminal: Boolean) -> Unit,
     onNavigateBack: () -> Unit,
     viewModel: SessionListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isAmoled = isAmoledTheme()
+    var openNextCreatedInTerminal by remember { mutableStateOf(false) }
+
+    val latestSessionId = remember(uiState.sessionGroups) {
+        uiState.sessionGroups.firstOrNull()?.sessions?.firstOrNull()?.session?.id
+    }
 
     // Navigate to newly created session
     LaunchedEffect(viewModel) {
         viewModel.navigateToSession
-            .onEach { sessionId -> onNavigateToChat(sessionId) }
+            .onEach { sessionId ->
+                onNavigateToChat(sessionId, openNextCreatedInTerminal)
+                openNextCreatedInTerminal = false
+            }
             .launchIn(this)
     }
 
@@ -152,6 +160,22 @@ fun SessionListScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = {
+                            val sessionId = latestSessionId
+                            if (sessionId != null) {
+                                onNavigateToChat(sessionId, true)
+                            } else {
+                                openNextCreatedInTerminal = true
+                                viewModel.createNewSession()
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Terminal,
+                            contentDescription = stringResource(R.string.tool_terminal)
+                        )
+                    }
                 }
             )
         },
@@ -270,7 +294,7 @@ fun SessionListScreen(
                                 SessionRow(
                                     item = item,
                                     projectName = dirLabel,
-                                    onClick = { onNavigateToChat(item.session.id) },
+                                    onClick = { onNavigateToChat(item.session.id, false) },
                                     onRename = {
                                         renameSessionId = item.session.id
                                         renameText = item.session.title ?: ""
