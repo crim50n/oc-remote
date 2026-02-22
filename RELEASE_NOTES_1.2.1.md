@@ -13,7 +13,6 @@ Patch release focused on terminal stability, command correctness, and drawer usa
   - command names are normalized,
   - session directory is loaded when missing,
   - default path argument is injected for `/init` when not provided.
-- Reduced stray `~` input leakage after `F10` (Fn+0) exit flows in terminal apps.
 - Restored blinking terminal cursor using an overlay approach so text selection/copy handles remain stable.
 - Polished terminal drawer UI for offline tabs with clearer status and reconnect affordance.
 - Improved drawer controls when IME is visible by applying keyboard-aware padding.
