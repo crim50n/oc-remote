@@ -19,6 +19,7 @@ DEBIAN_ROOTFS_SHA256="3834a11cbc6496935760bdc20cca7e2c25724d0cd8f5e4926da8fd5ca1
 TERMUX_REQUIRED_PACKAGES=(proot-distro curl jq)
 WAKE_LOCK_HELD=0
 STEP_NUMBER=0
+TERMUX_RESTART_REQUIRED=0
 
 # Geographically diverse, high-reliability Termux mirrors.
 # The script tests each and picks the fastest for the user.
@@ -83,6 +84,9 @@ success_banner() {
     printf "\n"
     printf "  ${GREEN}${BOLD}Setup complete${RESET}\n"
     printf "  ${DIM}CLI control:${RESET} ${BOLD}opencode-local start|stop|status${RESET}\n"
+    if (( TERMUX_RESTART_REQUIRED == 1 )); then
+        printf "  ${YELLOW}${BOLD}Important:${RESET} ${DIM}Force-stop and reopen Termux once so allow-external-apps is applied.${RESET}\n"
+    fi
     printf "  ${DIM}Return to OC Remote and tap Start.${RESET}\n\n"
 }
 
@@ -221,16 +225,19 @@ ensure_termux_properties() {
         return
     fi
 
-    if grep -Eq '^\s*allow-external-apps\s*=' "$TERMUX_PROPERTIES_FILE"; then
-        sed -i 's/^\s*allow-external-apps\s*=.*/allow-external-apps = true/' "$TERMUX_PROPERTIES_FILE"
+    if grep -Eq '^\s*#?\s*allow-external-apps\s*=' "$TERMUX_PROPERTIES_FILE"; then
+        sed -i 's/^\s*#\?\s*allow-external-apps\s*=.*/allow-external-apps = true/' "$TERMUX_PROPERTIES_FILE"
     else
         printf "\nallow-external-apps = true\n" >> "$TERMUX_PROPERTIES_FILE"
     fi
+
+    TERMUX_RESTART_REQUIRED=1
 
     if command -v termux-reload-settings >/dev/null 2>&1; then
         termux-reload-settings >/dev/null 2>&1 || true
     fi
     ok "allow-external-apps enabled"
+    warn "Force-stop and reopen Termux once to fully apply allow-external-apps"
 }
 
 ensure_termux_packages() {
@@ -291,6 +298,51 @@ proot_exec() {
     proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$1"
 }
 
+resolve_opencode_binary_in_distro() {
+    proot_exec '
+        for candidate in \
+            /usr/local/bin/opencode \
+            /root/.opencode/bin/opencode \
+            /root/.local/bin/opencode
+        do
+            if [[ -x "$candidate" ]]; then
+                printf "%s\n" "$candidate"
+                exit 0
+            fi
+        done
+        exit 1
+    '
+}
+
+opencode_version_in_distro() {
+    proot_exec '
+        export PATH="/usr/local/bin:/usr/bin:/bin:/root/.opencode/bin:/root/.local/bin:$PATH"
+        if command -v opencode >/dev/null 2>&1; then
+            opencode --version
+            exit 0
+        fi
+
+        for candidate in /root/.opencode/bin/opencode /root/.local/bin/opencode /usr/local/bin/opencode; do
+            if [[ -x "$candidate" ]]; then
+                "$candidate" --version
+                exit 0
+            fi
+        done
+
+        exit 1
+    ' 2>/dev/null | tr -d '\r'
+}
+
+repair_opencode_command_path() {
+    local resolved
+    if ! resolved="$(resolve_opencode_binary_in_distro 2>/dev/null)"; then
+        return 1
+    fi
+
+    proot_exec "ln -sfn '$resolved' /usr/local/bin/opencode"
+    return 0
+}
+
 setup_distro_packages() {
     local needed=""
 
@@ -314,7 +366,11 @@ setup_distro_packages() {
 # ── OpenCode binary ───────────────────────────────────────────────────
 install_opencode_binary() {
     local current
-    current="$(proot_exec "opencode --version 2>/dev/null || true" | tr -d '\r')"
+    current="$(opencode_version_in_distro || true)"
+
+    if [[ -n "$current" ]]; then
+        repair_opencode_command_path || true
+    fi
 
     if [[ "$current" == "$OPENCODE_VERSION" ]]; then
         skip "OpenCode $OPENCODE_VERSION already installed"
@@ -326,9 +382,11 @@ install_opencode_binary() {
     fi
 
     proot_exec "rm -f /usr/local/bin/opencode; curl -fsSL https://opencode.ai/install | OPENCODE_VERSION=$OPENCODE_VERSION bash" || die "Failed to install OpenCode"
+    repair_opencode_command_path || die "OpenCode installed but command path could not be repaired"
 
     local installed
-    installed="$(proot_exec "opencode --version" | tr -d '\r')"
+    installed="$(opencode_version_in_distro || true)"
+    [[ -n "$installed" ]] || die "OpenCode installed but command still not executable"
     [[ "$installed" == "$OPENCODE_VERSION" ]] || die "Version mismatch: got $installed, expected $OPENCODE_VERSION"
     ok "OpenCode $OPENCODE_VERSION installed"
 }
@@ -380,7 +438,7 @@ if [[ -n "${OPENCODE_PROXY_URL:-}" ]]; then
     PROXY_EXPORTS+=" export HTTP_PROXY=\"$OPENCODE_PROXY_URL\"; export HTTPS_PROXY=\"$OPENCODE_PROXY_URL\"; export ALL_PROXY=\"$OPENCODE_PROXY_URL\"; export http_proxy=\"$OPENCODE_PROXY_URL\"; export https_proxy=\"$OPENCODE_PROXY_URL\"; export all_proxy=\"$OPENCODE_PROXY_URL\";"
 fi
 
-exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$PROXY_EXPORTS exec opencode serve --hostname $HOST --port $PORT"
+exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$PROXY_EXPORTS export PATH=\"/usr/local/bin:/usr/bin:/bin:/root/.opencode/bin:/root/.local/bin:\$PATH\"; OPENCODE_BIN=\"\$(command -v opencode || true)\"; if [[ -z \"\$OPENCODE_BIN\" ]]; then for candidate in /root/.opencode/bin/opencode /root/.local/bin/opencode /usr/local/bin/opencode; do [[ -x \"\$candidate\" ]] && OPENCODE_BIN=\"\$candidate\" && break; done; fi; if [[ -z \"\$OPENCODE_BIN\" ]]; then echo \"opencode binary not found in distro\" >&2; exit 127; fi; exec \"\$OPENCODE_BIN\" serve --hostname \"$HOST\" --port \"$PORT\""
 EOF
 
     cat > "$INSTALL_DIR/stop.sh" <<'EOF'
@@ -503,9 +561,9 @@ doctor() {
     fi
 
     # OpenCode binary
-    if proot_exec "command -v opencode >/dev/null 2>&1"; then
-        local ver
-        ver="$(proot_exec "opencode --version" | tr -d '\r')"
+    local ver
+    ver="$(opencode_version_in_distro || true)"
+    if [[ -n "$ver" ]]; then
         if [[ "$ver" == "$OPENCODE_VERSION" ]]; then
             printf "  %-28s ${GREEN}${ver}${RESET}\n" "OpenCode"
         else
