@@ -95,12 +95,17 @@ class LocalServerManager @Inject constructor(
         }
     }
 
-    fun startServer(callerContext: Context): Result<Unit> {
+    fun startServer(callerContext: Context, proxyUrl: String? = null): Result<Unit> {
         return runCatching {
             check(isTermuxInstalled()) { "Termux is not installed" }
+            val args = if (proxyUrl.isNullOrBlank()) {
+                emptyArray()
+            } else {
+                arrayOf("--proxy", proxyUrl)
+            }
             val intent = buildRunCommandIntent(
                 commandPath = START_SCRIPT,
-                args = emptyArray(),
+                args = args,
                 background = false,
                 sessionAction = "1",
             )

@@ -1,5 +1,6 @@
 package dev.minios.ocremote.ui.screens.sessions
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -177,7 +178,7 @@ fun SessionListScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = if (isAmoledTheme()) Color(0xFF1E1E1E) else MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = if (isAmoledTheme()) Color.Black else MaterialTheme.colorScheme.surfaceVariant
                     )
                 )
             } else {
@@ -551,6 +552,7 @@ private fun OpenProjectDialog(
     onDismiss: () -> Unit
 ) {
     val isAmoled = isAmoledTheme()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     var searchQuery by remember { mutableStateOf("") }
     var currentDir by remember { mutableStateOf<String?>(null) }
@@ -558,6 +560,10 @@ private fun OpenProjectDialog(
     var directories by remember { mutableStateOf<List<FileNode>>(emptyList()) }
     var searchResults by remember { mutableStateOf<List<String>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var showCreateFolderDialog by remember { mutableStateOf(false) }
+    var newFolderName by remember { mutableStateOf("") }
+    var isCreatingFolder by remember { mutableStateOf(false) }
+    var createFolderError by remember { mutableStateOf<String?>(null) }
     val focusRequester = remember { FocusRequester() }
 
     val isSearching = searchQuery.isNotBlank()
@@ -754,90 +760,218 @@ private fun OpenProjectDialog(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                 )
 
-                // Content
-                when {
-                    isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            PulsingDotsIndicator(dotSize = 10.dp, dotSpacing = 6.dp)
-                        }
-                    }
-                    isSearching -> {
-                        // Search results
-                        if (searchResults.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Content
+                    when {
+                        isLoading -> {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = stringResource(R.string.sessions_no_folders),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                )
+                                PulsingDotsIndicator(dotSize = 10.dp, dotSpacing = 6.dp)
                             }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(vertical = 4.dp)
-                            ) {
-                                items(searchResults) { path ->
-                                    // Paths from find/file are relative to the directory context (homeDir).
-                                    // Join properly: strip trailing slashes from both parts.
-                                    val base = (homeDir ?: "").trimEnd('/')
-                                    val rel = path.trimStart('/').trimEnd('/')
-                                    val absolutePath = "$base/$rel"
-                                    DirectoryRow(
-                                        displayPath = tildeReplace(absolutePath) + "/",
-                                        onClick = { onSelect(absolutePath) },
-                                        onNavigate = {
-                                            // Navigate into this directory for further browsing
-                                            searchQuery = ""
-                                            currentDir = absolutePath
-                                        }
+                        }
+                        isSearching -> {
+                            // Search results
+                            if (searchResults.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.sessions_no_folders),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                     )
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(vertical = 4.dp)
+                                ) {
+                                    items(searchResults) { path ->
+                                        // Paths from find/file are relative to the directory context (homeDir).
+                                        // Join properly: strip trailing slashes from both parts.
+                                        val base = (homeDir ?: "").trimEnd('/')
+                                        val rel = path.trimStart('/').trimEnd('/')
+                                        val absolutePath = "$base/$rel"
+                                        DirectoryRow(
+                                            displayPath = tildeReplace(absolutePath) + "/",
+                                            onClick = { onSelect(absolutePath) },
+                                            onNavigate = {
+                                                // Navigate into this directory for further browsing
+                                                searchQuery = ""
+                                                currentDir = absolutePath
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
-                    else -> {
-                        // Directory listing
-                        val showKnownProjects = currentDir == homeDir && projects.isNotEmpty()
+                        else -> {
+                            // Directory listing
+                            val showKnownProjects = currentDir == homeDir && projects.isNotEmpty()
 
-                        if (directories.isEmpty() && !showKnownProjects) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.sessions_empty_directory),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                )
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(vertical = 4.dp)
-                            ) {
-                                items(directories, key = { it.name }) { node ->
-                                    val absPath = node.absolute ?: "${currentDir?.trimEnd('/')}/${node.name}"
-                                    DirectoryRow(
-                                        displayPath = tildeReplace(absPath) + "/",
-                                        onNavigate = {
-                                            // Navigate into this directory
-                                            currentDir = absPath
-                                        },
-                                        onClick = { onSelect(absPath) }
+                            if (directories.isEmpty() && !showKnownProjects) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.sessions_empty_directory),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                     )
                                 }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(vertical = 4.dp)
+                                ) {
+                                    items(directories, key = { it.name }) { node ->
+                                        val absPath = node.absolute ?: "${currentDir?.trimEnd('/')}/${node.name}"
+                                        DirectoryRow(
+                                            displayPath = tildeReplace(absPath) + "/",
+                                            onNavigate = {
+                                                // Navigate into this directory
+                                                currentDir = absPath
+                                            },
+                                            onClick = { onSelect(absPath) }
+                                        )
+                                    }
+                                }
                             }
+                        }
+                    }
+
+                    if (isAmoled) {
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .navigationBarsPadding()
+                                .imePadding()
+                                .padding(16.dp)
+                                .size(56.dp)
+                                .clickable {
+                                    showCreateFolderDialog = true
+                                    createFolderError = null
+                                    if (newFolderName.isBlank()) newFolderName = ""
+                                },
+                            shape = CircleShape,
+                            color = Color.Black,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
+                            tonalElevation = 0.dp,
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.CreateNewFolder,
+                                    contentDescription = stringResource(R.string.sessions_create_folder),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    } else {
+                        FloatingActionButton(
+                            onClick = {
+                                showCreateFolderDialog = true
+                                createFolderError = null
+                                if (newFolderName.isBlank()) newFolderName = ""
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .navigationBarsPadding()
+                                .imePadding()
+                                .padding(16.dp),
+                        ) {
+                            Icon(Icons.Default.CreateNewFolder, contentDescription = stringResource(R.string.sessions_create_folder))
                         }
                     }
                 }
             }
         }
+    }
+
+    if (showCreateFolderDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!isCreatingFolder) showCreateFolderDialog = false
+            },
+            title = { Text(stringResource(R.string.sessions_create_folder_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = newFolderName,
+                        onValueChange = {
+                            newFolderName = it
+                            createFolderError = null
+                        },
+                        singleLine = true,
+                        enabled = !isCreatingFolder,
+                        label = { Text(stringResource(R.string.sessions_create_folder_name_label)) },
+                        placeholder = { Text(stringResource(R.string.sessions_create_folder_name_placeholder)) },
+                        isError = createFolderError != null,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (createFolderError != null) {
+                        Text(
+                            text = createFolderError ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val parent = currentDir ?: homeDir ?: "/"
+                        val name = newFolderName.trim()
+                        if (name.isBlank()) {
+                            createFolderError = context.getString(R.string.sessions_create_folder_invalid_name)
+                            return@TextButton
+                        }
+
+                        isCreatingFolder = true
+                        scope.launch {
+                            val result = viewModel.createDirectory(parent, name)
+                            isCreatingFolder = false
+                            result.onSuccess { createdPath ->
+                                showCreateFolderDialog = false
+                                newFolderName = ""
+                                createFolderError = null
+                                searchQuery = ""
+                                currentDir = parent
+                                directories = viewModel.listDirectories(parent)
+                                Toast
+                                    .makeText(
+                                        context,
+                                        context.getString(R.string.sessions_create_folder_success, tildeReplace(createdPath)),
+                                        Toast.LENGTH_SHORT,
+                                    )
+                                    .show()
+                            }.onFailure { error ->
+                                createFolderError = error.message ?: context.getString(R.string.sessions_create_folder_failed)
+                            }
+                        }
+                    },
+                    enabled = !isCreatingFolder,
+                ) {
+                    if (isCreatingFolder) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(R.string.sessions_create_folder_create))
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showCreateFolderDialog = false },
+                    enabled = !isCreatingFolder,
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 }
 
@@ -1077,10 +1211,12 @@ private fun SessionRow(
     )
 
     val cardContent: @Composable () -> Unit = {
-        val baseContainerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceVariant
-        
         val containerColor = if (isSelected) {
-            MaterialTheme.colorScheme.primary.copy(alpha = if (isAmoled) 0.15f else 0.08f)
+            if (isAmoled) {
+                Color.Black
+            } else {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+            }
         } else {
             if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceVariant
         }

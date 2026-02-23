@@ -43,6 +43,8 @@ class SettingsRepository @Inject constructor(
         private val SHOW_LOCAL_RUNTIME_KEY = booleanPreferencesKey("show_local_runtime")
         private val TERMINAL_FONT_SIZE_KEY = floatPreferencesKey("terminal_font_size")
         private val LOCAL_SETUP_COMPLETED_KEY = booleanPreferencesKey("local_setup_completed")
+        private val LOCAL_PROXY_ENABLED_KEY = booleanPreferencesKey("local_proxy_enabled")
+        private val LOCAL_PROXY_URL_KEY = stringPreferencesKey("local_proxy_url")
 
         /** SharedPreferences name used for synchronous locale reads in attachBaseContext. */
         private const val LOCALE_PREFS = "locale_prefs"
@@ -316,6 +318,33 @@ class SettingsRepository @Inject constructor(
     suspend fun setLocalSetupCompleted(completed: Boolean) {
         dataStore.edit { preferences ->
             preferences[LOCAL_SETUP_COMPLETED_KEY] = completed
+        }
+    }
+
+    /**
+     * Whether local runtime should use an outbound proxy. Default: false.
+     */
+    val localProxyEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[LOCAL_PROXY_ENABLED_KEY] ?: false
+    }
+
+    suspend fun setLocalProxyEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[LOCAL_PROXY_ENABLED_KEY] = enabled
+        }
+    }
+
+    /**
+     * Proxy URL for local runtime outbound requests (e.g., http://host:port).
+     * Empty string means disabled/not set.
+     */
+    val localProxyUrl: Flow<String> = dataStore.data.map { preferences ->
+        preferences[LOCAL_PROXY_URL_KEY] ?: ""
+    }
+
+    suspend fun setLocalProxyUrl(url: String) {
+        dataStore.edit { preferences ->
+            preferences[LOCAL_PROXY_URL_KEY] = url.trim()
         }
     }
 

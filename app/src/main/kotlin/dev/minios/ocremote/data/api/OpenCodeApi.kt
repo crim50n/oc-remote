@@ -20,6 +20,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -57,6 +62,9 @@ class OpenCodeApi @Inject constructor(
     private val httpClient: HttpClient,
     private val json: Json
 ) {
+    companion object {
+        private const val TAG = "OpenCodeApi"
+    }
 
     // ============ Global ============
 
@@ -306,11 +314,71 @@ class OpenCodeApi @Inject constructor(
             contentType(ContentType.Application.Json)
             setBody(PtyCreateRequest(title = title, cwd = cwd))
         }
-        val info: PtyInfo = response.body()
+        val body = response.bodyAsText()
+        if (BuildConfig.DEBUG) {
+            Log.d("OpenCodeApi", "createPty: response status=${response.status} body=$body")
+        }
+        if (!response.status.isSuccess()) {
+            throw java.io.IOException("createPty failed: ${response.status}: $body")
+        }
+
+        val info = parsePtyInfoFromCreateResponse(body, title, cwd)
         if (BuildConfig.DEBUG) {
             Log.d("OpenCodeApi", "createPty: response status=${response.status} ptyId=${info.id}")
         }
         return info
+    }
+
+    private fun parsePtyInfoFromCreateResponse(body: String, title: String?, cwd: String?): PtyInfo {
+        val trimmed = body.trim()
+
+        // Most servers return the full PtyInfo object.
+        runCatching { return json.decodeFromString(PtyInfo.serializer(), trimmed) }
+
+        // Some local builds return only an id or wrap it in data/pty.
+        val id = extractPtyIdFromResponse(trimmed)
+            ?: throw java.io.IOException("createPty: could not parse PTY id from response: $trimmed")
+
+        return PtyInfo(
+            id = id,
+            title = title ?: "Tab",
+            command = "/bin/sh",
+            args = emptyList(),
+            cwd = cwd ?: "/",
+            status = "running",
+            pid = 0,
+        )
+    }
+
+    private fun extractPtyIdFromResponse(responseBody: String): String? {
+        // Raw string id: "pty_xxx" or pty_xxx
+        val plain = responseBody.removeSurrounding("\"").trim()
+        if (plain.startsWith("pty_")) return plain
+
+        return runCatching {
+            val root = json.parseToJsonElement(responseBody)
+            findPtyId(root)
+        }.getOrNull()
+    }
+
+    private fun findPtyId(element: JsonElement): String? {
+        val obj = element as? JsonObject ?: return null
+
+        obj["id"]?.jsonPrimitive?.contentOrNull?.let {
+            if (it.startsWith("pty_")) return it
+        }
+
+        obj["pty"]?.let { nested ->
+            findPtyId(nested)?.let { return it }
+        }
+        obj["data"]?.let { nested ->
+            findPtyId(nested)?.let { return it }
+        }
+        obj["result"]?.let { nested ->
+            findPtyId(nested)?.let { return it }
+        }
+
+        return null
     }
 
     suspend fun removePty(conn: ServerConnection, ptyId: String): Boolean {
@@ -608,11 +676,25 @@ class OpenCodeApi @Inject constructor(
         providerId: String,
         methodIndex: Int
     ): ProviderOauthAuthorization? {
-        return httpClient.post("${conn.baseUrl}/provider/$providerId/oauth/authorize") {
+        val response = httpClient.post("${conn.baseUrl}/provider/$providerId/oauth/authorize") {
             conn.authHeader?.let { header("Authorization", it) }
             contentType(ContentType.Application.Json)
             setBody(mapOf("method" to methodIndex))
-        }.body()
+        }
+        val body = response.bodyAsText().trim()
+        if (BuildConfig.DEBUG) {
+            Log.d("OpenCodeApi", "authorizeProviderOauth: status=${response.status} body=$body")
+        }
+
+        if (!response.status.isSuccess()) return null
+        if (body.isBlank() || body == "null") return ProviderOauthAuthorization()
+
+        return runCatching {
+            json.decodeFromString(ProviderOauthAuthorization.serializer(), body)
+        }.getOrElse {
+            // Some server builds return an empty object for headless mode.
+            ProviderOauthAuthorization()
+        }
     }
 
     /**
@@ -625,13 +707,17 @@ class OpenCodeApi @Inject constructor(
         methodIndex: Int,
         code: String? = null
     ): Boolean {
+        val body = if (code != null) mapOf("method" to methodIndex, "code" to code)
+        else mapOf("method" to methodIndex)
+        if (BuildConfig.DEBUG) Log.d(TAG, "completeProviderOauth: POST /provider/$providerId/oauth/callback body=$body")
         val response = httpClient.post("${conn.baseUrl}/provider/$providerId/oauth/callback") {
             conn.authHeader?.let { header("Authorization", it) }
             contentType(ContentType.Application.Json)
-            setBody(
-                if (code != null) mapOf("method" to methodIndex, "code" to code)
-                else mapOf("method" to methodIndex)
-            )
+            setBody(body)
+        }
+        if (BuildConfig.DEBUG) {
+            val responseBody = response.bodyAsText()
+            Log.d(TAG, "completeProviderOauth: status=${response.status}, body=$responseBody")
         }
         return response.status.isSuccess()
     }
@@ -654,8 +740,13 @@ class OpenCodeApi @Inject constructor(
      * DELETE /auth/{providerID}
      */
     suspend fun removeProviderAuth(conn: ServerConnection, providerId: String): Boolean {
+        if (BuildConfig.DEBUG) Log.d(TAG, "removeProviderAuth: DELETE ${conn.baseUrl}/auth/$providerId")
         val response = httpClient.delete("${conn.baseUrl}/auth/$providerId") {
             conn.authHeader?.let { header("Authorization", it) }
+        }
+        if (BuildConfig.DEBUG) {
+            val body = response.bodyAsText()
+            Log.d(TAG, "removeProviderAuth: status=${response.status}, body=$body")
         }
         return response.status.isSuccess()
     }
@@ -939,9 +1030,9 @@ data class ProviderAuthMethod(
 
 @Serializable
 data class ProviderOauthAuthorization(
-    val url: String,
-    val method: String,
-    val instructions: String
+    val url: String = "",
+    val method: String = "none",
+    val instructions: String = ""
 )
 
 @Serializable

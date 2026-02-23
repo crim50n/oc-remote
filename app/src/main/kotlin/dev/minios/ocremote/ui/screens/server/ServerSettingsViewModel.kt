@@ -1,6 +1,7 @@
 package dev.minios.ocremote.ui.screens.server
 
 import android.util.Log
+import dev.minios.ocremote.BuildConfig
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -45,7 +46,8 @@ data class PendingOauth(
     val providerId: String,
     val providerName: String,
     val methodIndex: Int,
-    val authorization: ProviderOauthAuthorization
+    val authorization: ProviderOauthAuthorization,
+    val fallbackFromHeadless: Boolean = false,
 )
 
 data class ProviderToggle(
@@ -129,8 +131,10 @@ class ServerSettingsViewModel @Inject constructor(
                 val response = api.getProviders(conn)
                 _allProviders.value = response.providers
                 val catalog = api.listProviderCatalog(conn)
+                if (BuildConfig.DEBUG) Log.d(TAG, "loadProviders: catalog.connected=${catalog.connected}")
                 _providerCatalog.value = catalog.all
                 _providerConnected.value = catalog.connected.toSet()
+                _config.value = api.getGlobalConfig(conn)
                 rebuildUi()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load providers", e)
@@ -202,7 +206,11 @@ class ServerSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             try {
-                api.setProviderApiKey(conn, providerId, apiKey.trim())
+                val updated = api.setProviderApiKey(conn, providerId, apiKey.trim())
+                if (!updated) {
+                    _uiState.update { it.copy(isSaving = false, error = "Failed to connect provider") }
+                    return@launch
+                }
                 // Ensure provider is enabled after successful connect
                 val disabled = _config.value.disabledProviders.toSet() - providerId
                 api.updateGlobalConfig(conn, ServerConfigPatch(disabledProviders = disabled.toList().sorted()))
@@ -221,7 +229,8 @@ class ServerSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             try {
-                val auth = api.authorizeProviderOauth(conn, providerId, methodIndex)
+                var auth = api.authorizeProviderOauth(conn, providerId, methodIndex)
+
                 if (auth == null) {
                     _uiState.update { it.copy(isSaving = false, error = "OAuth is not available for this provider") }
                     return@launch
@@ -233,7 +242,8 @@ class ServerSettingsViewModel @Inject constructor(
                             providerId = providerId,
                             providerName = providerName,
                             methodIndex = methodIndex,
-                            authorization = auth
+                            authorization = auth,
+                            fallbackFromHeadless = false,
                         ),
                         isSaving = false
                     )
@@ -247,11 +257,30 @@ class ServerSettingsViewModel @Inject constructor(
 
     fun completeProviderOauth(code: String?) {
         val pending = _uiState.value.pendingOauth ?: return
+        // Prevent duplicate calls while already in progress
+        if (_uiState.value.isSaving) return
+        // Set isSaving synchronously before launching coroutine to prevent race
+        _uiState.update { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true, error = null) }
             try {
                 val oauthCode = if (pending.authorization.method == "code") code?.trim()?.ifEmpty { null } else null
-                api.completeProviderOauth(conn, pending.providerId, pending.methodIndex, oauthCode)
+                if (BuildConfig.DEBUG) Log.d(TAG, "completeProviderOauth: calling callback for ${pending.providerId}, method=${pending.methodIndex}")
+                val completed = api.completeProviderOauth(conn, pending.providerId, pending.methodIndex, oauthCode)
+                if (!completed) {
+                    // Some server builds complete auth out-of-band and callback can return non-success.
+                    // Refresh provider catalog before surfacing an error.
+                    val catalog = api.listProviderCatalog(conn)
+                    _providerCatalog.value = catalog.all
+                    _providerConnected.value = catalog.connected.toSet()
+                    _config.value = api.getGlobalConfig(conn)
+                    if (pending.providerId in catalog.connected) {
+                        _uiState.update { it.copy(pendingOauth = null) }
+                        rebuildUi()
+                        return@launch
+                    }
+                    _uiState.update { it.copy(isSaving = false, error = "Failed to complete OAuth") }
+                    return@launch
+                }
                 val disabled = _config.value.disabledProviders.toSet() - pending.providerId
                 api.updateGlobalConfig(conn, ServerConfigPatch(disabledProviders = disabled.toList().sorted()))
                 _config.value = api.getGlobalConfig(conn)
@@ -267,14 +296,27 @@ class ServerSettingsViewModel @Inject constructor(
     }
 
     fun cancelProviderOauth() {
-        _uiState.update { it.copy(pendingOauth = null) }
+        _uiState.update { it.copy(pendingOauth = null, error = null) }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
     }
 
     fun disconnectProvider(providerId: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             try {
-                api.removeProviderAuth(conn, providerId)
+                if (BuildConfig.DEBUG) Log.d(TAG, "disconnectProvider: calling DELETE /auth/$providerId")
+                val removed = api.removeProviderAuth(conn, providerId)
+                if (BuildConfig.DEBUG) Log.d(TAG, "disconnectProvider: removed=$removed")
+                if (!removed) {
+                    _uiState.update { it.copy(isSaving = false, error = "Failed to disconnect provider") }
+                    return@launch
+                }
+                // Optimistically remove from connected set before reload
+                _providerConnected.update { it - providerId }
+                rebuildUi()
                 loadProviders()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to disconnect provider", e)

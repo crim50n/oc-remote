@@ -104,6 +104,12 @@ class SettingsViewModel @Inject constructor(
         initialValue = true
     )
 
+    val showLocalRuntime = settingsRepository.showLocalRuntime.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = true
+    )
+
     val silentNotifications = settingsRepository.silentNotifications.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -209,6 +215,12 @@ class SettingsViewModel @Inject constructor(
     fun setShowShellButton(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setShowShellButton(enabled)
+        }
+    }
+
+    fun setShowLocalRuntime(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setShowLocalRuntime(enabled)
         }
     }
 

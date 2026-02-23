@@ -29,11 +29,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.core.content.ContextCompat
 import dev.minios.ocremote.R
+import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.ui.theme.StatusConnected
 import androidx.compose.animation.core.*
@@ -127,6 +129,7 @@ fun HomeScreen(
     // can resume the connect flow after the permission dialog.
     var pendingConnectServerId by remember { mutableStateOf<String?>(null) }
     var pendingLocalStart by remember { mutableStateOf(false) }
+    var showLocalProxyDialog by remember { mutableStateOf(false) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -202,6 +205,9 @@ fun HomeScreen(
                     )
                 }
                 else -> {
+                    val localServer = uiState.servers.firstOrNull { it.url == LocalServerManager.LOCAL_SERVER_URL }
+                    val remoteServers = uiState.servers.filterNot { it.url == LocalServerManager.LOCAL_SERVER_URL }
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
@@ -229,18 +235,55 @@ fun HomeScreen(
                                     runtimeStatus = uiState.localRuntimeStatus,
                                     statusMessage = uiState.localRuntimeMessage,
                                     fixCommand = uiState.localRuntimeFixCommand,
+                                    needsOverlaySettings = uiState.localRuntimeNeedsOverlaySettings,
+                                    localServerConnected = localServer?.id in uiState.connectedServerIds,
+                                    localServerConnecting = localServer?.id in uiState.connectingServerIds,
+                                    localServerConnectionError = localServer?.id?.let { uiState.connectionErrors[it] },
+                                    showLocalServerSettings = localServer?.id in uiState.serverSettingsReadyIds,
+                                    localProxyEnabled = uiState.localProxyEnabled,
                                     onStart = { requestRunCommandPermissionAndStartLocal() },
                                     onStop = { viewModel.stopLocalServer(context) },
                                     onSetup = {
-                                        uiState.setupCommand?.let { cmd ->
-                                            clipboardManager.setText(AnnotatedString(cmd))
-                                            Toast.makeText(context, R.string.home_local_setup_copied, Toast.LENGTH_SHORT).show()
-                                        }
+                                        val setupCommand = uiState.setupCommand ?: viewModel.getLocalSetupCommand()
+                                        clipboardManager.setText(AnnotatedString(setupCommand))
+                                        Toast.makeText(context, R.string.home_local_setup_copied, Toast.LENGTH_SHORT).show()
                                         viewModel.setupLocalServer(context)
                                     },
                                     onCopyFixCommand = { command ->
                                         clipboardManager.setText(AnnotatedString(command))
                                         Toast.makeText(context, R.string.home_local_fix_command_copied, Toast.LENGTH_SHORT).show()
+                                    },
+                                    onOpenTermuxOverlaySettings = {
+                                        val intent = Intent(
+                                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                            Uri.parse("package:com.termux"),
+                                        )
+                                        context.startActivity(intent)
+                                    },
+                                    onOpenLocalSessions = {
+                                        localServer?.let { server ->
+                                            onNavigateToSessions(
+                                                server.url,
+                                                server.username,
+                                                server.password ?: "",
+                                                server.displayName,
+                                                server.id,
+                                            )
+                                        }
+                                    },
+                                    onOpenLocalServerSettings = {
+                                        localServer?.let { server ->
+                                            onNavigateToServerSettings(
+                                                server.url,
+                                                server.username,
+                                                server.password ?: "",
+                                                server.displayName,
+                                                server.id,
+                                            )
+                                        }
+                                    },
+                                    onOpenLocalProxySettings = {
+                                        showLocalProxyDialog = true
                                     },
                                     onInstallTermux = {
                                         val intent = Intent(
@@ -253,15 +296,21 @@ fun HomeScreen(
                             }
                         }
 
-                        if (uiState.servers.isEmpty()) {
+                        if (remoteServers.isEmpty()) {
                             item(key = "__empty_servers") {
+                                val hasLocalCard = uiState.showLocalRuntime
                                 EmptyServersView(
                                     onAddServer = { viewModel.showAddServerDialog() },
+                                    modifier = if (hasLocalCard) {
+                                        Modifier.fillParentMaxHeight(0.5f)
+                                    } else {
+                                        Modifier.fillParentMaxHeight(0.8f)
+                                    }
                                 )
                             }
                         }
 
-                        items(uiState.servers, key = { it.id }) { server ->
+                        items(remoteServers, key = { it.id }) { server ->
                             ServerCard(
                                 server = server,
                                 isConnected = server.id in uiState.connectedServerIds,
@@ -307,6 +356,19 @@ fun HomeScreen(
                 }
             )
         }
+
+        if (showLocalProxyDialog) {
+            LocalProxyDialog(
+                enabled = uiState.localProxyEnabled,
+                proxyUrl = uiState.localProxyUrl,
+                onDismiss = { showLocalProxyDialog = false },
+                onSave = { enabled, url ->
+                    viewModel.setLocalProxyEnabled(enabled)
+                    viewModel.setLocalProxyUrl(url)
+                    showLocalProxyDialog = false
+                },
+            )
+        }
     }
 }
 
@@ -316,10 +378,20 @@ private fun LocalRuntimeCard(
     runtimeStatus: LocalRuntimeStatus,
     statusMessage: String?,
     fixCommand: String?,
+    needsOverlaySettings: Boolean,
+    localServerConnected: Boolean,
+    localServerConnecting: Boolean,
+    localServerConnectionError: String?,
+    showLocalServerSettings: Boolean,
+    localProxyEnabled: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
     onSetup: () -> Unit,
     onCopyFixCommand: (String) -> Unit,
+    onOpenTermuxOverlaySettings: () -> Unit,
+    onOpenLocalSessions: () -> Unit,
+    onOpenLocalServerSettings: () -> Unit,
+    onOpenLocalProxySettings: () -> Unit,
     onInstallTermux: () -> Unit,
 ) {
     val isAmoled = MaterialTheme.colorScheme.background == Color.Black &&
@@ -349,9 +421,13 @@ private fun LocalRuntimeCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            val compactActive = runtimeStatus == LocalRuntimeStatus.Running &&
+                localServerConnected &&
+                localServerConnectionError.isNullOrBlank()
+
             // Header row with title and status chip
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -363,31 +439,34 @@ private fun LocalRuntimeCard(
                     style = MaterialTheme.typography.titleMedium,
                     color = cardContentColor,
                 )
-                val statusLabelRes = when (runtimeStatus) {
-                    LocalRuntimeStatus.Unavailable -> R.string.home_local_status_unavailable
-                    LocalRuntimeStatus.NeedsSetup -> R.string.home_local_status_needs_setup
-                    LocalRuntimeStatus.Running -> R.string.home_local_status_running
-                    LocalRuntimeStatus.Starting -> R.string.home_local_status_starting
-                    LocalRuntimeStatus.Stopping -> R.string.home_local_status_stopping
-                    LocalRuntimeStatus.Error -> R.string.home_local_status_error
-                    LocalRuntimeStatus.Stopped -> R.string.home_local_status_stopped
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onOpenLocalProxySettings) {
+                        Icon(
+                            Icons.Default.Language,
+                            contentDescription = stringResource(R.string.home_local_proxy_settings),
+                            tint = if (localProxyEnabled) MaterialTheme.colorScheme.primary else cardContentColor,
+                        )
+                    }
+                    if (showLocalServerSettings) {
+                        IconButton(onClick = onOpenLocalServerSettings) {
+                            Icon(
+                                Icons.Default.Settings,
+                                contentDescription = stringResource(R.string.settings_title),
+                                tint = cardContentColor,
+                            )
+                        }
+                    }
                 }
-                AssistChip(
-                    onClick = {},
-                    label = { Text(stringResource(statusLabelRes)) },
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = Color.Transparent,
-                        labelColor = cardContentColor,
-                    ),
-                )
             }
 
-            // Description
-            Text(
-                text = stringResource(R.string.home_local_server_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = cardContentColor.copy(alpha = 0.85f),
-            )
+            // Description (hide when fully active to keep card compact)
+            if (!compactActive) {
+                Text(
+                    text = stringResource(R.string.home_local_server_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cardContentColor.copy(alpha = 0.85f),
+                )
+            }
 
             // Status / error message
             if (!statusMessage.isNullOrBlank()) {
@@ -424,6 +503,30 @@ private fun LocalRuntimeCard(
                     Icon(Icons.Default.ContentCopy, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.home_local_copy_fix_command))
+                }
+            }
+
+            if (runtimeStatus == LocalRuntimeStatus.Error && needsOverlaySettings) {
+                OutlinedButton(
+                    onClick = onOpenTermuxOverlaySettings,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = if (isAmoled) {
+                        ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.Black,
+                            contentColor = MaterialTheme.colorScheme.primary,
+                        )
+                    } else {
+                        ButtonDefaults.outlinedButtonColors()
+                    },
+                    border = if (isAmoled) {
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
+                    } else {
+                        ButtonDefaults.outlinedButtonBorder
+                    },
+                ) {
+                    Icon(Icons.Default.OpenInNew, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.home_local_open_termux_overlay_settings))
                 }
             }
 
@@ -482,16 +585,10 @@ private fun LocalRuntimeCard(
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.home_local_setup))
                     }
-                }
 
-                // Running or Starting or Stopping — show stop button
-                runtimeStatus == LocalRuntimeStatus.Running ||
-                    runtimeStatus == LocalRuntimeStatus.Starting ||
-                    runtimeStatus == LocalRuntimeStatus.Stopping -> {
                     OutlinedButton(
-                        onClick = onStop,
+                        onClick = onStart,
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = runtimeStatus != LocalRuntimeStatus.Stopping,
                         colors = if (isAmoled) {
                             ButtonDefaults.outlinedButtonColors(
                                 containerColor = Color.Black,
@@ -506,41 +603,172 @@ private fun LocalRuntimeCard(
                             ButtonDefaults.outlinedButtonBorder
                         },
                     ) {
-                        if (runtimeStatus == LocalRuntimeStatus.Starting || runtimeStatus == LocalRuntimeStatus.Stopping) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                            Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.home_local_start))
+                    }
+                }
+
+                // Running or Starting or Stopping — show stop button
+                runtimeStatus == LocalRuntimeStatus.Running ||
+                    runtimeStatus == LocalRuntimeStatus.Starting ||
+                    runtimeStatus == LocalRuntimeStatus.Stopping -> {
+                    val actionLabel = when (runtimeStatus) {
+                        LocalRuntimeStatus.Starting -> stringResource(R.string.home_local_status_starting)
+                        LocalRuntimeStatus.Stopping -> stringResource(R.string.home_local_status_stopping)
+                        else -> stringResource(R.string.home_local_stop)
+                    }
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (localServerConnected) {
+                            Button(
+                                onClick = onOpenLocalSessions,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = if (isAmoled) {
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = Color.Black,
+                                        contentColor = MaterialTheme.colorScheme.primary,
+                                    )
+                                } else {
+                                    ButtonDefaults.buttonColors()
+                                },
+                                border = if (isAmoled) {
+                                    BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
+                                } else {
+                                    null
+                                },
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.home_local_open_sessions))
+                            }
                         }
-                        Text(stringResource(R.string.home_local_stop))
+
+                        OutlinedButton(
+                            onClick = onStop,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = runtimeStatus == LocalRuntimeStatus.Running,
+                            colors = if (isAmoled) {
+                                ButtonDefaults.outlinedButtonColors(
+                                    containerColor = Color.Black,
+                                    contentColor = MaterialTheme.colorScheme.primary,
+                                )
+                            } else {
+                                ButtonDefaults.outlinedButtonColors()
+                            },
+                            border = if (isAmoled) {
+                                BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
+                            } else {
+                                ButtonDefaults.outlinedButtonBorder
+                            },
+                        ) {
+                            if (runtimeStatus == LocalRuntimeStatus.Starting || runtimeStatus == LocalRuntimeStatus.Stopping) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(actionLabel)
+                        }
                     }
                 }
 
                 // Stopped or Error — show start button
                 else -> {
-                    Button(
-                        onClick = onStart,
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = if (isAmoled) {
-                            ButtonDefaults.buttonColors(
-                                containerColor = Color.Black,
-                                contentColor = MaterialTheme.colorScheme.primary,
-                            )
-                        } else {
-                            ButtonDefaults.buttonColors()
-                        },
-                        border = if (isAmoled) {
-                            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                        } else {
-                            null
-                        },
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.home_local_start))
+                        Button(
+                            onClick = onStart,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = if (isAmoled) {
+                                ButtonDefaults.buttonColors(
+                                    containerColor = Color.Black,
+                                    contentColor = MaterialTheme.colorScheme.primary,
+                                )
+                            } else {
+                                ButtonDefaults.buttonColors()
+                            },
+                            border = if (isAmoled) {
+                                BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
+                            } else {
+                                null
+                            },
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.home_local_start))
+                        }
+
+                        OutlinedButton(
+                            onClick = onSetup,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = if (isAmoled) {
+                                ButtonDefaults.outlinedButtonColors(
+                                    containerColor = Color.Black,
+                                    contentColor = MaterialTheme.colorScheme.primary,
+                                )
+                            } else {
+                                ButtonDefaults.outlinedButtonColors()
+                            },
+                            border = if (isAmoled) {
+                                BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
+                            } else {
+                                ButtonDefaults.outlinedButtonBorder
+                            },
+                        ) {
+                            Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.home_local_setup))
+                        }
                     }
+                }
+            }
+
+            if (
+                runtimeStatus != LocalRuntimeStatus.Running &&
+                runtimeStatus != LocalRuntimeStatus.Starting &&
+                runtimeStatus != LocalRuntimeStatus.Stopping &&
+                (localServerConnected || localServerConnecting)
+            ) {
+                if (!compactActive) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                }
+
+                if (!localServerConnectionError.isNullOrBlank()) {
+                    Text(
+                        text = localServerConnectionError,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = onOpenLocalSessions,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = localServerConnected,
+                    colors = if (isAmoled) {
+                        ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.Black,
+                            contentColor = MaterialTheme.colorScheme.primary,
+                        )
+                    } else {
+                        ButtonDefaults.outlinedButtonColors()
+                    },
+                    border = if (isAmoled) {
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
+                    } else {
+                        ButtonDefaults.outlinedButtonBorder
+                    },
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.home_local_open_sessions))
                 }
             }
         }
@@ -548,31 +776,100 @@ private fun LocalRuntimeCard(
 }
 
 @Composable
+private fun LocalProxyDialog(
+    enabled: Boolean,
+    proxyUrl: String,
+    onDismiss: () -> Unit,
+    onSave: (enabled: Boolean, proxyUrl: String) -> Unit,
+) {
+    var localEnabled by remember(enabled) { mutableStateOf(enabled) }
+    var localProxyUrl by remember(proxyUrl) { mutableStateOf(proxyUrl) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.home_local_proxy_settings)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(text = stringResource(R.string.home_local_proxy_enable))
+                    Switch(
+                        checked = localEnabled,
+                        onCheckedChange = { localEnabled = it },
+                    )
+                }
+
+                if (localEnabled) {
+                    OutlinedTextField(
+                        value = localProxyUrl,
+                        onValueChange = { localProxyUrl = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.home_local_proxy_url_label)) },
+                        placeholder = { Text("http://127.0.0.1:8080") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = KeyboardType.Uri,
+                        ),
+                    )
+                }
+
+                Text(
+                    text = stringResource(R.string.home_local_proxy_no_proxy_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onSave(localEnabled, localProxyUrl)
+                },
+            ) {
+                Text(stringResource(R.string.server_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+    )
+}
+
+@Composable
 private fun EmptyServersView(
     onAddServer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-        )
-        Text(
-            text = stringResource(R.string.home_no_servers),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            textAlign = TextAlign.Center
-        )
-        Button(onClick = onAddServer) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.home_add_server))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+            )
+            Text(
+                text = stringResource(R.string.home_no_servers),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center
+            )
+            Button(onClick = onAddServer) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.home_add_server))
+            }
         }
     }
 }

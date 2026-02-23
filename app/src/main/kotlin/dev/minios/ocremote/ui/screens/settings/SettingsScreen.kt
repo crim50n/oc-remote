@@ -63,6 +63,7 @@ fun SettingsScreen(
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val silentNotifications by viewModel.silentNotifications.collectAsState()
     val showShellButton by viewModel.showShellButton.collectAsState()
+    val showLocalRuntime by viewModel.showLocalRuntime.collectAsState()
     val terminalFontSize by viewModel.terminalFontSize.collectAsState()
 
     var showLanguageDialog by remember { mutableStateOf(false) }
@@ -340,6 +341,27 @@ fun SettingsScreen(
                     Icon(Icons.Default.Terminal, contentDescription = null)
                 },
                 modifier = Modifier.clickable { showTerminalFontSizeDialog = true }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            // ======== Advanced ========
+            SectionHeader(stringResource(R.string.settings_section_advanced))
+
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_local_runtime)) },
+                supportingContent = { Text(stringResource(R.string.settings_local_runtime_desc)) },
+                leadingContent = {
+                    Icon(Icons.Default.Code, contentDescription = null)
+                },
+                trailingContent = {
+                    Switch(
+                        checked = showLocalRuntime,
+                        onCheckedChange = { viewModel.setShowLocalRuntime(it) },
+                        colors = switchColors,
+                    )
+                },
+                modifier = Modifier.clickable { viewModel.setShowLocalRuntime(!showLocalRuntime) },
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))

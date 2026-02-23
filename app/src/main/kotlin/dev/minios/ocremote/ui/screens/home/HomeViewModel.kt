@@ -8,7 +8,9 @@ import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import androidx.annotation.StringRes
 import dev.minios.ocremote.BuildConfig
+import dev.minios.ocremote.R
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.minios.ocremote.data.api.OpenCodeApi
@@ -55,14 +57,18 @@ data class HomeUiState(
     val localRuntimeStatus: LocalRuntimeStatus = LocalRuntimeStatus.Unavailable,
     val localRuntimeMessage: String? = null,
     val localRuntimeFixCommand: String? = null,
+    val localRuntimeNeedsOverlaySettings: Boolean = false,
     val setupCommand: String? = null,
     val showLocalRuntime: Boolean = true,
+    val localProxyEnabled: Boolean = false,
+    val localProxyUrl: String = "",
 )
 
 private data class LocalRuntimeErrorInfo(
     val message: String,
     val fixCommand: String? = null,
     val status: LocalRuntimeStatus = LocalRuntimeStatus.Error,
+    val requiresOverlaySettings: Boolean = false,
 )
 
 @HiltViewModel
@@ -107,6 +113,16 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.showLocalRuntime.collect { enabled ->
                 _uiState.update { it.copy(showLocalRuntime = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.localProxyEnabled.collect { enabled ->
+                _uiState.update { it.copy(localProxyEnabled = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.localProxyUrl.collect { url ->
+                _uiState.update { it.copy(localProxyUrl = url) }
             }
         }
     }
@@ -336,6 +352,7 @@ class HomeViewModel @Inject constructor(
                         localRuntimeStatus = LocalRuntimeStatus.Unavailable,
                         localRuntimeMessage = null,
                         localRuntimeFixCommand = null,
+                        localRuntimeNeedsOverlaySettings = false,
                         setupCommand = null,
                     )
                 }
@@ -352,6 +369,7 @@ class HomeViewModel @Inject constructor(
                         localRuntimeStatus = LocalRuntimeStatus.Running,
                         localRuntimeMessage = null,
                         localRuntimeFixCommand = null,
+                        localRuntimeNeedsOverlaySettings = false,
                         setupCommand = null,
                     )
                 }
@@ -373,6 +391,7 @@ class HomeViewModel @Inject constructor(
                     localRuntimeStatus = if (setupDone) LocalRuntimeStatus.Stopped else LocalRuntimeStatus.NeedsSetup,
                     localRuntimeMessage = null,
                     localRuntimeFixCommand = null,
+                    localRuntimeNeedsOverlaySettings = false,
                     setupCommand = if (!setupDone) localServerManager.getSetupCommand() else null,
                 )
             }
@@ -386,12 +405,15 @@ class HomeViewModel @Inject constructor(
         localServerManager.openTermux(callerContext)
     }
 
+    fun getLocalSetupCommand(): String = localServerManager.getSetupCommand()
+
     fun startLocalServer(callerContext: Context) {
         _uiState.update {
             it.copy(
                 localRuntimeStatus = LocalRuntimeStatus.Starting,
                 localRuntimeMessage = null,
                 localRuntimeFixCommand = null,
+                localRuntimeNeedsOverlaySettings = false,
             )
         }
 
@@ -403,20 +425,28 @@ class HomeViewModel @Inject constructor(
                         localRuntimeStatus = LocalRuntimeStatus.Unavailable,
                         localRuntimeMessage = null,
                         localRuntimeFixCommand = null,
+                        localRuntimeNeedsOverlaySettings = false,
                     )
                 }
                 return@launch
             }
 
-            val startResult = localServerManager.startServer(callerContext)
+            val proxyUrl = _uiState.value.localProxyUrl.trim().takeIf {
+                _uiState.value.localProxyEnabled && it.isNotBlank()
+            }
+            val startResult = localServerManager.startServer(callerContext, proxyUrl)
             if (startResult.isFailure) {
                 val errorInfo = mapLocalRuntimeError(startResult.exceptionOrNull()?.message)
+                if (errorInfo.status == LocalRuntimeStatus.NeedsSetup) {
+                    settingsRepository.setLocalSetupCompleted(false)
+                }
                 _uiState.update {
                     it.copy(
                         termuxInstalled = true,
                         localRuntimeStatus = errorInfo.status,
                         localRuntimeMessage = errorInfo.message,
                         localRuntimeFixCommand = errorInfo.fixCommand,
+                        localRuntimeNeedsOverlaySettings = errorInfo.requiresOverlaySettings,
                         setupCommand = if (errorInfo.status == LocalRuntimeStatus.NeedsSetup) {
                             localServerManager.getSetupCommand()
                         } else null,
@@ -431,8 +461,9 @@ class HomeViewModel @Inject constructor(
                     it.copy(
                         termuxInstalled = true,
                         localRuntimeStatus = LocalRuntimeStatus.Error,
-                        localRuntimeMessage = "Server did not respond within 30 seconds. Check Termux for errors.",
+                        localRuntimeMessage = s(R.string.home_local_error_timeout),
                         localRuntimeFixCommand = null,
+                        localRuntimeNeedsOverlaySettings = false,
                     )
                 }
                 return@launch
@@ -446,6 +477,7 @@ class HomeViewModel @Inject constructor(
                     localRuntimeStatus = LocalRuntimeStatus.Running,
                     localRuntimeMessage = null,
                     localRuntimeFixCommand = null,
+                    localRuntimeNeedsOverlaySettings = false,
                 )
             }
 
@@ -463,6 +495,7 @@ class HomeViewModel @Inject constructor(
                 localRuntimeStatus = LocalRuntimeStatus.Stopping,
                 localRuntimeMessage = null,
                 localRuntimeFixCommand = null,
+                localRuntimeNeedsOverlaySettings = false,
             )
         }
 
@@ -475,6 +508,7 @@ class HomeViewModel @Inject constructor(
                         localRuntimeStatus = LocalRuntimeStatus.Error,
                         localRuntimeMessage = errorInfo.message,
                         localRuntimeFixCommand = errorInfo.fixCommand,
+                        localRuntimeNeedsOverlaySettings = errorInfo.requiresOverlaySettings,
                     )
                 }
                 return@launch
@@ -495,6 +529,7 @@ class HomeViewModel @Inject constructor(
                             localRuntimeStatus = LocalRuntimeStatus.Stopped,
                             localRuntimeMessage = null,
                             localRuntimeFixCommand = null,
+                            localRuntimeNeedsOverlaySettings = false,
                         )
                     }
                     return@launch
@@ -504,10 +539,23 @@ class HomeViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     localRuntimeStatus = LocalRuntimeStatus.Stopped,
-                    localRuntimeMessage = "Stop command sent",
+                    localRuntimeMessage = s(R.string.home_local_message_stop_sent),
                     localRuntimeFixCommand = null,
+                    localRuntimeNeedsOverlaySettings = false,
                 )
             }
+        }
+    }
+
+    fun setLocalProxyEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setLocalProxyEnabled(enabled)
+        }
+    }
+
+    fun setLocalProxyUrl(url: String) {
+        viewModelScope.launch {
+            settingsRepository.setLocalProxyUrl(url)
         }
     }
 
@@ -543,31 +591,40 @@ class HomeViewModel @Inject constructor(
         return when {
             "allow-external-apps" in lower -> {
                 LocalRuntimeErrorInfo(
-                    message = "Termux blocked external commands. Run the setup again — it enables this automatically.",
+                    message = s(R.string.home_local_error_termux_blocked_external),
                     fixCommand = "mkdir -p ~/.termux && (grep -q '^allow-external-apps' ~/.termux/termux.properties 2>/dev/null && sed -i 's/^allow-external-apps.*/allow-external-apps = true/' ~/.termux/termux.properties || echo 'allow-external-apps = true' >> ~/.termux/termux.properties) && termux-reload-settings",
                     status = LocalRuntimeStatus.NeedsSetup,
                 )
             }
 
+            "display over other apps" in lower || "draw over other apps" in lower -> {
+                LocalRuntimeErrorInfo(
+                    message = s(R.string.home_local_error_termux_overlay_permission),
+                    requiresOverlaySettings = true,
+                )
+            }
+
             "run_command" in lower && "without permission" in lower -> {
-                LocalRuntimeErrorInfo("Termux Run Command permission is missing. Grant the permission and try again.")
+                LocalRuntimeErrorInfo(s(R.string.home_local_error_run_command_permission))
             }
 
             "app is in background" in lower -> {
-                LocalRuntimeErrorInfo("Android blocked background launch. Keep the app in foreground and try again.")
+                LocalRuntimeErrorInfo(s(R.string.home_local_error_background_launch))
             }
 
             "regular file not found" in lower && "opencode-local" in lower -> {
                 LocalRuntimeErrorInfo(
-                    message = "Local runtime is not installed yet. Tap Setup to install it.",
+                    message = s(R.string.home_local_error_not_installed),
                     status = LocalRuntimeStatus.NeedsSetup,
                 )
             }
 
             raw.isNotBlank() -> LocalRuntimeErrorInfo(raw)
-            else -> LocalRuntimeErrorInfo("Failed to launch Termux command")
+            else -> LocalRuntimeErrorInfo(s(R.string.home_local_error_launch_failed))
         }
     }
+
+    private fun s(@StringRes id: Int): String = getApplication<Application>().getString(id)
 
     /**
      * Disconnect from a specific server.

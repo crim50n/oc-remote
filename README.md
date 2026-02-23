@@ -82,6 +82,9 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 
 ### Connection
 - **Multi-server** — connect to multiple OpenCode servers simultaneously
+- **Local runtime via Termux** — set up and run OpenCode directly on-device from the Home screen (setup/start/stop/sessions)
+- **Optional local proxy** — route local runtime traffic through a custom proxy URL with local-network bypass
+- **Provider OAuth reliability** — improved browser auth completion flow and provider connected-state refresh
 - **SSE event stream** — real-time session status, permissions, questions
 - **WebSocket transport** — used for terminal PTY streams
 - **Auto-reconnect** — exponential backoff (1s to 30s)

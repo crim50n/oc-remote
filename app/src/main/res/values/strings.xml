@@ -16,7 +16,7 @@
     <string name="home_battery_title">Battery restrictions active</string>
     <string name="home_battery_message">Background connections may be killed. Tap to disable optimization.</string>
     <string name="home_local_server_title">Local Server</string>
-    <string name="home_local_server_desc">Run OpenCode locally via Termux + Alpine on this device.</string>
+    <string name="home_local_server_desc">Run OpenCode locally via Termux on this device.</string>
     <string name="home_local_status_unavailable">Termux missing</string>
     <string name="home_local_status_needs_setup">Not installed</string>
     <string name="home_local_status_stopped">Stopped</string>
@@ -29,10 +29,24 @@
     <string name="home_local_stop">Stop</string>
     <string name="home_local_setup">Setup</string>
     <string name="home_local_setup_desc">Tap Setup to copy the install command and open Termux.</string>
-    <string name="home_local_setup_copied">Setup command copied — paste it in Termux</string>
+    <string name="home_local_setup_copied">Command copied</string>
     <string name="home_local_copy_fix_command">Copy fix command</string>
     <string name="home_local_fix_command_copied">Fix command copied</string>
     <string name="home_local_permission_required">Grant Termux Run Command permission</string>
+    <string name="home_local_open_sessions">Sessions</string>
+    <string name="home_local_proxy_settings">Proxy</string>
+    <string name="home_local_proxy_enable">Use proxy for local runtime</string>
+    <string name="home_local_proxy_url_label">Proxy URL</string>
+    <string name="home_local_proxy_no_proxy_hint">Local addresses bypass proxy automatically: localhost, 127.0.0.1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16.</string>
+    <string name="home_local_open_termux_overlay_settings">Open Termux overlay settings</string>
+    <string name="home_local_error_timeout">Server did not respond within 30 seconds. Check Termux for errors.</string>
+    <string name="home_local_message_stop_sent">Stop command sent</string>
+    <string name="home_local_error_termux_blocked_external">Termux blocked external commands. Run setup again to re-enable it.</string>
+    <string name="home_local_error_termux_overlay_permission">Termux needs the "Display over other apps" permission. Open Termux settings and enable it.</string>
+    <string name="home_local_error_run_command_permission">Termux Run Command permission is missing. Grant the permission and try again.</string>
+    <string name="home_local_error_background_launch">Android blocked background launch. Keep the app in foreground and try again.</string>
+    <string name="home_local_error_not_installed">Local runtime is not installed yet. Tap Setup to install it.</string>
+    <string name="home_local_error_launch_failed">Failed to launch Termux command.</string>
     
     <!-- Server Management -->
     <string name="server_name">Server Name</string>
@@ -56,6 +70,14 @@
     <!-- Session Screen -->
     <string name="sessions_title">Sessions</string>
     <string name="sessions_new">New Session</string>
+    <string name="sessions_create_folder">Create folder</string>
+    <string name="sessions_create_folder_title">Create folder</string>
+    <string name="sessions_create_folder_name_label">Folder name</string>
+    <string name="sessions_create_folder_name_placeholder">my-project</string>
+    <string name="sessions_create_folder_invalid_name">Enter a valid folder name</string>
+    <string name="sessions_create_folder_create">Create</string>
+    <string name="sessions_create_folder_failed">Failed to create folder</string>
+    <string name="sessions_create_folder_success">Created: %1$s</string>
     <string name="sessions_new_dialog_title">New session</string>
     <string name="sessions_open_other_project">Open other project…</string>
     <string name="sessions_new_on_server">New session on %1$s…</string>
@@ -321,10 +343,15 @@
     <string name="server_settings_no_connect_methods">No connection methods are available for this provider</string>
     <string name="server_settings_api_key_title">API key for %1$s</string>
     <string name="server_settings_api_key_placeholder">Paste API key</string>
-    <string name="server_settings_oauth_title">OAuth for %1$s</string>
+    <string name="server_settings_oauth_title">Connect %1$s</string>
     <string name="server_settings_oauth_open_browser">Open in browser</string>
     <string name="server_settings_oauth_code_placeholder">Paste authorization code</string>
     <string name="server_settings_oauth_complete">Complete</string>
+    <string name="server_settings_oauth_copy_code">Copy code</string>
+    <string name="server_settings_oauth_code_copied">Code copied</string>
+    <string name="server_settings_oauth_device_code_hint">Enter this code on the website:</string>
+    <string name="server_settings_oauth_browser_hint">Complete authorization in your browser. This window will close automatically.</string>
+    <string name="server_settings_oauth_headless_fallback">Headless auth is not supported by this server build. Switched to browser OAuth.</string>
     <string name="server_settings_auth_method_api">API key</string>
     <string name="connect">Connect</string>
     <string name="disconnect">Disconnect</string>

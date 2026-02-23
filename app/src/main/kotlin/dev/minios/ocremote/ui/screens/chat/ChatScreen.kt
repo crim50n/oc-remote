@@ -388,6 +388,12 @@ private fun formatTokenCount(count: Int): String {
     }
 }
 
+private fun formatAssistantErrorMessage(error: Message.Assistant.ErrorInfo?): String? {
+    if (error == null) return null
+    val raw = error.message.ifBlank { error.name }
+    return raw.ifBlank { null }
+}
+
 /**
  * VisualTransformation that highlights confirmed @file mentions as colored pills.
  * Only paths present in [confirmedFilePaths] are highlighted; unconfirmed @queries
@@ -3063,6 +3069,8 @@ private fun ChatMessageBubble(
     }
 
     val userMessage = chatMessage.message as? Message.User
+    val assistantMessage = chatMessage.message as? Message.Assistant
+    val assistantErrorText = formatAssistantErrorMessage(assistantMessage?.error)
     val userFallbackText = userMessage?.summary?.body?.takeIf { it.isNotBlank() }
         ?: userMessage?.summary?.title?.takeIf { it.isNotBlank() }
     val hasRenderableUserContent = !isUser || visibleParts.isNotEmpty() || userFallbackText != null
@@ -3107,9 +3115,8 @@ private fun ChatMessageBubble(
             tonalElevation = if (isAmoled || isUser) 0.dp else 1.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            SelectionContainer {
-                val compact = LocalCompactMessages.current
-                Column(
+            val compact = LocalCompactMessages.current
+            Column(
                     modifier = Modifier.padding(
                         horizontal = if (compact) 10.dp else 16.dp,
                         vertical = if (compact) 8.dp else 14.dp
@@ -3118,7 +3125,7 @@ private fun ChatMessageBubble(
                 ) {
                     // "Response" header with provider icon and copy button — assistant messages only
                     if (!isUser) {
-                        val assistantMsg = chatMessage.message as? Message.Assistant
+                        val assistantMsg = assistantMessage
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -3228,6 +3235,22 @@ private fun ChatMessageBubble(
                         )
                     }
 
+                    if (!isUser && assistantErrorText != null) {
+                        Surface(
+                            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = if (isAmoled) 0.75f else 0.35f)),
+                            tonalElevation = 0.dp,
+                        ) {
+                            Text(
+                                text = assistantErrorText,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+
                     // If text parts are absent but server provided a summary, render it.
                     if (visibleParts.isEmpty() && isUser && userFallbackText != null) {
                         Text(
@@ -3237,7 +3260,6 @@ private fun ChatMessageBubble(
                         )
                     }
                 }
-            }
         }
     }
 
@@ -3487,6 +3509,7 @@ private fun MarkdownContent(
     textColor: Color,
     isUser: Boolean
 ) {
+    val normalizedMarkdown = remember(markdown) { preserveRawHtmlPayload(markdown) }
     val isAmoled = isAmoledTheme()
 
     // Inline code: visible pill with accent text
@@ -3601,13 +3624,31 @@ private fun MarkdownContent(
     )
 
     Markdown(
-        content = markdown,
+        content = normalizedMarkdown,
         colors = colors,
         typography = typography,
         components = components,
         imageTransformer = Coil2ImageTransformerImpl,
         modifier = Modifier.fillMaxWidth()
     )
+}
+
+private val HtmlDocumentHintRegex = Regex("(?is)<!doctype\\s+html\\b|<\\s*html\\b")
+private val HtmlTagRegex = Regex("(?is)<\\s*/?\\s*[a-z][^>]*>")
+
+private fun preserveRawHtmlPayload(markdown: String): String {
+    if (markdown.isBlank()) return markdown
+    if ("```" in markdown) return markdown
+
+    val looksLikeHtmlDocument = HtmlDocumentHintRegex.containsMatchIn(markdown)
+    val htmlTagCount = HtmlTagRegex.findAll(markdown).take(16).count()
+    if (!looksLikeHtmlDocument && htmlTagCount < 8) return markdown
+
+    return buildString(markdown.length + 16) {
+        append("```text\n")
+        append(markdown.trimEnd())
+        append("\n```")
+    }
 }
 
 @Composable

@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
 import javax.inject.Inject
@@ -356,6 +357,76 @@ class SessionListViewModel @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to search directories", e)
             emptyList()
+        }
+    }
+
+    /** Create a directory inside the currently browsed path. */
+    suspend fun createDirectory(parentDirectory: String, folderName: String): Result<String> {
+        val sanitized = folderName.trim().trim('/').replace(Regex("/+"), "/")
+        if (sanitized.isBlank() || sanitized == "." || sanitized == "..") {
+            return Result.failure(IllegalArgumentException("Invalid folder name"))
+        }
+
+        return runCatching {
+            val targetDirectory = if (parentDirectory == "/") {
+                "/$sanitized"
+            } else {
+                "${parentDirectory.trimEnd('/')}/$sanitized"
+            }
+
+            val tempSession = api.createSession(
+                conn = conn,
+                title = "mkdir",
+                directory = parentDirectory,
+            )
+
+            try {
+                val escaped = sanitized.replace("'", "'\"'\"'")
+                val command = "mkdir -p -- '$escaped'"
+
+                val runShellOk = runCatching {
+                    api.runShellCommand(
+                        conn = conn,
+                        sessionId = tempSession.id,
+                        command = command,
+                        agent = "build",
+                        directory = parentDirectory,
+                    )
+                }.getOrElse { false }
+
+                if (!runShellOk) {
+                    val executeOk = api.executeCommand(
+                        conn = conn,
+                        sessionId = tempSession.id,
+                        command = "bash",
+                        arguments = "-lc \"$command\"",
+                        directory = parentDirectory,
+                    )
+                    if (!executeOk) {
+                        throw IllegalStateException("Failed to create directory")
+                    }
+                }
+            } finally {
+                runCatching { api.deleteSession(conn, tempSession.id) }
+            }
+
+            repeat(6) {
+                if (directoryExists(targetDirectory)) {
+                    return@runCatching targetDirectory
+                }
+                delay(200)
+            }
+
+            throw IllegalStateException("Directory was not created")
+        }
+    }
+
+    private suspend fun directoryExists(directory: String): Boolean {
+        return try {
+            api.listDirectory(conn, path = "", directory = directory)
+            true
+        } catch (_: Exception) {
+            false
         }
     }
 }
