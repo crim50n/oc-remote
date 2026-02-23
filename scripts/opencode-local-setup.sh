@@ -287,7 +287,7 @@ ensure_distro_installed() {
 }
 
 proot_exec() {
-    proot-distro login "$DISTRO_ALIAS" -- /bin/sh -lc "$1"
+    proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$1"
 }
 
 setup_distro_packages() {
@@ -350,14 +350,14 @@ if [[ -f "$ENV_FILE" ]]; then
     source "$ENV_FILE"
 fi
 
-exec proot-distro login "$DISTRO_ALIAS" -- /bin/sh -lc "export OPENCODE_SERVER_PASSWORD=\"${OPENCODE_SERVER_PASSWORD:-}\"; exec opencode serve --hostname $HOST --port $PORT"
+exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "export OPENCODE_SERVER_PASSWORD=\"${OPENCODE_SERVER_PASSWORD:-}\"; exec opencode serve --hostname $HOST --port $PORT"
 EOF
 
     cat > "$INSTALL_DIR/stop.sh" <<'EOF'
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
-proot-distro login opencode-debian -- /bin/sh -lc 'pkill -f "opencode serve" >/dev/null 2>&1 || true'
+proot-distro login opencode-debian -- /bin/bash -lc 'pkill -f "opencode serve" >/dev/null 2>&1 || true'
 pkill -f "proot-distro login opencode-debian" >/dev/null 2>&1 || true
 EOF
 
