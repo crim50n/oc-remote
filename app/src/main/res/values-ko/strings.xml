@@ -375,4 +375,24 @@
     <string name="server_settings_small_model">소형 모델</string>
     <string name="server_settings_default_agent">기본 에이전트</string>
     <string name="server_settings_auto">자동</string>
+    <string name="home_local_server_title">로컬 서버</string>
+    <string name="home_local_server_desc">이 기기에서 Termux + Alpine을 통해 OpenCode를 로컬로 실행합니다.</string>
+    <string name="home_local_status_unavailable">Termux 없음</string>
+    <string name="home_local_status_needs_setup">설치되지 않음</string>
+    <string name="home_local_status_stopped">중지됨</string>
+    <string name="home_local_status_starting">시작 중</string>
+    <string name="home_local_status_stopping">중지 중</string>
+    <string name="home_local_status_running">실행 중</string>
+    <string name="home_local_status_error">오류</string>
+    <string name="home_local_install_termux">Termux 설치</string>
+    <string name="home_local_start">시작</string>
+    <string name="home_local_stop">중지</string>
+    <string name="home_local_setup">설정</string>
+    <string name="home_local_setup_desc">설정을 탭하면 설치 명령어가 복사되고 Termux가 열립니다.</string>
+    <string name="home_local_setup_copied">설치 명령어가 복사되었습니다 — Termux에 붙여넣어 주세요</string>
+    <string name="home_local_copy_fix_command">수정 명령어 복사</string>
+    <string name="home_local_fix_command_copied">수정 명령어가 복사되었습니다</string>
+    <string name="home_local_permission_required">Termux 실행 명령어 권한 부여</string>
+    <string name="settings_local_runtime">로컬 런타임 컨트롤 표시</string>
+    <string name="settings_local_runtime_desc">홈 화면에 Termux 로컬 OpenCode 컨트롤 표시</string>
 </resources>

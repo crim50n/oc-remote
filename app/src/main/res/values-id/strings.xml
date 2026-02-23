@@ -381,4 +381,24 @@
     <string name="server_settings_small_model">Model kecil</string>
     <string name="server_settings_default_agent">Agen default</string>
     <string name="server_settings_auto">Otomatis</string>
+    <string name="home_local_server_title">Server Lokal</string>
+    <string name="home_local_server_desc">Jalankan OpenCode secara lokal melalui Termux + Alpine di perangkat ini.</string>
+    <string name="home_local_status_unavailable">Termux tidak ditemukan</string>
+    <string name="home_local_status_needs_setup">Belum terpasang</string>
+    <string name="home_local_status_stopped">Dihentikan</string>
+    <string name="home_local_status_starting">Memulai</string>
+    <string name="home_local_status_stopping">Menghentikan</string>
+    <string name="home_local_status_running">Berjalan</string>
+    <string name="home_local_status_error">Kesalahan</string>
+    <string name="home_local_install_termux">Pasang Termux</string>
+    <string name="home_local_start">Mulai</string>
+    <string name="home_local_stop">Hentikan</string>
+    <string name="home_local_setup">Pengaturan</string>
+    <string name="home_local_setup_desc">Ketuk Pengaturan untuk menyalin perintah instalasi dan membuka Termux.</string>
+    <string name="home_local_setup_copied">Perintah pengaturan disalin — tempel di Termux</string>
+    <string name="home_local_copy_fix_command">Salin perintah perbaikan</string>
+    <string name="home_local_fix_command_copied">Perintah perbaikan disalin</string>
+    <string name="home_local_permission_required">Beri izin Termux Run Command</string>
+    <string name="settings_local_runtime">Tampilkan kontrol runtime lokal</string>
+    <string name="settings_local_runtime_desc">Tampilkan kontrol OpenCode lokal Termux di layar Beranda</string>
 </resources>

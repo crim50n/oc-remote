@@ -18,6 +18,24 @@ checksums:
         cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
         connect: 3823850ca815607e71802e301da2d082
         disconnect: eadb7beea3cb00eadad12f674dba9871
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
         server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
@@ -57,6 +75,8 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/de:
@@ -77,6 +97,24 @@ checksums:
         cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
         connect: 3823850ca815607e71802e301da2d082
         disconnect: eadb7beea3cb00eadad12f674dba9871
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
         server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
@@ -116,6 +154,8 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/es:
@@ -136,6 +176,24 @@ checksums:
         cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
         connect: 3823850ca815607e71802e301da2d082
         disconnect: eadb7beea3cb00eadad12f674dba9871
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
         server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
@@ -175,6 +233,8 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/fr:
@@ -195,6 +255,24 @@ checksums:
         cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
         connect: 3823850ca815607e71802e301da2d082
         disconnect: eadb7beea3cb00eadad12f674dba9871
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
         server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
@@ -234,6 +312,8 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/id:
@@ -254,6 +334,24 @@ checksums:
         cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
         connect: 3823850ca815607e71802e301da2d082
         disconnect: eadb7beea3cb00eadad12f674dba9871
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
         server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
@@ -293,6 +391,8 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/it:
@@ -313,6 +413,24 @@ checksums:
         cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
         connect: 3823850ca815607e71802e301da2d082
         disconnect: eadb7beea3cb00eadad12f674dba9871
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
         server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
@@ -352,6 +470,8 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/ja:
@@ -372,6 +492,24 @@ checksums:
         cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
         connect: 3823850ca815607e71802e301da2d082
         disconnect: eadb7beea3cb00eadad12f674dba9871
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
         server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
@@ -411,6 +549,8 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/ko:
@@ -431,6 +571,24 @@ checksums:
         cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
         connect: 3823850ca815607e71802e301da2d082
         disconnect: eadb7beea3cb00eadad12f674dba9871
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
         server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
@@ -470,6 +628,8 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/pl:
@@ -490,6 +650,24 @@ checksums:
         cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
         connect: 3823850ca815607e71802e301da2d082
         disconnect: eadb7beea3cb00eadad12f674dba9871
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
         server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
@@ -529,6 +707,8 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/pt-BR:
@@ -549,6 +729,24 @@ checksums:
         cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
         connect: 3823850ca815607e71802e301da2d082
         disconnect: eadb7beea3cb00eadad12f674dba9871
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
         server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
@@ -588,9 +786,29 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/ru:
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_empty: 25043979d5b514569e04176c8195da2c
         server_settings_load_error: 94976bcf3821e669d678db9fa94b64b6
@@ -602,6 +820,8 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
     OC Remote Android/tr:
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
@@ -620,6 +840,24 @@ checksums:
         cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
         connect: 3823850ca815607e71802e301da2d082
         disconnect: eadb7beea3cb00eadad12f674dba9871
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
         server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
@@ -659,6 +897,8 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/uk:
@@ -679,6 +919,24 @@ checksums:
         cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
         connect: 3823850ca815607e71802e301da2d082
         disconnect: eadb7beea3cb00eadad12f674dba9871
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
         server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
@@ -718,6 +976,8 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/zh-CN:
@@ -738,6 +998,24 @@ checksums:
         cmd_shell_mode: 2883c76f5d63b30603b6844e140b317d
         connect: 3823850ca815607e71802e301da2d082
         disconnect: eadb7beea3cb00eadad12f674dba9871
+        home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
+        home_local_fix_command_copied: fc6b801a73e2fc37ea1b6b7d13b44c1a
+        home_local_install_termux: 5d043f6d293e7e9d01702d59f47dac81
+        home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
+        home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
+        home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
+        home_local_setup: f72ccf2b23aa2ed08eb60fe112a3b0d2
+        home_local_setup_copied: b3ecc5182ea92d2a04e3ea1aa5d05744
+        home_local_setup_desc: 2d196b1ed178ea22a77c551170837e70
+        home_local_start: a2b6df8a04e74e1cc8fb36691536ea0e
+        home_local_status_error: c8b82fc29548ae4e526723054d6bbab6
+        home_local_status_needs_setup: aa6d6a7790c305994b0ee2fdcaec7276
+        home_local_status_running: 7e7d2c6fdd97ec3a61d5235529f3cc2b
+        home_local_status_starting: 647c7fc1e9bdc877d7606f2fd4092a05
+        home_local_status_stopped: 15974c1a17688651a8c9dbb061f3acb6
+        home_local_status_stopping: 45b715a0813d70b0bf98ae52ccddf94e
+        home_local_status_unavailable: d3afd6c5f10c2f3492fcbd7325a40bbb
+        home_local_stop: 2966be455d0a3154eb03c632365c0a9b
         loading: a59711a98c591a8cf02d5fd9c104aec7
         server_settings_api_key_placeholder: f91c9f1a965edf785a0b4e12b3165e94
         server_settings_api_key_title: b56627fa3eff8a737cb8a039f887581e
@@ -777,5 +1055,7 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
+        settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587

@@ -3487,27 +3487,29 @@ private fun MarkdownContent(
     textColor: Color,
     isUser: Boolean
 ) {
+    val isAmoled = isAmoledTheme()
+
     // Inline code: visible pill with accent text
-    val inlineCodeBg = if (isUser) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHighest
+    val inlineCodeBg = when {
+        isAmoled -> MaterialTheme.colorScheme.surfaceContainerHigh
+        isUser -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        else -> MaterialTheme.colorScheme.surfaceContainerHighest
     }
-    val inlineCodeFg = if (isUser) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.primary
+    val inlineCodeFg = when {
+        isAmoled -> MaterialTheme.colorScheme.onSurface
+        isUser -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.primary
     }
     // Code blocks: distinct background
-    val codeBlockBg = if (isUser) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.surfaceContainer
+    val codeBlockBg = when {
+        isAmoled -> MaterialTheme.colorScheme.surfaceContainerLow
+        isUser -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.surfaceContainer
     }
-    val codeBlockFg = if (isUser) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onSurface
+    val codeBlockFg = when {
+        isAmoled -> MaterialTheme.colorScheme.onSurface
+        isUser -> MaterialTheme.colorScheme.onPrimary
+        else -> MaterialTheme.colorScheme.onSurface
     }
 
     // Font size from settings: small=13sp, medium=14sp (default), large=16sp
@@ -3534,7 +3536,11 @@ private fun MarkdownContent(
         text = textColor,
         codeText = codeBlockFg,
         inlineCodeText = inlineCodeFg,
-        linkText = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary,
+        linkText = when {
+            isAmoled -> MaterialTheme.colorScheme.primary
+            isUser -> MaterialTheme.colorScheme.onPrimaryContainer
+            else -> MaterialTheme.colorScheme.primary
+        },
         codeBackground = codeBlockBg,
         inlineCodeBackground = inlineCodeBg,
         dividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -5101,15 +5107,31 @@ private fun FileCard(file: Part.File) {
 @Composable
 private fun FileCardFallback(file: Part.File) {
     val isAmoled = isAmoledTheme()
+    val containerColor = if (isAmoled) {
+        Color.Black
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerLow
+    }
+    val borderColor = if (isAmoled) {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f)
+    }
+    val contentColor = if (isAmoled) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
-        tonalElevation = if (isAmoled) 0.dp else 1.dp,
+        shape = RoundedCornerShape(12.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor),
+        tonalElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -5117,13 +5139,16 @@ private fun FileCardFallback(file: Part.File) {
                 Icons.Default.AttachFile,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = file.filename
                     ?: file.url?.trimEnd('/')?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
                     ?: file.mime,
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodyMedium,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

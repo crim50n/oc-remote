@@ -375,4 +375,24 @@
     <string name="server_settings_small_model">Мала модель</string>
     <string name="server_settings_default_agent">Типовий агент</string>
     <string name="server_settings_auto">Авто</string>
+    <string name="home_local_server_title">Локальний сервер</string>
+    <string name="home_local_server_desc">Запустіть OpenCode локально через Termux + Alpine на цьому пристрої.</string>
+    <string name="home_local_status_unavailable">Termux не знайдено</string>
+    <string name="home_local_status_needs_setup">Не встановлено</string>
+    <string name="home_local_status_stopped">Зупинено</string>
+    <string name="home_local_status_starting">Запуск</string>
+    <string name="home_local_status_stopping">Зупинка</string>
+    <string name="home_local_status_running">Працює</string>
+    <string name="home_local_status_error">Помилка</string>
+    <string name="home_local_install_termux">Встановити Termux</string>
+    <string name="home_local_start">Запустити</string>
+    <string name="home_local_stop">Зупинити</string>
+    <string name="home_local_setup">Налаштування</string>
+    <string name="home_local_setup_desc">Натисніть «Налаштування», щоб скопіювати команду встановлення та відкрити Termux.</string>
+    <string name="home_local_setup_copied">Команду налаштування скопійовано — вставте її в Termux</string>
+    <string name="home_local_copy_fix_command">Скопіювати команду виправлення</string>
+    <string name="home_local_fix_command_copied">Команду виправлення скопійовано</string>
+    <string name="home_local_permission_required">Надати Termux дозвіл на виконання команд</string>
+    <string name="settings_local_runtime">Показати локальні елементи керування середовищем</string>
+    <string name="settings_local_runtime_desc">Показувати локальні елементи керування OpenCode через Termux на головному екрані</string>
 </resources>

@@ -375,4 +375,24 @@
     <string name="server_settings_small_model">小模型</string>
     <string name="server_settings_default_agent">默认代理</string>
     <string name="server_settings_auto">自动</string>
+    <string name="home_local_server_title">本地服务器</string>
+    <string name="home_local_server_desc">在本设备上通过 Termux + Alpine 本地运行 OpenCode。</string>
+    <string name="home_local_status_unavailable">未找到 Termux</string>
+    <string name="home_local_status_needs_setup">未安装</string>
+    <string name="home_local_status_stopped">已停止</string>
+    <string name="home_local_status_starting">正在启动</string>
+    <string name="home_local_status_stopping">正在停止</string>
+    <string name="home_local_status_running">正在运行</string>
+    <string name="home_local_status_error">错误</string>
+    <string name="home_local_install_termux">安装 Termux</string>
+    <string name="home_local_start">启动</string>
+    <string name="home_local_stop">停止</string>
+    <string name="home_local_setup">设置</string>
+    <string name="home_local_setup_desc">点击“设置”以复制安装命令并打开 Termux。</string>
+    <string name="home_local_setup_copied">设置命令已复制 — 请在 Termux 中粘贴</string>
+    <string name="home_local_copy_fix_command">复制修复命令</string>
+    <string name="home_local_fix_command_copied">修复命令已复制</string>
+    <string name="home_local_permission_required">授予 Termux 运行命令权限</string>
+    <string name="settings_local_runtime">显示本地运行时控制</string>
+    <string name="settings_local_runtime_desc">在主屏幕显示 Termux 本地 OpenCode 控制</string>
 </resources>

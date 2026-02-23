@@ -375,4 +375,24 @@
     <string name="server_settings_small_model">Kleines Modell</string>
     <string name="server_settings_default_agent">Standard-Agent</string>
     <string name="server_settings_auto">Auto</string>
+    <string name="home_local_server_title">Lokaler Server</string>
+    <string name="home_local_server_desc">Führe OpenCode lokal über Termux + Alpine auf diesem Gerät aus.</string>
+    <string name="home_local_status_unavailable">Termux fehlt</string>
+    <string name="home_local_status_needs_setup">Nicht installiert</string>
+    <string name="home_local_status_stopped">Angehalten</string>
+    <string name="home_local_status_starting">Wird gestartet</string>
+    <string name="home_local_status_stopping">Wird gestoppt</string>
+    <string name="home_local_status_running">Läuft</string>
+    <string name="home_local_status_error">Fehler</string>
+    <string name="home_local_install_termux">Termux installieren</string>
+    <string name="home_local_start">Starten</string>
+    <string name="home_local_stop">Stoppen</string>
+    <string name="home_local_setup">Einrichten</string>
+    <string name="home_local_setup_desc">Tippe auf Einrichten, um den Installationsbefehl zu kopieren und Termux zu öffnen.</string>
+    <string name="home_local_setup_copied">Einrichtungsbefehl kopiert — in Termux einfügen</string>
+    <string name="home_local_copy_fix_command">Fix-Befehl kopieren</string>
+    <string name="home_local_fix_command_copied">Fix-Befehl kopiert</string>
+    <string name="home_local_permission_required">Termux-Berechtigung zum Ausführen von Befehlen erteilen</string>
+    <string name="settings_local_runtime">Lokale Laufzeitsteuerung anzeigen</string>
+    <string name="settings_local_runtime_desc">Termux OpenCode-Steuerung für lokale Ausführung auf dem Startbildschirm anzeigen</string>
 </resources>

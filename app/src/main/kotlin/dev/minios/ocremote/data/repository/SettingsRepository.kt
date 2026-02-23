@@ -40,7 +40,9 @@ class SettingsRepository @Inject constructor(
         private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
         private val SILENT_NOTIFICATIONS_KEY = booleanPreferencesKey("silent_notifications")
         private val SHOW_SHELL_BUTTON_KEY = booleanPreferencesKey("show_shell_button")
+        private val SHOW_LOCAL_RUNTIME_KEY = booleanPreferencesKey("show_local_runtime")
         private val TERMINAL_FONT_SIZE_KEY = floatPreferencesKey("terminal_font_size")
+        private val LOCAL_SETUP_COMPLETED_KEY = booleanPreferencesKey("local_setup_completed")
 
         /** SharedPreferences name used for synchronous locale reads in attachBaseContext. */
         private const val LOCALE_PREFS = "locale_prefs"
@@ -279,6 +281,19 @@ class SettingsRepository @Inject constructor(
     }
 
     /**
+     * Whether to show local runtime controls on Home screen. Default: true.
+     */
+    val showLocalRuntime: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[SHOW_LOCAL_RUNTIME_KEY] ?: true
+    }
+
+    suspend fun setShowLocalRuntime(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SHOW_LOCAL_RUNTIME_KEY] = enabled
+        }
+    }
+
+    /**
      * Default terminal font size in sp. Default: 13.
      */
     val terminalFontSize: Flow<Float> = dataStore.data.map { preferences ->
@@ -288,6 +303,19 @@ class SettingsRepository @Inject constructor(
     suspend fun setTerminalFontSize(size: Float) {
         dataStore.edit { preferences ->
             preferences[TERMINAL_FONT_SIZE_KEY] = size.coerceIn(6f, 20f)
+        }
+    }
+
+    /**
+     * Whether the local Termux setup has been completed at least once.
+     */
+    val localSetupCompleted: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[LOCAL_SETUP_COMPLETED_KEY] ?: false
+    }
+
+    suspend fun setLocalSetupCompleted(completed: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[LOCAL_SETUP_COMPLETED_KEY] = completed
         }
     }
 

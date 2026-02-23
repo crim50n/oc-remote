@@ -375,4 +375,24 @@
     <string name="server_settings_small_model">Modelo pequeno</string>
     <string name="server_settings_default_agent">Agente padrão</string>
     <string name="server_settings_auto">Automático</string>
+    <string name="home_local_server_title">Servidor Local</string>
+    <string name="home_local_server_desc">Execute o OpenCode localmente via Termux + Alpine neste dispositivo.</string>
+    <string name="home_local_status_unavailable">Termux não encontrado</string>
+    <string name="home_local_status_needs_setup">Não instalado</string>
+    <string name="home_local_status_stopped">Parado</string>
+    <string name="home_local_status_starting">Iniciando</string>
+    <string name="home_local_status_stopping">Parando</string>
+    <string name="home_local_status_running">Em execução</string>
+    <string name="home_local_status_error">Erro</string>
+    <string name="home_local_install_termux">Instalar Termux</string>
+    <string name="home_local_start">Iniciar</string>
+    <string name="home_local_stop">Parar</string>
+    <string name="home_local_setup">Configurar</string>
+    <string name="home_local_setup_desc">Toque em Configurar para copiar o comando de instalação e abrir o Termux.</string>
+    <string name="home_local_setup_copied">Comando de configuração copiado — cole no Termux</string>
+    <string name="home_local_copy_fix_command">Copiar comando de correção</string>
+    <string name="home_local_fix_command_copied">Comando de correção copiado</string>
+    <string name="home_local_permission_required">Conceda permissão para Executar Comando no Termux</string>
+    <string name="settings_local_runtime">Mostrar controles do runtime local</string>
+    <string name="settings_local_runtime_desc">Mostrar controles locais do OpenCode via Termux na tela inicial</string>
 </resources>

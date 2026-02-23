@@ -13,19 +13,34 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.minios.ocremote.data.api.OpenCodeApi
 import dev.minios.ocremote.data.api.ServerConnection
+import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.data.repository.ServerRepository
+import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.service.OpenCodeConnectionService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "HomeViewModel"
+private const val LOCAL_SERVER_NAME = "Local OpenCode"
+
+enum class LocalRuntimeStatus {
+    Unavailable,
+    NeedsSetup,
+    Stopped,
+    Starting,
+    Stopping,
+    Running,
+    Error,
+}
 
 data class HomeUiState(
     val servers: List<ServerConfig> = emptyList(),
@@ -35,14 +50,28 @@ data class HomeUiState(
     val connectionErrors: Map<String, String> = emptyMap(),
     val showAddServerDialog: Boolean = false,
     val editingServer: ServerConfig? = null,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val termuxInstalled: Boolean = false,
+    val localRuntimeStatus: LocalRuntimeStatus = LocalRuntimeStatus.Unavailable,
+    val localRuntimeMessage: String? = null,
+    val localRuntimeFixCommand: String? = null,
+    val setupCommand: String? = null,
+    val showLocalRuntime: Boolean = true,
+)
+
+private data class LocalRuntimeErrorInfo(
+    val message: String,
+    val fixCommand: String? = null,
+    val status: LocalRuntimeStatus = LocalRuntimeStatus.Error,
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     application: Application,
     private val serverRepository: ServerRepository,
-    private val api: OpenCodeApi
+    private val api: OpenCodeApi,
+    private val localServerManager: LocalServerManager,
+    private val settingsRepository: SettingsRepository,
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -70,6 +99,16 @@ class HomeViewModel @Inject constructor(
     init {
         loadServers()
         bindToService()
+        observeSettings()
+        refreshLocalRuntimeState()
+    }
+
+    private fun observeSettings() {
+        viewModelScope.launch {
+            settingsRepository.showLocalRuntime.collect { enabled ->
+                _uiState.update { it.copy(showLocalRuntime = enabled) }
+            }
+        }
     }
 
     /**
@@ -284,6 +323,249 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    fun refreshLocalRuntimeState() {
+        viewModelScope.launch {
+            val termuxInstalled = localServerManager.isTermuxInstalled()
+            if (!termuxInstalled) {
+                _uiState.update {
+                    it.copy(
+                        termuxInstalled = false,
+                        localRuntimeStatus = LocalRuntimeStatus.Unavailable,
+                        localRuntimeMessage = null,
+                        localRuntimeFixCommand = null,
+                        setupCommand = null,
+                    )
+                }
+                return@launch
+            }
+
+            val healthy = localServerManager.isServerHealthy()
+            if (healthy) {
+                // Server is running — mark setup as done (in case flag was never set)
+                settingsRepository.setLocalSetupCompleted(true)
+                _uiState.update {
+                    it.copy(
+                        termuxInstalled = true,
+                        localRuntimeStatus = LocalRuntimeStatus.Running,
+                        localRuntimeMessage = null,
+                        localRuntimeFixCommand = null,
+                        setupCommand = null,
+                    )
+                }
+                // Auto-create local server entry and connect
+                val localServer = ensureLocalServerExists()
+                if (!_uiState.value.connectedServerIds.contains(localServer.id) &&
+                    !_uiState.value.connectingServerIds.contains(localServer.id)
+                ) {
+                    connectToServer(localServer.id)
+                }
+                return@launch
+            }
+
+            // Server not healthy — check if setup was ever completed
+            val setupDone = settingsRepository.localSetupCompleted.first()
+            _uiState.update {
+                it.copy(
+                    termuxInstalled = true,
+                    localRuntimeStatus = if (setupDone) LocalRuntimeStatus.Stopped else LocalRuntimeStatus.NeedsSetup,
+                    localRuntimeMessage = null,
+                    localRuntimeFixCommand = null,
+                    setupCommand = if (!setupDone) localServerManager.getSetupCommand() else null,
+                )
+            }
+        }
+    }
+
+    /**
+     * Copy the setup command and open Termux so the user can paste it.
+     */
+    fun setupLocalServer(callerContext: Context) {
+        localServerManager.openTermux(callerContext)
+    }
+
+    fun startLocalServer(callerContext: Context) {
+        _uiState.update {
+            it.copy(
+                localRuntimeStatus = LocalRuntimeStatus.Starting,
+                localRuntimeMessage = null,
+                localRuntimeFixCommand = null,
+            )
+        }
+
+        viewModelScope.launch {
+            if (!localServerManager.isTermuxInstalled()) {
+                _uiState.update {
+                    it.copy(
+                        termuxInstalled = false,
+                        localRuntimeStatus = LocalRuntimeStatus.Unavailable,
+                        localRuntimeMessage = null,
+                        localRuntimeFixCommand = null,
+                    )
+                }
+                return@launch
+            }
+
+            val startResult = localServerManager.startServer(callerContext)
+            if (startResult.isFailure) {
+                val errorInfo = mapLocalRuntimeError(startResult.exceptionOrNull()?.message)
+                _uiState.update {
+                    it.copy(
+                        termuxInstalled = true,
+                        localRuntimeStatus = errorInfo.status,
+                        localRuntimeMessage = errorInfo.message,
+                        localRuntimeFixCommand = errorInfo.fixCommand,
+                        setupCommand = if (errorInfo.status == LocalRuntimeStatus.NeedsSetup) {
+                            localServerManager.getSetupCommand()
+                        } else null,
+                    )
+                }
+                return@launch
+            }
+
+            val ready = waitForLocalServerReady(timeoutMs = 30000L)
+            if (!ready) {
+                _uiState.update {
+                    it.copy(
+                        termuxInstalled = true,
+                        localRuntimeStatus = LocalRuntimeStatus.Error,
+                        localRuntimeMessage = "Server did not respond within 30 seconds. Check Termux for errors.",
+                        localRuntimeFixCommand = null,
+                    )
+                }
+                return@launch
+            }
+
+            settingsRepository.setLocalSetupCompleted(true)
+            val localServer = ensureLocalServerExists()
+            _uiState.update {
+                it.copy(
+                    termuxInstalled = true,
+                    localRuntimeStatus = LocalRuntimeStatus.Running,
+                    localRuntimeMessage = null,
+                    localRuntimeFixCommand = null,
+                )
+            }
+
+            if (!_uiState.value.connectedServerIds.contains(localServer.id) &&
+                !_uiState.value.connectingServerIds.contains(localServer.id)
+            ) {
+                connectToServer(localServer.id)
+            }
+        }
+    }
+
+    fun stopLocalServer(callerContext: Context) {
+        _uiState.update {
+            it.copy(
+                localRuntimeStatus = LocalRuntimeStatus.Stopping,
+                localRuntimeMessage = null,
+                localRuntimeFixCommand = null,
+            )
+        }
+
+        viewModelScope.launch {
+            val stopResult = localServerManager.stopServer(callerContext)
+            if (stopResult.isFailure) {
+                val errorInfo = mapLocalRuntimeError(stopResult.exceptionOrNull()?.message)
+                _uiState.update {
+                    it.copy(
+                        localRuntimeStatus = LocalRuntimeStatus.Error,
+                        localRuntimeMessage = errorInfo.message,
+                        localRuntimeFixCommand = errorInfo.fixCommand,
+                    )
+                }
+                return@launch
+            }
+
+            val localServerId = _uiState.value.servers.firstOrNull {
+                it.url == LocalServerManager.LOCAL_SERVER_URL
+            }?.id
+            if (localServerId != null) {
+                disconnectFromServer(localServerId)
+            }
+
+            repeat(6) {
+                delay(1000)
+                if (!localServerManager.isServerHealthy()) {
+                    _uiState.update {
+                        it.copy(
+                            localRuntimeStatus = LocalRuntimeStatus.Stopped,
+                            localRuntimeMessage = null,
+                            localRuntimeFixCommand = null,
+                        )
+                    }
+                    return@launch
+                }
+            }
+
+            _uiState.update {
+                it.copy(
+                    localRuntimeStatus = LocalRuntimeStatus.Stopped,
+                    localRuntimeMessage = "Stop command sent",
+                    localRuntimeFixCommand = null,
+                )
+            }
+        }
+    }
+
+    private suspend fun waitForLocalServerReady(timeoutMs: Long = 30000L): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (localServerManager.isServerHealthy()) {
+                return true
+            }
+            delay(1500)
+        }
+        return false
+    }
+
+    private suspend fun ensureLocalServerExists(): ServerConfig {
+        val existing = _uiState.value.servers.firstOrNull {
+            it.url == LocalServerManager.LOCAL_SERVER_URL
+        }
+        if (existing != null) return existing
+
+        return serverRepository.addServer(
+            url = LocalServerManager.LOCAL_SERVER_URL,
+            username = "opencode",
+            password = null,
+            name = LOCAL_SERVER_NAME,
+            autoConnect = false,
+        )
+    }
+
+    private fun mapLocalRuntimeError(rawMessage: String?): LocalRuntimeErrorInfo {
+        val raw = rawMessage.orEmpty()
+        val lower = raw.lowercase()
+        return when {
+            "allow-external-apps" in lower -> {
+                LocalRuntimeErrorInfo(
+                    message = "Termux blocked external commands. Run the setup again — it enables this automatically.",
+                    fixCommand = "mkdir -p ~/.termux && (grep -q '^allow-external-apps' ~/.termux/termux.properties 2>/dev/null && sed -i 's/^allow-external-apps.*/allow-external-apps = true/' ~/.termux/termux.properties || echo 'allow-external-apps = true' >> ~/.termux/termux.properties) && termux-reload-settings",
+                    status = LocalRuntimeStatus.NeedsSetup,
+                )
+            }
+
+            "run_command" in lower && "without permission" in lower -> {
+                LocalRuntimeErrorInfo("Termux Run Command permission is missing. Grant the permission and try again.")
+            }
+
+            "app is in background" in lower -> {
+                LocalRuntimeErrorInfo("Android blocked background launch. Keep the app in foreground and try again.")
+            }
+
+            "regular file not found" in lower && "opencode-local" in lower -> {
+                LocalRuntimeErrorInfo(
+                    message = "Local runtime is not installed yet. Tap Setup to install it.",
+                    status = LocalRuntimeStatus.NeedsSetup,
+                )
+            }
+
+            raw.isNotBlank() -> LocalRuntimeErrorInfo(raw)
+            else -> LocalRuntimeErrorInfo("Failed to launch Termux command")
         }
     }
 

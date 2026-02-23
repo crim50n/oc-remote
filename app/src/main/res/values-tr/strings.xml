@@ -375,4 +375,24 @@
     <string name="server_settings_small_model">Küçük model</string>
     <string name="server_settings_default_agent">Varsayılan ajan</string>
     <string name="server_settings_auto">Otomatik</string>
+    <string name="home_local_server_title">Yerel Sunucu</string>
+    <string name="home_local_server_desc">OpenCode\'u bu cihazda Termux + Alpine ile yerel olarak çalıştırın.</string>
+    <string name="home_local_status_unavailable">Termux eksik</string>
+    <string name="home_local_status_needs_setup">Yüklü değil</string>
+    <string name="home_local_status_stopped">Durduruldu</string>
+    <string name="home_local_status_starting">Başlatılıyor</string>
+    <string name="home_local_status_stopping">Durduruluyor</string>
+    <string name="home_local_status_running">Çalışıyor</string>
+    <string name="home_local_status_error">Hata</string>
+    <string name="home_local_install_termux">Termux\'u Yükle</string>
+    <string name="home_local_start">Başlat</string>
+    <string name="home_local_stop">Durdur</string>
+    <string name="home_local_setup">Kurulum</string>
+    <string name="home_local_setup_desc">Kurulum komutunu kopyalamak ve Termux\'u açmak için Kurulum\'a dokunun.</string>
+    <string name="home_local_setup_copied">Kurulum komutu kopyalandı — Termux\'a yapıştırın</string>
+    <string name="home_local_copy_fix_command">Düzeltme komutunu kopyala</string>
+    <string name="home_local_fix_command_copied">Düzeltme komutu kopyalandı</string>
+    <string name="home_local_permission_required">Termux Çalıştırma Komutu izni ver</string>
+    <string name="settings_local_runtime">Yerel çalışma zamanı kontrollerini göster</string>
+    <string name="settings_local_runtime_desc">Ana ekranda Termux yerel OpenCode kontrollerini göster</string>
 </resources>

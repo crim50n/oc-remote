@@ -375,4 +375,24 @@
     <string name="server_settings_small_model">نموذج صغير</string>
     <string name="server_settings_default_agent">الوكيل الافتراضي</string>
     <string name="server_settings_auto">تلقائي</string>
+    <string name="home_local_server_title">الخادم المحلي</string>
+    <string name="home_local_server_desc">شغّل OpenCode محليًا عبر Termux + Alpine على هذا الجهاز.</string>
+    <string name="home_local_status_unavailable">Termux غير موجود</string>
+    <string name="home_local_status_needs_setup">غير مثبت</string>
+    <string name="home_local_status_stopped">متوقف</string>
+    <string name="home_local_status_starting">جارٍ البدء</string>
+    <string name="home_local_status_stopping">جارٍ الإيقاف</string>
+    <string name="home_local_status_running">يعمل</string>
+    <string name="home_local_status_error">خطأ</string>
+    <string name="home_local_install_termux">تثبيت Termux</string>
+    <string name="home_local_start">بدء</string>
+    <string name="home_local_stop">إيقاف</string>
+    <string name="home_local_setup">إعداد</string>
+    <string name="home_local_setup_desc">اضغط على إعداد لنسخ أمر التثبيت وفتح Termux.</string>
+    <string name="home_local_setup_copied">تم نسخ أمر الإعداد — الصقه في Termux</string>
+    <string name="home_local_copy_fix_command">نسخ أمر الإصلاح</string>
+    <string name="home_local_fix_command_copied">تم نسخ أمر الإصلاح</string>
+    <string name="home_local_permission_required">امنح Termux إذن تشغيل الأوامر</string>
+    <string name="settings_local_runtime">إظهار عناصر تحكم وقت التشغيل المحلي</string>
+    <string name="settings_local_runtime_desc">إظهار عناصر تحكم OpenCode المحلي عبر Termux على الشاشة الرئيسية</string>
 </resources>

@@ -15,6 +15,24 @@
     <string name="home_fix">Fix</string>
     <string name="home_battery_title">Battery restrictions active</string>
     <string name="home_battery_message">Background connections may be killed. Tap to disable optimization.</string>
+    <string name="home_local_server_title">Local Server</string>
+    <string name="home_local_server_desc">Run OpenCode locally via Termux + Alpine on this device.</string>
+    <string name="home_local_status_unavailable">Termux missing</string>
+    <string name="home_local_status_needs_setup">Not installed</string>
+    <string name="home_local_status_stopped">Stopped</string>
+    <string name="home_local_status_starting">Starting</string>
+    <string name="home_local_status_stopping">Stopping</string>
+    <string name="home_local_status_running">Running</string>
+    <string name="home_local_status_error">Error</string>
+    <string name="home_local_install_termux">Install Termux</string>
+    <string name="home_local_start">Start</string>
+    <string name="home_local_stop">Stop</string>
+    <string name="home_local_setup">Setup</string>
+    <string name="home_local_setup_desc">Tap Setup to copy the install command and open Termux.</string>
+    <string name="home_local_setup_copied">Setup command copied — paste it in Termux</string>
+    <string name="home_local_copy_fix_command">Copy fix command</string>
+    <string name="home_local_fix_command_copied">Fix command copied</string>
+    <string name="home_local_permission_required">Grant Termux Run Command permission</string>
     
     <!-- Server Management -->
     <string name="server_name">Server Name</string>
@@ -277,6 +295,8 @@
     <string name="settings_keep_screen_on_desc">Prevent screen timeout while in chat</string>
     <string name="settings_show_shell_button">Show shell button</string>
     <string name="settings_show_shell_button_desc">Show shell mode toggle near attachment button in chat</string>
+    <string name="settings_local_runtime">Show local runtime controls</string>
+    <string name="settings_local_runtime_desc">Show Termux local OpenCode controls on Home screen</string>
     <string name="settings_terminal_font_size">Terminal default font size</string>
     <string name="settings_terminal_font_size_value">%1$d sp</string>
     <string name="settings_silent_notifications">Silent notifications</string>

@@ -376,4 +376,24 @@
     <string name="sessions_select_all">Выбрать все</string>
     <string name="sessions_delete_selected">Удалить выбранные</string>
     <string name="sessions_delete_selected_confirm">Удалить %1$d сеансов? Это действие нельзя отменить.</string>
+    <string name="home_local_server_title">Локальный сервер</string>
+    <string name="home_local_server_desc">Запустите OpenCode локально через Termux + Alpine на этом устройстве.</string>
+    <string name="home_local_status_unavailable">Termux не найден</string>
+    <string name="home_local_status_needs_setup">Не установлено</string>
+    <string name="home_local_status_stopped">Остановлено</string>
+    <string name="home_local_status_starting">Запуск</string>
+    <string name="home_local_status_stopping">Остановка</string>
+    <string name="home_local_status_running">Работает</string>
+    <string name="home_local_status_error">Ошибка</string>
+    <string name="home_local_install_termux">Установить Termux</string>
+    <string name="home_local_start">Запустить</string>
+    <string name="home_local_stop">Остановить</string>
+    <string name="home_local_setup">Настроить</string>
+    <string name="home_local_setup_desc">Нажмите «Настроить», чтобы скопировать команду установки и открыть Termux.</string>
+    <string name="home_local_setup_copied">Команда настройки скопирована — вставьте её в Termux</string>
+    <string name="home_local_copy_fix_command">Скопировать команду исправления</string>
+    <string name="home_local_fix_command_copied">Команда исправления скопирована</string>
+    <string name="home_local_permission_required">Разрешить Termux выполнять команды</string>
+    <string name="settings_local_runtime">Показать локальные элементы управления средой выполнения</string>
+    <string name="settings_local_runtime_desc">Показывать локальные элементы управления OpenCode через Termux на главном экране</string>
 </resources>

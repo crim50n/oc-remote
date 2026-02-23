@@ -375,4 +375,24 @@
     <string name="server_settings_small_model">小型モデル</string>
     <string name="server_settings_default_agent">デフォルトエージェント</string>
     <string name="server_settings_auto">自動</string>
+    <string name="home_local_server_title">ローカルサーバー</string>
+    <string name="home_local_server_desc">この端末でTermux + Alpineを使ってOpenCodeをローカル実行します。</string>
+    <string name="home_local_status_unavailable">Termuxが見つかりません</string>
+    <string name="home_local_status_needs_setup">未インストール</string>
+    <string name="home_local_status_stopped">停止中</string>
+    <string name="home_local_status_starting">起動中</string>
+    <string name="home_local_status_stopping">停止処理中</string>
+    <string name="home_local_status_running">実行中</string>
+    <string name="home_local_status_error">エラー</string>
+    <string name="home_local_install_termux">Termuxをインストール</string>
+    <string name="home_local_start">開始</string>
+    <string name="home_local_stop">停止</string>
+    <string name="home_local_setup">セットアップ</string>
+    <string name="home_local_setup_desc">セットアップをタップしてインストールコマンドをコピーし、Termuxを開いてください。</string>
+    <string name="home_local_setup_copied">セットアップコマンドをコピーしました — Termuxで貼り付けてください</string>
+    <string name="home_local_copy_fix_command">修正コマンドをコピー</string>
+    <string name="home_local_fix_command_copied">修正コマンドをコピーしました</string>
+    <string name="home_local_permission_required">TermuxのRun Command権限を許可する</string>
+    <string name="settings_local_runtime">ローカルランタイムコントロールを表示</string>
+    <string name="settings_local_runtime_desc">ホーム画面にTermuxのローカルOpenCodeコントロールを表示</string>
 </resources>
