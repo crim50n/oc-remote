@@ -103,7 +103,7 @@ ensure_termux_packages() {
 }
 
 ensure_alpine_installed() {
-    if proot-distro list | grep -Eq "^\s*${DISTRO_ALIAS}\b"; then
+    if proot-distro list --installed | grep -Eq "^\s*${DISTRO_ALIAS}\b"; then
         log "Alpine is already installed"
     else
         log "Installing Alpine distro (from official Alpine CDN)"
@@ -112,9 +112,10 @@ ensure_alpine_installed() {
         # strip=0 because Alpine minirootfs has files at root level.
         # Some proot-distro versions run with nounset and reference
         # PD_OVERRIDE_TARBALL_SHA256 unconditionally, so set it explicitly.
-        PD_OVERRIDE_TARBALL_URL="$ALPINE_ROOTFS_URL" \
-        PD_OVERRIDE_TARBALL_SHA256="" \
-        PD_OVERRIDE_TARBALL_STRIP_OPT=0 \
+        env \
+            PD_OVERRIDE_TARBALL_URL="$ALPINE_ROOTFS_URL" \
+            PD_OVERRIDE_TARBALL_SHA256="skip" \
+            PD_OVERRIDE_TARBALL_STRIP_OPT=0 \
             proot-distro install "$DISTRO_ALIAS"
         log "Alpine installed successfully"
     fi
@@ -201,7 +202,7 @@ doctor() {
     log "- Termux version: ${TERMUX_VERSION:-unknown}"
     log "- Architecture: $(uname -m)"
 
-    if proot-distro list | grep -Eq "^\s*${DISTRO_ALIAS}\b"; then
+    if proot-distro list --installed | grep -Eq "^\s*${DISTRO_ALIAS}\b"; then
         log "- Alpine distro: installed"
     else
         warn "- Alpine distro: missing"
