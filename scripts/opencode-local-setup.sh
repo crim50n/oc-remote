@@ -85,7 +85,7 @@ spin() {
 
     # Show spinner while the process runs
     while kill -0 "$pid" 2>/dev/null; do
-        printf "\r  ${DIM}${SPIN_FRAMES[$((i % ${#SPIN_FRAMES[@]}))]}  %s${RESET}" "$msg"
+        printf "\r\033[2K  ${DIM}${SPIN_FRAMES[$((i % ${#SPIN_FRAMES[@]}))]}  %s${RESET}" "$msg"
         sleep 0.12
         i=$((i + 1))
     done
@@ -95,7 +95,7 @@ spin() {
     wait "$pid" || rc=$?
 
     # Clear the spinner line
-    printf "\r%*s\r" "$(( ${#msg} + 10 ))" ""
+    printf "\r\033[2K"
 
     if (( rc != 0 )); then
         # Dump last 20 lines of output so user can see what went wrong
@@ -174,26 +174,6 @@ ensure_termux_properties() {
     ok "allow-external-apps enabled"
 }
 
-install_termux_package() {
-    local pkg_name="$1"
-
-    if dpkg -s "$pkg_name" >/dev/null 2>&1; then
-        return 0
-    fi
-
-    for attempt in 1 2 3; do
-        if spin "Installing $pkg_name" pkg install -y "$pkg_name"; then
-            return 0
-        fi
-        if (( attempt == 1 )); then
-            spin "Refreshing package index" pkg update -y || true
-        fi
-        sleep 2
-    done
-
-    die "Failed to install Termux package: $pkg_name"
-}
-
 ensure_termux_packages() {
     local missing=()
 
@@ -209,9 +189,14 @@ ensure_termux_packages() {
     fi
 
     info "Installing: ${missing[*]}"
-    for pkg in "${missing[@]}"; do
-        install_termux_package "$pkg"
-    done
+    info "pkg output ↓"
+    if ! pkg install -y "${missing[@]}"; then
+        printf "\n"
+        fail "Package install failed"
+        info "Try running: termux-change-repo"
+        info "Then re-run this script"
+        exit 1
+    fi
     ok "Termux packages ready"
 }
 
@@ -262,8 +247,8 @@ setup_distro_packages() {
         return
     fi
 
-    spin "Updating package index" proot_exec "export DEBIAN_FRONTEND=noninteractive; apt-get update -qq"
-    spin "Installing Debian packages" proot_exec "export DEBIAN_FRONTEND=noninteractive; apt-get install -y -qq --no-install-recommends $needed && apt-get clean"
+    info "apt output ↓"
+    proot_exec "export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && apt-get install -y -qq --no-install-recommends $needed && apt-get clean" || die "Failed to install Debian packages"
     ok "Debian packages ready"
 }
 
@@ -281,7 +266,7 @@ install_opencode_binary() {
         info "Upgrading OpenCode $current -> $OPENCODE_VERSION"
     fi
 
-    spin "Installing OpenCode $OPENCODE_VERSION" proot_exec "rm -f /usr/local/bin/opencode; curl -fsSL https://opencode.ai/install | OPENCODE_VERSION=$OPENCODE_VERSION bash"
+    proot_exec "rm -f /usr/local/bin/opencode; curl -fsSL https://opencode.ai/install | OPENCODE_VERSION=$OPENCODE_VERSION bash" || die "Failed to install OpenCode"
 
     local installed
     installed="$(proot_exec "opencode --version" | tr -d '\r')"
