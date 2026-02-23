@@ -103,24 +103,33 @@ ensure_termux_packages() {
     pkg install -y "${missing_packages[@]}" >/dev/null
 }
 
+install_alpine_rootfs() {
+    log "Installing Alpine distro (from official Alpine CDN)"
+    # Use official Alpine CDN instead of proot-distro's default easycli.sh
+    # which is often extremely slow or unreachable.
+    # strip=0 because Alpine minirootfs has files at root level.
+    env \
+        PD_OVERRIDE_TARBALL_URL="$ALPINE_ROOTFS_URL" \
+        PD_OVERRIDE_TARBALL_SHA256="$ALPINE_ROOTFS_SHA256" \
+        PD_OVERRIDE_TARBALL_STRIP_OPT=0 \
+        proot-distro install "$DISTRO_ALIAS"
+    log "Alpine installed successfully"
+}
+
 ensure_alpine_installed() {
     local installed_rootfs_dir="$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS"
     if [[ -d "$installed_rootfs_dir" ]] && [[ -n "$(ls -A "$installed_rootfs_dir" 2>/dev/null)" ]]; then
-        log "Alpine is already installed"
-    else
-        log "Installing Alpine distro (from official Alpine CDN)"
-        # Use official Alpine CDN instead of proot-distro's default easycli.sh
-        # which is often extremely slow or unreachable.
-        # strip=0 because Alpine minirootfs has files at root level.
-        # Some proot-distro versions run with nounset and reference
-        # PD_OVERRIDE_TARBALL_SHA256 unconditionally, so set it explicitly.
-        env \
-            PD_OVERRIDE_TARBALL_URL="$ALPINE_ROOTFS_URL" \
-            PD_OVERRIDE_TARBALL_SHA256="$ALPINE_ROOTFS_SHA256" \
-            PD_OVERRIDE_TARBALL_STRIP_OPT=0 \
-            proot-distro install "$DISTRO_ALIAS"
-        log "Alpine installed successfully"
+        if proot-distro login "$DISTRO_ALIAS" -- /bin/sh -lc "true" >/dev/null 2>&1; then
+            log "Alpine is already installed"
+            return
+        fi
+
+        warn "Existing Alpine install is broken. Reinstalling automatically..."
+        proot-distro remove "$DISTRO_ALIAS" >/dev/null 2>&1 || true
+        rm -rf "$installed_rootfs_dir"
     fi
+
+    install_alpine_rootfs
 }
 
 proot_exec() {
