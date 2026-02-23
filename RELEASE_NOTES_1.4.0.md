@@ -1,14 +1,15 @@
 # OC Remote v1.4.0 — Release Notes
 
-Feature release focused on local on-device runtime stability, provider auth reliability, and Home screen UX polish.
+Major feature release that introduces built-in local server mode on Android and improves provider auth/session/chat UX.
 
 ## Highlights
 
-- Reworked local runtime setup around Debian in Termux, with a more reliable installer flow, mirror selection, and improved startup diagnostics.
-- Added `opencode-local` helper commands (`start`, `stop`, `status`, `doctor`) and optional proxy support for local runtime with private-network bypass defaults.
-- Improved Providers connect flow for OpenAI and other OAuth methods so browser authorization completes more reliably and connected state refreshes correctly.
-- Refined Home local runtime controls (sessions-first actions), improved empty-state layout behavior, and updated local runtime strings/translations.
-- Improved chat error rendering so provider failures are visible directly in assistant responses instead of appearing as empty bubbles.
+- Added a new Local Server mode in Home so OpenCode can run directly on-device via Termux (setup/start/stop/open sessions from the app UI).
+- Implemented Debian-based local runtime bootstrap with stronger install/start reliability, better diagnostics, and `opencode-local` helper commands (`start`, `stop`, `status`, `doctor`).
+- Added optional proxy support for local runtime traffic, with automatic bypass for localhost and private LAN ranges.
+- Improved provider connect OAuth/device-code flow so browser completion is detected reliably and provider connected state refreshes correctly.
+- Added session folder creation from the Sessions screen for faster project setup.
+- Improved chat error rendering so backend/provider failures are shown directly in assistant messages instead of appearing as empty bubbles.
 
 ## Version
 
