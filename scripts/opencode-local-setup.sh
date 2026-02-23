@@ -10,6 +10,11 @@ INSTALL_DIR="$HOME/opencode-local"
 TERMUX_PROPERTIES_DIR="$HOME/.termux"
 TERMUX_PROPERTIES_FILE="$TERMUX_PROPERTIES_DIR/termux.properties"
 
+# Debian rootfs from GitHub Releases CDN (fast).
+# proot-distro's default CDN (easycli.sh) is often extremely slow.
+DEBIAN_ROOTFS_URL="https://github.com/termux/proot-distro/releases/download/v4.29.0/debian-trixie-aarch64-pd-v4.29.0.tar.xz"
+DEBIAN_ROOTFS_SHA256="3834a11cbc6496935760bdc20cca7e2c25724d0cd8f5e4926da8fd5ca1857918"
+
 TERMUX_REQUIRED_PACKAGES=(proot-distro curl jq)
 WAKE_LOCK_HELD=0
 
@@ -144,9 +149,12 @@ ensure_termux_packages() {
 }
 
 install_distro_rootfs() {
-    log "Installing OpenCode Debian distro alias: $DISTRO_ALIAS"
-    if ! proot-distro install --override-alias "$DISTRO_ALIAS" "$DISTRO_BASE"; then
-        die "Failed to install alias distro. Ensure proot-distro supports --override-alias and try again"
+    log "Installing OpenCode Debian distro alias: $DISTRO_ALIAS (from GitHub CDN)"
+    if ! env \
+        PD_OVERRIDE_TARBALL_URL="$DEBIAN_ROOTFS_URL" \
+        PD_OVERRIDE_TARBALL_SHA256="$DEBIAN_ROOTFS_SHA256" \
+        proot-distro install --override-alias "$DISTRO_ALIAS" "$DISTRO_BASE"; then
+        die "Failed to install Debian distro. Check network and try again"
     fi
     log "OpenCode Debian distro installed successfully"
 }
