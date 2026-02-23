@@ -20,6 +20,18 @@ TERMUX_REQUIRED_PACKAGES=(proot-distro curl jq)
 WAKE_LOCK_HELD=0
 STEP_NUMBER=0
 
+# Geographically diverse, high-reliability Termux mirrors.
+# The script tests each and picks the fastest for the user.
+TERMUX_MIRRORS=(
+    "https://packages-cf.termux.dev/apt/termux-main"       # Cloudflare CDN (global)
+    "https://mirror.fcix.net/termux/termux-main"            # Fremont CA, 10 Gbps
+    "https://ftp.fau.de/termux/termux-main"                 # Erlangen DE, 25 Gbps
+    "https://mirror.mwt.me/termux/main"                     # US+EU CDN
+    "https://grimler.se/termux/termux-main"                 # Helsinki FI
+    "https://mirrors.medzik.dev/termux/termux-main"         # Frankfurt DE
+    "https://plug-mirror.rcac.purdue.edu/termux/termux-main" # Indiana US
+)
+
 # ── Output helpers ─────────────────────────────────────────────────────
 # Termux supports ANSI colors and Unicode box-drawing out of the box.
 BOLD='\033[1m'
@@ -153,6 +165,50 @@ check_network() {
 }
 
 # ── Termux setup ───────────────────────────────────────────────────────
+select_fastest_mirror() {
+    local best_url="" best_time="99999"
+
+    info "Testing ${#TERMUX_MIRRORS[@]} mirrors..."
+    for mirror_url in "${TERMUX_MIRRORS[@]}"; do
+        # Fetch the Release file (small) and measure time
+        local time_ms
+        time_ms="$(curl --connect-timeout 3 --max-time 5 -fsSL \
+            -o /dev/null -w '%{time_total}' \
+            "${mirror_url}/dists/stable/Release" 2>/dev/null || echo "99999")"
+
+        # Convert to ms integer for comparison (bash can't compare floats)
+        local ms
+        ms="$(awk "BEGIN { printf \"%.0f\", $time_ms * 1000 }" 2>/dev/null || echo "99999")"
+
+        local host
+        host="$(echo "$mirror_url" | sed 's|https\?://\([^/]*\).*|\1|')"
+
+        if (( ms < best_time )); then
+            best_time="$ms"
+            best_url="$mirror_url"
+            info "$host — ${ms}ms ✓"
+        else
+            info "$host — ${ms}ms"
+        fi
+    done
+
+    if [[ -z "$best_url" ]]; then
+        warn "All mirrors failed — keeping current config"
+        return
+    fi
+
+    # Write sources.list
+    local sources_file="$PREFIX/etc/apt/sources.list"
+    echo "deb $best_url stable main" > "$sources_file"
+
+    # Remove deb822-format files that would override sources.list
+    rm -f "$PREFIX/etc/apt/sources.list.d/"*.sources 2>/dev/null || true
+
+    local best_host
+    best_host="$(echo "$best_url" | sed 's|https\?://\([^/]*\).*|\1|')"
+    ok "Selected mirror: $best_host (${best_time}ms)"
+}
+
 ensure_termux_properties() {
     mkdir -p "$TERMUX_PROPERTIES_DIR"
     touch "$TERMUX_PROPERTIES_FILE"
@@ -403,6 +459,9 @@ install_all() {
 
     step "Termux configuration"
     ensure_termux_properties
+
+    step "Package mirror"
+    select_fastest_mirror
 
     step "Termux packages"
     ensure_termux_packages
