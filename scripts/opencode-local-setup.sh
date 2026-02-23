@@ -12,6 +12,7 @@ TERMUX_PROPERTIES_FILE="$TERMUX_PROPERTIES_DIR/termux.properties"
 # Alpine minirootfs from official CDN (fast global mirrors).
 # proot-distro's default CDN (easycli.sh) is often extremely slow.
 ALPINE_ROOTFS_URL="https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.3-aarch64.tar.gz"
+ALPINE_ROOTFS_SHA256="f219bb9d65febed9046951b19f2b893b331315740af32c47e39b38fcca4be543"
 TERMUX_REQUIRED_PACKAGES=(proot-distro curl jq)
 
 log() {
@@ -103,7 +104,8 @@ ensure_termux_packages() {
 }
 
 ensure_alpine_installed() {
-    if proot-distro list --installed | grep -Eq "^\s*${DISTRO_ALIAS}\b"; then
+    local installed_rootfs_dir="$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS"
+    if [[ -d "$installed_rootfs_dir" ]] && [[ -n "$(ls -A "$installed_rootfs_dir" 2>/dev/null)" ]]; then
         log "Alpine is already installed"
     else
         log "Installing Alpine distro (from official Alpine CDN)"
@@ -114,7 +116,7 @@ ensure_alpine_installed() {
         # PD_OVERRIDE_TARBALL_SHA256 unconditionally, so set it explicitly.
         env \
             PD_OVERRIDE_TARBALL_URL="$ALPINE_ROOTFS_URL" \
-            PD_OVERRIDE_TARBALL_SHA256="skip" \
+            PD_OVERRIDE_TARBALL_SHA256="$ALPINE_ROOTFS_SHA256" \
             PD_OVERRIDE_TARBALL_STRIP_OPT=0 \
             proot-distro install "$DISTRO_ALIAS"
         log "Alpine installed successfully"
@@ -202,7 +204,8 @@ doctor() {
     log "- Termux version: ${TERMUX_VERSION:-unknown}"
     log "- Architecture: $(uname -m)"
 
-    if proot-distro list --installed | grep -Eq "^\s*${DISTRO_ALIAS}\b"; then
+    local installed_rootfs_dir="$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS"
+    if [[ -d "$installed_rootfs_dir" ]] && [[ -n "$(ls -A "$installed_rootfs_dir" 2>/dev/null)" ]]; then
         log "- Alpine distro: installed"
     else
         warn "- Alpine distro: missing"
