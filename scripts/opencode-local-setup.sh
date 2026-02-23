@@ -14,6 +14,7 @@ TERMUX_PROPERTIES_FILE="$TERMUX_PROPERTIES_DIR/termux.properties"
 ALPINE_ROOTFS_URL="https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.3-aarch64.tar.gz"
 ALPINE_ROOTFS_SHA256="f219bb9d65febed9046951b19f2b893b331315740af32c47e39b38fcca4be543"
 TERMUX_REQUIRED_PACKAGES=(proot-distro curl jq)
+WAKE_LOCK_HELD=0
 
 log() {
     printf "[opencode-local] %s\n" "$*"
@@ -26,6 +27,45 @@ warn() {
 die() {
     printf "[opencode-local][error] %s\n" "$*" >&2
     exit 1
+}
+
+acquire_wake_lock() {
+    if command -v termux-wake-lock >/dev/null 2>&1; then
+        termux-wake-lock >/dev/null 2>&1 || true
+        WAKE_LOCK_HELD=1
+        log "Wake lock enabled during setup"
+    fi
+}
+
+release_wake_lock() {
+    if (( WAKE_LOCK_HELD == 1 )) && command -v termux-wake-unlock >/dev/null 2>&1; then
+        termux-wake-unlock >/dev/null 2>&1 || true
+        log "Wake lock released"
+    fi
+}
+
+install_termux_package() {
+    local pkg_name="$1"
+    local attempt
+
+    if dpkg -s "$pkg_name" >/dev/null 2>&1; then
+        return
+    fi
+
+    for attempt in 1 2 3; do
+        if pkg install -y "$pkg_name" >/dev/null 2>&1; then
+            return
+        fi
+
+        # Refresh package lists once if first install attempt fails.
+        if (( attempt == 1 )); then
+            pkg update -y >/dev/null 2>&1 || true
+        fi
+
+        sleep 2
+    done
+
+    die "Failed to install required Termux package: $pkg_name"
 }
 
 require_termux() {
@@ -99,8 +139,12 @@ ensure_termux_packages() {
     fi
 
     log "Installing missing Termux packages: ${missing_packages[*]}"
-    pkg update -y >/dev/null
-    pkg install -y "${missing_packages[@]}" >/dev/null
+
+    for pkg_name in "${missing_packages[@]}"; do
+        install_termux_package "$pkg_name"
+    done
+
+    log "Missing Termux packages installed"
 }
 
 install_alpine_rootfs() {
@@ -247,6 +291,7 @@ doctor() {
 
 install_all() {
     require_termux
+    acquire_wake_lock
     check_arch
     check_storage
     require_command curl
@@ -289,6 +334,7 @@ status_server() {
 }
 
 main() {
+    trap release_wake_lock EXIT
     local cmd="${1:-install}"
     case "$cmd" in
         install)
