@@ -1,7 +1,8 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
-DISTRO_ALIAS="alpine"
+DISTRO_ALIAS="opencode-debian"
+DISTRO_BASE="debian"
 OPENCODE_VERSION="1.2.10"
 LOCAL_PORT="4096"
 LOCAL_HOST="127.0.0.1"
@@ -9,10 +10,6 @@ INSTALL_DIR="$HOME/opencode-local"
 TERMUX_PROPERTIES_DIR="$HOME/.termux"
 TERMUX_PROPERTIES_FILE="$TERMUX_PROPERTIES_DIR/termux.properties"
 
-# Alpine minirootfs from official CDN (fast global mirrors).
-# proot-distro's default CDN (easycli.sh) is often extremely slow.
-ALPINE_ROOTFS_URL="https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.3-aarch64.tar.gz"
-ALPINE_ROOTFS_SHA256="f219bb9d65febed9046951b19f2b893b331315740af32c47e39b38fcca4be543"
 TERMUX_REQUIRED_PACKAGES=(proot-distro curl jq)
 WAKE_LOCK_HELD=0
 
@@ -53,13 +50,15 @@ install_termux_package() {
     fi
 
     for attempt in 1 2 3; do
-        if pkg install -y "$pkg_name" >/dev/null 2>&1; then
+        log "Installing Termux package: $pkg_name (attempt $attempt/3)"
+        if pkg install -y "$pkg_name"; then
             return
         fi
 
         # Refresh package lists once if first install attempt fails.
         if (( attempt == 1 )); then
-            pkg update -y >/dev/null 2>&1 || true
+            log "Refreshing package index"
+            pkg update -y || true
         fi
 
         sleep 2
@@ -144,33 +143,28 @@ ensure_termux_packages() {
     log "Missing Termux packages installed"
 }
 
-install_alpine_rootfs() {
-    log "Installing Alpine distro (from official Alpine CDN)"
-    # Use official Alpine CDN instead of proot-distro's default easycli.sh
-    # which is often extremely slow or unreachable.
-    # strip=0 because Alpine minirootfs has files at root level.
-    env \
-        PD_OVERRIDE_TARBALL_URL="$ALPINE_ROOTFS_URL" \
-        PD_OVERRIDE_TARBALL_SHA256="$ALPINE_ROOTFS_SHA256" \
-        PD_OVERRIDE_TARBALL_STRIP_OPT=0 \
-        proot-distro install "$DISTRO_ALIAS"
-    log "Alpine installed successfully"
+install_distro_rootfs() {
+    log "Installing OpenCode Debian distro alias: $DISTRO_ALIAS"
+    if ! proot-distro install --override-alias "$DISTRO_ALIAS" "$DISTRO_BASE"; then
+        die "Failed to install alias distro. Ensure proot-distro supports --override-alias and try again"
+    fi
+    log "OpenCode Debian distro installed successfully"
 }
 
-ensure_alpine_installed() {
+ensure_distro_installed() {
     local installed_rootfs_dir="$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS"
     if [[ -d "$installed_rootfs_dir" ]] && [[ -n "$(ls -A "$installed_rootfs_dir" 2>/dev/null)" ]]; then
         if proot-distro login "$DISTRO_ALIAS" -- /bin/sh -lc "true" >/dev/null 2>&1; then
-            log "Alpine is already installed"
+            log "OpenCode Debian distro is already installed"
             return
         fi
 
-        warn "Existing Alpine install is broken. Reinstalling automatically..."
+        warn "Existing OpenCode Debian install is broken. Reinstalling automatically..."
         proot-distro remove "$DISTRO_ALIAS" >/dev/null 2>&1 || true
         rm -rf "$installed_rootfs_dir"
     fi
 
-    install_alpine_rootfs
+    install_distro_rootfs
 }
 
 proot_exec() {
@@ -178,15 +172,15 @@ proot_exec() {
     proot-distro login "$DISTRO_ALIAS" -- /bin/sh -lc "$cmd"
 }
 
-setup_alpine_packages() {
-    log "Updating Alpine packages"
-    proot_exec "apk update && apk upgrade"
-    log "Installing Alpine dependencies"
-    proot_exec "apk add --no-progress bash curl git ripgrep tmux procps libstdc++ libgcc"
+setup_distro_packages() {
+    log "Updating Debian packages"
+    proot_exec "export DEBIAN_FRONTEND=noninteractive; apt-get update"
+    log "Installing Debian dependencies"
+    proot_exec "export DEBIAN_FRONTEND=noninteractive; apt-get install -y --no-install-recommends ca-certificates curl git ripgrep tmux procps bash && apt-get clean"
 }
 
 install_opencode_binary() {
-    log "Installing OpenCode $OPENCODE_VERSION inside Alpine"
+    log "Installing OpenCode $OPENCODE_VERSION inside Debian"
     proot_exec "set -e; current=\$(opencode --version 2>/dev/null || true); if [ \"\$current\" = \"$OPENCODE_VERSION\" ]; then echo 'OpenCode already pinned to $OPENCODE_VERSION'; exit 0; fi; rm -f /usr/local/bin/opencode; curl -fsSL https://opencode.ai/install | OPENCODE_VERSION=$OPENCODE_VERSION bash"
     local version
     version="$(proot_exec "opencode --version" | tr -d '\r')"
@@ -200,7 +194,7 @@ write_runtime_scripts() {
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
-DISTRO_ALIAS="alpine"
+DISTRO_ALIAS="opencode-debian"
 PORT="4096"
 HOST="127.0.0.1"
 ENV_FILE="$HOME/opencode-local/env"
@@ -217,8 +211,8 @@ EOF
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
-proot-distro login alpine -- /bin/sh -lc 'pkill -f "opencode serve" >/dev/null 2>&1 || true'
-pkill -f "proot-distro login alpine" >/dev/null 2>&1 || true
+proot-distro login opencode-debian -- /bin/sh -lc 'pkill -f "opencode serve" >/dev/null 2>&1 || true'
+pkill -f "proot-distro login opencode-debian" >/dev/null 2>&1 || true
 EOF
 
     cat > "$INSTALL_DIR/status.sh" <<'EOF'
@@ -256,9 +250,9 @@ doctor() {
 
     local installed_rootfs_dir="$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS"
     if [[ -d "$installed_rootfs_dir" ]] && [[ -n "$(ls -A "$installed_rootfs_dir" 2>/dev/null)" ]]; then
-        log "- Alpine distro: installed"
+        log "- OpenCode Debian distro: installed"
     else
-        warn "- Alpine distro: missing"
+        warn "- OpenCode Debian distro: missing"
     fi
 
     if proot_exec "command -v opencode >/dev/null 2>&1"; then
@@ -298,8 +292,8 @@ install_all() {
     ensure_termux_properties
 
     ensure_termux_packages
-    ensure_alpine_installed
-    setup_alpine_packages
+    ensure_distro_installed
+    setup_distro_packages
     install_opencode_binary
     write_runtime_scripts
 
