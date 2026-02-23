@@ -12,6 +12,7 @@ TERMUX_PROPERTIES_FILE="$TERMUX_PROPERTIES_DIR/termux.properties"
 # Alpine minirootfs from official CDN (fast global mirrors).
 # proot-distro's default CDN (easycli.sh) is often extremely slow.
 ALPINE_ROOTFS_URL="https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.3-aarch64.tar.gz"
+TERMUX_REQUIRED_PACKAGES=(proot-distro curl jq)
 
 log() {
     printf "[opencode-local] %s\n" "$*"
@@ -83,10 +84,22 @@ ensure_termux_properties() {
 }
 
 ensure_termux_packages() {
-    log "Updating Termux packages"
-    pkg update -y
-    log "Installing required Termux packages"
-    pkg install -y proot-distro curl jq
+    local missing_packages=()
+
+    for pkg_name in "${TERMUX_REQUIRED_PACKAGES[@]}"; do
+        if ! dpkg -s "$pkg_name" >/dev/null 2>&1; then
+            missing_packages+=("$pkg_name")
+        fi
+    done
+
+    if (( ${#missing_packages[@]} == 0 )); then
+        log "Required Termux packages already installed"
+        return
+    fi
+
+    log "Installing missing Termux packages: ${missing_packages[*]}"
+    pkg update -y >/dev/null
+    pkg install -y "${missing_packages[@]}" >/dev/null
 }
 
 ensure_alpine_installed() {
