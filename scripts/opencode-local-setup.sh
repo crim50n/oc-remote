@@ -1,6 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
+# ── Configuration ──────────────────────────────────────────────────────
 DISTRO_ALIAS="opencode-debian"
 DISTRO_BASE="debian"
 OPENCODE_VERSION="1.2.10"
@@ -17,184 +18,278 @@ DEBIAN_ROOTFS_SHA256="3834a11cbc6496935760bdc20cca7e2c25724d0cd8f5e4926da8fd5ca1
 
 TERMUX_REQUIRED_PACKAGES=(proot-distro curl jq)
 WAKE_LOCK_HELD=0
+STEP_NUMBER=0
 
-log() {
-    printf "[opencode-local] %s\n" "$*"
+# ── Output helpers ─────────────────────────────────────────────────────
+# Termux supports ANSI colors and Unicode box-drawing out of the box.
+BOLD='\033[1m'
+DIM='\033[2m'
+GREEN='\033[32m'
+YELLOW='\033[33m'
+RED='\033[31m'
+CYAN='\033[36m'
+RESET='\033[0m'
+
+header() {
+    printf "\n${BOLD}${CYAN}  OpenCode Local Runtime${RESET}\n"
+    printf "${DIM}  Debian + proot on Termux${RESET}\n\n"
+}
+
+step() {
+    STEP_NUMBER=$((STEP_NUMBER + 1))
+    printf "${BOLD}  [%d] %s${RESET}\n" "$STEP_NUMBER" "$*"
+}
+
+info() {
+    printf "${DIM}      %s${RESET}\n" "$*"
+}
+
+ok() {
+    printf "  ${GREEN}[ok]${RESET} %s\n" "$*"
+}
+
+skip() {
+    printf "  ${DIM}[--]${RESET} %s\n" "$*"
 }
 
 warn() {
-    printf "[opencode-local][warn] %s\n" "$*" >&2
+    printf "  ${YELLOW}[!!]${RESET} %s\n" "$*" >&2
+}
+
+fail() {
+    printf "  ${RED}[error]${RESET} %s\n" "$*" >&2
 }
 
 die() {
-    printf "[opencode-local][error] %s\n" "$*" >&2
+    fail "$*"
     exit 1
 }
 
+success_banner() {
+    printf "\n"
+    printf "  ${GREEN}${BOLD}Setup complete${RESET}\n"
+    printf "  ${DIM}Return to OC Remote and tap Start.${RESET}\n\n"
+}
+
+# Run a command in the background with a spinner so it never looks frozen.
+# Usage: spin "message" command [args...]
+SPIN_FRAMES=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+spin() {
+    local msg="$1"; shift
+    local logfile
+    logfile="$(mktemp)"
+
+    "$@" >"$logfile" 2>&1 &
+    local pid=$!
+    local i=0
+
+    # Show spinner while the process runs
+    while kill -0 "$pid" 2>/dev/null; do
+        printf "\r  ${DIM}${SPIN_FRAMES[$((i % ${#SPIN_FRAMES[@]}))]}  %s${RESET}" "$msg"
+        sleep 0.12
+        i=$((i + 1))
+    done
+
+    # Collect exit code
+    local rc=0
+    wait "$pid" || rc=$?
+
+    # Clear the spinner line
+    printf "\r%*s\r" "$(( ${#msg} + 10 ))" ""
+
+    if (( rc != 0 )); then
+        # Dump last 20 lines of output so user can see what went wrong
+        fail "$msg"
+        tail -20 "$logfile" | while IFS= read -r line; do
+            printf "  ${DIM}  | %s${RESET}\n" "$line"
+        done >&2
+        rm -f "$logfile"
+        return "$rc"
+    fi
+
+    rm -f "$logfile"
+    return 0
+}
+
+# ── Wake lock ──────────────────────────────────────────────────────────
 acquire_wake_lock() {
     if command -v termux-wake-lock >/dev/null 2>&1; then
         termux-wake-lock >/dev/null 2>&1 || true
         WAKE_LOCK_HELD=1
-        log "Wake lock enabled during setup"
     fi
 }
 
 release_wake_lock() {
     if (( WAKE_LOCK_HELD == 1 )) && command -v termux-wake-unlock >/dev/null 2>&1; then
         termux-wake-unlock >/dev/null 2>&1 || true
-        log "Wake lock released"
     fi
 }
 
-install_termux_package() {
-    local pkg_name="$1"
-    local attempt
-
-    if dpkg -s "$pkg_name" >/dev/null 2>&1; then
-        return
-    fi
-
-    for attempt in 1 2 3; do
-        log "Installing Termux package: $pkg_name (attempt $attempt/3)"
-        if pkg install -y "$pkg_name"; then
-            return
-        fi
-
-        # Refresh package lists once if first install attempt fails.
-        if (( attempt == 1 )); then
-            log "Refreshing package index"
-            pkg update -y || true
-        fi
-
-        sleep 2
-    done
-
-    die "Failed to install required Termux package: $pkg_name"
-}
-
+# ── Preflight checks ──────────────────────────────────────────────────
 require_termux() {
-    [[ -n "${TERMUX_VERSION:-}" ]] || die "Run this script inside Termux"
+    [[ -n "${TERMUX_VERSION:-}" ]] || die "This script must run inside Termux"
     [[ -d "$PREFIX" ]] || die "Termux PREFIX not found"
-}
-
-require_command() {
-    command -v "$1" >/dev/null 2>&1 || die "Missing command: $1"
 }
 
 check_arch() {
     local arch
     arch="$(uname -m)"
-    [[ "$arch" == "aarch64" ]] || die "Unsupported architecture: $arch (expected aarch64)"
+    [[ "$arch" == "aarch64" ]] || die "Unsupported architecture: $arch (need aarch64)"
 }
 
 check_storage() {
     local avail_kb
     avail_kb="$(df -Pk "$HOME" | awk 'NR==2 {print $4}')"
-    [[ -n "$avail_kb" ]] || die "Unable to determine free disk space"
+    [[ -n "$avail_kb" ]] || die "Cannot determine free disk space"
     if (( avail_kb < 600000 )); then
-        die "Not enough free space. Need at least ~600MB"
+        die "Not enough space (~600 MB required, $(( avail_kb / 1024 )) MB available)"
     fi
 }
 
 check_network() {
-    if ! curl --connect-timeout 10 --max-time 15 -fsSL "https://opencode.ai" >/dev/null 2>&1; then
-        die "Network check failed: cannot reach https://opencode.ai"
+    if ! spin "Checking network" curl --connect-timeout 10 --max-time 15 -fsSL "https://github.com" -o /dev/null; then
+        die "No network — cannot reach github.com"
     fi
 }
 
+# ── Termux setup ───────────────────────────────────────────────────────
 ensure_termux_properties() {
     mkdir -p "$TERMUX_PROPERTIES_DIR"
     touch "$TERMUX_PROPERTIES_FILE"
 
     if grep -Eq '^\s*allow-external-apps\s*=\s*true\s*$' "$TERMUX_PROPERTIES_FILE"; then
-        log "allow-external-apps already enabled"
+        skip "allow-external-apps already enabled"
+        return
+    fi
+
+    if grep -Eq '^\s*allow-external-apps\s*=' "$TERMUX_PROPERTIES_FILE"; then
+        sed -i 's/^\s*allow-external-apps\s*=.*/allow-external-apps = true/' "$TERMUX_PROPERTIES_FILE"
     else
-        if grep -Eq '^\s*allow-external-apps\s*=' "$TERMUX_PROPERTIES_FILE"; then
-            sed -i 's/^\s*allow-external-apps\s*=.*/allow-external-apps = true/' "$TERMUX_PROPERTIES_FILE"
-        else
-            printf "\nallow-external-apps = true\n" >> "$TERMUX_PROPERTIES_FILE"
-        fi
-        log "Enabled allow-external-apps in termux.properties"
+        printf "\nallow-external-apps = true\n" >> "$TERMUX_PROPERTIES_FILE"
     fi
 
     if command -v termux-reload-settings >/dev/null 2>&1; then
         termux-reload-settings >/dev/null 2>&1 || true
-        log "Termux settings reloaded"
-    else
-        warn "termux-reload-settings not found; restart Termux if one-tap start fails"
     fi
+    ok "allow-external-apps enabled"
+}
+
+install_termux_package() {
+    local pkg_name="$1"
+
+    if dpkg -s "$pkg_name" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    for attempt in 1 2 3; do
+        if spin "Installing $pkg_name" pkg install -y "$pkg_name"; then
+            return 0
+        fi
+        if (( attempt == 1 )); then
+            spin "Refreshing package index" pkg update -y || true
+        fi
+        sleep 2
+    done
+
+    die "Failed to install Termux package: $pkg_name"
 }
 
 ensure_termux_packages() {
-    local missing_packages=()
+    local missing=()
 
-    for pkg_name in "${TERMUX_REQUIRED_PACKAGES[@]}"; do
-        if ! dpkg -s "$pkg_name" >/dev/null 2>&1; then
-            missing_packages+=("$pkg_name")
+    for pkg in "${TERMUX_REQUIRED_PACKAGES[@]}"; do
+        if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+            missing+=("$pkg")
         fi
     done
 
-    if (( ${#missing_packages[@]} == 0 )); then
-        log "Required Termux packages already installed"
+    if (( ${#missing[@]} == 0 )); then
+        skip "Termux packages already installed"
         return
     fi
 
-    log "Installing missing Termux packages: ${missing_packages[*]}"
-
-    for pkg_name in "${missing_packages[@]}"; do
-        install_termux_package "$pkg_name"
+    info "Installing: ${missing[*]}"
+    for pkg in "${missing[@]}"; do
+        install_termux_package "$pkg"
     done
-
-    log "Missing Termux packages installed"
+    ok "Termux packages ready"
 }
 
+# ── Debian distro ─────────────────────────────────────────────────────
 install_distro_rootfs() {
-    log "Installing OpenCode Debian distro alias: $DISTRO_ALIAS (from GitHub CDN)"
+    info "Downloading Debian rootfs from GitHub CDN..."
     if ! env \
         PD_OVERRIDE_TARBALL_URL="$DEBIAN_ROOTFS_URL" \
         PD_OVERRIDE_TARBALL_SHA256="$DEBIAN_ROOTFS_SHA256" \
         proot-distro install --override-alias "$DISTRO_ALIAS" "$DISTRO_BASE"; then
-        die "Failed to install Debian distro. Check network and try again"
+        die "Failed to install Debian. Check network and try again"
     fi
-    log "OpenCode Debian distro installed successfully"
 }
 
 ensure_distro_installed() {
-    local installed_rootfs_dir="$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS"
-    if [[ -d "$installed_rootfs_dir" ]] && [[ -n "$(ls -A "$installed_rootfs_dir" 2>/dev/null)" ]]; then
+    local rootfs_dir="$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS"
+
+    if [[ -d "$rootfs_dir" ]] && [[ -n "$(ls -A "$rootfs_dir" 2>/dev/null)" ]]; then
         if proot-distro login "$DISTRO_ALIAS" -- /bin/sh -lc "true" >/dev/null 2>&1; then
-            log "OpenCode Debian distro is already installed"
+            skip "Debian distro already installed"
             return
         fi
-
-        warn "Existing OpenCode Debian install is broken. Reinstalling automatically..."
+        warn "Existing install is broken — reinstalling"
         proot-distro remove "$DISTRO_ALIAS" >/dev/null 2>&1 || true
-        rm -rf "$installed_rootfs_dir"
+        rm -rf "$rootfs_dir"
     fi
 
     install_distro_rootfs
+    ok "Debian distro installed"
 }
 
 proot_exec() {
-    local cmd="$1"
-    proot-distro login "$DISTRO_ALIAS" -- /bin/sh -lc "$cmd"
+    proot-distro login "$DISTRO_ALIAS" -- /bin/sh -lc "$1"
 }
 
 setup_distro_packages() {
-    log "Updating Debian packages"
-    proot_exec "export DEBIAN_FRONTEND=noninteractive; apt-get update"
-    log "Installing Debian dependencies"
-    proot_exec "export DEBIAN_FRONTEND=noninteractive; apt-get install -y --no-install-recommends ca-certificates curl git ripgrep tmux procps bash && apt-get clean"
+    local needed=""
+
+    # Check which packages are missing inside the distro
+    for pkg in ca-certificates curl git ripgrep tmux procps bash; do
+        if ! proot_exec "dpkg -s $pkg" >/dev/null 2>&1; then
+            needed="$needed $pkg"
+        fi
+    done
+
+    if [[ -z "$needed" ]]; then
+        skip "Debian packages already installed"
+        return
+    fi
+
+    spin "Updating package index" proot_exec "export DEBIAN_FRONTEND=noninteractive; apt-get update -qq"
+    spin "Installing Debian packages" proot_exec "export DEBIAN_FRONTEND=noninteractive; apt-get install -y -qq --no-install-recommends $needed && apt-get clean"
+    ok "Debian packages ready"
 }
 
+# ── OpenCode binary ───────────────────────────────────────────────────
 install_opencode_binary() {
-    log "Installing OpenCode $OPENCODE_VERSION inside Debian"
-    proot_exec "set -e; current=\$(opencode --version 2>/dev/null || true); if [ \"\$current\" = \"$OPENCODE_VERSION\" ]; then echo 'OpenCode already pinned to $OPENCODE_VERSION'; exit 0; fi; rm -f /usr/local/bin/opencode; curl -fsSL https://opencode.ai/install | OPENCODE_VERSION=$OPENCODE_VERSION bash"
-    local version
-    version="$(proot_exec "opencode --version" | tr -d '\r')"
-    [[ "$version" == "$OPENCODE_VERSION" ]] || die "OpenCode version mismatch: got '$version', expected '$OPENCODE_VERSION'"
+    local current
+    current="$(proot_exec "opencode --version 2>/dev/null || true" | tr -d '\r')"
+
+    if [[ "$current" == "$OPENCODE_VERSION" ]]; then
+        skip "OpenCode $OPENCODE_VERSION already installed"
+        return
+    fi
+
+    if [[ -n "$current" ]]; then
+        info "Upgrading OpenCode $current -> $OPENCODE_VERSION"
+    fi
+
+    spin "Installing OpenCode $OPENCODE_VERSION" proot_exec "rm -f /usr/local/bin/opencode; curl -fsSL https://opencode.ai/install | OPENCODE_VERSION=$OPENCODE_VERSION bash"
+
+    local installed
+    installed="$(proot_exec "opencode --version" | tr -d '\r')"
+    [[ "$installed" == "$OPENCODE_VERSION" ]] || die "Version mismatch: got $installed, expected $OPENCODE_VERSION"
+    ok "OpenCode $OPENCODE_VERSION installed"
 }
 
+# ── Runtime scripts ───────────────────────────────────────────────────
 write_runtime_scripts() {
     mkdir -p "$INSTALL_DIR"
 
@@ -244,115 +339,134 @@ EOF
 
     chmod 700 "$INSTALL_DIR/start.sh" "$INSTALL_DIR/stop.sh" "$INSTALL_DIR/status.sh"
     chmod 600 "$INSTALL_DIR/env"
+    ok "Runtime scripts written"
 }
 
+# ── Doctor ─────────────────────────────────────────────────────────────
 doctor() {
     require_termux
     check_arch
-    require_command curl
-    require_command proot-distro
 
-    log "Doctor report"
-    log "- Termux version: ${TERMUX_VERSION:-unknown}"
-    log "- Architecture: $(uname -m)"
+    printf "\n${BOLD}  Diagnostics${RESET}\n\n"
 
-    local installed_rootfs_dir="$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS"
-    if [[ -d "$installed_rootfs_dir" ]] && [[ -n "$(ls -A "$installed_rootfs_dir" 2>/dev/null)" ]]; then
-        log "- OpenCode Debian distro: installed"
-    else
-        warn "- OpenCode Debian distro: missing"
-    fi
+    # Termux info
+    printf "  %-28s %s\n" "Termux" "${TERMUX_VERSION:-unknown}"
+    printf "  %-28s %s\n" "Architecture" "$(uname -m)"
 
-    if proot_exec "command -v opencode >/dev/null 2>&1"; then
-        log "- OpenCode version: $(proot_exec "opencode --version" | tr -d '\r')"
-    else
-        warn "- OpenCode: missing"
-    fi
+    # Termux packages
+    for pkg in "${TERMUX_REQUIRED_PACKAGES[@]}"; do
+        if dpkg -s "$pkg" >/dev/null 2>&1; then
+            printf "  %-28s ${GREEN}installed${RESET}\n" "$pkg"
+        else
+            printf "  %-28s ${RED}missing${RESET}\n" "$pkg"
+        fi
+    done
 
-    if [[ -f "$INSTALL_DIR/start.sh" ]]; then
-        log "- Runtime scripts: present in $INSTALL_DIR"
-    else
-        warn "- Runtime scripts: missing"
-    fi
-
+    # allow-external-apps
     if grep -Eq '^\s*allow-external-apps\s*=\s*true\s*$' "$TERMUX_PROPERTIES_FILE" 2>/dev/null; then
-        log "- allow-external-apps: enabled"
+        printf "  %-28s ${GREEN}enabled${RESET}\n" "allow-external-apps"
     else
-        warn "- allow-external-apps: disabled"
+        printf "  %-28s ${RED}disabled${RESET}\n" "allow-external-apps"
     fi
 
-    if curl -fsS "http://${LOCAL_HOST}:${LOCAL_PORT}/global/health" | grep -q '"healthy":true'; then
-        log "- Server health: running"
+    # Distro
+    local rootfs_dir="$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS"
+    if [[ -d "$rootfs_dir" ]] && [[ -n "$(ls -A "$rootfs_dir" 2>/dev/null)" ]]; then
+        printf "  %-28s ${GREEN}installed${RESET}\n" "Debian distro"
     else
-        warn "- Server health: not running"
+        printf "  %-28s ${RED}missing${RESET}\n" "Debian distro"
     fi
+
+    # OpenCode binary
+    if proot_exec "command -v opencode >/dev/null 2>&1"; then
+        local ver
+        ver="$(proot_exec "opencode --version" | tr -d '\r')"
+        if [[ "$ver" == "$OPENCODE_VERSION" ]]; then
+            printf "  %-28s ${GREEN}${ver}${RESET}\n" "OpenCode"
+        else
+            printf "  %-28s ${YELLOW}${ver}${RESET} (expected ${OPENCODE_VERSION})\n" "OpenCode"
+        fi
+    else
+        printf "  %-28s ${RED}missing${RESET}\n" "OpenCode"
+    fi
+
+    # Runtime scripts
+    if [[ -x "$INSTALL_DIR/start.sh" ]]; then
+        printf "  %-28s ${GREEN}present${RESET}\n" "Runtime scripts"
+    else
+        printf "  %-28s ${RED}missing${RESET}\n" "Runtime scripts"
+    fi
+
+    # Server health
+    if curl -fsS "http://${LOCAL_HOST}:${LOCAL_PORT}/global/health" 2>/dev/null | grep -q '"healthy":true'; then
+        printf "  %-28s ${GREEN}running${RESET}\n" "Server"
+    else
+        printf "  %-28s ${DIM}stopped${RESET}\n" "Server"
+    fi
+
+    printf "\n"
 }
 
+# ── Install ────────────────────────────────────────────────────────────
 install_all() {
+    header
     require_termux
     acquire_wake_lock
     check_arch
     check_storage
-    require_command curl
     check_network
 
-    # Required for one-tap start/stop from OC Remote.
+    step "Termux configuration"
     ensure_termux_properties
 
+    step "Termux packages"
     ensure_termux_packages
+
+    step "Debian environment"
     ensure_distro_installed
+
+    step "Debian packages"
     setup_distro_packages
+
+    step "OpenCode binary"
     install_opencode_binary
+
+    step "Runtime scripts"
     write_runtime_scripts
 
-    log ""
-    log "============================="
-    log "  Installation complete!"
-    log "============================="
-    log ""
-    log "Return to OC Remote and tap 'Start Local'."
+    success_banner
 }
 
+# ── Server commands ────────────────────────────────────────────────────
 start_server() {
     require_termux
-    [[ -x "$INSTALL_DIR/start.sh" ]] || die "Missing start script. Run install first"
+    [[ -x "$INSTALL_DIR/start.sh" ]] || die "Not installed. Run install first"
     "$INSTALL_DIR/start.sh"
 }
 
 stop_server() {
     require_termux
-    [[ -x "$INSTALL_DIR/stop.sh" ]] || die "Missing stop script. Run install first"
+    [[ -x "$INSTALL_DIR/stop.sh" ]] || die "Not installed. Run install first"
     "$INSTALL_DIR/stop.sh"
 }
 
 status_server() {
     require_termux
-    [[ -x "$INSTALL_DIR/status.sh" ]] || die "Missing status script. Run install first"
+    [[ -x "$INSTALL_DIR/status.sh" ]] || die "Not installed. Run install first"
     "$INSTALL_DIR/status.sh"
 }
 
+# ── Main ───────────────────────────────────────────────────────────────
 main() {
     trap release_wake_lock EXIT
     local cmd="${1:-install}"
     case "$cmd" in
-        install)
-            install_all
-            ;;
-        doctor)
-            doctor
-            ;;
-        start)
-            start_server
-            ;;
-        stop)
-            stop_server
-            ;;
-        status)
-            status_server
-            ;;
-        *)
-            die "Unknown command: $cmd (expected: install|doctor|start|stop|status)"
-            ;;
+        install) install_all ;;
+        doctor)  doctor ;;
+        start)   start_server ;;
+        stop)    stop_server ;;
+        status)  status_server ;;
+        *) die "Unknown command: $cmd (expected: install|doctor|start|stop|status)" ;;
     esac
 }
 
