@@ -104,23 +104,20 @@ ensure_termux_properties() {
 
     if grep -Eq '^\s*allow-external-apps\s*=\s*true\s*$' "$TERMUX_PROPERTIES_FILE"; then
         log "allow-external-apps already enabled"
-        return
-    fi
-
-    if grep -Eq '^\s*allow-external-apps\s*=' "$TERMUX_PROPERTIES_FILE"; then
-        sed -i 's/^\s*allow-external-apps\s*=.*/allow-external-apps = true/' "$TERMUX_PROPERTIES_FILE"
     else
-        printf "\nallow-external-apps = true\n" >> "$TERMUX_PROPERTIES_FILE"
+        if grep -Eq '^\s*allow-external-apps\s*=' "$TERMUX_PROPERTIES_FILE"; then
+            sed -i 's/^\s*allow-external-apps\s*=.*/allow-external-apps = true/' "$TERMUX_PROPERTIES_FILE"
+        else
+            printf "\nallow-external-apps = true\n" >> "$TERMUX_PROPERTIES_FILE"
+        fi
+        log "Enabled allow-external-apps in termux.properties"
     fi
 
-    log "Enabled allow-external-apps in termux.properties"
-
-    # Apply immediately — no manual Termux restart needed
     if command -v termux-reload-settings >/dev/null 2>&1; then
-        termux-reload-settings
-        log "Settings reloaded"
+        termux-reload-settings >/dev/null 2>&1 || true
+        log "Termux settings reloaded"
     else
-        warn "termux-reload-settings not found; restart Termux manually to apply"
+        warn "termux-reload-settings not found; restart Termux if one-tap start fails"
     fi
 }
 
@@ -297,8 +294,7 @@ install_all() {
     require_command curl
     check_network
 
-    # Enable allow-external-apps FIRST so OC Remote can
-    # manage the server right after installation completes.
+    # Required for one-tap start/stop from OC Remote.
     ensure_termux_properties
 
     ensure_termux_packages
