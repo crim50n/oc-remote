@@ -97,7 +97,10 @@ ensure_alpine_installed() {
         # Use official Alpine CDN instead of proot-distro's default easycli.sh
         # which is often extremely slow or unreachable.
         # strip=0 because Alpine minirootfs has files at root level.
+        # Some proot-distro versions run with nounset and reference
+        # PD_OVERRIDE_TARBALL_SHA256 unconditionally, so set it explicitly.
         PD_OVERRIDE_TARBALL_URL="$ALPINE_ROOTFS_URL" \
+        PD_OVERRIDE_TARBALL_SHA256="" \
         PD_OVERRIDE_TARBALL_STRIP_OPT=0 \
             proot-distro install "$DISTRO_ALIAS"
         log "Alpine installed successfully"
