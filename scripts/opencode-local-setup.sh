@@ -82,6 +82,7 @@ die() {
 success_banner() {
     printf "\n"
     printf "  ${GREEN}${BOLD}Setup complete${RESET}\n"
+    printf "  ${DIM}CLI control:${RESET} ${BOLD}opencode-local start|stop|status${RESET}\n"
     printf "  ${DIM}Return to OC Remote and tap Start.${RESET}\n\n"
 }
 
@@ -336,7 +337,7 @@ install_opencode_binary() {
 write_runtime_scripts() {
     mkdir -p "$INSTALL_DIR"
 
-    cat > "$INSTALL_DIR/start.sh" <<'EOF'
+cat > "$INSTALL_DIR/start.sh" <<'EOF'
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
@@ -344,13 +345,42 @@ DISTRO_ALIAS="opencode-debian"
 PORT="4096"
 HOST="127.0.0.1"
 ENV_FILE="$HOME/opencode-local/env"
+CLI_PROXY_URL=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --proxy)
+            CLI_PROXY_URL="${2:-}"
+            shift 2
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
 
 if [[ -f "$ENV_FILE" ]]; then
     # shellcheck disable=SC1090
     source "$ENV_FILE"
 fi
 
-exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "export OPENCODE_SERVER_PASSWORD=\"${OPENCODE_SERVER_PASSWORD:-}\"; exec opencode serve --hostname $HOST --port $PORT"
+if [[ -n "$CLI_PROXY_URL" ]]; then
+    OPENCODE_PROXY_URL="$CLI_PROXY_URL"
+fi
+
+DEFAULT_NO_PROXY="localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+if [[ -n "${NO_PROXY:-}" ]]; then
+    NO_PROXY="$NO_PROXY,$DEFAULT_NO_PROXY"
+else
+    NO_PROXY="$DEFAULT_NO_PROXY"
+fi
+
+PROXY_EXPORTS="export OPENCODE_SERVER_PASSWORD=\"${OPENCODE_SERVER_PASSWORD:-}\"; export NO_PROXY=\"$NO_PROXY\"; export no_proxy=\"$NO_PROXY\";"
+if [[ -n "${OPENCODE_PROXY_URL:-}" ]]; then
+    PROXY_EXPORTS+=" export HTTP_PROXY=\"$OPENCODE_PROXY_URL\"; export HTTPS_PROXY=\"$OPENCODE_PROXY_URL\"; export ALL_PROXY=\"$OPENCODE_PROXY_URL\"; export http_proxy=\"$OPENCODE_PROXY_URL\"; export https_proxy=\"$OPENCODE_PROXY_URL\"; export all_proxy=\"$OPENCODE_PROXY_URL\";"
+fi
+
+exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$PROXY_EXPORTS exec opencode serve --hostname $HOST --port $PORT"
 EOF
 
     cat > "$INSTALL_DIR/stop.sh" <<'EOF'
@@ -372,6 +402,57 @@ else
 fi
 EOF
 
+    cat > "$PREFIX/bin/opencode-local" <<'EOF'
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+
+INSTALL_DIR="$HOME/opencode-local"
+
+usage() {
+    cat <<'USAGE'
+Usage: opencode-local <command>
+
+Commands:
+  start [--proxy URL]  Start local OpenCode server
+  stop     Stop local OpenCode server
+  status   Print running/stopped
+  doctor   Show local runtime diagnostics
+USAGE
+}
+
+cmd="${1:-status}"
+case "$cmd" in
+    start)
+        shift || true
+        exec "$INSTALL_DIR/start.sh" "$@"
+        ;;
+    stop)
+        exec "$INSTALL_DIR/stop.sh"
+        ;;
+    status)
+        exec "$INSTALL_DIR/status.sh"
+        ;;
+    doctor)
+        if [[ -x "$INSTALL_DIR/status.sh" ]]; then
+            echo "Local runtime scripts: present"
+            echo -n "Server: "
+            "$INSTALL_DIR/status.sh"
+        else
+            echo "Local runtime scripts: missing"
+            echo "Run setup first: curl -fsSL https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sh | bash"
+            exit 1
+        fi
+        ;;
+    -h|--help|help)
+        usage
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+esac
+EOF
+
     if [[ ! -f "$INSTALL_DIR/env" ]]; then
         cat > "$INSTALL_DIR/env" <<'EOF'
 # Optional auth for local OpenCode server.
@@ -380,9 +461,10 @@ OPENCODE_SERVER_PASSWORD=
 EOF
     fi
 
-    chmod 700 "$INSTALL_DIR/start.sh" "$INSTALL_DIR/stop.sh" "$INSTALL_DIR/status.sh"
+    chmod 700 "$INSTALL_DIR/start.sh" "$INSTALL_DIR/stop.sh" "$INSTALL_DIR/status.sh" "$PREFIX/bin/opencode-local"
     chmod 600 "$INSTALL_DIR/env"
     ok "Runtime scripts written"
+    ok "CLI command installed: opencode-local"
 }
 
 # ── Doctor ─────────────────────────────────────────────────────────────
