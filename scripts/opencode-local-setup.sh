@@ -245,8 +245,8 @@ ensure_termux_packages() {
     fi
 
     info "Installing: ${missing[*]}"
-    info "pkg output ↓"
-    if ! pkg install -y "${missing[@]}"; then
+    info "apt output ↓"
+    if ! (apt-get update -yq && apt-get install -yq "${missing[@]}"); then
         printf "\n"
         fail "Package install failed"
         info "Try running: termux-change-repo"
