@@ -132,7 +132,7 @@ setup_alpine_packages() {
     log "Updating Alpine packages"
     proot_exec "apk update && apk upgrade"
     log "Installing Alpine dependencies"
-    proot_exec "apk add --no-progress bash curl git ripgrep tmux procps"
+    proot_exec "apk add --no-progress bash curl git ripgrep tmux procps libstdc++ libgcc"
 }
 
 install_opencode_binary() {
