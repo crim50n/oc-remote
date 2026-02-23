@@ -30,6 +30,7 @@ TERMUX_MIRRORS=(
     "https://grimler.se/termux/termux-main"                 # Helsinki FI
     "https://mirrors.medzik.dev/termux/termux-main"         # Frankfurt DE
     "https://plug-mirror.rcac.purdue.edu/termux/termux-main" # Indiana US
+    "https://repository.su/termux/termux-main"              # Nizhny Novgorod RU
 )
 
 # ── Output helpers ─────────────────────────────────────────────────────
