@@ -301,9 +301,9 @@ proot_exec() {
 resolve_opencode_binary_in_distro() {
     proot_exec '
         for candidate in \
-            /usr/local/bin/opencode \
             /root/.opencode/bin/opencode \
-            /root/.local/bin/opencode
+            /root/.local/bin/opencode \
+            /usr/local/bin/opencode
         do
             if [[ -x "$candidate" ]]; then
                 printf "%s\n" "$candidate"
@@ -316,6 +316,7 @@ resolve_opencode_binary_in_distro() {
 
 opencode_version_in_distro() {
     proot_exec '
+        export HOME="/root"
         export PATH="/usr/local/bin:/usr/bin:/bin:/root/.opencode/bin:/root/.local/bin:$PATH"
         if command -v opencode >/dev/null 2>&1; then
             opencode --version
@@ -438,7 +439,7 @@ if [[ -n "${OPENCODE_PROXY_URL:-}" ]]; then
     PROXY_EXPORTS+=" export HTTP_PROXY=\"$OPENCODE_PROXY_URL\"; export HTTPS_PROXY=\"$OPENCODE_PROXY_URL\"; export ALL_PROXY=\"$OPENCODE_PROXY_URL\"; export http_proxy=\"$OPENCODE_PROXY_URL\"; export https_proxy=\"$OPENCODE_PROXY_URL\"; export all_proxy=\"$OPENCODE_PROXY_URL\";"
 fi
 
-exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$PROXY_EXPORTS export PATH=\"/usr/local/bin:/usr/bin:/bin:/root/.opencode/bin:/root/.local/bin:\$PATH\"; OPENCODE_BIN=\"\$(command -v opencode || true)\"; if [[ -z \"\$OPENCODE_BIN\" ]]; then for candidate in /root/.opencode/bin/opencode /root/.local/bin/opencode /usr/local/bin/opencode; do [[ -x \"\$candidate\" ]] && OPENCODE_BIN=\"\$candidate\" && break; done; fi; if [[ -z \"\$OPENCODE_BIN\" ]]; then echo \"opencode binary not found in distro\" >&2; exit 127; fi; exec \"\$OPENCODE_BIN\" serve --hostname \"$HOST\" --port \"$PORT\""
+exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$PROXY_EXPORTS export HOME=\"/root\"; export PATH=\"/usr/local/bin:/usr/bin:/bin:/root/.opencode/bin:/root/.local/bin:\$PATH\"; OPENCODE_BIN=\"\"; for candidate in /root/.opencode/bin/opencode /root/.local/bin/opencode /usr/local/bin/opencode; do [[ -x \"\$candidate\" ]] && OPENCODE_BIN=\"\$candidate\" && break; done; if [[ -z \"\$OPENCODE_BIN\" ]]; then OPENCODE_BIN=\"\$(command -v opencode || true)\"; fi; if [[ -z \"\$OPENCODE_BIN\" ]]; then echo \"opencode binary not found in distro\" >&2; exit 127; fi; CACHE_DIR=\"/root/.cache/opencode\"; LOG_FILE=\"\$CACHE_DIR/last-serve-error.log\"; mkdir -p \"\$CACHE_DIR\"; set +e; \"\$OPENCODE_BIN\" serve --hostname \"$HOST\" --port \"$PORT\" 2>\"\$LOG_FILE\"; EXIT_CODE=\$?; set -e; if [[ \$EXIT_CODE -ne 0 ]] && grep -Eiq \"resolveerror|can't import|cannot find module|module not found|no such file or directory.*node_modules|error: cannot resolve\" \"\$LOG_FILE\"; then echo \"Detected broken OpenCode module cache, rebuilding and retrying...\" >&2; rm -rf \"\$CACHE_DIR/node_modules\"; exec \"\$OPENCODE_BIN\" serve --hostname \"$HOST\" --port \"$PORT\"; fi; cat \"\$LOG_FILE\" >&2 || true; exit \$EXIT_CODE"
 EOF
 
     cat > "$INSTALL_DIR/stop.sh" <<'EOF'
