@@ -526,7 +526,7 @@ has_invalid_modules() {
     local package_json="$dir/package.json"
 
     [[ -f "$package_json" ]] || return 1
-    [[ -d "$dir/node_modules" ]] || return 0
+    [[ -d "$dir/node_modules" ]] || return 1
 
     local dep
     while IFS= read -r dep; do
