@@ -2332,9 +2332,8 @@ private fun SessionTerminalInline(
     val keyboard = LocalSoftwareKeyboardController.current
     val baseTextToolbar = LocalTextToolbar.current
     var inputCapture by remember { mutableStateOf(TextFieldValue("")) }
-    // Dedup: IME can fire onValueChange twice for a single keystroke.
-    // After we reset inputCapture to "", the second callback sees old="" again
-    // and computes the same delta.  Track the last chunk + timestamp to suppress.
+    // Dedup: some IMEs can fire onValueChange twice for a single keystroke.
+    // Track the last chunk + timestamp to suppress duplicates.
     var lastSentChunk by remember { mutableStateOf("") }
     var lastSentTime by remember { mutableStateOf(0L) }
 
@@ -2407,7 +2406,7 @@ private fun SessionTerminalInline(
                         if (BuildConfig.DEBUG) {
                             Log.d("TerminalInput", "DEDUP: suppressed duplicate delta='$delta'")
                         }
-                        inputCapture = TextFieldValue("")
+                        inputCapture = next.copy(selection = TextRange(next.text.length))
                         return@BasicTextField
                     }
                     lastSentChunk = delta
@@ -2417,7 +2416,9 @@ private fun SessionTerminalInline(
                         .replace('\n', '\r')
                     onSendInput(mapped)
                 }
-                inputCapture = TextFieldValue("")
+                // Keep IME context (caps/symbol lock, composing state) stable by
+                // preserving TextFieldValue instead of clearing it after each key.
+                inputCapture = next.copy(selection = TextRange(next.text.length))
             },
             modifier = Modifier
                 .size(1.dp)
@@ -3512,12 +3513,7 @@ private fun MarkdownContent(
     val normalizedMarkdown = remember(markdown) { preserveRawHtmlPayload(markdown) }
     val isAmoled = isAmoledTheme()
 
-    // Inline code: visible pill with accent text
-    val inlineCodeBg = when {
-        isAmoled -> MaterialTheme.colorScheme.surfaceContainerHigh
-        isUser -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-        else -> MaterialTheme.colorScheme.surfaceContainerHighest
-    }
+    // Inline code: keep text styling, but no opaque background so selection remains visible.
     val inlineCodeFg = when {
         isAmoled -> MaterialTheme.colorScheme.onSurface
         isUser -> MaterialTheme.colorScheme.onPrimaryContainer
@@ -3565,7 +3561,7 @@ private fun MarkdownContent(
             else -> MaterialTheme.colorScheme.primary
         },
         codeBackground = codeBlockBg,
-        inlineCodeBackground = inlineCodeBg,
+        inlineCodeBackground = Color.Transparent,
         dividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
     )
 
@@ -3623,14 +3619,16 @@ private fun MarkdownContent(
         codeFence = highlightedCodeFence
     )
 
-    Markdown(
-        content = normalizedMarkdown,
-        colors = colors,
-        typography = typography,
-        components = components,
-        imageTransformer = Coil2ImageTransformerImpl,
-        modifier = Modifier.fillMaxWidth()
-    )
+    SelectionContainer {
+        Markdown(
+            content = normalizedMarkdown,
+            colors = colors,
+            typography = typography,
+            components = components,
+            imageTransformer = Coil2ImageTransformerImpl,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }
 
 private val HtmlDocumentHintRegex = Regex("(?is)<!doctype\\s+html\\b|<\\s*html\\b")
