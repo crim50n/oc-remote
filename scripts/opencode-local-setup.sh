@@ -439,7 +439,90 @@ if [[ -n "${OPENCODE_PROXY_URL:-}" ]]; then
     PROXY_EXPORTS+=" export HTTP_PROXY=\"$OPENCODE_PROXY_URL\"; export HTTPS_PROXY=\"$OPENCODE_PROXY_URL\"; export ALL_PROXY=\"$OPENCODE_PROXY_URL\"; export http_proxy=\"$OPENCODE_PROXY_URL\"; export https_proxy=\"$OPENCODE_PROXY_URL\"; export all_proxy=\"$OPENCODE_PROXY_URL\";"
 fi
 
-exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$PROXY_EXPORTS export HOME=\"/root\"; export PATH=\"/usr/local/bin:/usr/bin:/bin:/root/.opencode/bin:/root/.local/bin:\$PATH\"; OPENCODE_BIN=\"\"; for candidate in /root/.opencode/bin/opencode /root/.local/bin/opencode /usr/local/bin/opencode; do [[ -x \"\$candidate\" ]] && OPENCODE_BIN=\"\$candidate\" && break; done; if [[ -z \"\$OPENCODE_BIN\" ]]; then OPENCODE_BIN=\"\$(command -v opencode || true)\"; fi; if [[ -z \"\$OPENCODE_BIN\" ]]; then echo \"opencode binary not found in distro\" >&2; exit 127; fi; CACHE_DIR=\"/root/.cache/opencode\"; LOG_FILE=\"\$CACHE_DIR/last-serve-error.log\"; mkdir -p \"\$CACHE_DIR\"; if [[ -f \"\$CACHE_DIR/package.json\" && -d \"\$CACHE_DIR/node_modules\" ]]; then MISSING_DEP=\"\"; while IFS= read -r dep; do [[ -z \"\$dep\" ]] && continue; if [[ ! -e \"\$CACHE_DIR/node_modules/\$dep\" ]]; then MISSING_DEP=\"\$dep\"; break; fi; done < <(awk '/\"dependencies\"[[:space:]]*:[[:space:]]*\{/ {in_dep=1; next} in_dep && /\}/ {exit} in_dep { if (match(\$0, /\"([^\"]+)\"[[:space:]]*:/)) { line=substr(\$0, RSTART, RLENGTH); gsub(/\"|[[:space:]]|:/, \"\", line); print line } }' \"\$CACHE_DIR/package.json\"); if [[ -n \"\$MISSING_DEP\" ]]; then echo \"Detected incomplete OpenCode module cache (missing: \$MISSING_DEP), rebuilding...\" >&2; rm -rf \"\$CACHE_DIR/node_modules\"; fi; fi; set +e; \"\$OPENCODE_BIN\" serve --hostname \"$HOST\" --port \"$PORT\" 2>\"\$LOG_FILE\"; EXIT_CODE=\$?; set -e; if [[ \$EXIT_CODE -ne 0 ]] && grep -Eiq \"resolveerror|can't import|cannot find module|module not found|no such file or directory.*node_modules|error: cannot resolve\" \"\$LOG_FILE\"; then echo \"Detected broken OpenCode module cache, rebuilding and retrying...\" >&2; rm -rf \"\$CACHE_DIR/node_modules\"; exec \"\$OPENCODE_BIN\" serve --hostname \"$HOST\" --port \"$PORT\"; fi; cat \"\$LOG_FILE\" >&2 || true; exit \$EXIT_CODE"
+export OPENCODE_SERVER_PASSWORD="${OPENCODE_SERVER_PASSWORD:-}"
+export NO_PROXY="$NO_PROXY"
+export no_proxy="$NO_PROXY"
+if [[ -n "${OPENCODE_PROXY_URL:-}" ]]; then
+    export HTTP_PROXY="$OPENCODE_PROXY_URL"
+    export HTTPS_PROXY="$OPENCODE_PROXY_URL"
+    export ALL_PROXY="$OPENCODE_PROXY_URL"
+    export http_proxy="$OPENCODE_PROXY_URL"
+    export https_proxy="$OPENCODE_PROXY_URL"
+    export all_proxy="$OPENCODE_PROXY_URL"
+fi
+export HOST PORT
+
+exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc '
+set -euo pipefail
+
+export HOME="/root"
+export PATH="/usr/local/bin:/usr/bin:/bin:/root/.opencode/bin:/root/.local/bin:$PATH"
+
+OPENCODE_BIN=""
+for candidate in /root/.opencode/bin/opencode /root/.local/bin/opencode /usr/local/bin/opencode; do
+    if [[ -x "$candidate" ]]; then
+        OPENCODE_BIN="$candidate"
+        break
+    fi
+done
+if [[ -z "$OPENCODE_BIN" ]]; then
+    OPENCODE_BIN="$(command -v opencode || true)"
+fi
+if [[ -z "$OPENCODE_BIN" ]]; then
+    echo "opencode binary not found in distro" >&2
+    exit 127
+fi
+
+repair_runtime_dir() {
+    local dir="$1"
+    rm -rf "$dir/node_modules" "$dir/bun.lock" 2>/dev/null || true
+}
+
+has_invalid_modules() {
+    local dir="$1"
+    local package_json="$dir/package.json"
+
+    [[ -f "$package_json" ]] || return 1
+    [[ -d "$dir/node_modules" ]] || return 0
+
+    local dep
+    while IFS= read -r dep; do
+        [[ -z "$dep" ]] && continue
+        if [[ ! -f "$dir/node_modules/$dep/package.json" ]]; then
+            return 0
+        fi
+    done < <(awk "/\"dependencies\"[[:space:]]*:[[:space:]]*\\{/ {in_dep=1; next} in_dep && /\\}/ {exit} in_dep { if (match(\$0, /\"([^\"]+)\"[[:space:]]*:/)) { line=substr(\$0, RSTART, RLENGTH); gsub(/\"|[[:space:]]|:/, \"\", line); print line } }" "$package_json")
+
+    return 1
+}
+
+for runtime_dir in /root/.cache/opencode /root/.config/opencode /root/.opencode; do
+    if has_invalid_modules "$runtime_dir"; then
+        echo "Detected incomplete OpenCode modules in $runtime_dir, rebuilding runtime cache..." >&2
+        repair_runtime_dir "$runtime_dir"
+    fi
+done
+
+LOG_FILE="/root/.cache/opencode/last-serve-error.log"
+mkdir -p /root/.cache/opencode
+
+set +e
+"$OPENCODE_BIN" serve --hostname "$HOST" --port "$PORT" 2>"$LOG_FILE"
+EXIT_CODE=$?
+set -e
+
+if [[ $EXIT_CODE -ne 0 ]] && grep -Eiq "resolveerror|cannot find module|module not found|can.t import|no such file or directory.*node_modules|error: cannot resolve" "$LOG_FILE"; then
+    echo "Detected broken OpenCode runtime cache, reinstalling runtime assets and retrying..." >&2
+    for runtime_dir in /root/.cache/opencode /root/.config/opencode /root/.opencode; do
+        repair_runtime_dir "$runtime_dir"
+    done
+    "$OPENCODE_BIN" upgrade --method curl >/dev/null 2>&1 || true
+    exec "$OPENCODE_BIN" serve --hostname "$HOST" --port "$PORT"
+fi
+
+cat "$LOG_FILE" >&2 || true
+exit $EXIT_CODE
+'
 EOF
 
     cat > "$INSTALL_DIR/stop.sh" <<'EOF'
