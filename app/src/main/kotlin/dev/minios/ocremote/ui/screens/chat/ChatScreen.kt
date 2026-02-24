@@ -1854,11 +1854,13 @@ fun ChatScreen(
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.error
                         )
-                        Text(
-                            text = uiState.error ?: stringResource(R.string.session_unknown_error),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error
-                        )
+                        SelectionContainer {
+                            Text(
+                                text = uiState.error ?: stringResource(R.string.session_unknown_error),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                         Button(onClick = { viewModel.loadMessages() }) {
                             Text(stringResource(R.string.retry))
                         }
@@ -3243,12 +3245,14 @@ private fun ChatMessageBubble(
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = if (isAmoled) 0.75f else 0.35f)),
                             tonalElevation = 0.dp,
                         ) {
-                            Text(
-                                text = assistantErrorText,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                            )
+                            SelectionContainer {
+                                Text(
+                                    text = assistantErrorText,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
                         }
                     }
 
@@ -4092,11 +4096,13 @@ private fun EditToolCard(tool: Part.Tool) {
                             border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.7f)) else null,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = errorText,
-                                style = CodeTypography.copy(fontSize = 13.sp, color = MaterialTheme.colorScheme.onErrorContainer),
-                                modifier = Modifier.padding(8.dp)
-                            )
+                            SelectionContainer {
+                                Text(
+                                    text = errorText,
+                                    style = CodeTypography.copy(fontSize = 13.sp, color = MaterialTheme.colorScheme.onErrorContainer),
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
                         }
                     } else {
                         DiffView(before = diffBefore, after = diffAfter)
