@@ -71,6 +71,11 @@ data class ChatUiState(
     val lastContextTokens: Int = 0
 )
 
+data class RevertedDraftPayload(
+    val text: String,
+    val attachmentUris: List<String> = emptyList(),
+)
+
 /**
  * A flattened chat message for the UI.
  * Combines Message info with its parts.
@@ -152,9 +157,9 @@ class ChatViewModel @Inject constructor(
     private val _draftText = MutableStateFlow("")
     val draftText: StateFlow<String> = _draftText
 
-    /** One-shot event: emits reverted message text so ChatScreen can update the input field. */
-    private val _revertedDraftEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
-    val revertedDraftEvent: SharedFlow<String> = _revertedDraftEvent
+    /** One-shot event: emits reverted draft payload (text + image attachments) for ChatScreen. */
+    private val _revertedDraftEvent = MutableSharedFlow<RevertedDraftPayload>(extraBufferCapacity = 1)
+    val revertedDraftEvent: SharedFlow<RevertedDraftPayload> = _revertedDraftEvent
 
     /** Draft attachment URIs (content:// URIs as strings) — survives navigation / app restart. */
     private val _draftAttachmentUris = MutableStateFlow<List<String>>(emptyList())
@@ -188,6 +193,15 @@ class ChatViewModel @Inject constructor(
     )
     val showShellButton = settingsRepository.showShellButton.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), true
+    )
+    val compressImageAttachments = settingsRepository.compressImageAttachments.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), true
+    )
+    val imageAttachmentMaxLongSide = settingsRepository.imageAttachmentMaxLongSide.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), 1440
+    )
+    val imageAttachmentWebpQuality = settingsRepository.imageAttachmentWebpQuality.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), 60
     )
     // ============ Pagination ============
     /** Current message limit (doubles each time user loads older messages). */
@@ -982,13 +996,7 @@ class ChatViewModel @Inject constructor(
                 api.revertSession(conn, sessionId, lastUser.message.id)
                 if (BuildConfig.DEBUG) Log.d(TAG, "Reverted session $sessionId to message ${lastUser.message.id}")
                 // Restore the user message text to the input field
-                val revertedText = lastUser.parts
-                    .filterIsInstance<Part.Text>()
-                    .joinToString("\n") { it.text }
-                if (revertedText.isNotBlank()) {
-                    _draftText.value = revertedText
-                    _revertedDraftEvent.tryEmit(revertedText)
-                }
+                restoreRevertedDraft(extractRevertedDraft(lastUser))
                 onResult(true)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to revert session", e)
@@ -1003,16 +1011,41 @@ class ChatViewModel @Inject constructor(
             try {
                 api.revertSession(conn, sessionId, messageId)
                 if (BuildConfig.DEBUG) Log.d(TAG, "Reverted session $sessionId to message $messageId")
-                if (!revertedText.isNullOrBlank()) {
-                    _draftText.value = revertedText
-                    _revertedDraftEvent.tryEmit(revertedText)
-                }
+                val targetMessage = uiState.value.messages
+                    .lastOrNull { it.message.id == messageId && it.isUser }
+                val fallbackPayload = RevertedDraftPayload(text = revertedText.orEmpty())
+                restoreRevertedDraft(targetMessage?.let { extractRevertedDraft(it) } ?: fallbackPayload)
                 onResult(true)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to revert to message $messageId", e)
                 onResult(false)
             }
         }
+    }
+
+    private fun extractRevertedDraft(message: ChatMessage): RevertedDraftPayload {
+        val revertedText = message.parts
+            .filterIsInstance<Part.Text>()
+            .joinToString("\n") { it.text }
+
+        val imageUris = message.parts
+            .filterIsInstance<Part.File>()
+            .mapNotNull { part ->
+                val mime = part.mime.lowercase()
+                if (mime.startsWith("image/") && !part.url.isNullOrBlank()) part.url else null
+            }
+
+        return RevertedDraftPayload(
+            text = revertedText,
+            attachmentUris = imageUris,
+        )
+    }
+
+    private fun restoreRevertedDraft(payload: RevertedDraftPayload) {
+        _draftText.value = payload.text
+        _draftAttachmentUris.value = payload.attachmentUris
+        _confirmedFilePaths.value = emptySet()
+        _revertedDraftEvent.tryEmit(payload)
     }
 
     /** Redo the last undone message. */
@@ -1061,17 +1094,26 @@ class ChatViewModel @Inject constructor(
     fun executeCommand(command: String, arguments: String = "", onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
+                if (!sessionLoaded.isCompleted) {
+                    sessionLoaded.await()
+                }
                 if (sessionDirectory.isNullOrBlank()) {
                     loadSession()
                 }
 
                 val normalizedCommand = command.removePrefix("/").trim()
                 val effectiveDirectory = sessionDirectory
-                // /init expects a target path. If omitted, default to session directory.
+                    ?: eventReducer.sessions.value
+                        .firstOrNull { it.id == sessionId }
+                        ?.directory
+                        ?.takeIf { it.isNotBlank() }
+                // /init: when arguments are omitted, rely on x-opencode-directory only.
+                // Passing an explicit path (absolute or ".") can lead to duplicated or
+                // malformed path text in the generated init prompt.
                 val effectiveArguments = if (
                     normalizedCommand.equals("init", ignoreCase = true) && arguments.isBlank()
                 ) {
-                    effectiveDirectory.orEmpty()
+                    ""
                 } else {
                     arguments
                 }

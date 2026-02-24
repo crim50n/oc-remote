@@ -422,4 +422,19 @@
     <string name="home_local_proxy_enable">Yerel çalışma zamanı için proxy kullan</string>
     <string name="home_local_proxy_url_label">Proxy URL\'si</string>
     <string name="home_local_proxy_no_proxy_hint">Yerel adresler proxy üzerinden otomatik olarak atlanır: localhost, 127.0.0.1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16.</string>
+    <string name="home_local_proxy_no_proxy_label">Proxy hariç tutulanlar (NO_PROXY)</string>
+    <string name="home_local_proxy_show_url">Göster</string>
+    <string name="home_local_proxy_hide_url">Gizle</string>
+    <string name="chat_error_view_page">Sayfa</string>
+    <string name="chat_error_view_code">Kod</string>
+    <string name="chat_save_image">Görseli kaydet</string>
+    <string name="chat_image_saved">Görsel kaydedildi</string>
+    <string name="chat_image_save_failed">Görsel kaydedilemedi</string>
+    <string name="settings_compress_images">Görsel eklerini optimize et</string>
+    <string name="settings_compress_images_desc">Büyük ekran görüntülerini yeniden boyutlandır ve PNG/JPEG dosyalarını göndermeden önce WebP\'ye dönüştür</string>
+    <string name="settings_compress_images_max_side">Maksimum görsel kenarı</string>
+    <string name="settings_compress_images_max_side_value">%1$d px</string>
+    <string name="settings_compress_images_quality">WebP kalitesi</string>
+    <string name="settings_compress_images_quality_value">%1$d%%</string>
+    <string name="chat_images_optimized_summary">Görseller optimize edildi (%1$d): %2$s -&gt; %3$s (~%4$d -&gt; ~%5$d token)</string>
 </resources>

@@ -189,6 +189,11 @@
     <string name="chat_question_inline">Вопрос: %1$s</string>
     <string name="chat_aborted">Прервано: %1$s</string>
     <string name="chat_retry">Повтор #%1$d: %2$s</string>
+    <string name="chat_error_view_page">Страница</string>
+    <string name="chat_error_view_code">Код</string>
+    <string name="chat_save_image">Сохранить изображение</string>
+    <string name="chat_image_saved">Изображение сохранено</string>
+    <string name="chat_image_save_failed">Не удалось сохранить изображение</string>
     <string name="chat_tasks_count">%1$d/%2$d</string>
     <string name="chat_cost_format">$%1$s</string>
     <string name="chat_context_format">%1$d%% ctx</string>
@@ -422,5 +427,15 @@
     <string name="home_local_proxy_settings">Прокси</string>
     <string name="home_local_proxy_enable">Использовать прокси для локального выполнения</string>
     <string name="home_local_proxy_url_label">URL прокси</string>
-    <string name="home_local_proxy_no_proxy_hint">Локальные адреса автоматически обходят прокси: localhost, 127.0.0.1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16.</string>
+    <string name="home_local_proxy_no_proxy_label">Исключения прокси (NO_PROXY)</string>
+    <string name="home_local_proxy_show_url">Показать</string>
+    <string name="home_local_proxy_hide_url">Скрыть</string>
+    <string name="home_local_proxy_no_proxy_hint">Значения по умолчанию уже заполнены; список исключений можно редактировать через запятую.</string>
+    <string name="settings_compress_images">Оптимизировать вложения изображений</string>
+    <string name="settings_compress_images_desc">Изменяйте размер больших скриншотов и конвертируйте PNG/JPEG в WebP перед отправкой</string>
+    <string name="settings_compress_images_max_side">Максимальная сторона изображения</string>
+    <string name="settings_compress_images_max_side_value">%1$d пикс.</string>
+    <string name="settings_compress_images_quality">Качество WebP</string>
+    <string name="settings_compress_images_quality_value">%1$d%%</string>
+    <string name="chat_images_optimized_summary">Изображения оптимизированы (%1$d): %2$s -&gt; %3$s (~%4$d -&gt; ~%5$d токенов)</string>
 </resources>

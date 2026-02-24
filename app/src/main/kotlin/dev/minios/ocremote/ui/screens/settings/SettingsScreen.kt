@@ -1,8 +1,13 @@
 package dev.minios.ocremote.ui.screens.settings
 
 import android.os.Build
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -15,8 +20,8 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PhotoSizeSelectLarge
 import androidx.compose.material.icons.filled.ScreenLockPortrait
-
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Sync
@@ -29,8 +34,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.minios.ocremote.R
@@ -63,6 +71,9 @@ fun SettingsScreen(
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val silentNotifications by viewModel.silentNotifications.collectAsState()
     val showShellButton by viewModel.showShellButton.collectAsState()
+    val compressImageAttachments by viewModel.compressImageAttachments.collectAsState()
+    val imageAttachmentMaxLongSide by viewModel.imageAttachmentMaxLongSide.collectAsState()
+    val imageAttachmentWebpQuality by viewModel.imageAttachmentWebpQuality.collectAsState()
     val showLocalRuntime by viewModel.showLocalRuntime.collectAsState()
     val terminalFontSize by viewModel.terminalFontSize.collectAsState()
 
@@ -72,6 +83,8 @@ fun SettingsScreen(
     var showMessageCountDialog by remember { mutableStateOf(false) }
     var showReconnectModeDialog by remember { mutableStateOf(false) }
     var showTerminalFontSizeDialog by remember { mutableStateOf(false) }
+    var showImageMaxSideDialog by remember { mutableStateOf(false) }
+    var showImageQualityDialog by remember { mutableStateOf(false) }
 
     val isAmoledTheme = MaterialTheme.colorScheme.background == Color.Black &&
         MaterialTheme.colorScheme.surface == Color.Black
@@ -332,6 +345,45 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { viewModel.setShowShellButton(!showShellButton) }
             )
 
+            // Optimize image attachments
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_compress_images)) },
+                supportingContent = { Text(stringResource(R.string.settings_compress_images_desc)) },
+                leadingContent = {
+                    Icon(Icons.Default.PhotoSizeSelectLarge, contentDescription = null)
+                },
+                trailingContent = {
+                    Switch(
+                        checked = compressImageAttachments,
+                        onCheckedChange = { viewModel.setCompressImageAttachments(it) },
+                        colors = switchColors
+                    )
+                },
+                modifier = Modifier.clickable {
+                    viewModel.setCompressImageAttachments(!compressImageAttachments)
+                }
+            )
+
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_compress_images_max_side)) },
+                supportingContent = { Text(getImageMaxSideDisplayName(imageAttachmentMaxLongSide)) },
+                leadingContent = {
+                    Icon(Icons.Default.PhotoSizeSelectLarge, contentDescription = null)
+                },
+                modifier = Modifier.clickable(enabled = compressImageAttachments) { showImageMaxSideDialog = true }
+            )
+
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_compress_images_quality)) },
+                supportingContent = {
+                    Text(stringResource(R.string.settings_compress_images_quality_value, imageAttachmentWebpQuality))
+                },
+                leadingContent = {
+                    Icon(Icons.Default.PhotoSizeSelectLarge, contentDescription = null)
+                },
+                modifier = Modifier.clickable(enabled = compressImageAttachments) { showImageQualityDialog = true }
+            )
+
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_terminal_font_size)) },
                 supportingContent = {
@@ -470,6 +522,28 @@ fun SettingsScreen(
                 onDismiss = { showTerminalFontSizeDialog = false }
             )
         }
+
+        if (showImageMaxSideDialog) {
+            ImageCompressionMaxSideDialog(
+                currentMaxSide = imageAttachmentMaxLongSide,
+                onSelected = { px ->
+                    viewModel.setImageAttachmentMaxLongSide(px)
+                    showImageMaxSideDialog = false
+                },
+                onDismiss = { showImageMaxSideDialog = false }
+            )
+        }
+
+        if (showImageQualityDialog) {
+            ImageCompressionQualityDialog(
+                currentQuality = imageAttachmentWebpQuality,
+                onSelected = { quality ->
+                    viewModel.setImageAttachmentWebpQuality(quality)
+                    showImageQualityDialog = false
+                },
+                onDismiss = { showImageQualityDialog = false }
+            )
+        }
     }
 }
 
@@ -484,51 +558,179 @@ private fun SectionHeader(title: String) {
 }
 
 @Composable
+private fun amoledDialogModifier(): Modifier {
+    val isAmoledTheme = MaterialTheme.colorScheme.background == Color.Black &&
+        MaterialTheme.colorScheme.surface == Color.Black
+    return if (isAmoledTheme) {
+        Modifier.border(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.78f),
+            shape = RoundedCornerShape(28.dp),
+        )
+    } else {
+        Modifier
+    }
+}
+
+@Composable
+private fun amoledDialogContainerColor(): Color {
+    val isAmoledTheme = MaterialTheme.colorScheme.background == Color.Black &&
+        MaterialTheme.colorScheme.surface == Color.Black
+    return if (isAmoledTheme) Color.Black else AlertDialogDefaults.containerColor
+}
+
+/**
+ * Reusable single-selection picker dialog styled to match
+ * the ModelPickerDialog visual language: selected item gets a
+ * rounded background highlight and a check icon.
+ *
+ * @param title       Dialog title string.
+ * @param options     List of key-label pairs to display.
+ * @param selectedKey The currently selected key.
+ * @param onSelect    Called with the key when an option is tapped.
+ * @param onDismiss   Called when the dialog should close.
+ * @param maxHeight   Maximum dialog body height (useful for long lists).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun <K> SettingsPickerDialog(
+    title: String,
+    options: List<Pair<K, String>>,
+    selectedKey: K,
+    onSelect: (K) -> Unit,
+    onDismiss: () -> Unit,
+    maxHeight: Int = 480
+) {
+    val isAmoled = MaterialTheme.colorScheme.background == Color.Black &&
+        MaterialTheme.colorScheme.surface == Color.Black
+
+    val listState = rememberLazyListState()
+
+    // Scroll to selected item on first composition
+    val selectedIndex = remember(options, selectedKey) {
+        options.indexOfFirst { it.first == selectedKey }.coerceAtLeast(0)
+    }
+    LaunchedEffect(selectedIndex) {
+        listState.scrollToItem(selectedIndex)
+    }
+
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+            border = if (isAmoled) BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+            ) else null,
+            tonalElevation = if (isAmoled) 0.dp else 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = maxHeight.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Title
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(
+                        start = 24.dp,
+                        end = 24.dp,
+                        top = 20.dp,
+                        bottom = 8.dp
+                    )
+                )
+
+                // Items
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    items(
+                        options,
+                        key = { it.first.toString() }
+                    ) { (key, label) ->
+                        val isSelected = key == selectedKey
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    when {
+                                        isSelected && isAmoled -> Color.Black
+                                        isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                                        else -> Color.Transparent
+                                    }
+                                )
+                                .then(
+                                    if (isSelected && isAmoled) {
+                                        Modifier.border(
+                                            width = 1.dp,
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
+                                            shape = RoundedCornerShape(12.dp),
+                                        )
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .clickable { onSelect(key) }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = label,
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Cancel button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ThemePickerDialog(
     currentTheme: String,
     onThemeSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val themes = listOf(
-        "system" to stringResource(R.string.settings_theme_system),
-        "light" to stringResource(R.string.settings_theme_light),
-        "dark" to stringResource(R.string.settings_theme_dark)
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.dialog_select_theme)) },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                themes.forEach { (code, name) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onThemeSelected(code) }
-                            .padding(vertical = 12.dp, horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = name,
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        if (code == currentTheme) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = stringResource(R.string.ok),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
+    SettingsPickerDialog(
+        title = stringResource(R.string.dialog_select_theme),
+        options = listOf(
+            "system" to stringResource(R.string.settings_theme_system),
+            "light" to stringResource(R.string.settings_theme_light),
+            "dark" to stringResource(R.string.settings_theme_dark)
+        ),
+        selectedKey = currentTheme,
+        onSelect = onThemeSelected,
+        onDismiss = onDismiss
     )
 }
 
@@ -539,61 +741,31 @@ private fun LanguagePickerDialog(
     onDismiss: () -> Unit
 ) {
     val systemDefault = stringResource(R.string.settings_language_system)
-    
-    // List of supported languages based on values-* folders in res/
-    val languages = listOf(
-        "" to systemDefault,
-        "en" to "English",
-        "ar" to "العربية",
-        "de" to "Deutsch",
-        "es" to "Español",
-        "fr" to "Français",
-        "id" to "Bahasa Indonesia",
-        "it" to "Italiano",
-        "ja" to "日本語",
-        "ko" to "한국어",
-        "pl" to "Polski",
-        "pt-BR" to "Português (Brasil)",
-        "ru" to "Русский",
-        "tr" to "Türkçe",
-        "uk" to "Українська",
-        "zh-CN" to "简体中文"
-    )
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.dialog_select_language)) },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                languages.forEach { (code, name) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onLanguageSelected(code) }
-                            .padding(vertical = 12.dp, horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = name,
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        if (code == currentLanguage) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = stringResource(R.string.ok),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
+    SettingsPickerDialog(
+        title = stringResource(R.string.dialog_select_language),
+        options = listOf(
+            "" to systemDefault,
+            "en" to "English",
+            "ar" to "العربية",
+            "de" to "Deutsch",
+            "es" to "Español",
+            "fr" to "Français",
+            "id" to "Bahasa Indonesia",
+            "it" to "Italiano",
+            "ja" to "日本語",
+            "ko" to "한국어",
+            "pl" to "Polski",
+            "pt-BR" to "Português (Brasil)",
+            "ru" to "Русский",
+            "tr" to "Türkçe",
+            "uk" to "Українська",
+            "zh-CN" to "简体中文"
+        ),
+        selectedKey = currentLanguage,
+        onSelect = onLanguageSelected,
+        onDismiss = onDismiss,
+        maxHeight = 520
     )
 }
 
@@ -603,46 +775,16 @@ private fun FontSizePickerDialog(
     onSizeSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sizes = listOf(
-        "small" to stringResource(R.string.settings_font_size_small),
-        "medium" to stringResource(R.string.settings_font_size_medium),
-        "large" to stringResource(R.string.settings_font_size_large)
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_font_size)) },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                sizes.forEach { (code, name) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSizeSelected(code) }
-                            .padding(vertical = 12.dp, horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = name,
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        if (code == currentSize) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = stringResource(R.string.ok),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
+    SettingsPickerDialog(
+        title = stringResource(R.string.settings_font_size),
+        options = listOf(
+            "small" to stringResource(R.string.settings_font_size_small),
+            "medium" to stringResource(R.string.settings_font_size_medium),
+            "large" to stringResource(R.string.settings_font_size_large)
+        ),
+        selectedKey = currentSize,
+        onSelect = onSizeSelected,
+        onDismiss = onDismiss
     )
 }
 
@@ -652,42 +794,12 @@ private fun MessageCountPickerDialog(
     onCountSelected: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val counts = listOf(25, 50, 100, 200)
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_initial_messages)) },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                counts.forEach { count ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onCountSelected(count) }
-                            .padding(vertical = 12.dp, horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "$count",
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        if (count == currentCount) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = stringResource(R.string.ok),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
+    SettingsPickerDialog(
+        title = stringResource(R.string.settings_initial_messages),
+        options = listOf(25, 50, 100, 200).map { it to "$it" },
+        selectedKey = currentCount,
+        onSelect = onCountSelected,
+        onDismiss = onDismiss
     )
 }
 
@@ -697,46 +809,16 @@ private fun ReconnectModePickerDialog(
     onModeSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val modes = listOf(
-        "aggressive" to stringResource(R.string.settings_reconnect_aggressive),
-        "normal" to stringResource(R.string.settings_reconnect_normal),
-        "conservative" to stringResource(R.string.settings_reconnect_conservative)
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.dialog_select_reconnect_mode)) },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                modes.forEach { (code, name) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onModeSelected(code) }
-                            .padding(vertical = 12.dp, horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = name,
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        if (code == currentMode) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = stringResource(R.string.ok),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
+    SettingsPickerDialog(
+        title = stringResource(R.string.dialog_select_reconnect_mode),
+        options = listOf(
+            "aggressive" to stringResource(R.string.settings_reconnect_aggressive),
+            "normal" to stringResource(R.string.settings_reconnect_normal),
+            "conservative" to stringResource(R.string.settings_reconnect_conservative)
+        ),
+        selectedKey = currentMode,
+        onSelect = onModeSelected,
+        onDismiss = onDismiss
     )
 }
 
@@ -749,7 +831,9 @@ private fun TerminalFontSizeDialog(
     var selected by remember(currentSize) { mutableFloatStateOf(currentSize.coerceIn(6f, 20f)) }
 
     AlertDialog(
+        modifier = amoledDialogModifier(),
         onDismissRequest = onDismiss,
+        containerColor = amoledDialogContainerColor(),
         title = { Text(stringResource(R.string.settings_terminal_font_size)) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -776,6 +860,40 @@ private fun TerminalFontSizeDialog(
                 Text(stringResource(R.string.cancel))
             }
         }
+    )
+}
+
+@Composable
+private fun ImageCompressionMaxSideDialog(
+    currentMaxSide: Int,
+    onSelected: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val options = listOf(640, 720, 960, 1080, 1440, 1920, 2560)
+    SettingsPickerDialog(
+        title = stringResource(R.string.settings_compress_images_max_side),
+        options = options.map { it to getImageMaxSideDisplayName(it) },
+        selectedKey = currentMaxSide,
+        onSelect = onSelected,
+        onDismiss = onDismiss
+    )
+}
+
+@Composable
+private fun ImageCompressionQualityDialog(
+    currentQuality: Int,
+    onSelected: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val options = listOf(40, 50, 60, 70, 80)
+    SettingsPickerDialog(
+        title = stringResource(R.string.settings_compress_images_quality),
+        options = options.map {
+            it to stringResource(R.string.settings_compress_images_quality_value, it)
+        },
+        selectedKey = currentQuality,
+        onSelect = onSelected,
+        onDismiss = onDismiss
     )
 }
 
@@ -830,4 +948,9 @@ private fun getReconnectModeDisplayName(mode: String): String {
         "conservative" -> stringResource(R.string.settings_reconnect_conservative)
         else -> mode
     }
+}
+
+@Composable
+private fun getImageMaxSideDisplayName(px: Int): String {
+    return stringResource(R.string.settings_compress_images_max_side_value, px)
 }

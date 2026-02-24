@@ -40,11 +40,15 @@ class SettingsRepository @Inject constructor(
         private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
         private val SILENT_NOTIFICATIONS_KEY = booleanPreferencesKey("silent_notifications")
         private val SHOW_SHELL_BUTTON_KEY = booleanPreferencesKey("show_shell_button")
+        private val COMPRESS_IMAGE_ATTACHMENTS_KEY = booleanPreferencesKey("compress_image_attachments")
+        private val IMAGE_ATTACHMENT_MAX_LONG_SIDE_KEY = intPreferencesKey("image_attachment_max_long_side")
+        private val IMAGE_ATTACHMENT_WEBP_QUALITY_KEY = intPreferencesKey("image_attachment_webp_quality")
         private val SHOW_LOCAL_RUNTIME_KEY = booleanPreferencesKey("show_local_runtime")
         private val TERMINAL_FONT_SIZE_KEY = floatPreferencesKey("terminal_font_size")
         private val LOCAL_SETUP_COMPLETED_KEY = booleanPreferencesKey("local_setup_completed")
         private val LOCAL_PROXY_ENABLED_KEY = booleanPreferencesKey("local_proxy_enabled")
         private val LOCAL_PROXY_URL_KEY = stringPreferencesKey("local_proxy_url")
+        private val LOCAL_PROXY_NO_PROXY_KEY = stringPreferencesKey("local_proxy_no_proxy")
 
         /** SharedPreferences name used for synchronous locale reads in attachBaseContext. */
         private const val LOCALE_PREFS = "locale_prefs"
@@ -283,6 +287,45 @@ class SettingsRepository @Inject constructor(
     }
 
     /**
+     * Whether image attachments are optimized (resize + WebP) before sending. Default: true.
+     */
+    val compressImageAttachments: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[COMPRESS_IMAGE_ATTACHMENTS_KEY] ?: true
+    }
+
+    suspend fun setCompressImageAttachments(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[COMPRESS_IMAGE_ATTACHMENTS_KEY] = enabled
+        }
+    }
+
+    /**
+     * Max long side (in px) used when resizing image attachments before sending. Default: 1440.
+     */
+    val imageAttachmentMaxLongSide: Flow<Int> = dataStore.data.map { preferences ->
+        (preferences[IMAGE_ATTACHMENT_MAX_LONG_SIDE_KEY] ?: 1440).coerceIn(640, 4096)
+    }
+
+    suspend fun setImageAttachmentMaxLongSide(px: Int) {
+        dataStore.edit { preferences ->
+            preferences[IMAGE_ATTACHMENT_MAX_LONG_SIDE_KEY] = px.coerceIn(640, 4096)
+        }
+    }
+
+    /**
+     * WebP quality used for image attachment optimization. Default: 60.
+     */
+    val imageAttachmentWebpQuality: Flow<Int> = dataStore.data.map { preferences ->
+        (preferences[IMAGE_ATTACHMENT_WEBP_QUALITY_KEY] ?: 60).coerceIn(1, 100)
+    }
+
+    suspend fun setImageAttachmentWebpQuality(quality: Int) {
+        dataStore.edit { preferences ->
+            preferences[IMAGE_ATTACHMENT_WEBP_QUALITY_KEY] = quality.coerceIn(1, 100)
+        }
+    }
+
+    /**
      * Whether to show local runtime controls on Home screen. Default: true.
      */
     val showLocalRuntime: Flow<Boolean> = dataStore.data.map { preferences ->
@@ -345,6 +388,28 @@ class SettingsRepository @Inject constructor(
     suspend fun setLocalProxyUrl(url: String) {
         dataStore.edit { preferences ->
             preferences[LOCAL_PROXY_URL_KEY] = url.trim()
+        }
+    }
+
+    /**
+     * NO_PROXY/NO_PROXY exclusions used by local runtime.
+     */
+    val localProxyNoProxy: Flow<String> = dataStore.data.map { preferences ->
+        preferences[LOCAL_PROXY_NO_PROXY_KEY] ?: LocalServerManager.DEFAULT_NO_PROXY_LIST
+    }
+
+    suspend fun setLocalProxyNoProxy(value: String) {
+        dataStore.edit { preferences ->
+            val normalized = value
+                .split(',')
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .joinToString(",")
+            preferences[LOCAL_PROXY_NO_PROXY_KEY] = if (normalized.isBlank()) {
+                LocalServerManager.DEFAULT_NO_PROXY_LIST
+            } else {
+                normalized
+            }
         }
     }
 

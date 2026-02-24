@@ -1,7 +1,13 @@
 version: 1
 checksums:
     OC Remote Android/ar:
+        chat_error_view_code: fa9eddb7d05037b4f7a250868dbbbcbe
+        chat_error_view_page: da91a63f90423199091e7e9cebb3c009
+        chat_image_save_failed: 02ec31a620ab5f2538ee4cec7ff31da5
+        chat_image_saved: 31f4926f8381e889a84a021ec54f990c
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_save_image: 2671c89f1644934a8e25c3cef8df6088
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
         chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
         chat_shell_executed: a66a123808864f1b1515c04f2434e03c
@@ -33,8 +39,11 @@ checksums:
         home_local_open_termux_overlay_settings: 143efbb810d53f9be532108ce917acbe
         home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
         home_local_proxy_enable: 1436bbdb82eba1e1a531aa66c60a3eb9
+        home_local_proxy_hide_url: 29157e23a57091eb7f2566e8e8b82a1f
         home_local_proxy_no_proxy_hint: 0b53ba40f25f0794929f8fa43b48f229
+        home_local_proxy_no_proxy_label: 8c8212936aa2cb1160907936f4964a95
         home_local_proxy_settings: e4628b0bce2a7ce679d631929870c788
+        home_local_proxy_show_url: c10c020d03734bb0ef7cd5a720f330f3
         home_local_proxy_url_label: 29c38960a20a3ee1f0b53d6d377a9040
         home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
         home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
@@ -102,12 +111,24 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/de:
+        chat_error_view_code: fa9eddb7d05037b4f7a250868dbbbcbe
+        chat_error_view_page: da91a63f90423199091e7e9cebb3c009
+        chat_image_save_failed: 02ec31a620ab5f2538ee4cec7ff31da5
+        chat_image_saved: 31f4926f8381e889a84a021ec54f990c
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_save_image: 2671c89f1644934a8e25c3cef8df6088
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
         chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
         chat_shell_executed: a66a123808864f1b1515c04f2434e03c
@@ -139,8 +160,11 @@ checksums:
         home_local_open_termux_overlay_settings: 143efbb810d53f9be532108ce917acbe
         home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
         home_local_proxy_enable: 1436bbdb82eba1e1a531aa66c60a3eb9
+        home_local_proxy_hide_url: 29157e23a57091eb7f2566e8e8b82a1f
         home_local_proxy_no_proxy_hint: 0b53ba40f25f0794929f8fa43b48f229
+        home_local_proxy_no_proxy_label: 8c8212936aa2cb1160907936f4964a95
         home_local_proxy_settings: e4628b0bce2a7ce679d631929870c788
+        home_local_proxy_show_url: c10c020d03734bb0ef7cd5a720f330f3
         home_local_proxy_url_label: 29c38960a20a3ee1f0b53d6d377a9040
         home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
         home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
@@ -207,12 +231,24 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/es:
+        chat_error_view_code: fa9eddb7d05037b4f7a250868dbbbcbe
+        chat_error_view_page: da91a63f90423199091e7e9cebb3c009
+        chat_image_save_failed: 02ec31a620ab5f2538ee4cec7ff31da5
+        chat_image_saved: 31f4926f8381e889a84a021ec54f990c
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_save_image: 2671c89f1644934a8e25c3cef8df6088
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
         chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
         chat_shell_executed: a66a123808864f1b1515c04f2434e03c
@@ -244,8 +280,11 @@ checksums:
         home_local_open_termux_overlay_settings: 143efbb810d53f9be532108ce917acbe
         home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
         home_local_proxy_enable: 1436bbdb82eba1e1a531aa66c60a3eb9
+        home_local_proxy_hide_url: 29157e23a57091eb7f2566e8e8b82a1f
         home_local_proxy_no_proxy_hint: 0b53ba40f25f0794929f8fa43b48f229
+        home_local_proxy_no_proxy_label: 8c8212936aa2cb1160907936f4964a95
         home_local_proxy_settings: e4628b0bce2a7ce679d631929870c788
+        home_local_proxy_show_url: c10c020d03734bb0ef7cd5a720f330f3
         home_local_proxy_url_label: 29c38960a20a3ee1f0b53d6d377a9040
         home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
         home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
@@ -313,12 +352,24 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/fr:
+        chat_error_view_code: fa9eddb7d05037b4f7a250868dbbbcbe
+        chat_error_view_page: da91a63f90423199091e7e9cebb3c009
+        chat_image_save_failed: 02ec31a620ab5f2538ee4cec7ff31da5
+        chat_image_saved: 31f4926f8381e889a84a021ec54f990c
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_save_image: 2671c89f1644934a8e25c3cef8df6088
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
         chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
         chat_shell_executed: a66a123808864f1b1515c04f2434e03c
@@ -350,8 +401,11 @@ checksums:
         home_local_open_termux_overlay_settings: 143efbb810d53f9be532108ce917acbe
         home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
         home_local_proxy_enable: 1436bbdb82eba1e1a531aa66c60a3eb9
+        home_local_proxy_hide_url: 29157e23a57091eb7f2566e8e8b82a1f
         home_local_proxy_no_proxy_hint: 0b53ba40f25f0794929f8fa43b48f229
+        home_local_proxy_no_proxy_label: 8c8212936aa2cb1160907936f4964a95
         home_local_proxy_settings: e4628b0bce2a7ce679d631929870c788
+        home_local_proxy_show_url: c10c020d03734bb0ef7cd5a720f330f3
         home_local_proxy_url_label: 29c38960a20a3ee1f0b53d6d377a9040
         home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
         home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
@@ -419,12 +473,24 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/id:
+        chat_error_view_code: fa9eddb7d05037b4f7a250868dbbbcbe
+        chat_error_view_page: da91a63f90423199091e7e9cebb3c009
+        chat_image_save_failed: 02ec31a620ab5f2538ee4cec7ff31da5
+        chat_image_saved: 31f4926f8381e889a84a021ec54f990c
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_save_image: 2671c89f1644934a8e25c3cef8df6088
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
         chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
         chat_shell_executed: a66a123808864f1b1515c04f2434e03c
@@ -456,8 +522,11 @@ checksums:
         home_local_open_termux_overlay_settings: 143efbb810d53f9be532108ce917acbe
         home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
         home_local_proxy_enable: 1436bbdb82eba1e1a531aa66c60a3eb9
+        home_local_proxy_hide_url: 29157e23a57091eb7f2566e8e8b82a1f
         home_local_proxy_no_proxy_hint: 0b53ba40f25f0794929f8fa43b48f229
+        home_local_proxy_no_proxy_label: 8c8212936aa2cb1160907936f4964a95
         home_local_proxy_settings: e4628b0bce2a7ce679d631929870c788
+        home_local_proxy_show_url: c10c020d03734bb0ef7cd5a720f330f3
         home_local_proxy_url_label: 29c38960a20a3ee1f0b53d6d377a9040
         home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
         home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
@@ -525,12 +594,24 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/it:
+        chat_error_view_code: fa9eddb7d05037b4f7a250868dbbbcbe
+        chat_error_view_page: da91a63f90423199091e7e9cebb3c009
+        chat_image_save_failed: 02ec31a620ab5f2538ee4cec7ff31da5
+        chat_image_saved: 31f4926f8381e889a84a021ec54f990c
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_save_image: 2671c89f1644934a8e25c3cef8df6088
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
         chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
         chat_shell_executed: a66a123808864f1b1515c04f2434e03c
@@ -562,8 +643,11 @@ checksums:
         home_local_open_termux_overlay_settings: 143efbb810d53f9be532108ce917acbe
         home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
         home_local_proxy_enable: 1436bbdb82eba1e1a531aa66c60a3eb9
+        home_local_proxy_hide_url: 29157e23a57091eb7f2566e8e8b82a1f
         home_local_proxy_no_proxy_hint: 0b53ba40f25f0794929f8fa43b48f229
+        home_local_proxy_no_proxy_label: 8c8212936aa2cb1160907936f4964a95
         home_local_proxy_settings: e4628b0bce2a7ce679d631929870c788
+        home_local_proxy_show_url: c10c020d03734bb0ef7cd5a720f330f3
         home_local_proxy_url_label: 29c38960a20a3ee1f0b53d6d377a9040
         home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
         home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
@@ -631,12 +715,24 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/ja:
+        chat_error_view_code: fa9eddb7d05037b4f7a250868dbbbcbe
+        chat_error_view_page: da91a63f90423199091e7e9cebb3c009
+        chat_image_save_failed: 02ec31a620ab5f2538ee4cec7ff31da5
+        chat_image_saved: 31f4926f8381e889a84a021ec54f990c
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_save_image: 2671c89f1644934a8e25c3cef8df6088
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
         chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
         chat_shell_executed: a66a123808864f1b1515c04f2434e03c
@@ -668,8 +764,11 @@ checksums:
         home_local_open_termux_overlay_settings: 143efbb810d53f9be532108ce917acbe
         home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
         home_local_proxy_enable: 1436bbdb82eba1e1a531aa66c60a3eb9
+        home_local_proxy_hide_url: 29157e23a57091eb7f2566e8e8b82a1f
         home_local_proxy_no_proxy_hint: 0b53ba40f25f0794929f8fa43b48f229
+        home_local_proxy_no_proxy_label: 8c8212936aa2cb1160907936f4964a95
         home_local_proxy_settings: e4628b0bce2a7ce679d631929870c788
+        home_local_proxy_show_url: c10c020d03734bb0ef7cd5a720f330f3
         home_local_proxy_url_label: 29c38960a20a3ee1f0b53d6d377a9040
         home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
         home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
@@ -737,12 +836,24 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/ko:
+        chat_error_view_code: fa9eddb7d05037b4f7a250868dbbbcbe
+        chat_error_view_page: da91a63f90423199091e7e9cebb3c009
+        chat_image_save_failed: 02ec31a620ab5f2538ee4cec7ff31da5
+        chat_image_saved: 31f4926f8381e889a84a021ec54f990c
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_save_image: 2671c89f1644934a8e25c3cef8df6088
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
         chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
         chat_shell_executed: a66a123808864f1b1515c04f2434e03c
@@ -774,8 +885,11 @@ checksums:
         home_local_open_termux_overlay_settings: 143efbb810d53f9be532108ce917acbe
         home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
         home_local_proxy_enable: 1436bbdb82eba1e1a531aa66c60a3eb9
+        home_local_proxy_hide_url: 29157e23a57091eb7f2566e8e8b82a1f
         home_local_proxy_no_proxy_hint: 0b53ba40f25f0794929f8fa43b48f229
+        home_local_proxy_no_proxy_label: 8c8212936aa2cb1160907936f4964a95
         home_local_proxy_settings: e4628b0bce2a7ce679d631929870c788
+        home_local_proxy_show_url: c10c020d03734bb0ef7cd5a720f330f3
         home_local_proxy_url_label: 29c38960a20a3ee1f0b53d6d377a9040
         home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
         home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
@@ -843,12 +957,24 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/pl:
+        chat_error_view_code: fa9eddb7d05037b4f7a250868dbbbcbe
+        chat_error_view_page: da91a63f90423199091e7e9cebb3c009
+        chat_image_save_failed: 02ec31a620ab5f2538ee4cec7ff31da5
+        chat_image_saved: 31f4926f8381e889a84a021ec54f990c
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_save_image: 2671c89f1644934a8e25c3cef8df6088
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
         chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
         chat_shell_executed: a66a123808864f1b1515c04f2434e03c
@@ -880,8 +1006,11 @@ checksums:
         home_local_open_termux_overlay_settings: 143efbb810d53f9be532108ce917acbe
         home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
         home_local_proxy_enable: 1436bbdb82eba1e1a531aa66c60a3eb9
+        home_local_proxy_hide_url: 29157e23a57091eb7f2566e8e8b82a1f
         home_local_proxy_no_proxy_hint: 0b53ba40f25f0794929f8fa43b48f229
+        home_local_proxy_no_proxy_label: 8c8212936aa2cb1160907936f4964a95
         home_local_proxy_settings: e4628b0bce2a7ce679d631929870c788
+        home_local_proxy_show_url: c10c020d03734bb0ef7cd5a720f330f3
         home_local_proxy_url_label: 29c38960a20a3ee1f0b53d6d377a9040
         home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
         home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
@@ -949,12 +1078,24 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/pt-BR:
+        chat_error_view_code: fa9eddb7d05037b4f7a250868dbbbcbe
+        chat_error_view_page: da91a63f90423199091e7e9cebb3c009
+        chat_image_save_failed: 02ec31a620ab5f2538ee4cec7ff31da5
+        chat_image_saved: 31f4926f8381e889a84a021ec54f990c
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_save_image: 2671c89f1644934a8e25c3cef8df6088
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
         chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
         chat_shell_executed: a66a123808864f1b1515c04f2434e03c
@@ -986,8 +1127,11 @@ checksums:
         home_local_open_termux_overlay_settings: 143efbb810d53f9be532108ce917acbe
         home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
         home_local_proxy_enable: 1436bbdb82eba1e1a531aa66c60a3eb9
+        home_local_proxy_hide_url: 29157e23a57091eb7f2566e8e8b82a1f
         home_local_proxy_no_proxy_hint: 0b53ba40f25f0794929f8fa43b48f229
+        home_local_proxy_no_proxy_label: 8c8212936aa2cb1160907936f4964a95
         home_local_proxy_settings: e4628b0bce2a7ce679d631929870c788
+        home_local_proxy_show_url: c10c020d03734bb0ef7cd5a720f330f3
         home_local_proxy_url_label: 29c38960a20a3ee1f0b53d6d377a9040
         home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
         home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
@@ -1055,11 +1199,18 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/ru:
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         home_local_copy_fix_command: 48699787c17b28bcf5ee74dec6605732
         home_local_error_background_launch: 1b906f82bd3fd3ca997ee4d16a9e876a
         home_local_error_launch_failed: 54984a679ccd4f8b4916c6c127952b88
@@ -1115,10 +1266,22 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
     OC Remote Android/tr:
+        chat_error_view_code: fa9eddb7d05037b4f7a250868dbbbcbe
+        chat_error_view_page: da91a63f90423199091e7e9cebb3c009
+        chat_image_save_failed: 02ec31a620ab5f2538ee4cec7ff31da5
+        chat_image_saved: 31f4926f8381e889a84a021ec54f990c
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_save_image: 2671c89f1644934a8e25c3cef8df6088
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
         chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
         chat_shell_executed: a66a123808864f1b1515c04f2434e03c
@@ -1150,8 +1313,11 @@ checksums:
         home_local_open_termux_overlay_settings: 143efbb810d53f9be532108ce917acbe
         home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
         home_local_proxy_enable: 1436bbdb82eba1e1a531aa66c60a3eb9
+        home_local_proxy_hide_url: 29157e23a57091eb7f2566e8e8b82a1f
         home_local_proxy_no_proxy_hint: 0b53ba40f25f0794929f8fa43b48f229
+        home_local_proxy_no_proxy_label: 8c8212936aa2cb1160907936f4964a95
         home_local_proxy_settings: e4628b0bce2a7ce679d631929870c788
+        home_local_proxy_show_url: c10c020d03734bb0ef7cd5a720f330f3
         home_local_proxy_url_label: 29c38960a20a3ee1f0b53d6d377a9040
         home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
         home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
@@ -1219,12 +1385,24 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/uk:
+        chat_error_view_code: fa9eddb7d05037b4f7a250868dbbbcbe
+        chat_error_view_page: da91a63f90423199091e7e9cebb3c009
+        chat_image_save_failed: 02ec31a620ab5f2538ee4cec7ff31da5
+        chat_image_saved: 31f4926f8381e889a84a021ec54f990c
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_save_image: 2671c89f1644934a8e25c3cef8df6088
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
         chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
         chat_shell_executed: a66a123808864f1b1515c04f2434e03c
@@ -1256,8 +1434,11 @@ checksums:
         home_local_open_termux_overlay_settings: 143efbb810d53f9be532108ce917acbe
         home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
         home_local_proxy_enable: 1436bbdb82eba1e1a531aa66c60a3eb9
+        home_local_proxy_hide_url: 29157e23a57091eb7f2566e8e8b82a1f
         home_local_proxy_no_proxy_hint: 0b53ba40f25f0794929f8fa43b48f229
+        home_local_proxy_no_proxy_label: 8c8212936aa2cb1160907936f4964a95
         home_local_proxy_settings: e4628b0bce2a7ce679d631929870c788
+        home_local_proxy_show_url: c10c020d03734bb0ef7cd5a720f330f3
         home_local_proxy_url_label: 29c38960a20a3ee1f0b53d6d377a9040
         home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
         home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
@@ -1325,12 +1506,24 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8
         settings_show_shell_button_desc: 5e13d55a688bac094e817c80620bd587
     OC Remote Android/zh-CN:
+        chat_error_view_code: fa9eddb7d05037b4f7a250868dbbbcbe
+        chat_error_view_page: da91a63f90423199091e7e9cebb3c009
+        chat_image_save_failed: 02ec31a620ab5f2538ee4cec7ff31da5
+        chat_image_saved: 31f4926f8381e889a84a021ec54f990c
+        chat_images_optimized_summary: 2f75962fc96bfa025ffc23f51de47962
         chat_input_mode_normal: ee95a482d77c2ddf11c205f7e0a7c106
+        chat_save_image: 2671c89f1644934a8e25c3cef8df6088
         chat_shell_attachments_unsupported: bd30b8a4b101e89dd8f9b030f9c3d0aa
         chat_shell_empty: 393504d9f879c78e6c3628c1386f996b
         chat_shell_executed: a66a123808864f1b1515c04f2434e03c
@@ -1362,8 +1555,11 @@ checksums:
         home_local_open_termux_overlay_settings: 143efbb810d53f9be532108ce917acbe
         home_local_permission_required: 5e9b4c61212e63ca6540f3f550633905
         home_local_proxy_enable: 1436bbdb82eba1e1a531aa66c60a3eb9
+        home_local_proxy_hide_url: 29157e23a57091eb7f2566e8e8b82a1f
         home_local_proxy_no_proxy_hint: 0b53ba40f25f0794929f8fa43b48f229
+        home_local_proxy_no_proxy_label: 8c8212936aa2cb1160907936f4964a95
         home_local_proxy_settings: e4628b0bce2a7ce679d631929870c788
+        home_local_proxy_show_url: c10c020d03734bb0ef7cd5a720f330f3
         home_local_proxy_url_label: 29c38960a20a3ee1f0b53d6d377a9040
         home_local_server_desc: b214e29193ca7d264328e5fb3521c4af
         home_local_server_title: 6be0b93c16651a84df725a2bbe4c825a
@@ -1431,6 +1627,12 @@ checksums:
         sessions_delete_selected_confirm: 9236c4c59bbf5e26f1b7448b0206c43d
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
         sessions_selected_count: 59a3ca187dc401cb366f7821d5a66491
+        settings_compress_images: 050c18168264d9736c31e39589949058
+        settings_compress_images_desc: d7001a370fed98bb0befe0448b514cbf
+        settings_compress_images_max_side: 90b17913864bf37b5dd77bc6d9d2ad05
+        settings_compress_images_max_side_value: 0cdcd05f0ccff8a0a7102a831d2aaf2c
+        settings_compress_images_quality: 1b3ba90d03fc055635f20cae3da5ad52
+        settings_compress_images_quality_value: e90f1cc39f9a14e29fb85d3b8f17c265
         settings_local_runtime: 294b65a35799bc81ad8551614971b4b5
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_show_shell_button: f2cec98c99824988e971d8dabfd54ce8

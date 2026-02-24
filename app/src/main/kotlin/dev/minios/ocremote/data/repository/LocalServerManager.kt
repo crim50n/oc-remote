@@ -21,6 +21,7 @@ class LocalServerManager @Inject constructor(
 ) {
     companion object {
         const val LOCAL_SERVER_URL = "http://127.0.0.1:4096"
+        const val DEFAULT_NO_PROXY_LIST = "localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
         private const val TERMUX_PACKAGE = "com.termux"
         private const val TERMUX_RUN_COMMAND_SERVICE = "com.termux.app.RunCommandService"
@@ -95,19 +96,37 @@ class LocalServerManager @Inject constructor(
         }
     }
 
-    fun startServer(callerContext: Context, proxyUrl: String? = null): Result<Unit> {
+    fun startServer(
+        callerContext: Context,
+        proxyUrl: String? = null,
+        noProxyList: String? = null,
+    ): Result<Unit> {
         return runCatching {
             check(isTermuxInstalled()) { "Termux is not installed" }
-            val args = if (proxyUrl.isNullOrBlank()) {
-                emptyArray()
-            } else {
-                arrayOf("--proxy", proxyUrl)
+            val args = buildList {
+                if (!proxyUrl.isNullOrBlank()) {
+                    add("--proxy")
+                    add(proxyUrl)
+                }
+
+                val normalizedNoProxy = noProxyList
+                    ?.split(',')
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotBlank() }
+                    ?.joinToString(",")
+                    ?: DEFAULT_NO_PROXY_LIST
+
+                if (normalizedNoProxy.isNotBlank()) {
+                    add("--no-proxy")
+                    add(normalizedNoProxy)
+                }
             }
             val intent = buildRunCommandIntent(
                 commandPath = START_SCRIPT,
-                args = args,
-                background = false,
-                sessionAction = "1",
+                args = args.toTypedArray(),
+                // Run fully in background so start does not require opening Termux UI/tab.
+                background = true,
+                sessionAction = "0",
             )
             startRunCommandService(callerContext, intent)
             Unit
@@ -123,7 +142,7 @@ class LocalServerManager @Inject constructor(
                 commandPath = STOP_SCRIPT,
                 args = emptyArray(),
                 background = true,
-                sessionAction = "1",
+                sessionAction = "0",
             )
             startRunCommandService(callerContext, intent)
             Unit

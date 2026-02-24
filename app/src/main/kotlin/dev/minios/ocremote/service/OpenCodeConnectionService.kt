@@ -16,6 +16,7 @@ import dev.minios.ocremote.data.api.OpenCodeApi
 import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.api.SseClient
 import dev.minios.ocremote.data.repository.EventReducer
+import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.data.repository.ServerRepository
 import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.domain.model.ServerConfig
@@ -142,7 +143,7 @@ class OpenCodeConnectionService : Service() {
         when (intent?.action) {
             ACTION_DISCONNECT_ALL -> {
                 Log.i(TAG, "Disconnect All requested via notification")
-                disconnectAll()
+                disconnectAllVisibleServers()
                 return START_NOT_STICKY
             }
             ACTION_DISCONNECT -> {
@@ -263,6 +264,21 @@ class OpenCodeConnectionService : Service() {
      */
     fun disconnectAll() {
         disconnectAllInternal(stopService = true)
+    }
+
+    private fun disconnectAllVisibleServers() {
+        val visibleServerIds = connections.values
+            .filterNot { isLocalServer(it.config) }
+            .map { it.config.id }
+
+        if (visibleServerIds.isEmpty()) {
+            updatePersistentNotification()
+            return
+        }
+
+        for (serverId in visibleServerIds) {
+            disconnect(serverId)
+        }
     }
 
     private fun disconnectAllInternal(stopService: Boolean) {
@@ -630,6 +646,16 @@ class OpenCodeConnectionService : Service() {
 
     // ============ Persistent Notification (InboxStyle, multi-server) ============
 
+    private fun isLocalServer(server: ServerConfig): Boolean {
+        val normalizedUrl = server.url.trim().lowercase(Locale.US).removeSuffix("/")
+        if (normalizedUrl == LocalServerManager.LOCAL_SERVER_URL.lowercase(Locale.US)) return true
+
+        val host = server.host.lowercase(Locale.US)
+        val port = server.port
+        return (host == "127.0.0.1" || host == "localhost" || host == "::1" || host == "[::1]") &&
+            port == 4096
+    }
+
     private fun createPersistentNotification(): Notification {
         val tapIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -648,13 +674,14 @@ class OpenCodeConnectionService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val serverCount = connections.size
-        val connectedCount = connections.values.count { it.isConnected }
+        val visibleConnections = connections.values.filterNot { isLocalServer(it.config) }
+        val serverCount = visibleConnections.size
+        val connectedCount = visibleConnections.count { it.isConnected }
 
         val title = if (serverCount == 0) {
             getString(R.string.app_name)
         } else if (serverCount == 1) {
-            val server = connections.values.first()
+            val server = visibleConnections.first()
             if (server.isConnected) getString(R.string.notification_connected, server.config.displayName)
             else getString(R.string.notification_connecting, server.config.displayName)
         } else {
@@ -668,13 +695,20 @@ class OpenCodeConnectionService : Service() {
             .setContentIntent(tapPendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .addAction(R.mipmap.ic_launcher, getString(R.string.notification_disconnect_all), disconnectAllPendingIntent)
+
+        if (serverCount > 0) {
+            builder.addAction(
+                R.mipmap.ic_launcher,
+                getString(R.string.notification_disconnect_all),
+                disconnectAllPendingIntent,
+            )
+        }
 
         // InboxStyle when multiple servers
         if (serverCount > 1) {
             val inboxStyle = NotificationCompat.InboxStyle()
                 .setBigContentTitle(getString(R.string.notification_inbox_title, connectedCount, serverCount))
-            for ((_, state) in connections) {
+            for (state in visibleConnections) {
                 val status = if (state.isConnected) getString(R.string.notification_status_connected) else getString(R.string.notification_status_connecting)
                 inboxStyle.addLine("${state.config.displayName}: $status")
             }

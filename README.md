@@ -26,6 +26,9 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **File mentions** — `@file` completion with fuzzy search
 - **Image support** — inline base64 images in chat
 - **Tool outputs** — expandable tool call results with syntax highlighting
+- **Image preview & save** — open sent and draft images in fullscreen preview and save to device storage
+- **Shell output copy** — bash output blocks support text selection and one-tap copy (command + output)
+- **HTML error fallback modes** — switch long HTML error payloads between rendered page view and raw code view
 - **Slash commands** — `/new`, `/fork`, `/compact`, `/share`, `/rename`, `/undo`, `/redo`, `/shell` (if enabled in settings)
 - **Swipe to revert** — swipe user messages to undo (with confirmation dialog)
 
@@ -79,11 +82,12 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Notifications** — toggle task completion notifications
 - **Silent notifications** — suppress sound and vibration for task notifications
 - **Shell mode toggle** — show or hide shell-mode controls in chat input
+- **Image optimization controls** — tune max image side (640–2560 px) and WebP quality for attachments
 
 ### Connection
 - **Multi-server** — connect to multiple OpenCode servers simultaneously
 - **Local runtime via Termux** — set up and run OpenCode directly on-device from the Home screen (setup/start/stop/sessions)
-- **Optional local proxy** — route local runtime traffic through a custom proxy URL with local-network bypass
+- **Optional local proxy** — route local runtime traffic through a custom proxy URL with editable `NO_PROXY` exclusions (defaults prefilled)
 - **Provider OAuth reliability** — improved browser auth completion flow and provider connected-state refresh
 - **SSE event stream** — real-time session status, permissions, questions
 - **WebSocket transport** — used for terminal PTY streams

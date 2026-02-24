@@ -27,6 +27,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.KeyboardType
@@ -40,8 +43,10 @@ import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.ui.theme.StatusConnected
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.graphicsLayer
 
 /** Pulsing dots loading indicator — 3 dots that scale up/down in sequence. */
@@ -361,10 +366,12 @@ fun HomeScreen(
             LocalProxyDialog(
                 enabled = uiState.localProxyEnabled,
                 proxyUrl = uiState.localProxyUrl,
+                noProxyList = uiState.localProxyNoProxy,
                 onDismiss = { showLocalProxyDialog = false },
-                onSave = { enabled, url ->
+                onSave = { enabled, url, noProxy ->
                     viewModel.setLocalProxyEnabled(enabled)
                     viewModel.setLocalProxyUrl(url)
+                    viewModel.setLocalProxyNoProxy(noProxy)
                     showLocalProxyDialog = false
                 },
             )
@@ -734,7 +741,7 @@ private fun LocalRuntimeCard(
                 runtimeStatus != LocalRuntimeStatus.Running &&
                 runtimeStatus != LocalRuntimeStatus.Starting &&
                 runtimeStatus != LocalRuntimeStatus.Stopping &&
-                (localServerConnected || localServerConnecting)
+                localServerConnected
             ) {
                 if (!compactActive) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
@@ -751,7 +758,6 @@ private fun LocalRuntimeCard(
                 OutlinedButton(
                     onClick = onOpenLocalSessions,
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = localServerConnected,
                     colors = if (isAmoled) {
                         ButtonDefaults.outlinedButtonColors(
                             containerColor = Color.Black,
@@ -779,27 +785,82 @@ private fun LocalRuntimeCard(
 private fun LocalProxyDialog(
     enabled: Boolean,
     proxyUrl: String,
+    noProxyList: String,
     onDismiss: () -> Unit,
-    onSave: (enabled: Boolean, proxyUrl: String) -> Unit,
+    onSave: (enabled: Boolean, proxyUrl: String, noProxyList: String) -> Unit,
 ) {
+    val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
     var localEnabled by remember(enabled) { mutableStateOf(enabled) }
     var localProxyUrl by remember(proxyUrl) { mutableStateOf(proxyUrl) }
+    var localNoProxyList by remember(noProxyList) { mutableStateOf(noProxyList) }
+    var maskProxyUrl by remember { mutableStateOf(true) }
+    val trimmedProxyUrl = localProxyUrl.trim()
+    val trimmedNoProxy = localNoProxyList.trim()
+    val canSave = !localEnabled || trimmedProxyUrl.isNotBlank()
+    val switchColors = if (isAmoled) {
+        SwitchDefaults.colors(
+            checkedThumbColor = MaterialTheme.colorScheme.primary,
+            checkedTrackColor = Color.Black,
+            checkedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+            uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+            uncheckedTrackColor = Color.Black,
+            uncheckedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f),
+        )
+    } else {
+        SwitchDefaults.colors()
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.home_local_proxy_settings)) },
+        modifier = if (isAmoled) {
+            Modifier.border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f),
+                shape = RoundedCornerShape(28.dp),
+            )
+        } else {
+            Modifier
+        },
+        shape = RoundedCornerShape(28.dp),
+        title = {
+            Text(
+                text = stringResource(R.string.home_local_proxy_settings),
+                style = MaterialTheme.typography.headlineSmall,
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)) else null,
                 ) {
-                    Text(text = stringResource(R.string.home_local_proxy_enable))
-                    Switch(
-                        checked = localEnabled,
-                        onCheckedChange = { localEnabled = it },
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.home_local_proxy_enable),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text = stringResource(R.string.home_local_proxy_url_label),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Switch(
+                            checked = localEnabled,
+                            onCheckedChange = { localEnabled = it },
+                            colors = switchColors,
+                        )
+                    }
                 }
 
                 if (localEnabled) {
@@ -810,24 +871,105 @@ private fun LocalProxyDialog(
                         singleLine = true,
                         label = { Text(stringResource(R.string.home_local_proxy_url_label)) },
                         placeholder = { Text("http://127.0.0.1:8080") },
+                        trailingIcon = {
+                            IconButton(onClick = { maskProxyUrl = !maskProxyUrl }) {
+                                Icon(
+                                    imageVector = if (maskProxyUrl) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = if (maskProxyUrl) {
+                                        stringResource(R.string.home_local_proxy_show_url)
+                                    } else {
+                                        stringResource(R.string.home_local_proxy_hide_url)
+                                    },
+                                )
+                            }
+                        },
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = KeyboardType.Uri,
                         ),
+                        isError = trimmedProxyUrl.isBlank(),
+                        visualTransformation = if (maskProxyUrl) {
+                            FullStringMaskTransformation
+                        } else {
+                            VisualTransformation.None
+                        },
+                        colors = if (isAmoled) {
+                            OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.Black,
+                                unfocusedContainerColor = Color.Black,
+                                disabledContainerColor = Color.Black,
+                            )
+                        } else {
+                            OutlinedTextFieldDefaults.colors()
+                        },
+                    )
+
+                    OutlinedTextField(
+                        value = localNoProxyList,
+                        onValueChange = { localNoProxyList = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = false,
+                        minLines = 2,
+                        maxLines = 4,
+                        label = { Text(stringResource(R.string.home_local_proxy_no_proxy_label)) },
+                        placeholder = { Text(LocalServerManager.DEFAULT_NO_PROXY_LIST) },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                        ),
+                        colors = if (isAmoled) {
+                            OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.Black,
+                                unfocusedContainerColor = Color.Black,
+                                disabledContainerColor = Color.Black,
+                            )
+                        } else {
+                            OutlinedTextFieldDefaults.colors()
+                        },
                     )
                 }
 
-                Text(
-                    text = stringResource(R.string.home_local_proxy_no_proxy_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.home_local_proxy_no_proxy_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = {
-                    onSave(localEnabled, localProxyUrl)
+                    onSave(localEnabled, trimmedProxyUrl, trimmedNoProxy)
                 },
+                enabled = canSave,
+                colors = if (isAmoled) {
+                    ButtonDefaults.buttonColors(
+                        containerColor = Color.Black,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                    )
+                } else {
+                    ButtonDefaults.buttonColors()
+                },
+                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)) else null,
             ) {
                 Text(stringResource(R.string.server_save))
             }
@@ -837,7 +979,20 @@ private fun LocalProxyDialog(
                 Text(stringResource(R.string.cancel))
             }
         },
+        containerColor = if (isAmoled) Color.Black else AlertDialogDefaults.containerColor,
+        tonalElevation = if (isAmoled) 0.dp else AlertDialogDefaults.TonalElevation,
     )
+}
+
+private object FullStringMaskTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val raw = text.text
+        if (raw.isEmpty()) {
+            return TransformedText(text, OffsetMapping.Identity)
+        }
+        val masked = "\u2022".repeat(raw.length)
+        return TransformedText(AnnotatedString(masked), OffsetMapping.Identity)
+    }
 }
 
 @Composable
@@ -1064,7 +1219,9 @@ private fun ServerCard(
                     colors = if (isAmoled) {
                         ButtonDefaults.buttonColors(
                             containerColor = Color.Black,
-                            contentColor = MaterialTheme.colorScheme.primary
+                            contentColor = MaterialTheme.colorScheme.primary,
+                            disabledContainerColor = Color.Black,
+                            disabledContentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
                         )
                     } else {
                         ButtonDefaults.buttonColors()
@@ -1079,7 +1236,7 @@ private fun ServerCard(
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = if (isAmoled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.home_connecting))

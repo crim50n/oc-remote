@@ -422,4 +422,19 @@
     <string name="home_local_proxy_enable">استخدم الوكيل للتشغيل المحلي</string>
     <string name="home_local_proxy_url_label">رابط الوكيل</string>
     <string name="home_local_proxy_no_proxy_hint">العناوين المحلية تتجاوز الوكيل تلقائيًا: localhost، 127.0.0.1، 10.0.0.0/8، 172.16.0.0/12، 192.168.0.0/16.</string>
+    <string name="home_local_proxy_no_proxy_label">استثناءات البروكسي (NO_PROXY)</string>
+    <string name="home_local_proxy_show_url">عرض</string>
+    <string name="home_local_proxy_hide_url">إخفاء</string>
+    <string name="chat_error_view_page">صفحة</string>
+    <string name="chat_error_view_code">رمز</string>
+    <string name="chat_save_image">حفظ الصورة</string>
+    <string name="chat_image_saved">تم حفظ الصورة</string>
+    <string name="chat_image_save_failed">فشل في حفظ الصورة</string>
+    <string name="settings_compress_images">تحسين مرفقات الصور</string>
+    <string name="settings_compress_images_desc">تغيير حجم لقطات الشاشة الكبيرة وتحويل PNG/JPEG إلى WebP قبل الإرسال</string>
+    <string name="settings_compress_images_max_side">أقصى طول للصورة</string>
+    <string name="settings_compress_images_max_side_value">%1$d بكسل</string>
+    <string name="settings_compress_images_quality">جودة WebP</string>
+    <string name="settings_compress_images_quality_value">%1$d%%</string>
+    <string name="chat_images_optimized_summary">تم تحسين الصور (%1$d): %2$s -&gt; %3$s (~%4$d -&gt; ~%5$d رموز)</string>
 </resources>

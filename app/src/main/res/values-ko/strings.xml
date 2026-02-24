@@ -422,4 +422,19 @@
     <string name="home_local_proxy_enable">로컬 런타임에 프록시 사용</string>
     <string name="home_local_proxy_url_label">프록시 URL</string>
     <string name="home_local_proxy_no_proxy_hint">다음 로컬 주소는 프록시를 자동으로 우회합니다: localhost, 127.0.0.1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16.</string>
+    <string name="home_local_proxy_no_proxy_label">프록시 제외 목록 (NO_PROXY)</string>
+    <string name="home_local_proxy_show_url">표시</string>
+    <string name="home_local_proxy_hide_url">숨기기</string>
+    <string name="chat_error_view_page">페이지</string>
+    <string name="chat_error_view_code">코드</string>
+    <string name="chat_save_image">이미지 저장</string>
+    <string name="chat_image_saved">이미지가 저장되었습니다</string>
+    <string name="chat_image_save_failed">이미지 저장에 실패했습니다</string>
+    <string name="settings_compress_images">이미지 첨부 최적화</string>
+    <string name="settings_compress_images_desc">대용량 스크린샷을 리사이즈하고 PNG/JPEG 파일을 WebP로 변환하여 전송</string>
+    <string name="settings_compress_images_max_side">최대 이미지 한 변</string>
+    <string name="settings_compress_images_max_side_value">%1$d픽셀</string>
+    <string name="settings_compress_images_quality">WebP 품질</string>
+    <string name="settings_compress_images_quality_value">%1$d%%</string>
+    <string name="chat_images_optimized_summary">이미지 최적화됨 (%1$d개): %2$s -&gt; %3$s (~%4$d -&gt; ~%5$d 토큰)</string>
 </resources>

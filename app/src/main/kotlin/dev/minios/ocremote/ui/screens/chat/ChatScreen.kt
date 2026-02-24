@@ -93,6 +93,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
@@ -102,6 +103,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
@@ -125,6 +127,8 @@ import dev.minios.ocremote.MainActivity
 import dev.minios.ocremote.ui.theme.CodeTypography
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -133,10 +137,16 @@ import kotlinx.serialization.json.contentOrNull
 import android.net.Uri
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.AudioManager
+import android.os.Build
 import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
+import android.view.MotionEvent
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import dev.minios.ocremote.BuildConfig
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
@@ -165,6 +175,9 @@ val LocalCollapseTools = compositionLocalOf { false }
 
 /** Whether haptic feedback is enabled. */
 val LocalHapticFeedbackEnabled = compositionLocalOf { true }
+
+/** Image save request callback available to image preview composables. */
+val LocalImageSaveRequest = compositionLocalOf<(ByteArray, String, String?) -> Unit> { { _, _, _ -> } }
 
 @Composable
 private fun isAmoledTheme(): Boolean {
@@ -394,6 +407,107 @@ private fun formatAssistantErrorMessage(error: Message.Assistant.ErrorInfo?): St
     return raw.ifBlank { null }
 }
 
+private enum class HtmlErrorViewMode {
+    Page,
+    Code,
+}
+
+@Composable
+private fun ErrorPayloadContent(
+    text: String,
+    textStyle: TextStyle,
+    textColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    if (!looksLikeHtmlPayload(text)) {
+        SelectionContainer {
+            Text(
+                text = text,
+                style = textStyle,
+                color = textColor,
+                modifier = modifier,
+            )
+        }
+        return
+    }
+
+    var mode by rememberSaveable(text) { mutableStateOf(HtmlErrorViewMode.Code) }
+    val htmlForPreview = remember(text) { normalizeHtmlForEmbeddedPreview(text) }
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = mode == HtmlErrorViewMode.Code,
+                onClick = { mode = HtmlErrorViewMode.Code },
+                label = { Text(stringResource(R.string.chat_error_view_code)) },
+            )
+            FilterChip(
+                selected = mode == HtmlErrorViewMode.Page,
+                onClick = { mode = HtmlErrorViewMode.Page },
+                label = { Text(stringResource(R.string.chat_error_view_page)) },
+            )
+        }
+
+        if (mode == HtmlErrorViewMode.Page) {
+            val isAmoled = isAmoledTheme()
+            val bgColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface
+            AndroidView(
+                factory = { context ->
+                    WebView(context).apply {
+                        settings.javaScriptEnabled = false
+                        settings.domStorageEnabled = false
+                        settings.allowFileAccess = false
+                        settings.allowContentAccess = false
+                        settings.setSupportMultipleWindows(false)
+                        settings.useWideViewPort = true
+                        settings.loadWithOverviewMode = true
+                        settings.textZoom = 85
+                        settings.builtInZoomControls = false
+                        settings.displayZoomControls = false
+                        webViewClient = WebViewClient()
+                        setOnTouchListener { v, event ->
+                            if (event.actionMasked == MotionEvent.ACTION_DOWN || event.actionMasked == MotionEvent.ACTION_MOVE) {
+                                v.parent?.requestDisallowInterceptTouchEvent(true)
+                            }
+                            false
+                        }
+                        setBackgroundColor(bgColor.toArgb())
+                    }
+                },
+                update = { webView ->
+                    if (webView.tag != htmlForPreview) {
+                        webView.tag = htmlForPreview
+                        webView.loadDataWithBaseURL(
+                            "https://localhost/",
+                            htmlForPreview,
+                            "text/html",
+                            "UTF-8",
+                            null,
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 220.dp, max = 360.dp)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(8.dp),
+                    )
+                    .clip(RoundedCornerShape(8.dp)),
+            )
+        } else {
+            SelectionContainer {
+                Text(
+                    text = text,
+                    style = textStyle,
+                    color = textColor,
+                )
+            }
+        }
+    }
+}
+
 /**
  * VisualTransformation that highlights confirmed @file mentions as colored pills.
  * Only paths present in [confirmedFilePaths] are highlighted; unconfirmed @queries
@@ -540,6 +654,186 @@ private data class ImageAttachment(
     val dataUrl: String // "data:<mime>;base64,..."
 )
 
+private data class ImageSaveRequest(
+    val bytes: ByteArray,
+    val mime: String,
+    val filename: String,
+)
+
+private fun decodeDataUrlBytes(dataUrl: String): ByteArray? {
+    val encoded = dataUrl.substringAfter(',', missingDelimiterValue = "")
+    if (encoded.isBlank()) return null
+    return try {
+        Base64.decode(encoded, Base64.DEFAULT)
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun decodePartFileBytes(file: Part.File): ByteArray? {
+    val url = file.url ?: return null
+    val encoded = if (url.contains(',')) url.substringAfter(',') else url
+    if (encoded.isBlank()) return null
+    return try {
+        Base64.decode(encoded, Base64.DEFAULT)
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun extensionForMime(mime: String): String {
+    return when (mime.lowercase()) {
+        "image/jpeg", "image/jpg" -> "jpg"
+        "image/png" -> "png"
+        "image/webp" -> "webp"
+        "image/gif" -> "gif"
+        else -> "img"
+    }
+}
+
+private fun imageThumbnailModel(attachment: ImageAttachment): Any {
+    if (attachment.uri.scheme.equals("data", ignoreCase = true)) {
+        val encoded = attachment.dataUrl.substringAfter(',', missingDelimiterValue = "")
+        if (encoded.isNotBlank()) {
+            return try {
+                Base64.decode(encoded, Base64.DEFAULT)
+            } catch (_: Exception) {
+                attachment.dataUrl
+            }
+        }
+    }
+    return attachment.uri
+}
+
+private data class PreparedAttachment(
+    val attachment: ImageAttachment,
+    val comparison: AttachmentComparison? = null
+)
+
+private data class AttachmentComparison(
+    val originalBytes: Int,
+    val optimizedBytes: Int,
+    val originalEstimatedTokens: Int,
+    val optimizedEstimatedTokens: Int
+)
+
+private fun estimateVisionTokens(width: Int, height: Int): Int {
+    if (width <= 0 || height <= 0) return 0
+    return ((width.toLong() * height.toLong()) / 750.0).toInt()
+}
+
+private fun formatFileSize(bytes: Int): String {
+    val value = bytes.toDouble()
+    return when {
+        value >= 1024.0 * 1024.0 -> String.format("%.2f MB", value / (1024.0 * 1024.0))
+        value >= 1024.0 -> String.format("%.1f KB", value / 1024.0)
+        else -> "$bytes B"
+    }
+}
+
+private suspend fun buildAttachmentFromUri(
+    contentResolver: android.content.ContentResolver,
+    uri: Uri,
+    compressImages: Boolean,
+    maxLongSidePx: Int = 1440,
+    webpQuality: Int = 60
+): PreparedAttachment? = withContext(Dispatchers.IO) {
+    val mimeType = contentResolver.getType(uri) ?: "image/png"
+    val acceptedTypes = setOf("image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf")
+    if (mimeType !in acceptedTypes) return@withContext null
+
+    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@withContext null
+    val originalFilename = uri.lastPathSegment?.substringAfterLast('/') ?: "image.png"
+
+    val shouldOptimize = compressImages && (mimeType == "image/png" || mimeType == "image/jpeg")
+    if (!shouldOptimize) {
+        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+        return@withContext PreparedAttachment(
+            attachment = ImageAttachment(
+                uri = uri,
+                mime = mimeType,
+                filename = originalFilename,
+                dataUrl = "data:$mimeType;base64,$base64"
+            )
+        )
+    }
+
+    val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+    if (bitmap == null) {
+        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+        return@withContext PreparedAttachment(
+            attachment = ImageAttachment(
+                uri = uri,
+                mime = mimeType,
+                filename = originalFilename,
+                dataUrl = "data:$mimeType;base64,$base64"
+            )
+        )
+    }
+
+    val srcWidth = bitmap.width
+    val srcHeight = bitmap.height
+    val longSide = maxOf(srcWidth, srcHeight)
+    val scale = if (longSide > maxLongSidePx) maxLongSidePx.toFloat() / longSide.toFloat() else 1f
+    val outWidth = (srcWidth * scale).toInt().coerceAtLeast(1)
+    val outHeight = (srcHeight * scale).toInt().coerceAtLeast(1)
+    val resizedBitmap = if (scale < 1f) Bitmap.createScaledBitmap(bitmap, outWidth, outHeight, true) else bitmap
+
+    val output = java.io.ByteArrayOutputStream()
+    @Suppress("DEPRECATION")
+    val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        Bitmap.CompressFormat.WEBP_LOSSY
+    } else {
+        Bitmap.CompressFormat.WEBP
+    }
+    val compressed = resizedBitmap.compress(format, webpQuality.coerceIn(1, 100), output)
+    if (resizedBitmap !== bitmap) {
+        resizedBitmap.recycle()
+    }
+    bitmap.recycle()
+
+    if (!compressed) {
+        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+        return@withContext PreparedAttachment(
+            attachment = ImageAttachment(
+                uri = uri,
+                mime = mimeType,
+                filename = originalFilename,
+                dataUrl = "data:$mimeType;base64,$base64"
+            )
+        )
+    }
+
+    val webpBytes = output.toByteArray()
+    if (scale >= 0.999f && webpBytes.size >= bytes.size) {
+        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+        return@withContext PreparedAttachment(
+            attachment = ImageAttachment(
+                uri = uri,
+                mime = mimeType,
+                filename = originalFilename,
+                dataUrl = "data:$mimeType;base64,$base64"
+            )
+        )
+    }
+    val base64 = Base64.encodeToString(webpBytes, Base64.NO_WRAP)
+    val optimizedFilename = originalFilename.substringBeforeLast('.', originalFilename) + ".webp"
+    return@withContext PreparedAttachment(
+        attachment = ImageAttachment(
+            uri = uri,
+            mime = "image/webp",
+            filename = optimizedFilename,
+            dataUrl = "data:image/webp;base64,$base64"
+        ),
+        comparison = AttachmentComparison(
+            originalBytes = bytes.size,
+            optimizedBytes = webpBytes.size,
+            originalEstimatedTokens = estimateVisionTokens(srcWidth, srcHeight),
+            optimizedEstimatedTokens = estimateVisionTokens(outWidth, outHeight)
+        )
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
@@ -565,8 +859,8 @@ fun ChatScreen(
     }
     // Listen for revert events that should restore text to the input field
     LaunchedEffect(Unit) {
-        viewModel.revertedDraftEvent.collect { text ->
-            inputText = TextFieldValue(text, TextRange(text.length))
+        viewModel.revertedDraftEvent.collect { payload ->
+            inputText = TextFieldValue(payload.text, TextRange(payload.text.length))
         }
     }
     val listState = rememberLazyListState()
@@ -604,6 +898,9 @@ fun ChatScreen(
     val hapticEnabled by viewModel.hapticFeedback.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val showShellButton by viewModel.showShellButton.collectAsState()
+    val compressImageAttachments by viewModel.compressImageAttachments.collectAsState()
+    val imageAttachmentMaxLongSide by viewModel.imageAttachmentMaxLongSide.collectAsState()
+    val imageAttachmentWebpQuality by viewModel.imageAttachmentWebpQuality.collectAsState()
     val terminalVersion by viewModel.terminalVersion.collectAsState()
     val terminalConnected by viewModel.terminalConnected.collectAsState()
     val terminalTabs by viewModel.terminalTabs.collectAsState()
@@ -837,7 +1134,7 @@ fun ChatScreen(
     val attachments = remember { mutableStateListOf<ImageAttachment>() }
 
     // Rebuild attachment objects from persisted draft URIs on first composition
-    LaunchedEffect(draftAttachmentUris) {
+    LaunchedEffect(draftAttachmentUris, compressImageAttachments, imageAttachmentMaxLongSide, imageAttachmentWebpQuality) {
         // Only rebuild if attachments list doesn't match URIs (e.g. on session restore)
         val currentUris = attachments.map { it.uri.toString() }.toSet()
         val draftUriSet = draftAttachmentUris.toSet()
@@ -853,12 +1150,29 @@ fun ChatScreen(
             }
             try {
                 val uri = android.net.Uri.parse(uriStr)
-                val mimeType = context.contentResolver.getType(uri) ?: "image/png"
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: continue
-                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                val dataUrl = "data:$mimeType;base64,$base64"
-                val filename = uri.lastPathSegment?.substringAfterLast('/') ?: "image.png"
-                restored.add(ImageAttachment(uri = uri, mime = mimeType, filename = filename, dataUrl = dataUrl))
+                if (uriStr.startsWith("data:image/", ignoreCase = true)) {
+                    val mime = uriStr.substringAfter("data:").substringBefore(';').ifBlank { "image/png" }
+                    val syntheticName = "image.${mime.substringAfter('/', "png")}".lowercase()
+                    restored.add(
+                        ImageAttachment(
+                            uri = uri,
+                            mime = mime,
+                            filename = syntheticName,
+                            dataUrl = uriStr,
+                        )
+                    )
+                    continue
+                }
+                val prepared = buildAttachmentFromUri(
+                    contentResolver = context.contentResolver,
+                    uri = uri,
+                    compressImages = compressImageAttachments,
+                    maxLongSidePx = imageAttachmentMaxLongSide,
+                    webpQuality = imageAttachmentWebpQuality
+                )
+                if (prepared != null) {
+                    restored.add(prepared.attachment)
+                }
             } catch (e: Exception) {
                 Log.w("ChatScreen", "Failed to restore attachment $uriStr: ${e.message}")
                 // Remove invalid URI from draft
@@ -872,40 +1186,49 @@ fun ChatScreen(
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
-        for (uri in uris) {
-            try {
-                // Take persistable URI permission so the URI survives app restarts
+        coroutineScope.launch {
+            val optimizedComparisons = mutableListOf<AttachmentComparison>()
+            for (uri in uris) {
                 try {
-                    context.contentResolver.takePersistableUriPermission(
-                        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                } catch (e: Exception) {
-                    // Not all URIs support persistable permissions — that's OK
-                }
+                    // Take persistable URI permission so the URI survives app restarts
+                    try {
+                        context.contentResolver.takePersistableUriPermission(
+                            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    } catch (e: Exception) {
+                        // Not all URIs support persistable permissions — that's OK
+                    }
 
-                val mimeType = context.contentResolver.getType(uri) ?: "image/png"
-                // Only accept image types and PDF (matching WebUI)
-                val acceptedTypes = listOf("image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf")
-                if (mimeType !in acceptedTypes) continue
-
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: continue
-                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                val dataUrl = "data:$mimeType;base64,$base64"
-
-                // Derive filename from URI or fallback
-                val filename = uri.lastPathSegment?.substringAfterLast('/') ?: "image.png"
-
-                attachments.add(
-                    ImageAttachment(
+                    val prepared = buildAttachmentFromUri(
+                        contentResolver = context.contentResolver,
                         uri = uri,
-                        mime = mimeType,
-                        filename = filename,
-                        dataUrl = dataUrl
+                        compressImages = compressImageAttachments,
+                        maxLongSidePx = imageAttachmentMaxLongSide,
+                        webpQuality = imageAttachmentWebpQuality
+                    ) ?: continue
+
+                    attachments.add(prepared.attachment)
+                    viewModel.addDraftAttachment(uri.toString())
+                    prepared.comparison?.let { optimizedComparisons.add(it) }
+                } catch (_: Exception) {
+                    // Skip files that fail to read
+                }
+            }
+            if (optimizedComparisons.isNotEmpty()) {
+                val totalOriginal = optimizedComparisons.sumOf { it.originalBytes }
+                val totalOptimized = optimizedComparisons.sumOf { it.optimizedBytes }
+                val totalTokensBefore = optimizedComparisons.sumOf { it.originalEstimatedTokens }
+                val totalTokensAfter = optimizedComparisons.sumOf { it.optimizedEstimatedTokens }
+                snackbarHostState.showSnackbar(
+                    context.getString(
+                        R.string.chat_images_optimized_summary,
+                        optimizedComparisons.size,
+                        formatFileSize(totalOriginal),
+                        formatFileSize(totalOptimized),
+                        totalTokensBefore,
+                        totalTokensAfter
                     )
                 )
-                viewModel.addDraftAttachment(uri.toString())
-            } catch (e: Exception) {
-                // Skip files that fail to read
             }
         }
     }
@@ -928,9 +1251,41 @@ fun ChatScreen(
         }
     }
 
+    var pendingImageSave by remember { mutableStateOf<ImageSaveRequest?>(null) }
+    val saveImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("image/*")
+    ) { uri: Uri? ->
+        val request = pendingImageSave
+        pendingImageSave = null
+        if (uri == null || request == null) return@rememberLauncherForActivityResult
+
+        coroutineScope.launch {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { it.write(request.bytes) }
+                    ?: error("Unable to open output stream")
+            }.onSuccess {
+                snackbarHostState.showSnackbar(context.getString(R.string.chat_image_saved))
+            }.onFailure {
+                snackbarHostState.showSnackbar(context.getString(R.string.chat_image_save_failed))
+            }
+        }
+    }
+
+    val requestSaveImage: (ByteArray, String, String?) -> Unit = { bytes, mime, filenameHint ->
+        val baseName = filenameHint
+            ?.substringAfterLast('/')
+            ?.substringBeforeLast('.')
+            ?.takeIf { it.isNotBlank() }
+            ?: "image_${System.currentTimeMillis()}"
+        val fileName = "$baseName.${extensionForMime(mime)}"
+        pendingImageSave = ImageSaveRequest(bytes = bytes, mime = mime, filename = fileName)
+        saveImageLauncher.launch(fileName)
+    }
+
     // Consume images shared from other apps via ACTION_SEND (one-shot)
     LaunchedEffect(initialSharedImages) {
         if (initialSharedImages.isEmpty()) return@LaunchedEffect
+        val optimizedComparisons = mutableListOf<AttachmentComparison>()
         for (uri in initialSharedImages) {
             try {
                 // Take persistable URI permission so the URI survives app restarts
@@ -942,28 +1297,36 @@ fun ChatScreen(
                     // Not all URIs support persistable permissions — that's OK
                 }
 
-                val mimeType = context.contentResolver.getType(uri) ?: "image/png"
-                val acceptedTypes = listOf("image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf")
-                if (mimeType !in acceptedTypes) continue
+                val prepared = buildAttachmentFromUri(
+                    contentResolver = context.contentResolver,
+                    uri = uri,
+                    compressImages = compressImageAttachments,
+                    maxLongSidePx = imageAttachmentMaxLongSide,
+                    webpQuality = imageAttachmentWebpQuality
+                ) ?: continue
 
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: continue
-                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                val dataUrl = "data:$mimeType;base64,$base64"
-
-                val filename = uri.lastPathSegment?.substringAfterLast('/') ?: "shared_image.png"
-
-                attachments.add(
-                    ImageAttachment(
-                        uri = uri,
-                        mime = mimeType,
-                        filename = filename,
-                        dataUrl = dataUrl
-                    )
-                )
+                attachments.add(prepared.attachment)
+                prepared.comparison?.let { optimizedComparisons.add(it) }
                 viewModel.addDraftAttachment(uri.toString())
             } catch (e: Exception) {
                 Log.w("ChatScreen", "Failed to read shared image: ${e.message}")
             }
+        }
+        if (optimizedComparisons.isNotEmpty()) {
+            val totalOriginal = optimizedComparisons.sumOf { it.originalBytes }
+            val totalOptimized = optimizedComparisons.sumOf { it.optimizedBytes }
+            val totalTokensBefore = optimizedComparisons.sumOf { it.originalEstimatedTokens }
+            val totalTokensAfter = optimizedComparisons.sumOf { it.optimizedEstimatedTokens }
+            snackbarHostState.showSnackbar(
+                context.getString(
+                    R.string.chat_images_optimized_summary,
+                    optimizedComparisons.size,
+                    formatFileSize(totalOriginal),
+                    formatFileSize(totalOptimized),
+                    totalTokensBefore,
+                    totalTokensAfter
+                )
+            )
         }
         onSharedImagesConsumed()
     }
@@ -1068,7 +1431,8 @@ fun ChatScreen(
         LocalCodeWordWrap provides codeWordWrap,
         LocalCompactMessages provides compactMessages,
         LocalCollapseTools provides collapseTools,
-        LocalHapticFeedbackEnabled provides hapticEnabled
+        LocalHapticFeedbackEnabled provides hapticEnabled,
+        LocalImageSaveRequest provides requestSaveImage,
     ) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -1401,6 +1765,9 @@ fun ChatScreen(
                         attachments.removeAt(index)
                         viewModel.removeDraftAttachment(index)
                     }
+                },
+                onSaveAttachment = { bytes, mime, filename ->
+                    requestSaveImage(bytes, mime, filename)
                 },
                 modelLabel = modelLabel,
                 selectedProviderId = uiState.selectedProviderId,
@@ -1854,13 +2221,11 @@ fun ChatScreen(
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.error
                         )
-                        SelectionContainer {
-                            Text(
-                                text = uiState.error ?: stringResource(R.string.session_unknown_error),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
+                        ErrorPayloadContent(
+                            text = uiState.error ?: stringResource(R.string.session_unknown_error),
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            textColor = MaterialTheme.colorScheme.error,
+                        )
                         Button(onClick = { viewModel.loadMessages() }) {
                             Text(stringResource(R.string.retry))
                         }
@@ -3226,7 +3591,7 @@ private fun ChatMessageBubble(
 
                     // Render image thumbnails as a horizontal row
                     if (imageFiles.isNotEmpty()) {
-                        ImageThumbnailRow(imageFiles)
+                        ImageThumbnailRow(imageFiles = imageFiles)
                     }
 
                     // Render remaining parts
@@ -3245,14 +3610,12 @@ private fun ChatMessageBubble(
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = if (isAmoled) 0.75f else 0.35f)),
                             tonalElevation = 0.dp,
                         ) {
-                            SelectionContainer {
-                                Text(
-                                    text = assistantErrorText,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                )
-                            }
+                            ErrorPayloadContent(
+                                text = assistantErrorText,
+                                textStyle = MaterialTheme.typography.bodySmall,
+                                textColor = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            )
                         }
                     }
 
@@ -3637,6 +4000,45 @@ private fun MarkdownContent(
 
 private val HtmlDocumentHintRegex = Regex("(?is)<!doctype\\s+html\\b|<\\s*html\\b")
 private val HtmlTagRegex = Regex("(?is)<\\s*/?\\s*[a-z][^>]*>")
+
+private fun looksLikeHtmlPayload(text: String): Boolean {
+    if (text.isBlank()) return false
+    if (HtmlDocumentHintRegex.containsMatchIn(text)) return true
+    return HtmlTagRegex.findAll(text).take(12).count() >= 6
+}
+
+private fun normalizeHtmlForEmbeddedPreview(html: String): String {
+    if (html.isBlank()) return html
+    val overrideCss = """
+        html, body {
+          margin: 0 !important;
+          padding: 8px !important;
+          min-height: auto !important;
+          height: auto !important;
+        }
+        body {
+          display: block !important;
+          align-items: flex-start !important;
+          justify-content: flex-start !important;
+          overflow: auto !important;
+        }
+        .container {
+          align-items: flex-start !important;
+          justify-content: flex-start !important;
+          height: auto !important;
+          min-height: auto !important;
+          width: 100% !important;
+          margin: 0 !important;
+        }
+    """.trimIndent()
+
+    val styleBlock = "<style>$overrideCss</style>"
+    return if (html.contains("</head>", ignoreCase = true)) {
+        html.replaceFirst(Regex("(?i)</head>"), "$styleBlock</head>")
+    } else {
+        "<head>$styleBlock</head>$html"
+    }
+}
 
 private fun preserveRawHtmlPayload(markdown: String): String {
     if (markdown.isBlank()) return markdown
@@ -4096,13 +4498,15 @@ private fun EditToolCard(tool: Part.Tool) {
                             border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.7f)) else null,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            SelectionContainer {
-                                Text(
-                                    text = errorText,
-                                    style = CodeTypography.copy(fontSize = 13.sp, color = MaterialTheme.colorScheme.onErrorContainer),
-                                    modifier = Modifier.padding(8.dp)
-                                )
-                            }
+                            ErrorPayloadContent(
+                                text = errorText,
+                                textStyle = CodeTypography.copy(
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                ),
+                                textColor = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(8.dp),
+                            )
                         }
                     } else {
                         DiffView(before = diffBefore, after = diffAfter)
@@ -4361,10 +4765,21 @@ private fun WriteToolCard(tool: Part.Tool) {
 @Composable
 private fun BashToolCard(tool: Part.Tool) {
     val isAmoled = isAmoledTheme()
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     val input = extractToolInput(tool)
     val command = input["command"]?.jsonPrimitive?.contentOrNull ?: ""
     val description = input["description"]?.jsonPrimitive?.contentOrNull
     val output = extractToolOutput(tool)
+    val cleanedOutput = output.replace(Regex("\u001B\\[[0-9;]*[a-zA-Z]"), "")
+    val displayText = buildString {
+        if (command.isNotBlank()) {
+            append("$ $command")
+        }
+        if (cleanedOutput.isNotBlank()) {
+            if (isNotEmpty()) append("\n\n")
+            append(cleanedOutput.take(5000))
+        }
+    }
 
     val serverTitle = when (val s = tool.state) {
         is ToolState.Running -> s.title
@@ -4429,12 +4844,32 @@ private fun BashToolCard(tool: Part.Tool) {
                 if (isRunning) {
                     PulsingDotsIndicator(dotSize = 5.dp, dotSpacing = 3.dp, color = MaterialTheme.colorScheme.tertiary)
                 } else if (hasContent) {
-                    Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (cleanedOutput.isNotBlank()) {
+                            IconButton(
+                                onClick = {
+                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(displayText))
+                                },
+                                modifier = Modifier.size(22.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = stringResource(R.string.chat_copy),
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                        )
+                    }
                 }
             }
 
@@ -4448,24 +4883,16 @@ private fun BashToolCard(tool: Part.Tool) {
                         .padding(top = 6.dp)
                         .heightIn(max = 400.dp)
                 ) {
-                        val displayText = buildString {
-                        if (command.isNotBlank()) {
-                            append("$ $command")
-                        }
-                        if (output.isNotBlank()) {
-                            if (isNotEmpty()) append("\n\n")
-                        // Strip ANSI escape codes
-                            append(output.replace(Regex("\u001B\\[[0-9;]*[a-zA-Z]"), "").take(5000))
-                        }
+                    SelectionContainer {
+                        Text(
+                            text = displayText,
+                            style = CodeTypography.copy(fontSize = 12.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f) else MaterialTheme.colorScheme.onSecondaryContainer),
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .codeHorizontalScroll()
+                                .verticalScroll(rememberScrollState())
+                        )
                     }
-                    Text(
-                        text = displayText,
-                        style = CodeTypography.copy(fontSize = 12.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f) else MaterialTheme.colorScheme.onSecondaryContainer),
-                        modifier = Modifier
-                            .padding(8.dp)
-                            .codeHorizontalScroll()
-                            .verticalScroll(rememberScrollState())
-                    )
                 }
             }
         }
@@ -5056,8 +5483,11 @@ private fun PatchCard(patch: Part.Patch) {
  * Compact horizontal row of image thumbnails with tap-to-preview.
  */
 @Composable
-private fun ImageThumbnailRow(imageFiles: List<Part.File>) {
+private fun ImageThumbnailRow(
+    imageFiles: List<Part.File>,
+) {
     var previewIndex by remember { mutableStateOf(-1) }
+    val requestSaveImage = LocalImageSaveRequest.current
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -5109,36 +5539,100 @@ private fun ImageThumbnailRow(imageFiles: List<Part.File>) {
     // Fullscreen image preview dialog
     if (previewIndex >= 0 && previewIndex < imageFiles.size) {
         val file = imageFiles[previewIndex]
-        val bitmap = remember(file.url) {
-            try {
-                val url = file.url ?: return@remember null
-                val base64Data = if (url.contains(",")) url.substringAfter(",") else url
-                val bytes = Base64.decode(base64Data, Base64.DEFAULT)
-                android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-            } catch (e: Exception) {
-                null
-            }
+        val imageBytes = remember(file.url) { decodePartFileBytes(file) }
+        val bitmap = remember(imageBytes) {
+            imageBytes?.let { bytes -> android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
         }
 
         if (bitmap != null) {
-            AlertDialog(
-                onDismissRequest = { previewIndex = -1 },
-                confirmButton = {
-                    TextButton(onClick = { previewIndex = -1 }) {
-                        Text(stringResource(R.string.close))
+            ImagePreviewDialog(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = file.filename ?: stringResource(R.string.chat_image),
+                onDismiss = { previewIndex = -1 },
+                onSave = {
+                    if (imageBytes != null) {
+                        requestSaveImage(imageBytes, file.mime, file.filename)
                     }
                 },
-                text = {
-                    androidx.compose.foundation.Image(
-                        bitmap = bitmap.asImageBitmap(),
-                    contentDescription = file.filename ?: stringResource(R.string.chat_image),
+            )
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun ImagePreviewDialog(
+    bitmap: androidx.compose.ui.graphics.ImageBitmap,
+    contentDescription: String?,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit,
+) {
+    val isAmoled = isAmoledTheme()
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = if (isAmoled) {
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f))
+            } else {
+                null
+            },
+            tonalElevation = if (isAmoled) 0.dp else 6.dp,
+        ) {
+            Box(modifier = Modifier.padding(14.dp)) {
+                androidx.compose.foundation.Image(
+                    bitmap = bitmap,
+                    contentDescription = contentDescription,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 480.dp),
-                        contentScale = ContentScale.Fit
-                    )
+                        .heightIn(max = 520.dp)
+                        .clip(RoundedCornerShape(14.dp)),
+                    contentScale = ContentScale.Fit,
+                )
+
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    val actionContainerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                    val actionBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isAmoled) 0.85f else 0.8f)
+                    val actionTintColor = MaterialTheme.colorScheme.onSurface
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = actionContainerColor,
+                        border = BorderStroke(1.dp, actionBorderColor),
+                    ) {
+                        IconButton(onClick = onSave, modifier = Modifier.size(36.dp)) {
+                            Icon(
+                                Icons.Default.Download,
+                                contentDescription = stringResource(R.string.chat_save_image),
+                                tint = actionTintColor,
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = actionContainerColor,
+                        border = BorderStroke(1.dp, actionBorderColor),
+                    ) {
+                        IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = stringResource(R.string.close),
+                                tint = actionTintColor,
+                            )
+                        }
+                    }
                 }
-            )
+            }
         }
     }
 }
@@ -5305,6 +5799,7 @@ private fun ChatInputBar(
     attachments: List<ImageAttachment> = emptyList(),
     onAttach: () -> Unit = {},
     onRemoveAttachment: (Int) -> Unit = {},
+    onSaveAttachment: (bytes: ByteArray, mime: String, filename: String?) -> Unit = { _, _, _ -> },
     modelLabel: String = "",
     selectedProviderId: String? = null,
     onModelClick: () -> Unit = {},
@@ -5343,6 +5838,7 @@ private fun ChatInputBar(
 
     val text = textFieldValue.text
     val canSend = (text.isNotBlank() || attachments.isNotEmpty()) && !isSending
+    var previewAttachmentIndex by remember { mutableStateOf(-1) }
 
     // Build merged slash commands: client commands + server commands (deduplicated)
     val clientCmds = clientCommands(showShellButton)
@@ -5740,9 +6236,11 @@ private fun ChatInputBar(
                                 .clip(RoundedCornerShape(10.dp))
                         ) {
                             AsyncImage(
-                                model = attachment.uri,
+                                model = imageThumbnailModel(attachment),
                                 contentDescription = attachment.filename,
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable { previewAttachmentIndex = index },
                                 contentScale = ContentScale.Crop
                             )
                             Surface(
@@ -5765,6 +6263,27 @@ private fun ChatInputBar(
                             }
                         }
                     }
+                }
+            }
+
+            if (previewAttachmentIndex >= 0 && previewAttachmentIndex < attachments.size) {
+                val attachment = attachments[previewAttachmentIndex]
+                val imageBytes = remember(attachment.dataUrl) { decodeDataUrlBytes(attachment.dataUrl) }
+                val bitmap = remember(imageBytes) {
+                    imageBytes?.let { bytes -> BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
+                }
+
+                if (bitmap != null) {
+                    ImagePreviewDialog(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = attachment.filename,
+                        onDismiss = { previewAttachmentIndex = -1 },
+                        onSave = {
+                            if (imageBytes != null) {
+                                onSaveAttachment(imageBytes, attachment.mime, attachment.filename)
+                            }
+                        },
+                    )
                 }
             }
 

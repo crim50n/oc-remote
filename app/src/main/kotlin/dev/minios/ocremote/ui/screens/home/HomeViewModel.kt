@@ -62,6 +62,7 @@ data class HomeUiState(
     val showLocalRuntime: Boolean = true,
     val localProxyEnabled: Boolean = false,
     val localProxyUrl: String = "",
+    val localProxyNoProxy: String = LocalServerManager.DEFAULT_NO_PROXY_LIST,
 )
 
 private data class LocalRuntimeErrorInfo(
@@ -123,6 +124,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.localProxyUrl.collect { url ->
                 _uiState.update { it.copy(localProxyUrl = url) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.localProxyNoProxy.collect { value ->
+                _uiState.update { it.copy(localProxyNoProxy = value) }
             }
         }
     }
@@ -434,7 +440,8 @@ class HomeViewModel @Inject constructor(
             val proxyUrl = _uiState.value.localProxyUrl.trim().takeIf {
                 _uiState.value.localProxyEnabled && it.isNotBlank()
             }
-            val startResult = localServerManager.startServer(callerContext, proxyUrl)
+            val noProxyList = _uiState.value.localProxyNoProxy
+            val startResult = localServerManager.startServer(callerContext, proxyUrl, noProxyList)
             if (startResult.isFailure) {
                 val errorInfo = mapLocalRuntimeError(startResult.exceptionOrNull()?.message)
                 if (errorInfo.status == LocalRuntimeStatus.NeedsSetup) {
@@ -556,6 +563,12 @@ class HomeViewModel @Inject constructor(
     fun setLocalProxyUrl(url: String) {
         viewModelScope.launch {
             settingsRepository.setLocalProxyUrl(url)
+        }
+    }
+
+    fun setLocalProxyNoProxy(value: String) {
+        viewModelScope.launch {
+            settingsRepository.setLocalProxyNoProxy(value)
         }
     }
 

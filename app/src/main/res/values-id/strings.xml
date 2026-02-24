@@ -428,4 +428,19 @@
     <string name="home_local_proxy_enable">Gunakan proxy untuk runtime lokal</string>
     <string name="home_local_proxy_url_label">URL Proxy</string>
     <string name="home_local_proxy_no_proxy_hint">Alamat lokal akan melewati proxy secara otomatis: localhost, 127.0.0.1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16.</string>
+    <string name="home_local_proxy_no_proxy_label">Pengecualian proxy (NO_PROXY)</string>
+    <string name="home_local_proxy_show_url">Tampilkan</string>
+    <string name="home_local_proxy_hide_url">Sembunyikan</string>
+    <string name="chat_error_view_page">Halaman</string>
+    <string name="chat_error_view_code">Kode</string>
+    <string name="chat_save_image">Simpan gambar</string>
+    <string name="chat_image_saved">Gambar berhasil disimpan</string>
+    <string name="chat_image_save_failed">Gagal menyimpan gambar</string>
+    <string name="settings_compress_images">Optimalkan lampiran gambar</string>
+    <string name="settings_compress_images_desc">Ubah ukuran screenshot besar dan konversi PNG/JPEG ke WebP sebelum mengirim</string>
+    <string name="settings_compress_images_max_side">Ukuran sisi gambar maksimum</string>
+    <string name="settings_compress_images_max_side_value">%1$d px</string>
+    <string name="settings_compress_images_quality">Kualitas WebP</string>
+    <string name="settings_compress_images_quality_value">%1$d%%</string>
+    <string name="chat_images_optimized_summary">Gambar dioptimalkan (%1$d): %2$s -&gt; %3$s (~%4$d -&gt; ~%5$d token)</string>
 </resources>

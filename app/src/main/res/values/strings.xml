@@ -37,7 +37,10 @@
     <string name="home_local_proxy_settings">Proxy</string>
     <string name="home_local_proxy_enable">Use proxy for local runtime</string>
     <string name="home_local_proxy_url_label">Proxy URL</string>
-    <string name="home_local_proxy_no_proxy_hint">Local addresses bypass proxy automatically: localhost, 127.0.0.1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16.</string>
+    <string name="home_local_proxy_no_proxy_label">Proxy exclusions (NO_PROXY)</string>
+    <string name="home_local_proxy_show_url">Show</string>
+    <string name="home_local_proxy_hide_url">Hide</string>
+    <string name="home_local_proxy_no_proxy_hint">Defaults are prefilled; you can edit exclusions as a comma-separated list.</string>
     <string name="home_local_open_termux_overlay_settings">Open Termux overlay settings</string>
     <string name="home_local_error_timeout">Server did not respond within 30 seconds. Check Termux for errors.</string>
     <string name="home_local_message_stop_sent">Stop command sent</string>
@@ -197,6 +200,11 @@
     <string name="chat_question_inline">Question: %1$s</string>
     <string name="chat_aborted">Aborted: %1$s</string>
     <string name="chat_retry">Retry #%1$d: %2$s</string>
+    <string name="chat_error_view_page">Page</string>
+    <string name="chat_error_view_code">Code</string>
+    <string name="chat_save_image">Save image</string>
+    <string name="chat_image_saved">Image saved</string>
+    <string name="chat_image_save_failed">Failed to save image</string>
     <string name="chat_tasks_count">%1$d/%2$d</string>
     <string name="chat_cost_format">$%1$s</string>
     <string name="chat_context_format">%1$d%% ctx</string>
@@ -317,6 +325,12 @@
     <string name="settings_keep_screen_on_desc">Prevent screen timeout while in chat</string>
     <string name="settings_show_shell_button">Show shell button</string>
     <string name="settings_show_shell_button_desc">Show shell mode toggle near attachment button in chat</string>
+    <string name="settings_compress_images">Optimize image attachments</string>
+    <string name="settings_compress_images_desc">Resize large screenshots and convert PNG/JPEG to WebP before sending</string>
+    <string name="settings_compress_images_max_side">Max image side</string>
+    <string name="settings_compress_images_max_side_value">%1$d px</string>
+    <string name="settings_compress_images_quality">WebP quality</string>
+    <string name="settings_compress_images_quality_value">%1$d%%</string>
     <string name="settings_local_runtime">Show local runtime controls</string>
     <string name="settings_local_runtime_desc">Show Termux local OpenCode controls on Home screen</string>
     <string name="settings_terminal_font_size">Terminal default font size</string>
@@ -440,6 +454,7 @@
     <string name="chat_session_exported">Session exported</string>
     <string name="chat_session_export_failed">Failed to export session</string>
     <string name="chat_session_exporting">Exporting… %s</string>
+    <string name="chat_images_optimized_summary">Images optimized (%1$d): %2$s -&gt; %3$s (~%4$d -&gt; ~%5$d tokens)</string>
 
     <!-- About Screen -->
     <string name="about_title">About</string>

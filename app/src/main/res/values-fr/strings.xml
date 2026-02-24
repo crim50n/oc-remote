@@ -422,4 +422,19 @@
     <string name="home_local_proxy_enable">Utiliser un proxy pour l’exécution locale</string>
     <string name="home_local_proxy_url_label">URL du proxy</string>
     <string name="home_local_proxy_no_proxy_hint">Les adresses locales contournent automatiquement le proxy : localhost, 127.0.0.1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16.</string>
+    <string name="home_local_proxy_no_proxy_label">Exclusions de proxy (NO_PROXY)</string>
+    <string name="home_local_proxy_show_url">Afficher</string>
+    <string name="home_local_proxy_hide_url">Masquer</string>
+    <string name="chat_error_view_page">Page</string>
+    <string name="chat_error_view_code">Code</string>
+    <string name="chat_save_image">Enregistrer l’image</string>
+    <string name="chat_image_saved">Image enregistrée</string>
+    <string name="chat_image_save_failed">Échec de l’enregistrement de l’image</string>
+    <string name="settings_compress_images">Optimiser les pièces jointes d’images</string>
+    <string name="settings_compress_images_desc">Redimensionner les captures d’écran volumineuses et convertir PNG/JPEG en WebP avant l’envoi</string>
+    <string name="settings_compress_images_max_side">Côté max de l’image</string>
+    <string name="settings_compress_images_max_side_value">%1$d px</string>
+    <string name="settings_compress_images_quality">Qualité WebP</string>
+    <string name="settings_compress_images_quality_value">%1$d%%</string>
+    <string name="chat_images_optimized_summary">Images optimisées (%1$d) : %2$s -&gt; %3$s (~%4$d -&gt; ~%5$d jetons)</string>
 </resources>

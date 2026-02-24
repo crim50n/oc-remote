@@ -422,4 +422,19 @@
     <string name="home_local_proxy_enable">本地运行时使用代理</string>
     <string name="home_local_proxy_url_label">代理 URL</string>
     <string name="home_local_proxy_no_proxy_hint">本地地址将自动绕过代理：localhost、127.0.0.1、10.0.0.0/8、172.16.0.0/12、192.168.0.0/16。</string>
+    <string name="home_local_proxy_no_proxy_label">代理排除项（NO_PROXY）</string>
+    <string name="home_local_proxy_show_url">显示</string>
+    <string name="home_local_proxy_hide_url">隐藏</string>
+    <string name="chat_error_view_page">页面</string>
+    <string name="chat_error_view_code">代码</string>
+    <string name="chat_save_image">保存图片</string>
+    <string name="chat_image_saved">图片已保存</string>
+    <string name="chat_image_save_failed">保存图片失败</string>
+    <string name="settings_compress_images">优化图片附件</string>
+    <string name="settings_compress_images_desc">发送前将大尺寸截图缩放并将 PNG/JPEG 转换为 WebP</string>
+    <string name="settings_compress_images_max_side">图片最大边长</string>
+    <string name="settings_compress_images_max_side_value">%1$d 像素</string>
+    <string name="settings_compress_images_quality">WebP 质量</string>
+    <string name="settings_compress_images_quality_value">%1$d%%</string>
+    <string name="chat_images_optimized_summary">已优化图片（%1$d）：%2$s -&gt; %3$s（约 %4$d -&gt; 约 %5$d 令牌）</string>
 </resources>

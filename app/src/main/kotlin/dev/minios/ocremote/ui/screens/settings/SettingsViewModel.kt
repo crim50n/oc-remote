@@ -104,6 +104,24 @@ class SettingsViewModel @Inject constructor(
         initialValue = true
     )
 
+    val compressImageAttachments = settingsRepository.compressImageAttachments.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = true
+    )
+
+    val imageAttachmentMaxLongSide = settingsRepository.imageAttachmentMaxLongSide.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 1440
+    )
+
+    val imageAttachmentWebpQuality = settingsRepository.imageAttachmentWebpQuality.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 60
+    )
+
     val showLocalRuntime = settingsRepository.showLocalRuntime.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -215,6 +233,24 @@ class SettingsViewModel @Inject constructor(
     fun setShowShellButton(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setShowShellButton(enabled)
+        }
+    }
+
+    fun setCompressImageAttachments(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setCompressImageAttachments(enabled)
+        }
+    }
+
+    fun setImageAttachmentMaxLongSide(px: Int) {
+        viewModelScope.launch {
+            settingsRepository.setImageAttachmentMaxLongSide(px)
+        }
+    }
+
+    fun setImageAttachmentWebpQuality(quality: Int) {
+        viewModelScope.launch {
+            settingsRepository.setImageAttachmentWebpQuality(quality)
         }
     }
 

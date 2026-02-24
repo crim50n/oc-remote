@@ -422,4 +422,19 @@
     <string name="home_local_proxy_enable">Використовувати проксі для локального виконання</string>
     <string name="home_local_proxy_url_label">URL проксі</string>
     <string name="home_local_proxy_no_proxy_hint">Локальні адреси автоматично обходять проксі: localhost, 127.0.0.1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16.</string>
+    <string name="home_local_proxy_no_proxy_label">Виключення проксі (NO_PROXY)</string>
+    <string name="home_local_proxy_show_url">Показати</string>
+    <string name="home_local_proxy_hide_url">Сховати</string>
+    <string name="chat_error_view_page">Сторінка</string>
+    <string name="chat_error_view_code">Код</string>
+    <string name="chat_save_image">Зберегти зображення</string>
+    <string name="chat_image_saved">Зображення збережено</string>
+    <string name="chat_image_save_failed">Не вдалося зберегти зображення</string>
+    <string name="settings_compress_images">Оптимізувати вкладення зображень</string>
+    <string name="settings_compress_images_desc">Змінюйте розмір великих скріншотів і конвертуйте PNG/JPEG у WebP перед надсиланням</string>
+    <string name="settings_compress_images_max_side">Максимальна сторона зображення</string>
+    <string name="settings_compress_images_max_side_value">%1$d пікс.</string>
+    <string name="settings_compress_images_quality">Якість WebP</string>
+    <string name="settings_compress_images_quality_value">%1$d%%</string>
+    <string name="chat_images_optimized_summary">Зображення оптимізовано (%1$d): %2$s -&gt; %3$s (~%4$d -&gt; ~%5$d токенів)</string>
 </resources>

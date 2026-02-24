@@ -422,4 +422,19 @@
     <string name="home_local_proxy_enable">Usa proxy per l\'esecuzione locale</string>
     <string name="home_local_proxy_url_label">URL proxy</string>
     <string name="home_local_proxy_no_proxy_hint">Gli indirizzi locali bypassano automaticamente il proxy: localhost, 127.0.0.1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16.</string>
+    <string name="home_local_proxy_no_proxy_label">Esclusioni proxy (NO_PROXY)</string>
+    <string name="home_local_proxy_show_url">Mostra</string>
+    <string name="home_local_proxy_hide_url">Nascondi</string>
+    <string name="chat_error_view_page">Pagina</string>
+    <string name="chat_error_view_code">Codice</string>
+    <string name="chat_save_image">Salva immagine</string>
+    <string name="chat_image_saved">Immagine salvata</string>
+    <string name="chat_image_save_failed">Impossibile salvare l\'immagine</string>
+    <string name="settings_compress_images">Ottimizza allegati immagine</string>
+    <string name="settings_compress_images_desc">Ridimensiona screenshot grandi e converti PNG/JPEG in WebP prima dell\'invio</string>
+    <string name="settings_compress_images_max_side">Lato massimo immagine</string>
+    <string name="settings_compress_images_max_side_value">%1$d px</string>
+    <string name="settings_compress_images_quality">Qualità WebP</string>
+    <string name="settings_compress_images_quality_value">%1$d%%</string>
+    <string name="chat_images_optimized_summary">Immagini ottimizzate (%1$d): %2$s -&gt; %3$s (~%4$d -&gt; ~%5$d token)</string>
 </resources>

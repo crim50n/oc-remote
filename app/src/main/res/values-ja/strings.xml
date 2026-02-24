@@ -422,4 +422,19 @@
     <string name="home_local_proxy_enable">ローカルランタイムでプロキシを使用する</string>
     <string name="home_local_proxy_url_label">プロキシURL</string>
     <string name="home_local_proxy_no_proxy_hint">ローカルアドレス（localhost、127.0.0.1、10.0.0.0/8、172.16.0.0/12、192.168.0.0/16）は自動的にプロキシを経由しません。</string>
+    <string name="home_local_proxy_no_proxy_label">プロキシ除外（NO_PROXY）</string>
+    <string name="home_local_proxy_show_url">表示</string>
+    <string name="home_local_proxy_hide_url">非表示</string>
+    <string name="chat_error_view_page">ページ</string>
+    <string name="chat_error_view_code">コード</string>
+    <string name="chat_save_image">画像を保存</string>
+    <string name="chat_image_saved">画像を保存しました</string>
+    <string name="chat_image_save_failed">画像の保存に失敗しました</string>
+    <string name="settings_compress_images">画像添付を最適化</string>
+    <string name="settings_compress_images_desc">大きなスクリーンショットをリサイズし、PNG/JPEG を WebP に変換して送信</string>
+    <string name="settings_compress_images_max_side">画像の最大辺</string>
+    <string name="settings_compress_images_max_side_value">%1$d px</string>
+    <string name="settings_compress_images_quality">WebP 品質</string>
+    <string name="settings_compress_images_quality_value">%1$d%%</string>
+    <string name="chat_images_optimized_summary">画像を最適化しました（%1$d 件）：%2$s → %3$s（約 %4$d → 約 %5$d トークン）</string>
 </resources>
