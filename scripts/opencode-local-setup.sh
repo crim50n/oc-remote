@@ -404,6 +404,11 @@ DISTRO_ALIAS="opencode-debian"
 PORT="4096"
 HOST="127.0.0.1"
 ENV_FILE="$HOME/opencode-local/env"
+SETUP_DIR="$HOME/opencode-local"
+SETUP_SCRIPT="$SETUP_DIR/setup.sh"
+SETUP_SHA_FILE="$SETUP_DIR/setup.sha256"
+SETUP_SCRIPT_URL="https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sh"
+SETUP_SHA_URL="https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sha256"
 CLI_PROXY_URL=""
 
 while [[ $# -gt 0 ]]; do
@@ -417,6 +422,48 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+auto_refresh_runtime_scripts() {
+    mkdir -p "$SETUP_DIR"
+
+    local remote_line remote_sha local_sha
+    remote_line="$(curl --connect-timeout 5 --max-time 12 -fsSL "$SETUP_SHA_URL" 2>/dev/null || true)"
+    remote_sha="$(printf '%s' "$remote_line" | awk '{print $1}')"
+    [[ -n "$remote_sha" ]] || return 0
+
+    local_sha=""
+    if [[ -f "$SETUP_SHA_FILE" ]]; then
+        local_sha="$(awk 'NR==1 {print $1; exit}' "$SETUP_SHA_FILE")"
+    elif [[ -f "$SETUP_SCRIPT" ]]; then
+        local_sha="$(sha256sum "$SETUP_SCRIPT" | awk '{print $1}')"
+    fi
+
+    [[ "$remote_sha" != "$local_sha" ]] || return 0
+
+    local tmp_setup tmp_sha downloaded_sha
+    tmp_setup="$(mktemp "$SETUP_DIR/setup.sh.XXXXXX")"
+    tmp_sha="$(mktemp "$SETUP_DIR/setup.sha256.XXXXXX")"
+
+    if ! curl --connect-timeout 5 --max-time 20 -fsSL "$SETUP_SCRIPT_URL" -o "$tmp_setup"; then
+        rm -f "$tmp_setup" "$tmp_sha"
+        return 0
+    fi
+
+    downloaded_sha="$(sha256sum "$tmp_setup" | awk '{print $1}')"
+    if [[ "$downloaded_sha" != "$remote_sha" ]]; then
+        rm -f "$tmp_setup" "$tmp_sha"
+        return 0
+    fi
+
+    printf '%s\n' "$remote_line" > "$tmp_sha"
+    mv "$tmp_setup" "$SETUP_SCRIPT"
+    chmod 700 "$SETUP_SCRIPT"
+    mv "$tmp_sha" "$SETUP_SHA_FILE"
+
+    bash "$SETUP_SCRIPT" refresh-runtime >/dev/null 2>&1 || true
+}
+
+auto_refresh_runtime_scripts
 
 if [[ -f "$ENV_FILE" ]]; then
     # shellcheck disable=SC1090
@@ -434,11 +481,6 @@ else
     NO_PROXY="$DEFAULT_NO_PROXY"
 fi
 
-PROXY_EXPORTS="export OPENCODE_SERVER_PASSWORD=\"${OPENCODE_SERVER_PASSWORD:-}\"; export NO_PROXY=\"$NO_PROXY\"; export no_proxy=\"$NO_PROXY\";"
-if [[ -n "${OPENCODE_PROXY_URL:-}" ]]; then
-    PROXY_EXPORTS+=" export HTTP_PROXY=\"$OPENCODE_PROXY_URL\"; export HTTPS_PROXY=\"$OPENCODE_PROXY_URL\"; export ALL_PROXY=\"$OPENCODE_PROXY_URL\"; export http_proxy=\"$OPENCODE_PROXY_URL\"; export https_proxy=\"$OPENCODE_PROXY_URL\"; export all_proxy=\"$OPENCODE_PROXY_URL\";"
-fi
-
 export OPENCODE_SERVER_PASSWORD="${OPENCODE_SERVER_PASSWORD:-}"
 export NO_PROXY="$NO_PROXY"
 export no_proxy="$NO_PROXY"
@@ -450,13 +492,14 @@ if [[ -n "${OPENCODE_PROXY_URL:-}" ]]; then
     export https_proxy="$OPENCODE_PROXY_URL"
     export all_proxy="$OPENCODE_PROXY_URL"
 fi
-export HOST PORT
 
 exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc '
 set -euo pipefail
 
 export HOME="/root"
 export PATH="/usr/local/bin:/usr/bin:/bin:/root/.opencode/bin:/root/.local/bin:$PATH"
+HOST="${HOST:-127.0.0.1}"
+PORT="${PORT:-4096}"
 
 OPENCODE_BIN=""
 for candidate in /root/.opencode/bin/opencode /root/.local/bin/opencode /usr/local/bin/opencode; do
@@ -707,6 +750,11 @@ install_all() {
     success_banner
 }
 
+refresh_runtime_scripts_only() {
+    require_termux
+    write_runtime_scripts
+}
+
 # ── Server commands ────────────────────────────────────────────────────
 start_server() {
     require_termux
@@ -732,11 +780,12 @@ main() {
     local cmd="${1:-install}"
     case "$cmd" in
         install) install_all ;;
+        refresh-runtime) refresh_runtime_scripts_only ;;
         doctor)  doctor ;;
         start)   start_server ;;
         stop)    stop_server ;;
         status)  status_server ;;
-        *) die "Unknown command: $cmd (expected: install|doctor|start|stop|status)" ;;
+        *) die "Unknown command: $cmd (expected: install|refresh-runtime|doctor|start|stop|status)" ;;
     esac
 }
 
