@@ -410,11 +410,16 @@ SETUP_SHA_FILE="$SETUP_DIR/setup.sha256"
 SETUP_SCRIPT_URL="https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sh"
 SETUP_SHA_URL="https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sha256"
 CLI_PROXY_URL=""
+CLI_NO_PROXY=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --proxy)
             CLI_PROXY_URL="${2:-}"
+            shift 2
+            ;;
+        --no-proxy)
+            CLI_NO_PROXY="${2:-}"
             shift 2
             ;;
         *)
@@ -475,7 +480,9 @@ if [[ -n "$CLI_PROXY_URL" ]]; then
 fi
 
 DEFAULT_NO_PROXY="localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
-if [[ -n "${NO_PROXY:-}" ]]; then
+if [[ -n "$CLI_NO_PROXY" ]]; then
+    NO_PROXY="$CLI_NO_PROXY"
+elif [[ -n "${NO_PROXY:-}" ]]; then
     NO_PROXY="$NO_PROXY,$DEFAULT_NO_PROXY"
 else
     NO_PROXY="$DEFAULT_NO_PROXY"
@@ -605,7 +612,7 @@ usage() {
 Usage: opencode-local <command>
 
 Commands:
-  start [--proxy URL]  Start local OpenCode server
+  start [--proxy URL] [--no-proxy LIST]  Start local OpenCode server
   stop     Stop local OpenCode server
   status   Print running/stopped
   doctor   Show local runtime diagnostics
