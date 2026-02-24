@@ -493,7 +493,12 @@ if [[ -n "${OPENCODE_PROXY_URL:-}" ]]; then
     export all_proxy="$OPENCODE_PROXY_URL"
 fi
 
-exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc '
+PROXY_EXPORTS="export OPENCODE_SERVER_PASSWORD=\"${OPENCODE_SERVER_PASSWORD:-}\"; export NO_PROXY=\"$NO_PROXY\"; export no_proxy=\"$NO_PROXY\";"
+if [[ -n "${OPENCODE_PROXY_URL:-}" ]]; then
+    PROXY_EXPORTS+=" export HTTP_PROXY=\"$OPENCODE_PROXY_URL\"; export HTTPS_PROXY=\"$OPENCODE_PROXY_URL\"; export ALL_PROXY=\"$OPENCODE_PROXY_URL\"; export http_proxy=\"$OPENCODE_PROXY_URL\"; export https_proxy=\"$OPENCODE_PROXY_URL\"; export all_proxy=\"$OPENCODE_PROXY_URL\";"
+fi
+
+PROOT_CMD='
 set -euo pipefail
 
 export HOME="/root"
@@ -566,6 +571,8 @@ fi
 cat "$LOG_FILE" >&2 || true
 exit $EXIT_CODE
 '
+
+exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$PROXY_EXPORTS $PROOT_CMD"
 EOF
 
     cat > "$INSTALL_DIR/stop.sh" <<'EOF'
