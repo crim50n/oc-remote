@@ -9,6 +9,10 @@ LOCAL_HOST="127.0.0.1"
 INSTALL_DIR="$HOME/opencode-local"
 TERMUX_PROPERTIES_DIR="$HOME/.termux"
 TERMUX_PROPERTIES_FILE="$TERMUX_PROPERTIES_DIR/termux.properties"
+SETUP_SCRIPT_PATH="$INSTALL_DIR/setup.sh"
+SETUP_SHA_FILE="$INSTALL_DIR/setup.sha256"
+SETUP_SCRIPT_URL="https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sh"
+SETUP_SHA_URL="https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sha256"
 
 # Debian rootfs from GitHub Releases CDN (fast).
 # proot-distro's default CDN (easycli.sh) is often extremely slow.
@@ -296,6 +300,46 @@ ensure_distro_installed() {
 proot_exec() {
     proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$1" \
         2> >(grep -vE "CPU doesn't support 32-bit instructions|can't sanitize binding \"/proc/self/fd/1\"" >&2)
+}
+
+self_update_setup_script_if_needed() {
+    mkdir -p "$INSTALL_DIR"
+
+    local remote_line remote_sha local_sha
+    remote_line="$(curl --connect-timeout 5 --max-time 12 -fsSL "$SETUP_SHA_URL" 2>/dev/null || true)"
+    remote_sha="$(printf '%s' "$remote_line" | awk '{print $1}')"
+    [[ -n "$remote_sha" ]] || return 1
+
+    local_sha=""
+    if [[ -f "$SETUP_SHA_FILE" ]]; then
+        local_sha="$(awk 'NR==1 {print $1; exit}' "$SETUP_SHA_FILE")"
+    elif [[ -f "$SETUP_SCRIPT_PATH" ]]; then
+        local_sha="$(sha256sum "$SETUP_SCRIPT_PATH" | awk '{print $1}')"
+    fi
+
+    [[ "$remote_sha" != "$local_sha" ]] || return 1
+
+    local tmp_setup tmp_sha downloaded_sha
+    tmp_setup="$(mktemp "$INSTALL_DIR/setup.sh.XXXXXX")"
+    tmp_sha="$(mktemp "$INSTALL_DIR/setup.sha256.XXXXXX")"
+
+    if ! curl --connect-timeout 5 --max-time 20 -fsSL "$SETUP_SCRIPT_URL" -o "$tmp_setup"; then
+        rm -f "$tmp_setup" "$tmp_sha"
+        return 1
+    fi
+
+    downloaded_sha="$(sha256sum "$tmp_setup" | awk '{print $1}')"
+    if [[ "$downloaded_sha" != "$remote_sha" ]]; then
+        rm -f "$tmp_setup" "$tmp_sha"
+        return 1
+    fi
+
+    printf '%s\n' "$remote_line" > "$tmp_sha"
+    mv "$tmp_setup" "$SETUP_SCRIPT_PATH"
+    chmod 700 "$SETUP_SCRIPT_PATH"
+    mv "$tmp_sha" "$SETUP_SHA_FILE"
+    ok "Setup script updated"
+    return 0
 }
 
 resolve_opencode_binary_in_distro() {
@@ -763,7 +807,13 @@ install_all() {
 }
 
 refresh_runtime_scripts_only() {
+    local skip_self_update="${1:-0}"
     require_termux
+
+    if (( skip_self_update == 0 )) && self_update_setup_script_if_needed; then
+        exec bash "$SETUP_SCRIPT_PATH" --skip-self-update refresh-runtime
+    fi
+
     write_runtime_scripts
 }
 
@@ -789,10 +839,16 @@ status_server() {
 # ── Main ───────────────────────────────────────────────────────────────
 main() {
     trap release_wake_lock EXIT
+    local skip_self_update=0
+    if [[ "${1:-}" == "--skip-self-update" ]]; then
+        skip_self_update=1
+        shift || true
+    fi
+
     local cmd="${1:-install}"
     case "$cmd" in
         install) install_all ;;
-        refresh-runtime) refresh_runtime_scripts_only ;;
+        refresh-runtime) refresh_runtime_scripts_only "$skip_self_update" ;;
         doctor)  doctor ;;
         start)   start_server ;;
         stop)    stop_server ;;
