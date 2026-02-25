@@ -82,7 +82,7 @@ success_banner() {
     printf "  ${GREEN}${BOLD}Setup complete${RESET}\n"
     printf "  ${DIM}Server control:${RESET} ${BOLD}opencode-local start|stop|status${RESET}\n"
     printf "  ${DIM}Diagnostics:${RESET} ${BOLD}opencode-local doctor${RESET}\n"
-    printf "  ${DIM}Maintenance:${RESET} ${BOLD}bash ~/opencode-local/setup.sh reinstall|reinstall-opencode [--clean]${RESET}\n"
+    printf "  ${DIM}Maintenance:${RESET} ${BOLD}opencode-local reinstall|reinstall-opencode [--clean]|uninstall [--force]${RESET}\n"
     if (( TERMUX_RESTART_REQUIRED == 1 )); then
         printf "  ${YELLOW}${BOLD}Important:${RESET} ${DIM}Force-stop and reopen Termux once so allow-external-apps is applied.${RESET}\n"
     fi
@@ -565,17 +565,6 @@ HOST="127.0.0.1"
 ENV_FILE="$HOME/opencode-local/env"
 SETUP_DIR="$HOME/opencode-local"
 SETUP_SCRIPT="$SETUP_DIR/setup.sh"
-SETUP_SHA_FILE="$SETUP_DIR/setup.sha256"
-SETUP_SHA_SOURCES=(
-    "https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sha256"
-    "https://github.com/crim50n/oc-remote/raw/master/scripts/opencode-local-setup.sha256"
-    "https://cdn.jsdelivr.net/gh/crim50n/oc-remote@master/scripts/opencode-local-setup.sha256"
-)
-SETUP_SCRIPT_SOURCES=(
-    "https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sh"
-    "https://github.com/crim50n/oc-remote/raw/master/scripts/opencode-local-setup.sh"
-    "https://cdn.jsdelivr.net/gh/crim50n/oc-remote@master/scripts/opencode-local-setup.sh"
-)
 CLI_PROXY_URL=""
 CLI_NO_PROXY=""
 
@@ -595,54 +584,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-auto_refresh_runtime_scripts() {
-    mkdir -p "$SETUP_DIR"
-
-    local local_sha
-    local_sha=""
-    if [[ -f "$SETUP_SHA_FILE" ]]; then
-        local_sha="$(awk 'NR==1 {print $1; exit}' "$SETUP_SHA_FILE")"
-    elif [[ -f "$SETUP_SCRIPT" ]]; then
-        local_sha="$(sha256sum "$SETUP_SCRIPT" | awk '{print $1}')"
-    fi
-
-    local remote_sha_url remote_script_url remote_line remote_sha
-    local tmp_setup tmp_sha downloaded_sha
-    local i
-    for i in "${!SETUP_SHA_SOURCES[@]}"; do
-        remote_sha_url="${SETUP_SHA_SOURCES[$i]}"
-        remote_script_url="${SETUP_SCRIPT_SOURCES[$i]}"
-
-        remote_line="$(curl --connect-timeout 5 --max-time 12 -fsSL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$remote_sha_url?t=$(date +%s)" 2>/dev/null || true)"
-        remote_sha="$(printf '%s' "$remote_line" | awk '{print $1}')"
-        [[ -n "$remote_sha" ]] || continue
-        [[ "$remote_sha" != "$local_sha" ]] || return 0
-
-        tmp_setup="$(mktemp "$SETUP_DIR/setup.sh.XXXXXX")"
-        tmp_sha="$(mktemp "$SETUP_DIR/setup.sha256.XXXXXX")"
-
-        if ! curl --connect-timeout 5 --max-time 20 -fsSL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$remote_script_url?t=$(date +%s)" -o "$tmp_setup"; then
-            rm -f "$tmp_setup" "$tmp_sha"
-            continue
-        fi
-
-        downloaded_sha="$(sha256sum "$tmp_setup" | awk '{print $1}')"
-        if [[ "$downloaded_sha" != "$remote_sha" ]]; then
-            rm -f "$tmp_setup" "$tmp_sha"
-            continue
-        fi
-
-        printf '%s\n' "$remote_line" > "$tmp_sha"
-        mv "$tmp_setup" "$SETUP_SCRIPT"
-        chmod 700 "$SETUP_SCRIPT"
-        mv "$tmp_sha" "$SETUP_SHA_FILE"
-
-        bash "$SETUP_SCRIPT" refresh-runtime >/dev/null 2>&1 || true
-        return 0
-    done
-}
-
-auto_refresh_runtime_scripts
+if [[ -f "$SETUP_SCRIPT" ]]; then
+    bash "$SETUP_SCRIPT" refresh-runtime >/dev/null 2>&1 || true
+fi
 
 if [[ -f "$ENV_FILE" ]]; then
     # shellcheck disable=SC1090
@@ -790,10 +734,13 @@ usage() {
 Usage: opencode-local <command>
 
 Commands:
-  start [--proxy URL] [--no-proxy LIST]  Start local OpenCode server
-  stop     Stop local OpenCode server
-  status   Print running/stopped
-  doctor   Show local runtime diagnostics
+  start [--proxy URL] [--no-proxy LIST]    Start local OpenCode server
+  stop                                     Stop local OpenCode server
+  status                                   Print running/stopped
+  doctor                                   Show local runtime diagnostics
+  reinstall [--clean]                      Reinstall distro + OpenCode (+keep data by default)
+  reinstall-opencode [--clean]             Reinstall OpenCode only (+keep data by default)
+  uninstall [--force]                      Remove local runtime entirely
 USAGE
 }
 
@@ -811,7 +758,6 @@ cmd="$1"
 case "$cmd" in
     start)
         shift || true
-        bash "$INSTALL_DIR/setup.sh" refresh-runtime >/dev/null 2>&1 || true
         exec "$INSTALL_DIR/start.sh" "$@"
         ;;
     stop)
@@ -830,6 +776,18 @@ case "$cmd" in
             echo "Run setup first: curl -fsSL https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sh | bash"
             exit 1
         fi
+        ;;
+    reinstall)
+        shift || true
+        exec bash "$INSTALL_DIR/setup.sh" reinstall "$@"
+        ;;
+    reinstall-opencode)
+        shift || true
+        exec bash "$INSTALL_DIR/setup.sh" reinstall-opencode "$@"
+        ;;
+    uninstall)
+        shift || true
+        exec bash "$INSTALL_DIR/setup.sh" uninstall "$@"
         ;;
     -h|--help|help)
         usage
@@ -1013,6 +971,48 @@ reinstall_opencode_only() {
     success_banner
 }
 
+uninstall_all() {
+    local force_uninstall="${1:-0}"
+
+    header
+    require_termux
+
+    if (( force_uninstall == 0 )); then
+        printf "  ${YELLOW}[!!]${RESET} This will remove Debian distro, local scripts, and opencode-local command.\n"
+        printf "  ${DIM}  OpenCode data inside distro will be deleted.${RESET}\n"
+        printf "\n  Continue? [y/N]: "
+        local answer
+        read -r answer
+        case "$answer" in
+            y|Y|yes|YES)
+                ;;
+            *)
+                skip "Uninstall cancelled"
+                return 0
+                ;;
+        esac
+    fi
+
+    step "Stop OpenCode"
+    stop_running_opencode
+    if [[ -x "$INSTALL_DIR/stop.sh" ]]; then
+        "$INSTALL_DIR/stop.sh" >/dev/null 2>&1 || true
+    fi
+
+    step "Remove Debian distro"
+    proot-distro remove "$DISTRO_ALIAS" >/dev/null 2>&1 || true
+    rm -rf "$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS"
+    ok "Debian distro removed"
+
+    step "Remove local runtime"
+    rm -rf "$INSTALL_DIR"
+    rm -f "$PREFIX/bin/opencode-local"
+    ok "Local runtime removed"
+
+    printf "\n  ${GREEN}${BOLD}Uninstall complete${RESET}\n"
+    printf "  ${DIM}Reinstall anytime with:${RESET} ${BOLD}curl -fsSL https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sh | bash${RESET}\n\n"
+}
+
 refresh_runtime_scripts_only() {
     local skip_self_update="${1:-0}"
     require_termux
@@ -1056,11 +1056,15 @@ main() {
     shift || true
 
     local clean_reinstall=0
+    local force_uninstall=0
     local arg
     for arg in "$@"; do
         case "$arg" in
             --clean)
                 clean_reinstall=1
+                ;;
+            --force)
+                force_uninstall=1
                 ;;
         esac
     done
@@ -1073,12 +1077,13 @@ main() {
         install) install_all ;;
         reinstall) reinstall_all "$clean_reinstall" ;;
         reinstall-opencode) reinstall_opencode_only "$clean_reinstall" ;;
+        uninstall) uninstall_all "$force_uninstall" ;;
         refresh-runtime) refresh_runtime_scripts_only "$skip_self_update" ;;
         doctor)  doctor ;;
         start)   start_server ;;
         stop)    stop_server ;;
         status)  status_server ;;
-        *) die "Unknown command: $cmd (expected: install|reinstall [--clean]|reinstall-opencode [--clean]|refresh-runtime|doctor|start|stop|status)" ;;
+        *) die "Unknown command: $cmd (expected: install|reinstall [--clean]|reinstall-opencode [--clean]|uninstall [--force]|refresh-runtime|doctor|start|stop|status)" ;;
     esac
 }
 
