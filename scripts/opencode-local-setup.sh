@@ -11,8 +11,16 @@ TERMUX_PROPERTIES_DIR="$HOME/.termux"
 TERMUX_PROPERTIES_FILE="$TERMUX_PROPERTIES_DIR/termux.properties"
 SETUP_SCRIPT_PATH="$INSTALL_DIR/setup.sh"
 SETUP_SHA_FILE="$INSTALL_DIR/setup.sha256"
-SETUP_SCRIPT_URL="https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sh"
-SETUP_SHA_URL="https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sha256"
+SETUP_SHA_SOURCES=(
+    "https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sha256"
+    "https://github.com/crim50n/oc-remote/raw/master/scripts/opencode-local-setup.sha256"
+    "https://cdn.jsdelivr.net/gh/crim50n/oc-remote@master/scripts/opencode-local-setup.sha256"
+)
+SETUP_SCRIPT_SOURCES=(
+    "https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sh"
+    "https://github.com/crim50n/oc-remote/raw/master/scripts/opencode-local-setup.sh"
+    "https://cdn.jsdelivr.net/gh/crim50n/oc-remote@master/scripts/opencode-local-setup.sh"
+)
 
 # Debian rootfs from GitHub Releases CDN (fast).
 # proot-distro's default CDN (easycli.sh) is often extremely slow.
@@ -305,11 +313,7 @@ proot_exec() {
 self_update_setup_script_if_needed() {
     mkdir -p "$INSTALL_DIR"
 
-    local remote_line remote_sha local_sha
-    remote_line="$(curl --connect-timeout 5 --max-time 12 -fsSL "$SETUP_SHA_URL" 2>/dev/null || true)"
-    remote_sha="$(printf '%s' "$remote_line" | awk '{print $1}')"
-    [[ -n "$remote_sha" ]] || return 1
-
+    local local_sha
     local_sha=""
     if [[ -f "$SETUP_SHA_FILE" ]]; then
         local_sha="$(awk 'NR==1 {print $1; exit}' "$SETUP_SHA_FILE")"
@@ -317,29 +321,41 @@ self_update_setup_script_if_needed() {
         local_sha="$(sha256sum "$SETUP_SCRIPT_PATH" | awk '{print $1}')"
     fi
 
-    [[ "$remote_sha" != "$local_sha" ]] || return 1
-
+    local remote_sha_url remote_script_url remote_line remote_sha
     local tmp_setup tmp_sha downloaded_sha
-    tmp_setup="$(mktemp "$INSTALL_DIR/setup.sh.XXXXXX")"
-    tmp_sha="$(mktemp "$INSTALL_DIR/setup.sha256.XXXXXX")"
+    local i
+    for i in "${!SETUP_SHA_SOURCES[@]}"; do
+        remote_sha_url="${SETUP_SHA_SOURCES[$i]}"
+        remote_script_url="${SETUP_SCRIPT_SOURCES[$i]}"
 
-    if ! curl --connect-timeout 5 --max-time 20 -fsSL "$SETUP_SCRIPT_URL" -o "$tmp_setup"; then
-        rm -f "$tmp_setup" "$tmp_sha"
-        return 1
-    fi
+        remote_line="$(curl --connect-timeout 5 --max-time 12 -fsSL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$remote_sha_url?t=$(date +%s)" 2>/dev/null || true)"
+        remote_sha="$(printf '%s' "$remote_line" | awk '{print $1}')"
+        [[ -n "$remote_sha" ]] || continue
+        [[ "$remote_sha" != "$local_sha" ]] || return 1
 
-    downloaded_sha="$(sha256sum "$tmp_setup" | awk '{print $1}')"
-    if [[ "$downloaded_sha" != "$remote_sha" ]]; then
-        rm -f "$tmp_setup" "$tmp_sha"
-        return 1
-    fi
+        tmp_setup="$(mktemp "$INSTALL_DIR/setup.sh.XXXXXX")"
+        tmp_sha="$(mktemp "$INSTALL_DIR/setup.sha256.XXXXXX")"
 
-    printf '%s\n' "$remote_line" > "$tmp_sha"
-    mv "$tmp_setup" "$SETUP_SCRIPT_PATH"
-    chmod 700 "$SETUP_SCRIPT_PATH"
-    mv "$tmp_sha" "$SETUP_SHA_FILE"
-    ok "Setup script updated"
-    return 0
+        if ! curl --connect-timeout 5 --max-time 20 -fsSL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$remote_script_url?t=$(date +%s)" -o "$tmp_setup"; then
+            rm -f "$tmp_setup" "$tmp_sha"
+            continue
+        fi
+
+        downloaded_sha="$(sha256sum "$tmp_setup" | awk '{print $1}')"
+        if [[ "$downloaded_sha" != "$remote_sha" ]]; then
+            rm -f "$tmp_setup" "$tmp_sha"
+            continue
+        fi
+
+        printf '%s\n' "$remote_line" > "$tmp_sha"
+        mv "$tmp_setup" "$SETUP_SCRIPT_PATH"
+        chmod 700 "$SETUP_SCRIPT_PATH"
+        mv "$tmp_sha" "$SETUP_SHA_FILE"
+        ok "Setup script updated"
+        return 0
+    done
+
+    return 1
 }
 
 resolve_opencode_binary_in_distro() {
