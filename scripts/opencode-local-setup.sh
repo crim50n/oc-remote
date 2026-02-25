@@ -567,6 +567,7 @@ SETUP_DIR="$HOME/opencode-local"
 SETUP_SCRIPT="$SETUP_DIR/setup.sh"
 CLI_PROXY_URL=""
 CLI_NO_PROXY=""
+CLI_HOST=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -576,6 +577,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-proxy)
             CLI_NO_PROXY="${2:-}"
+            shift 2
+            ;;
+        --hostname|--host)
+            CLI_HOST="${2:-}"
             shift 2
             ;;
         *)
@@ -595,6 +600,10 @@ fi
 
 if [[ -n "$CLI_PROXY_URL" ]]; then
     OPENCODE_PROXY_URL="$CLI_PROXY_URL"
+fi
+
+if [[ -n "$CLI_HOST" ]]; then
+    HOST="$CLI_HOST"
 fi
 
 DEFAULT_NO_PROXY="localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
@@ -734,7 +743,7 @@ usage() {
 Usage: opencode-local <command>
 
 Commands:
-  start [--proxy URL] [--no-proxy LIST]    Start local OpenCode server
+  start [--proxy URL] [--no-proxy LIST] [--hostname HOST]  Start local OpenCode server
   stop                                     Stop local OpenCode server
   status                                   Print running/stopped
   doctor                                   Show local runtime diagnostics
