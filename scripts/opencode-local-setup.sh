@@ -294,7 +294,8 @@ ensure_distro_installed() {
 }
 
 proot_exec() {
-    proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$1"
+    proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$1" \
+        2> >(grep -vE "CPU doesn't support 32-bit instructions|can't sanitize binding \"/proc/self/fd/1\"" >&2)
 }
 
 resolve_opencode_binary_in_distro() {
@@ -318,12 +319,15 @@ opencode_version_in_distro() {
         export HOME="/root"
         export PATH="/usr/local/bin:/usr/bin:/bin:/root/.opencode/bin:/root/.local/bin:$PATH"
         if command -v opencode >/dev/null 2>&1; then
-            opencode --version
-            exit 0
+            cmd_path="$(command -v opencode)"
+            if [[ -n "$cmd_path" ]] && [[ -x "$cmd_path" ]] && "$cmd_path" --version >/dev/null 2>&1; then
+                "$cmd_path" --version
+                exit 0
+            fi
         fi
 
         for candidate in /root/.opencode/bin/opencode /root/.local/bin/opencode /usr/local/bin/opencode; do
-            if [[ -x "$candidate" ]]; then
+            if [[ -x "$candidate" ]] && "$candidate" --version >/dev/null 2>&1; then
                 "$candidate" --version
                 exit 0
             fi
@@ -509,13 +513,16 @@ PORT="${PORT:-4096}"
 
 OPENCODE_BIN=""
 for candidate in /root/.opencode/bin/opencode /root/.local/bin/opencode /usr/local/bin/opencode; do
-    if [[ -x "$candidate" ]]; then
+    if [[ -x "$candidate" ]] && "$candidate" --version >/dev/null 2>&1; then
         OPENCODE_BIN="$candidate"
         break
     fi
 done
 if [[ -z "$OPENCODE_BIN" ]]; then
-    OPENCODE_BIN="$(command -v opencode || true)"
+    cmd_path="$(command -v opencode || true)"
+    if [[ -n "$cmd_path" ]] && [[ -x "$cmd_path" ]] && "$cmd_path" --version >/dev/null 2>&1; then
+        OPENCODE_BIN="$cmd_path"
+    fi
 fi
 if [[ -z "$OPENCODE_BIN" ]]; then
     echo "opencode binary not found in distro" >&2
@@ -573,14 +580,15 @@ cat "$LOG_FILE" >&2 || true
 exit $EXIT_CODE
 '
 
-exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$PROXY_EXPORTS $PROOT_CMD"
+exec proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$PROXY_EXPORTS $PROOT_CMD" \
+    2> >(grep -vE "CPU doesn't support 32-bit instructions|can't sanitize binding \"/proc/self/fd/1\"|Warning: OPENCODE_SERVER_PASSWORD is not set; server is unsecured" >&2)
 EOF
 
     cat > "$INSTALL_DIR/stop.sh" <<'EOF'
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
-proot-distro login opencode-debian -- /bin/bash -lc 'pkill -f "opencode serve" >/dev/null 2>&1 || true'
+proot-distro login opencode-debian -- /bin/bash -lc 'pkill -f "opencode serve" >/dev/null 2>&1 || true' >/dev/null 2>&1 || true
 pkill -f "proot-distro login opencode-debian" >/dev/null 2>&1 || true
 EOF
 
@@ -588,7 +596,7 @@ EOF
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
-if curl -fsS "http://127.0.0.1:4096/global/health" | grep -q '"healthy":true'; then
+if curl -fsS "http://127.0.0.1:4096/global/health" 2>/dev/null | grep -q '"healthy":true'; then
     echo "running"
 else
     echo "stopped"
