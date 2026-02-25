@@ -4,7 +4,6 @@ set -euo pipefail
 # ── Configuration ──────────────────────────────────────────────────────
 DISTRO_ALIAS="opencode-debian"
 DISTRO_BASE="debian"
-OPENCODE_VERSION="1.2.10"
 LOCAL_PORT="4096"
 LOCAL_HOST="127.0.0.1"
 INSTALL_DIR="$HOME/opencode-local"
@@ -373,23 +372,18 @@ install_opencode_binary() {
         repair_opencode_command_path || true
     fi
 
-    if [[ "$current" == "$OPENCODE_VERSION" ]]; then
-        skip "OpenCode $OPENCODE_VERSION already installed"
+    if [[ -n "$current" ]]; then
+        skip "OpenCode already installed ($current)"
         return
     fi
 
-    if [[ -n "$current" ]]; then
-        info "Upgrading OpenCode $current -> $OPENCODE_VERSION"
-    fi
-
-    proot_exec "rm -f /usr/local/bin/opencode; curl -fsSL https://opencode.ai/install | OPENCODE_VERSION=$OPENCODE_VERSION bash" || die "Failed to install OpenCode"
+    proot_exec "rm -f /usr/local/bin/opencode; curl -fsSL https://opencode.ai/install | bash" || die "Failed to install OpenCode"
     repair_opencode_command_path || die "OpenCode installed but command path could not be repaired"
 
     local installed
     installed="$(opencode_version_in_distro || true)"
     [[ -n "$installed" ]] || die "OpenCode installed but command still not executable"
-    [[ "$installed" == "$OPENCODE_VERSION" ]] || die "Version mismatch: got $installed, expected $OPENCODE_VERSION"
-    ok "OpenCode $OPENCODE_VERSION installed"
+    ok "OpenCode installed ($installed)"
 }
 
 # ── Runtime scripts ───────────────────────────────────────────────────
@@ -705,11 +699,7 @@ doctor() {
     local ver
     ver="$(opencode_version_in_distro || true)"
     if [[ -n "$ver" ]]; then
-        if [[ "$ver" == "$OPENCODE_VERSION" ]]; then
-            printf "  %-28s ${GREEN}${ver}${RESET}\n" "OpenCode"
-        else
-            printf "  %-28s ${YELLOW}${ver}${RESET} (expected ${OPENCODE_VERSION})\n" "OpenCode"
-        fi
+        printf "  %-28s ${GREEN}${ver}${RESET}\n" "OpenCode"
     else
         printf "  %-28s ${RED}missing${RESET}\n" "OpenCode"
     fi
