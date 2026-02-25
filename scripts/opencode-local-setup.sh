@@ -306,8 +306,7 @@ ensure_distro_installed() {
 }
 
 proot_exec() {
-    proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$1" \
-        2> >(grep -vE "CPU doesn't support 32-bit instructions|can't sanitize binding \"/proc/self/fd/1\"" >&2)
+    proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$1"
 }
 
 self_update_setup_script_if_needed() {
@@ -422,8 +421,9 @@ setup_distro_packages() {
         return
     fi
 
-    info "apt output ↓"
-    proot_exec "export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && apt-get install -y -qq --no-install-recommends $needed && apt-get clean" || die "Failed to install Debian packages"
+    if ! spin "Installing Debian packages" proot_exec "export DEBIAN_FRONTEND=noninteractive; apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 update -qq && apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y -qq --no-install-recommends $needed && apt-get clean"; then
+        die "Failed to install Debian packages"
+    fi
     ok "Debian packages ready"
 }
 
