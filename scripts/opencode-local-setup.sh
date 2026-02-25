@@ -32,20 +32,6 @@ WAKE_LOCK_HELD=0
 STEP_NUMBER=0
 TERMUX_RESTART_REQUIRED=0
 
-# Geographically diverse, high-reliability Termux mirrors.
-# The script tests each and picks the fastest for the user.
-TERMUX_MIRRORS=(
-    "https://packages-cf.termux.dev/apt/termux-main"       # Cloudflare CDN (global)
-    "https://mirror.fcix.net/termux/termux-main"            # Fremont CA, 10 Gbps
-    "https://ftp.fau.de/termux/termux-main"                 # Erlangen DE, 25 Gbps
-    "https://mirror.mwt.me/termux/main"                     # US+EU CDN
-    "https://grimler.se/termux/termux-main"                 # Helsinki FI
-    "https://mirrors.medzik.dev/termux/termux-main"         # Frankfurt DE
-    "https://plug-mirror.rcac.purdue.edu/termux/termux-main" # Indiana US
-    "https://repository.su/termux/termux-main"              # Nizhny Novgorod RU
-    "http://mirror.mephi.ru/termux/termux-main"             # Moscow RU (HTTP)
-)
-
 # ── Output helpers ─────────────────────────────────────────────────────
 # Termux supports ANSI colors and Unicode box-drawing out of the box.
 BOLD='\033[1m'
@@ -94,7 +80,9 @@ die() {
 success_banner() {
     printf "\n"
     printf "  ${GREEN}${BOLD}Setup complete${RESET}\n"
-    printf "  ${DIM}CLI control:${RESET} ${BOLD}opencode-local start|stop|status${RESET}\n"
+    printf "  ${DIM}Server control:${RESET} ${BOLD}opencode-local start|stop|status${RESET}\n"
+    printf "  ${DIM}Diagnostics:${RESET} ${BOLD}opencode-local doctor${RESET}\n"
+    printf "  ${DIM}Maintenance:${RESET} ${BOLD}bash ~/opencode-local/setup.sh reinstall|reinstall-opencode [--clean]${RESET}\n"
     if (( TERMUX_RESTART_REQUIRED == 1 )); then
         printf "  ${YELLOW}${BOLD}Important:${RESET} ${DIM}Force-stop and reopen Termux once so allow-external-apps is applied.${RESET}\n"
     fi
@@ -183,49 +171,6 @@ check_network() {
 }
 
 # ── Termux setup ───────────────────────────────────────────────────────
-select_fastest_mirror() {
-    local best_url="" best_time="99999"
-
-    info "Testing ${#TERMUX_MIRRORS[@]} mirrors..."
-    for mirror_url in "${TERMUX_MIRRORS[@]}"; do
-        # Fetch the Release file (small) and measure time
-        local time_ms
-        time_ms="$(curl --connect-timeout 3 --max-time 5 -fsSL \
-            -o /dev/null -w '%{time_total}' \
-            "${mirror_url}/dists/stable/Release" 2>/dev/null || echo "99999")"
-
-        # Convert to ms integer for comparison (bash can't compare floats)
-        local ms
-        ms="$(awk "BEGIN { printf \"%.0f\", $time_ms * 1000 }" 2>/dev/null || echo "99999")"
-
-        local host
-        host="$(echo "$mirror_url" | sed 's|https\?://\([^/]*\).*|\1|')"
-
-        if (( ms < best_time )); then
-            best_time="$ms"
-            best_url="$mirror_url"
-            info "$host — ${ms}ms ✓"
-        else
-            info "$host — ${ms}ms"
-        fi
-    done
-
-    if [[ -z "$best_url" ]]; then
-        warn "All mirrors failed — keeping current config"
-        return
-    fi
-
-    # Write sources.list
-    local sources_file="$PREFIX/etc/apt/sources.list"
-    echo "deb $best_url stable main" > "$sources_file"
-
-    # Remove deb822-format files that would override sources.list
-    rm -f "$PREFIX/etc/apt/sources.list.d/"*.sources 2>/dev/null || true
-
-    local best_host
-    best_host="$(echo "$best_url" | sed 's|https\?://\([^/]*\).*|\1|')"
-    ok "Selected mirror: $best_host (${best_time}ms)"
-}
 
 ensure_termux_properties() {
     mkdir -p "$TERMUX_PROPERTIES_DIR"
@@ -266,12 +211,13 @@ ensure_termux_packages() {
     fi
 
     info "Installing: ${missing[*]}"
+    info "Using current Termux mirror configuration"
     info "apt output ↓"
     if ! (apt-get update -yq && apt-get install -yq "${missing[@]}"); then
         printf "\n"
         fail "Package install failed"
-        info "Try running: termux-change-repo"
-        info "Then re-run this script"
+        warn "If this step fails due to repository/network issues, run: termux-change-repo"
+        warn "Select a working mirror, then re-run this script"
         exit 1
     fi
     ok "Termux packages ready"
@@ -280,10 +226,21 @@ ensure_termux_packages() {
 # ── Debian distro ─────────────────────────────────────────────────────
 install_distro_rootfs() {
     info "Downloading Debian rootfs from GitHub CDN..."
-    if ! env \
+    local err_file rc
+    err_file="$(mktemp)"
+
+    env \
         PD_OVERRIDE_TARBALL_URL="$DEBIAN_ROOTFS_URL" \
         PD_OVERRIDE_TARBALL_SHA256="$DEBIAN_ROOTFS_SHA256" \
-        proot-distro install --override-alias "$DISTRO_ALIAS" "$DISTRO_BASE"; then
+        proot-distro install --override-alias "$DISTRO_ALIAS" "$DISTRO_BASE" 2>"$err_file"
+    rc=$?
+
+    if [[ -s "$err_file" ]]; then
+        grep -vE "CPU doesn't support 32-bit instructions|can't sanitize binding \"/proc/self/fd/[0-9]+\"" "$err_file" >&2 || true
+    fi
+    rm -f "$err_file"
+
+    if (( rc != 0 )); then
         die "Failed to install Debian. Check network and try again"
     fi
 }
@@ -305,8 +262,30 @@ ensure_distro_installed() {
     ok "Debian distro installed"
 }
 
+reinstall_distro() {
+    local rootfs_dir="$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS"
+
+    warn "Reinstalling Debian distro ($DISTRO_ALIAS)"
+    proot-distro remove "$DISTRO_ALIAS" >/dev/null 2>&1 || true
+    rm -rf "$rootfs_dir"
+
+    install_distro_rootfs
+    ok "Debian distro reinstalled"
+}
+
 proot_exec() {
-    proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$1"
+    local err_file rc
+    err_file="$(mktemp)"
+
+    proot-distro login "$DISTRO_ALIAS" -- /bin/bash -lc "$1" 2>"$err_file"
+    rc=$?
+
+    if [[ -s "$err_file" ]]; then
+        grep -vE "CPU doesn't support 32-bit instructions|can't sanitize binding \"/proc/self/fd/[0-9]+\"|proot info: vpid [0-9]+: terminated with signal 15" "$err_file" >&2 || true
+    fi
+
+    rm -f "$err_file"
+    return "$rc"
 }
 
 self_update_setup_script_if_needed() {
@@ -427,6 +406,37 @@ setup_distro_packages() {
     ok "Debian packages ready"
 }
 
+distro_has_missing_required_packages() {
+    for pkg in ca-certificates curl git ripgrep tmux procps bash; do
+        if ! proot_exec "dpkg -s $pkg" >/dev/null 2>&1; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+verify_reinstall_opencode_target() {
+    if ! dpkg -s proot-distro >/dev/null 2>&1; then
+        die "Termux package 'proot-distro' is missing. Run install first"
+    fi
+
+    local rootfs_dir
+    rootfs_dir="$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS"
+    if [[ ! -d "$rootfs_dir" ]] || [[ -z "$(ls -A "$rootfs_dir" 2>/dev/null)" ]]; then
+        die "Debian distro is missing. Run install or reinstall first"
+    fi
+
+    if ! proot-distro login "$DISTRO_ALIAS" -- /bin/sh -lc "true" >/dev/null 2>&1; then
+        die "Debian distro is not healthy. Run reinstall"
+    fi
+
+    if distro_has_missing_required_packages; then
+        die "Debian packages are missing. Run install or reinstall first"
+    fi
+
+    ok "Reinstall target is ready"
+}
+
 # ── OpenCode binary ───────────────────────────────────────────────────
 install_opencode_binary() {
     local current
@@ -448,6 +458,97 @@ install_opencode_binary() {
     installed="$(opencode_version_in_distro || true)"
     [[ -n "$installed" ]] || die "OpenCode installed but command still not executable"
     ok "OpenCode installed ($installed)"
+}
+
+stop_running_opencode() {
+    local stopped
+    stopped="$(proot_exec '
+        stopped=0
+
+        if pgrep -f "opencode serve" >/dev/null 2>&1; then
+            pkill -f "opencode serve" >/dev/null 2>&1 || true
+            stopped=1
+        fi
+
+        if pgrep -f "/root/.opencode/bin/opencode" >/dev/null 2>&1; then
+            pkill -f "/root/.opencode/bin/opencode" >/dev/null 2>&1 || true
+            stopped=1
+        fi
+
+        if pgrep -x opencode >/dev/null 2>&1; then
+            pkill -x opencode >/dev/null 2>&1 || true
+            stopped=1
+        fi
+
+        if (( stopped == 1 )); then
+            printf "stopped\n"
+        fi
+    ' | tr -d '\r')"
+
+    if [[ "$stopped" == "stopped" ]]; then
+        ok "Stopped running OpenCode processes"
+    fi
+}
+
+cleanup_opencode_keep_user_data() {
+    proot_exec '
+        export HOME="/root"
+        export PATH="/usr/local/bin:/usr/bin:/bin:/root/.opencode/bin:/root/.local/bin:$PATH"
+
+        if command -v opencode >/dev/null 2>&1; then
+            opencode uninstall --keep-data --force >/dev/null 2>&1 || true
+        fi
+
+        rm -rf /root/.cache/opencode /root/.config/opencode /root/.local/state/opencode
+        rm -f /usr/local/bin/opencode
+        rm -f /root/.opencode/bin/opencode
+        rmdir /root/.opencode/bin 2>/dev/null || true
+        rmdir /root/.opencode 2>/dev/null || true
+    '
+    ok "OpenCode runtime reset (user data preserved)"
+}
+
+cleanup_opencode_all_data() {
+    proot_exec '
+        export HOME="/root"
+        export PATH="/usr/local/bin:/usr/bin:/bin:/root/.opencode/bin:/root/.local/bin:$PATH"
+
+        if command -v opencode >/dev/null 2>&1; then
+            opencode uninstall --force >/dev/null 2>&1 || true
+        fi
+
+        rm -rf /root/.local/share/opencode /root/.cache/opencode /root/.config/opencode /root/.local/state/opencode
+        rm -f /usr/local/bin/opencode
+        rm -f /root/.opencode/bin/opencode
+        rmdir /root/.opencode/bin 2>/dev/null || true
+        rmdir /root/.opencode 2>/dev/null || true
+    '
+    ok "OpenCode runtime reset (all data removed)"
+}
+
+backup_opencode_user_data() {
+    local backup_file="$INSTALL_DIR/opencode-user-data-backup.tar.gz"
+
+    if ! proot_exec '[ -d /root/.local/share/opencode ] && [ -n "$(ls -A /root/.local/share/opencode 2>/dev/null)" ]'; then
+        skip "No OpenCode user data to preserve"
+        return 1
+    fi
+
+    proot_exec "mkdir -p /root/.local/share && tar -C /root/.local/share -czf '$backup_file' opencode" || die "Failed to backup OpenCode user data"
+    ok "Backed up OpenCode user data"
+    return 0
+}
+
+restore_opencode_user_data() {
+    local backup_file="$INSTALL_DIR/opencode-user-data-backup.tar.gz"
+
+    if [[ ! -f "$backup_file" ]]; then
+        return
+    fi
+
+    proot_exec "mkdir -p /root/.local/share && tar -C /root/.local/share -xzf '$backup_file'" || die "Failed to restore OpenCode user data"
+    rm -f "$backup_file"
+    ok "Restored OpenCode user data"
 }
 
 # ── Runtime scripts ───────────────────────────────────────────────────
@@ -827,9 +928,6 @@ install_all() {
     step "Termux configuration"
     ensure_termux_properties
 
-    step "Package mirror"
-    select_fastest_mirror
-
     step "Termux packages"
     ensure_termux_packages
 
@@ -838,6 +936,73 @@ install_all() {
 
     step "Debian packages"
     setup_distro_packages
+
+    step "OpenCode binary"
+    install_opencode_binary
+
+    step "Runtime scripts"
+    write_runtime_scripts
+
+    success_banner
+}
+
+reinstall_all() {
+    local clean_reinstall="${1:-0}"
+
+    header
+    require_termux
+    acquire_wake_lock
+    check_arch
+    check_storage
+    check_network
+
+    if (( clean_reinstall == 0 )); then
+        step "Backup user data"
+        backup_opencode_user_data || true
+    fi
+
+    step "Debian environment"
+    reinstall_distro
+
+    step "Debian packages"
+    setup_distro_packages
+
+    if (( clean_reinstall == 0 )); then
+        step "Restore user data"
+        restore_opencode_user_data
+    fi
+
+    step "OpenCode binary"
+    install_opencode_binary
+
+    step "Runtime scripts"
+    write_runtime_scripts
+
+    success_banner
+}
+
+reinstall_opencode_only() {
+    local clean_reinstall="${1:-0}"
+
+    header
+    require_termux
+    acquire_wake_lock
+    check_arch
+    check_storage
+    check_network
+
+    step "Reinstall checks"
+    verify_reinstall_opencode_target
+
+    step "Stop OpenCode"
+    stop_running_opencode
+
+    step "OpenCode reset"
+    if (( clean_reinstall == 1 )); then
+        cleanup_opencode_all_data
+    else
+        cleanup_opencode_keep_user_data
+    fi
 
     step "OpenCode binary"
     install_opencode_binary
@@ -888,6 +1053,17 @@ main() {
     fi
 
     local cmd="${1:-install}"
+    shift || true
+
+    local clean_reinstall=0
+    local arg
+    for arg in "$@"; do
+        case "$arg" in
+            --clean)
+                clean_reinstall=1
+                ;;
+        esac
+    done
 
     if [[ "$cmd" == "install" ]] && (( skip_self_update == 0 )) && self_update_setup_script_if_needed; then
         exec bash "$SETUP_SCRIPT_PATH" --skip-self-update install
@@ -895,12 +1071,14 @@ main() {
 
     case "$cmd" in
         install) install_all ;;
+        reinstall) reinstall_all "$clean_reinstall" ;;
+        reinstall-opencode) reinstall_opencode_only "$clean_reinstall" ;;
         refresh-runtime) refresh_runtime_scripts_only "$skip_self_update" ;;
         doctor)  doctor ;;
         start)   start_server ;;
         stop)    stop_server ;;
         status)  status_server ;;
-        *) die "Unknown command: $cmd (expected: install|refresh-runtime|doctor|start|stop|status)" ;;
+        *) die "Unknown command: $cmd (expected: install|reinstall [--clean]|reinstall-opencode [--clean]|refresh-runtime|doctor|start|stop|status)" ;;
     esac
 }
 
