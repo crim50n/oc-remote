@@ -568,6 +568,7 @@ SETUP_SCRIPT="$SETUP_DIR/setup.sh"
 CLI_PROXY_URL=""
 CLI_NO_PROXY=""
 CLI_HOST=""
+CLI_SERVER_PASSWORD=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -581,6 +582,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --hostname|--host)
             CLI_HOST="${2:-}"
+            shift 2
+            ;;
+        --server-password)
+            CLI_SERVER_PASSWORD="${2:-}"
             shift 2
             ;;
         *)
@@ -606,6 +611,10 @@ if [[ -n "$CLI_HOST" ]]; then
     HOST="$CLI_HOST"
 fi
 
+if [[ -n "$CLI_SERVER_PASSWORD" ]]; then
+    OPENCODE_SERVER_PASSWORD="$CLI_SERVER_PASSWORD"
+fi
+
 DEFAULT_NO_PROXY="localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 if [[ -n "$CLI_NO_PROXY" ]]; then
     NO_PROXY="$CLI_NO_PROXY"
@@ -627,7 +636,7 @@ if [[ -n "${OPENCODE_PROXY_URL:-}" ]]; then
     export all_proxy="$OPENCODE_PROXY_URL"
 fi
 
-PROXY_EXPORTS="export OPENCODE_SERVER_PASSWORD=\"${OPENCODE_SERVER_PASSWORD:-}\"; export NO_PROXY=\"$NO_PROXY\"; export no_proxy=\"$NO_PROXY\";"
+PROXY_EXPORTS="export HOST=\"$HOST\"; export PORT=\"$PORT\"; export OPENCODE_SERVER_PASSWORD=\"${OPENCODE_SERVER_PASSWORD:-}\"; export NO_PROXY=\"$NO_PROXY\"; export no_proxy=\"$NO_PROXY\";"
 if [[ -n "${OPENCODE_PROXY_URL:-}" ]]; then
     PROXY_EXPORTS+=" export HTTP_PROXY=\"$OPENCODE_PROXY_URL\"; export HTTPS_PROXY=\"$OPENCODE_PROXY_URL\"; export ALL_PROXY=\"$OPENCODE_PROXY_URL\"; export http_proxy=\"$OPENCODE_PROXY_URL\"; export https_proxy=\"$OPENCODE_PROXY_URL\"; export all_proxy=\"$OPENCODE_PROXY_URL\";"
 fi
@@ -743,7 +752,7 @@ usage() {
 Usage: opencode-local <command>
 
 Commands:
-  start [--proxy URL] [--no-proxy LIST] [--hostname HOST]  Start local OpenCode server
+  start [--proxy URL] [--no-proxy LIST] [--hostname HOST] [--server-password PASS]  Start local OpenCode server
   stop                                     Stop local OpenCode server
   status                                   Print running/stopped
   doctor                                   Show local runtime diagnostics
