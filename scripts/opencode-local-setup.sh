@@ -465,8 +465,16 @@ ENV_FILE="$HOME/opencode-local/env"
 SETUP_DIR="$HOME/opencode-local"
 SETUP_SCRIPT="$SETUP_DIR/setup.sh"
 SETUP_SHA_FILE="$SETUP_DIR/setup.sha256"
-SETUP_SCRIPT_URL="https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sh"
-SETUP_SHA_URL="https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sha256"
+SETUP_SHA_SOURCES=(
+    "https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sha256"
+    "https://github.com/crim50n/oc-remote/raw/master/scripts/opencode-local-setup.sha256"
+    "https://cdn.jsdelivr.net/gh/crim50n/oc-remote@master/scripts/opencode-local-setup.sha256"
+)
+SETUP_SCRIPT_SOURCES=(
+    "https://raw.githubusercontent.com/crim50n/oc-remote/master/scripts/opencode-local-setup.sh"
+    "https://github.com/crim50n/oc-remote/raw/master/scripts/opencode-local-setup.sh"
+    "https://cdn.jsdelivr.net/gh/crim50n/oc-remote@master/scripts/opencode-local-setup.sh"
+)
 CLI_PROXY_URL=""
 CLI_NO_PROXY=""
 
@@ -489,11 +497,7 @@ done
 auto_refresh_runtime_scripts() {
     mkdir -p "$SETUP_DIR"
 
-    local remote_line remote_sha local_sha
-    remote_line="$(curl --connect-timeout 5 --max-time 12 -fsSL "$SETUP_SHA_URL" 2>/dev/null || true)"
-    remote_sha="$(printf '%s' "$remote_line" | awk '{print $1}')"
-    [[ -n "$remote_sha" ]] || return 0
-
+    local local_sha
     local_sha=""
     if [[ -f "$SETUP_SHA_FILE" ]]; then
         local_sha="$(awk 'NR==1 {print $1; exit}' "$SETUP_SHA_FILE")"
@@ -501,29 +505,40 @@ auto_refresh_runtime_scripts() {
         local_sha="$(sha256sum "$SETUP_SCRIPT" | awk '{print $1}')"
     fi
 
-    [[ "$remote_sha" != "$local_sha" ]] || return 0
-
+    local remote_sha_url remote_script_url remote_line remote_sha
     local tmp_setup tmp_sha downloaded_sha
-    tmp_setup="$(mktemp "$SETUP_DIR/setup.sh.XXXXXX")"
-    tmp_sha="$(mktemp "$SETUP_DIR/setup.sha256.XXXXXX")"
+    local i
+    for i in "${!SETUP_SHA_SOURCES[@]}"; do
+        remote_sha_url="${SETUP_SHA_SOURCES[$i]}"
+        remote_script_url="${SETUP_SCRIPT_SOURCES[$i]}"
 
-    if ! curl --connect-timeout 5 --max-time 20 -fsSL "$SETUP_SCRIPT_URL" -o "$tmp_setup"; then
-        rm -f "$tmp_setup" "$tmp_sha"
+        remote_line="$(curl --connect-timeout 5 --max-time 12 -fsSL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$remote_sha_url?t=$(date +%s)" 2>/dev/null || true)"
+        remote_sha="$(printf '%s' "$remote_line" | awk '{print $1}')"
+        [[ -n "$remote_sha" ]] || continue
+        [[ "$remote_sha" != "$local_sha" ]] || return 0
+
+        tmp_setup="$(mktemp "$SETUP_DIR/setup.sh.XXXXXX")"
+        tmp_sha="$(mktemp "$SETUP_DIR/setup.sha256.XXXXXX")"
+
+        if ! curl --connect-timeout 5 --max-time 20 -fsSL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$remote_script_url?t=$(date +%s)" -o "$tmp_setup"; then
+            rm -f "$tmp_setup" "$tmp_sha"
+            continue
+        fi
+
+        downloaded_sha="$(sha256sum "$tmp_setup" | awk '{print $1}')"
+        if [[ "$downloaded_sha" != "$remote_sha" ]]; then
+            rm -f "$tmp_setup" "$tmp_sha"
+            continue
+        fi
+
+        printf '%s\n' "$remote_line" > "$tmp_sha"
+        mv "$tmp_setup" "$SETUP_SCRIPT"
+        chmod 700 "$SETUP_SCRIPT"
+        mv "$tmp_sha" "$SETUP_SHA_FILE"
+
+        bash "$SETUP_SCRIPT" refresh-runtime >/dev/null 2>&1 || true
         return 0
-    fi
-
-    downloaded_sha="$(sha256sum "$tmp_setup" | awk '{print $1}')"
-    if [[ "$downloaded_sha" != "$remote_sha" ]]; then
-        rm -f "$tmp_setup" "$tmp_sha"
-        return 0
-    fi
-
-    printf '%s\n' "$remote_line" > "$tmp_sha"
-    mv "$tmp_setup" "$SETUP_SCRIPT"
-    chmod 700 "$SETUP_SCRIPT"
-    mv "$tmp_sha" "$SETUP_SHA_FILE"
-
-    bash "$SETUP_SCRIPT" refresh-runtime >/dev/null 2>&1 || true
+    done
 }
 
 auto_refresh_runtime_scripts
@@ -695,6 +710,7 @@ cmd="$1"
 case "$cmd" in
     start)
         shift || true
+        bash "$INSTALL_DIR/setup.sh" refresh-runtime >/dev/null 2>&1 || true
         exec "$INSTALL_DIR/start.sh" "$@"
         ;;
     stop)
@@ -872,6 +888,11 @@ main() {
     fi
 
     local cmd="${1:-install}"
+
+    if [[ "$cmd" == "install" ]] && (( skip_self_update == 0 )) && self_update_setup_script_if_needed; then
+        exec bash "$SETUP_SCRIPT_PATH" --skip-self-update install
+    fi
+
     case "$cmd" in
         install) install_all ;;
         refresh-runtime) refresh_runtime_scripts_only "$skip_self_update" ;;
