@@ -665,7 +665,17 @@ Commands:
 USAGE
 }
 
-cmd="${1:-status}"
+if [[ $# -eq 0 ]]; then
+    usage
+    if [[ -x "$INSTALL_DIR/status.sh" ]]; then
+        echo
+        echo -n "Current status: "
+        "$INSTALL_DIR/status.sh"
+    fi
+    exit 0
+fi
+
+cmd="$1"
 case "$cmd" in
     start)
         shift || true
