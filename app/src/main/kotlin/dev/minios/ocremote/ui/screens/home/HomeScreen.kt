@@ -15,12 +15,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -31,6 +33,7 @@ import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -44,10 +47,15 @@ import dev.minios.ocremote.ui.theme.StatusConnected
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 /** Pulsing dots loading indicator — 3 dots that scale up/down in sequence. */
 @Composable
@@ -134,7 +142,7 @@ fun HomeScreen(
     // can resume the connect flow after the permission dialog.
     var pendingConnectServerId by remember { mutableStateOf<String?>(null) }
     var pendingLocalStart by remember { mutableStateOf(false) }
-    var showLocalProxyDialog by remember { mutableStateOf(false) }
+    var showLocalLaunchOptionsDialog by remember { mutableStateOf(false) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -245,7 +253,6 @@ fun HomeScreen(
                                     localServerConnecting = localServer?.id in uiState.connectingServerIds,
                                     localServerConnectionError = localServer?.id?.let { uiState.connectionErrors[it] },
                                     showLocalServerSettings = localServer?.id in uiState.serverSettingsReadyIds,
-                                    localProxyEnabled = uiState.localProxyEnabled,
                                     onStart = { requestRunCommandPermissionAndStartLocal() },
                                     onStop = { viewModel.stopLocalServer(context) },
                                     onSetup = {
@@ -287,8 +294,8 @@ fun HomeScreen(
                                             )
                                         }
                                     },
-                                    onOpenLocalProxySettings = {
-                                        showLocalProxyDialog = true
+                                    onOpenLocalLaunchOptions = {
+                                        showLocalLaunchOptionsDialog = true
                                     },
                                     onInstallTermux = {
                                         val intent = Intent(
@@ -362,20 +369,26 @@ fun HomeScreen(
             )
         }
 
-        if (showLocalProxyDialog) {
-            LocalProxyDialog(
+        if (showLocalLaunchOptionsDialog) {
+            LocalLaunchOptionsDialog(
                 enabled = uiState.localProxyEnabled,
                 proxyUrl = uiState.localProxyUrl,
                 noProxyList = uiState.localProxyNoProxy,
-                onDismiss = { showLocalProxyDialog = false },
-                onSave = { enabled, url, noProxy ->
-                    viewModel.setLocalProxyEnabled(enabled)
-                    viewModel.setLocalProxyUrl(url)
-                    viewModel.setLocalProxyNoProxy(noProxy)
-                    showLocalProxyDialog = false
-                },
+                allowLanAccess = uiState.localServerAllowLan,
+                serverPassword = uiState.localServerPassword,
+                autoStart = uiState.localServerAutoStart,
+                startupTimeoutSec = uiState.localServerStartupTimeoutSec,
+                onDismiss = { showLocalLaunchOptionsDialog = false },
+                onProxyEnabledChange = viewModel::setLocalProxyEnabled,
+                onProxyUrlChange = viewModel::setLocalProxyUrl,
+                onNoProxyListChange = viewModel::setLocalProxyNoProxy,
+                onAllowLanAccessChange = viewModel::setLocalServerAllowLan,
+                onServerPasswordChange = viewModel::setLocalServerPassword,
+                onAutoStartChange = viewModel::setLocalServerAutoStart,
+                onStartupTimeoutSecChange = viewModel::setLocalServerStartupTimeoutSec,
             )
         }
+
     }
 }
 
@@ -390,7 +403,6 @@ private fun LocalRuntimeCard(
     localServerConnecting: Boolean,
     localServerConnectionError: String?,
     showLocalServerSettings: Boolean,
-    localProxyEnabled: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
     onSetup: () -> Unit,
@@ -398,7 +410,7 @@ private fun LocalRuntimeCard(
     onOpenTermuxOverlaySettings: () -> Unit,
     onOpenLocalSessions: () -> Unit,
     onOpenLocalServerSettings: () -> Unit,
-    onOpenLocalProxySettings: () -> Unit,
+    onOpenLocalLaunchOptions: () -> Unit,
     onInstallTermux: () -> Unit,
 ) {
     val isAmoled = MaterialTheme.colorScheme.background == Color.Black &&
@@ -447,11 +459,11 @@ private fun LocalRuntimeCard(
                     color = cardContentColor,
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onOpenLocalProxySettings) {
+                    IconButton(onClick = onOpenLocalLaunchOptions) {
                         Icon(
-                            Icons.Default.Language,
-                            contentDescription = stringResource(R.string.home_local_proxy_settings),
-                            tint = if (localProxyEnabled) MaterialTheme.colorScheme.primary else cardContentColor,
+                            Icons.Default.Tune,
+                            contentDescription = stringResource(R.string.home_local_launch_options),
+                            tint = cardContentColor,
                         )
                     }
                     if (showLocalServerSettings) {
@@ -781,22 +793,43 @@ private fun LocalRuntimeCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LocalProxyDialog(
+private fun LocalLaunchOptionsDialog(
     enabled: Boolean,
     proxyUrl: String,
     noProxyList: String,
+    allowLanAccess: Boolean,
+    serverPassword: String,
+    autoStart: Boolean,
+    startupTimeoutSec: Int,
     onDismiss: () -> Unit,
-    onSave: (enabled: Boolean, proxyUrl: String, noProxyList: String) -> Unit,
+    onProxyEnabledChange: (Boolean) -> Unit,
+    onProxyUrlChange: (String) -> Unit,
+    onNoProxyListChange: (String) -> Unit,
+    onAllowLanAccessChange: (Boolean) -> Unit,
+    onServerPasswordChange: (String) -> Unit,
+    onAutoStartChange: (Boolean) -> Unit,
+    onStartupTimeoutSecChange: (Int) -> Unit,
 ) {
     val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
-    var localEnabled by remember(enabled) { mutableStateOf(enabled) }
+    val timeoutOptions = listOf(15, 30, 45, 60, 90, 120)
+    var localServerPassword by remember(serverPassword) { mutableStateOf(serverPassword) }
     var localProxyUrl by remember(proxyUrl) { mutableStateOf(proxyUrl) }
     var localNoProxyList by remember(noProxyList) { mutableStateOf(noProxyList) }
-    var maskProxyUrl by remember { mutableStateOf(true) }
-    val trimmedProxyUrl = localProxyUrl.trim()
-    val trimmedNoProxy = localNoProxyList.trim()
-    val canSave = !localEnabled || trimmedProxyUrl.isNotBlank()
+    var maskPassword by remember { mutableStateOf(true) }
+    var maskProxy by remember { mutableStateOf(true) }
+    var showTimeoutDialog by remember { mutableStateOf(false) }
+    val fieldColors = if (isAmoled) {
+        OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = Color.Black,
+            unfocusedContainerColor = Color.Black,
+            disabledContainerColor = Color.Black,
+        )
+    } else {
+        OutlinedTextFieldDefaults.colors()
+    }
+
     val switchColors = if (isAmoled) {
         SwitchDefaults.colors(
             checkedThumbColor = MaterialTheme.colorScheme.primary,
@@ -806,192 +839,279 @@ private fun LocalProxyDialog(
             uncheckedTrackColor = Color.Black,
             uncheckedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f),
         )
-    } else {
-        SwitchDefaults.colors()
-    }
+    } else SwitchDefaults.colors()
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        modifier = if (isAmoled) {
-            Modifier.border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f),
-                shape = RoundedCornerShape(28.dp),
-            )
-        } else {
-            Modifier
-        },
-        shape = RoundedCornerShape(28.dp),
-        title = {
-            Text(
-                text = stringResource(R.string.home_local_proxy_settings),
-                style = MaterialTheme.typography.headlineSmall,
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)) else null,
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface
+        Surface(modifier = Modifier.fillMaxSize(), color = containerColor) {
+            Scaffold(
+                containerColor = containerColor,
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                text = stringResource(R.string.home_local_launch_options_title),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onDismiss) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.close))
+                            }
+                        },
+                    )
+                },
+            ) { innerPadding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(vertical = 4.dp)
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Row(
+                    Text(
+                        text = stringResource(R.string.home_local_network_section),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+                    )
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.home_local_allow_lan_access)) },
+                        supportingContent = { Text(stringResource(R.string.home_local_allow_lan_access_desc)) },
+                        trailingContent = {
+                            Switch(checked = allowLanAccess, onCheckedChange = onAllowLanAccessChange, colors = switchColors)
+                        },
+                        modifier = Modifier.clickable { onAllowLanAccessChange(!allowLanAccess) },
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    Text(
+                        text = stringResource(R.string.home_local_security_section),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 16.dp)
+                    )
+                    OutlinedTextField(
+                        value = localServerPassword,
+                        onValueChange = {
+                            localServerPassword = it
+                            onServerPasswordChange(it.trim())
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.home_local_proxy_enable),
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            Text(
-                                text = stringResource(R.string.home_local_proxy_url_label),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Switch(
-                            checked = localEnabled,
-                            onCheckedChange = { localEnabled = it },
-                            colors = switchColors,
-                        )
-                    }
-                }
-
-                if (localEnabled) {
-                    OutlinedTextField(
-                        value = localProxyUrl,
-                        onValueChange = { localProxyUrl = it },
-                        modifier = Modifier.fillMaxWidth(),
+                            .padding(horizontal = 16.dp),
                         singleLine = true,
-                        label = { Text(stringResource(R.string.home_local_proxy_url_label)) },
-                        placeholder = { Text("http://127.0.0.1:8080") },
+                        label = { Text(stringResource(R.string.home_local_server_password_label)) },
+                        placeholder = { Text(stringResource(R.string.home_local_server_password_placeholder)) },
+                        visualTransformation = if (maskPassword) FullStringMaskTransformation else VisualTransformation.None,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password),
                         trailingIcon = {
-                            IconButton(onClick = { maskProxyUrl = !maskProxyUrl }) {
+                            IconButton(onClick = { maskPassword = !maskPassword }) {
                                 Icon(
-                                    imageVector = if (maskProxyUrl) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = if (maskProxyUrl) {
-                                        stringResource(R.string.home_local_proxy_show_url)
-                                    } else {
-                                        stringResource(R.string.home_local_proxy_hide_url)
-                                    },
+                                    imageVector = if (maskPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = null,
                                 )
                             }
                         },
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = KeyboardType.Uri,
-                        ),
-                        isError = trimmedProxyUrl.isBlank(),
-                        visualTransformation = if (maskProxyUrl) {
-                            FullStringMaskTransformation
-                        } else {
-                            VisualTransformation.None
+                        colors = fieldColors,
+                    )
+                    if (allowLanAccess && localServerPassword.isBlank()) {
+                        Text(
+                            text = stringResource(R.string.home_local_lan_password_warning),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    Text(
+                        text = stringResource(R.string.home_local_proxy_section),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 16.dp)
+                    )
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.home_local_proxy_enable)) },
+                        supportingContent = { Text(stringResource(R.string.home_local_proxy_url_label)) },
+                        trailingContent = {
+                            Switch(checked = enabled, onCheckedChange = onProxyEnabledChange, colors = switchColors)
                         },
-                        colors = if (isAmoled) {
-                            OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Black,
-                                unfocusedContainerColor = Color.Black,
-                                disabledContainerColor = Color.Black,
-                            )
-                        } else {
-                            OutlinedTextFieldDefaults.colors()
-                        },
+                        modifier = Modifier.clickable { onProxyEnabledChange(!enabled) },
+                    )
+                    if (enabled) {
+                        OutlinedTextField(
+                            value = localProxyUrl,
+                            onValueChange = {
+                                localProxyUrl = it
+                                onProxyUrlChange(it.trim())
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            singleLine = true,
+                            label = { Text(stringResource(R.string.home_local_proxy_url_label)) },
+                            placeholder = { Text("http://127.0.0.1:8080") },
+                            visualTransformation = if (maskProxy) FullStringMaskTransformation else VisualTransformation.None,
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            trailingIcon = {
+                                IconButton(onClick = { maskProxy = !maskProxy }) {
+                                    Icon(
+                                        imageVector = if (maskProxy) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = null,
+                                    )
+                                }
+                            },
+                            colors = fieldColors,
+                        )
+                        OutlinedTextField(
+                            value = localNoProxyList,
+                            onValueChange = {
+                                localNoProxyList = it
+                                onNoProxyListChange(it.trim())
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            minLines = 2,
+                            maxLines = 4,
+                            label = { Text(stringResource(R.string.home_local_proxy_no_proxy_label)) },
+                            placeholder = { Text(LocalServerManager.DEFAULT_NO_PROXY_LIST) },
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Text),
+                            colors = fieldColors,
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.home_local_proxy_no_proxy_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp),
                     )
 
-                    OutlinedTextField(
-                        value = localNoProxyList,
-                        onValueChange = { localNoProxyList = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = false,
-                        minLines = 2,
-                        maxLines = 4,
-                        label = { Text(stringResource(R.string.home_local_proxy_no_proxy_label)) },
-                        placeholder = { Text(LocalServerManager.DEFAULT_NO_PROXY_LIST) },
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = KeyboardType.Text,
-                        ),
-                        colors = if (isAmoled) {
-                            OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Black,
-                                unfocusedContainerColor = Color.Black,
-                                disabledContainerColor = Color.Black,
-                            )
-                        } else {
-                            OutlinedTextFieldDefaults.colors()
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    Text(
+                        text = stringResource(R.string.home_local_autostart_section),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 16.dp)
+                    )
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.home_local_auto_start_label)) },
+                        supportingContent = { Text(stringResource(R.string.home_local_auto_start_desc)) },
+                        trailingContent = {
+                            Switch(checked = autoStart, onCheckedChange = onAutoStartChange, colors = switchColors)
                         },
+                        modifier = Modifier.clickable { onAutoStartChange(!autoStart) },
+                    )
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.home_local_startup_timeout_label)) },
+                        supportingContent = { Text(stringResource(R.string.home_local_startup_timeout_value, startupTimeoutSec)) },
+                        trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
+                        modifier = Modifier.clickable { showTimeoutDialog = true },
                     )
                 }
+            }
+        }
+    }
 
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
-                ) {
+    if (showTimeoutDialog) {
+        BasicAlertDialog(onDismissRequest = { showTimeoutDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+                tonalElevation = if (isAmoled) 0.dp else 6.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = stringResource(R.string.home_local_startup_timeout_label),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 8.dp),
+                    )
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .padding(horizontal = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        items(timeoutOptions) { option ->
+                            val selected = option == startupTimeoutSec
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        when {
+                                            selected && isAmoled -> Color.Black
+                                            selected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                                            else -> Color.Transparent
+                                        }
+                                    )
+                                    .then(
+                                        if (selected && isAmoled) {
+                                            Modifier.border(
+                                                width = 1.dp,
+                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
+                                                shape = RoundedCornerShape(12.dp),
+                                            )
+                                        } else Modifier
+                                    )
+                                    .clickable {
+                                        onStartupTimeoutSecChange(option)
+                                        showTimeoutDialog = false
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.home_local_startup_timeout_value, option),
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                )
+                                if (selected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
+                        }
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.Top,
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.End,
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Text(
-                            text = stringResource(R.string.home_local_proxy_no_proxy_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        TextButton(onClick = { showTimeoutDialog = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onSave(localEnabled, trimmedProxyUrl, trimmedNoProxy)
-                },
-                enabled = canSave,
-                colors = if (isAmoled) {
-                    ButtonDefaults.buttonColors(
-                        containerColor = Color.Black,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                    )
-                } else {
-                    ButtonDefaults.buttonColors()
-                },
-                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)) else null,
-            ) {
-                Text(stringResource(R.string.server_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
-        containerColor = if (isAmoled) Color.Black else AlertDialogDefaults.containerColor,
-        tonalElevation = if (isAmoled) 0.dp else AlertDialogDefaults.TonalElevation,
-    )
+        }
+    }
 }
 
 private object FullStringMaskTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val raw = text.text
-        if (raw.isEmpty()) {
-            return TransformedText(text, OffsetMapping.Identity)
-        }
-        val masked = "\u2022".repeat(raw.length)
-        return TransformedText(AnnotatedString(masked), OffsetMapping.Identity)
+        if (raw.isEmpty()) return TransformedText(text, OffsetMapping.Identity)
+        return TransformedText(AnnotatedString("\u2022".repeat(raw.length)), OffsetMapping.Identity)
     }
 }
 

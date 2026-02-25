@@ -3,6 +3,7 @@ package dev.minios.ocremote.ui.screens.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.data.repository.SettingsRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -140,6 +141,48 @@ class SettingsViewModel @Inject constructor(
         initialValue = 13f
     )
 
+    val localProxyEnabled = settingsRepository.localProxyEnabled.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false,
+    )
+
+    val localProxyUrl = settingsRepository.localProxyUrl.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "",
+    )
+
+    val localProxyNoProxy = settingsRepository.localProxyNoProxy.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = LocalServerManager.DEFAULT_NO_PROXY_LIST,
+    )
+
+    val localServerAllowLan = settingsRepository.localServerAllowLan.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false,
+    )
+
+    val localServerPassword = settingsRepository.localServerPassword.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "",
+    )
+
+    val localServerAutoStart = settingsRepository.localServerAutoStart.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false,
+    )
+
+    val localServerStartupTimeoutSec = settingsRepository.localServerStartupTimeoutSec.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 30,
+    )
+
     fun setLanguage(languageCode: String) {
         viewModelScope.launch {
             settingsRepository.setAppLanguage(languageCode)
@@ -263,6 +306,48 @@ class SettingsViewModel @Inject constructor(
     fun setTerminalFontSize(size: Float) {
         viewModelScope.launch {
             settingsRepository.setTerminalFontSize(size)
+        }
+    }
+
+    fun setLocalProxyEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setLocalProxyEnabled(enabled)
+        }
+    }
+
+    fun setLocalProxyUrl(url: String) {
+        viewModelScope.launch {
+            settingsRepository.setLocalProxyUrl(url)
+        }
+    }
+
+    fun setLocalProxyNoProxy(value: String) {
+        viewModelScope.launch {
+            settingsRepository.setLocalProxyNoProxy(value)
+        }
+    }
+
+    fun setLocalServerAllowLan(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setLocalServerAllowLan(enabled)
+        }
+    }
+
+    fun setLocalServerPassword(value: String) {
+        viewModelScope.launch {
+            settingsRepository.setLocalServerPassword(value)
+        }
+    }
+
+    fun setLocalServerAutoStart(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setLocalServerAutoStart(enabled)
+        }
+    }
+
+    fun setLocalServerStartupTimeoutSec(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setLocalServerStartupTimeoutSec(value)
         }
     }
 }

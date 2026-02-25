@@ -19,6 +19,8 @@ import dev.minios.ocremote.data.repository.EventReducer
 import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.data.repository.ServerRepository
 import dev.minios.ocremote.data.repository.SettingsRepository
+import dev.minios.ocremote.domain.model.Message
+import dev.minios.ocremote.domain.model.Part
 import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.domain.model.SseEvent
 import dagger.hilt.android.AndroidEntryPoint
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 private const val TAG = "OpenCodeService"
@@ -120,6 +123,9 @@ class OpenCodeConnectionService : Service() {
     /** Observable set of server IDs that are attempting to connect (SSE not yet established or reconnecting). */
     private val _connectingServerIds = MutableStateFlow<Set<String>>(emptySet())
     val connectingServerIds: StateFlow<Set<String>> = _connectingServerIds.asStateFlow()
+
+    /** Dedup response-ready notifications per session by last assistant message ID. */
+    private val lastNotifiedAssistantMessageBySession = ConcurrentHashMap<String, String>()
 
     inner class LocalBinder : Binder() {
         fun getService(): OpenCodeConnectionService = this@OpenCodeConnectionService
@@ -487,11 +493,31 @@ class OpenCodeConnectionService : Service() {
         when (event) {
             is SseEvent.SessionIdle -> {
                 if (isChildSession(event.sessionId)) return
-                Log.i(TAG, "[${server.displayName}] Session idle -> Response ready for ${event.sessionId}")
                 serviceScope.launch {
-                    if (settingsRepository.notificationsEnabled.first()) {
-                        showTaskCompleteNotification(server, event.sessionId)
+                    if (!settingsRepository.notificationsEnabled.first()) return@launch
+
+                    // Give reducer a brief moment to receive trailing message/part events.
+                    delay(250)
+
+                    val assistantMessageId = latestNotifiableAssistantMessageId(event.sessionId)
+                    if (assistantMessageId == null) {
+                        if (BuildConfig.DEBUG) {
+                            Log.d(TAG, "[${server.displayName}] Skip response-ready: no assistant text output (${event.sessionId})")
+                        }
+                        return@launch
                     }
+
+                    val previousNotified = lastNotifiedAssistantMessageBySession[event.sessionId]
+                    if (previousNotified == assistantMessageId) {
+                        if (BuildConfig.DEBUG) {
+                            Log.d(TAG, "[${server.displayName}] Skip duplicate response-ready (${event.sessionId}, msg=$assistantMessageId)")
+                        }
+                        return@launch
+                    }
+
+                    lastNotifiedAssistantMessageBySession[event.sessionId] = assistantMessageId
+                    Log.i(TAG, "[${server.displayName}] Session idle -> Response ready for ${event.sessionId}")
+                        showTaskCompleteNotification(server, event.sessionId)
                 }
             }
             is SseEvent.PermissionAsked -> {
@@ -523,6 +549,25 @@ class OpenCodeConnectionService : Service() {
     private fun getSessionInfo(sessionId: String): Pair<String?, String?> {
         val session = eventReducer.sessions.value.find { it.id == sessionId }
         return Pair(session?.title, session?.directory)
+    }
+
+    private fun latestNotifiableAssistantMessageId(sessionId: String): String? {
+        val sessionMessages = eventReducer.messages.value[sessionId] ?: return null
+        val latestAssistant = sessionMessages
+            .asReversed()
+            .firstOrNull { it is Message.Assistant } as? Message.Assistant ?: return null
+
+        if (!latestAssistant.error?.message.isNullOrBlank()) return latestAssistant.id
+
+        val parts = eventReducer.parts.value[latestAssistant.id] ?: return null
+        val hasTextOutput = parts.any { part ->
+            when (part) {
+                is Part.Text -> part.text.isNotBlank()
+                is Part.Reasoning -> part.text.isNotBlank()
+                else -> false
+            }
+        }
+        return if (hasTextOutput) latestAssistant.id else null
     }
 
     private fun getProjectName(directory: String?): String? {
@@ -727,7 +772,7 @@ class OpenCodeConnectionService : Service() {
 
     private suspend fun showTaskCompleteNotification(server: ServerConfig, sessionId: String) {
         val (sessionTitle, _) = getSessionInfo(sessionId)
-        val body = sessionTitle ?: sessionId
+        val body = sessionTitle?.takeIf { it.isNotBlank() } ?: getString(R.string.notification_new_session)
 
         val pendingIntent = createSessionPendingIntent(server, sessionId, sessionId.hashCode())
 

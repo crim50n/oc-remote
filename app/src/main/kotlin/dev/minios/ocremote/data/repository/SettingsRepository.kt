@@ -49,6 +49,10 @@ class SettingsRepository @Inject constructor(
         private val LOCAL_PROXY_ENABLED_KEY = booleanPreferencesKey("local_proxy_enabled")
         private val LOCAL_PROXY_URL_KEY = stringPreferencesKey("local_proxy_url")
         private val LOCAL_PROXY_NO_PROXY_KEY = stringPreferencesKey("local_proxy_no_proxy")
+        private val LOCAL_SERVER_ALLOW_LAN_KEY = booleanPreferencesKey("local_server_allow_lan")
+        private val LOCAL_SERVER_PASSWORD_KEY = stringPreferencesKey("local_server_password")
+        private val LOCAL_SERVER_AUTO_START_KEY = booleanPreferencesKey("local_server_auto_start")
+        private val LOCAL_SERVER_STARTUP_TIMEOUT_SEC_KEY = intPreferencesKey("local_server_startup_timeout_sec")
 
         /** SharedPreferences name used for synchronous locale reads in attachBaseContext. */
         private const val LOCALE_PREFS = "locale_prefs"
@@ -300,15 +304,17 @@ class SettingsRepository @Inject constructor(
     }
 
     /**
-     * Max long side (in px) used when resizing image attachments before sending. Default: 1440.
+     * Max long side (in px) used when resizing image attachments before sending.
+     * Use 0 to keep original resolution. Default: 1440.
      */
     val imageAttachmentMaxLongSide: Flow<Int> = dataStore.data.map { preferences ->
-        (preferences[IMAGE_ATTACHMENT_MAX_LONG_SIDE_KEY] ?: 1440).coerceIn(640, 4096)
+        val value = preferences[IMAGE_ATTACHMENT_MAX_LONG_SIDE_KEY] ?: 1440
+        if (value <= 0) 0 else value.coerceIn(720, 4096)
     }
 
     suspend fun setImageAttachmentMaxLongSide(px: Int) {
         dataStore.edit { preferences ->
-            preferences[IMAGE_ATTACHMENT_MAX_LONG_SIDE_KEY] = px.coerceIn(640, 4096)
+            preferences[IMAGE_ATTACHMENT_MAX_LONG_SIDE_KEY] = if (px <= 0) 0 else px.coerceIn(720, 4096)
         }
     }
 
@@ -410,6 +416,59 @@ class SettingsRepository @Inject constructor(
             } else {
                 normalized
             }
+        }
+    }
+
+    /**
+     * Whether local runtime should bind to all interfaces (0.0.0.0). Default: false.
+     */
+    val localServerAllowLan: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[LOCAL_SERVER_ALLOW_LAN_KEY] ?: false
+    }
+
+    suspend fun setLocalServerAllowLan(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[LOCAL_SERVER_ALLOW_LAN_KEY] = enabled
+        }
+    }
+
+    /**
+     * Password used by local runtime server (OPENCODE_SERVER_PASSWORD).
+     * Empty means unsecured local server.
+     */
+    val localServerPassword: Flow<String> = dataStore.data.map { preferences ->
+        preferences[LOCAL_SERVER_PASSWORD_KEY] ?: ""
+    }
+
+    suspend fun setLocalServerPassword(value: String) {
+        dataStore.edit { preferences ->
+            preferences[LOCAL_SERVER_PASSWORD_KEY] = value.trim()
+        }
+    }
+
+    /**
+     * Whether to auto-start local runtime on app launch when it is installed but not running.
+     */
+    val localServerAutoStart: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[LOCAL_SERVER_AUTO_START_KEY] ?: false
+    }
+
+    suspend fun setLocalServerAutoStart(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[LOCAL_SERVER_AUTO_START_KEY] = enabled
+        }
+    }
+
+    /**
+     * Startup timeout (seconds) for waiting local runtime readiness. Default: 30.
+     */
+    val localServerStartupTimeoutSec: Flow<Int> = dataStore.data.map { preferences ->
+        (preferences[LOCAL_SERVER_STARTUP_TIMEOUT_SEC_KEY] ?: 30).coerceIn(10, 120)
+    }
+
+    suspend fun setLocalServerStartupTimeoutSec(value: Int) {
+        dataStore.edit { preferences ->
+            preferences[LOCAL_SERVER_STARTUP_TIMEOUT_SEC_KEY] = value.coerceIn(10, 120)
         }
     }
 

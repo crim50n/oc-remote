@@ -82,12 +82,12 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Notifications** — toggle task completion notifications
 - **Silent notifications** — suppress sound and vibration for task notifications
 - **Shell mode toggle** — show or hide shell-mode controls in chat input
-- **Image optimization controls** — tune max image side (640–2560 px) and WebP quality for attachments
+- **Image optimization controls** — tune max image side (keep original or 720–2560 px) and WebP quality for attachments
 
 ### Connection
 - **Multi-server** — connect to multiple OpenCode servers simultaneously
 - **Local runtime via Termux** — set up and run OpenCode directly on-device from the Home screen (setup/start/stop/sessions)
-- **Optional local proxy** — route local runtime traffic through a custom proxy URL with editable `NO_PROXY` exclusions (defaults prefilled)
+- **Local runtime launch options** — configure LAN binding (`0.0.0.0`), server password, auto-start on app launch, startup timeout, and proxy/`NO_PROXY` from the app
 - **Provider OAuth reliability** — improved browser auth completion flow and provider connected-state refresh
 - **SSE event stream** — real-time session status, permissions, questions
 - **WebSocket transport** — used for terminal PTY streams

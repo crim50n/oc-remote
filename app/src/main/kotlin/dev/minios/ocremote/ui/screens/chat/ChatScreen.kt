@@ -774,7 +774,12 @@ private suspend fun buildAttachmentFromUri(
     val srcWidth = bitmap.width
     val srcHeight = bitmap.height
     val longSide = maxOf(srcWidth, srcHeight)
-    val scale = if (longSide > maxLongSidePx) maxLongSidePx.toFloat() / longSide.toFloat() else 1f
+    val resizeEnabled = maxLongSidePx > 0
+    val scale = if (resizeEnabled && longSide > maxLongSidePx) {
+        maxLongSidePx.toFloat() / longSide.toFloat()
+    } else {
+        1f
+    }
     val outWidth = (srcWidth * scale).toInt().coerceAtLeast(1)
     val outHeight = (srcHeight * scale).toInt().coerceAtLeast(1)
     val resizedBitmap = if (scale < 1f) Bitmap.createScaledBitmap(bitmap, outWidth, outHeight, true) else bitmap
@@ -2694,11 +2699,11 @@ private fun SessionTerminalInline(
     modifier: Modifier = Modifier,
 ) {
     val isAmoled = isAmoledTheme()
-    val renderedOutput = remember(terminalVersion) { emulator.render() }
-    val renderedRuns = remember(terminalVersion) { emulator.renderRuns() }
     val keyboard = LocalSoftwareKeyboardController.current
     val baseTextToolbar = LocalTextToolbar.current
     var inputCapture by remember { mutableStateOf(TextFieldValue("")) }
+    val terminalScrollState = rememberScrollState()
+    var terminalFollowMode by rememberSaveable { mutableStateOf(true) }
     // Dedup: some IMEs can fire onValueChange twice for a single keystroke.
     // Track the last chunk + timestamp to suppress duplicates.
     var lastSentChunk by remember { mutableStateOf("") }
@@ -2895,32 +2900,6 @@ private fun SessionTerminalInline(
                         }
                     )
                 }
-                .pointerInput(Unit) {
-                    // Termux-style threshold zoom: accumulate pinch scale factor,
-                    // change font by 1sp when it deviates >10%, then reset.
-                    var accumulatedScale = 1f
-                    detectTransformGestures { _, _, zoom, _ ->
-                        if (zoom != 1f) {
-                            accumulatedScale *= zoom
-                            if (BuildConfig.DEBUG) {
-                                Log.d("TerminalZoom", "gesture: zoom=$zoom accumulated=$accumulatedScale")
-                            }
-                            if (accumulatedScale < 0.9f || accumulatedScale > 1.1f) {
-                                val increase = accumulatedScale > 1f
-                                val current = latestFontSizeSp
-                                val next = (current + if (increase) 1f else -1f)
-                                    .coerceIn(6f, 20f)
-                                if (BuildConfig.DEBUG) {
-                                    Log.d("TerminalZoom", "threshold hit: increase=$increase current=$current next=$next")
-                                }
-                                if (next != current) {
-                                    onFontSizeChange(next)
-                                }
-                                accumulatedScale = 1f
-                            }
-                        }
-                    }
-                }
         ) {
             // Measure character dimensions using native Paint for consistency with
             // Canvas rendering. This avoids mismatches between Compose textMeasurer
@@ -2966,6 +2945,48 @@ private fun SessionTerminalInline(
             val termRows = if (viewportHeightPx > 0) {
                 (viewportHeightPx / rowHeightPx).coerceAtLeast(8)
             } else 24
+            val maxScrollbackOffsetRows = remember(terminalVersion, termRows) {
+                emulator.maxScrollbackOffset(termRows)
+            }
+            val totalRows = remember(terminalVersion) {
+                emulator.totalRowsWithScrollback().coerceAtLeast(1)
+            }
+            val renderedOutput = remember(terminalVersion, totalRows) {
+                emulator.render(
+                    scrollbackOffsetRows = 0,
+                    windowRows = totalRows,
+                )
+            }
+            val renderedRuns = remember(terminalVersion, totalRows) {
+                emulator.renderRuns(
+                    scrollbackOffsetRows = 0,
+                    windowRows = totalRows,
+                )
+            }
+            val maxScrollPx = maxScrollbackOffsetRows * rowHeightPx
+            val followThresholdPx = (rowHeightPx * 2).coerceAtLeast(1)
+            val isNearBottom = terminalScrollState.value >= (maxScrollPx - followThresholdPx).coerceAtLeast(0)
+            LaunchedEffect(isNearBottom) {
+                if (isNearBottom) {
+                    terminalFollowMode = true
+                }
+            }
+            LaunchedEffect(maxScrollPx, terminalVersion, terminalFollowMode) {
+                when {
+                    terminalFollowMode -> {
+                        if (terminalScrollState.value != maxScrollPx) {
+                            terminalScrollState.scrollTo(maxScrollPx)
+                        }
+                    }
+                    terminalScrollState.value > maxScrollPx -> {
+                        terminalScrollState.scrollTo(maxScrollPx)
+                    }
+                }
+            }
+            val firstVisibleRow = (terminalScrollState.value / rowHeightPx)
+                .coerceIn(0, maxScrollbackOffsetRows)
+            val scrollbackOffsetRows = (maxScrollbackOffsetRows - firstVisibleRow).coerceAtLeast(0)
+            val verticalOffsetPx = firstVisibleRow * rowHeightPx
             if (BuildConfig.DEBUG) {
                 Log.d("TerminalZoom", "GRID CALC: fontSp=$fontSizeSp charW=$charWidthPx rowH=$rowHeightPx viewW=$viewportWidthPx viewH=$viewportHeightPx -> cols=$termCols rows=$termRows")
             }
@@ -2985,7 +3006,12 @@ private fun SessionTerminalInline(
                 }
             }
 
-            val cursorPos = remember(terminalVersion) { emulator.getCursorPosition() }
+            val cursorPos = remember(terminalVersion, scrollbackOffsetRows, termRows) {
+                emulator.getCursorPositionInWindow(
+                    scrollbackOffsetRows = scrollbackOffsetRows,
+                    windowRows = termRows,
+                )
+            }
             val cursorAnim = rememberInfiniteTransition(label = "terminal_cursor")
             val cursorAlpha by cursorAnim.animateFloat(
                 initialValue = 1f,
@@ -2998,7 +3024,41 @@ private fun SessionTerminalInline(
             )
 
             val terminalBgColor = Color.Black
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(rowHeightPx, maxScrollbackOffsetRows) {
+                        var accumulatedScale = 1f
+                        detectTransformGestures { _, pan, zoom, _ ->
+                            if (zoom != 1f) {
+                                accumulatedScale *= zoom
+                                if (BuildConfig.DEBUG) {
+                                    Log.d("TerminalZoom", "gesture: zoom=$zoom accumulated=$accumulatedScale")
+                                }
+                                if (accumulatedScale < 0.9f || accumulatedScale > 1.1f) {
+                                    val increase = accumulatedScale > 1f
+                                    val current = latestFontSizeSp
+                                    val next = (current + if (increase) 1f else -1f)
+                                        .coerceIn(6f, 20f)
+                                    if (BuildConfig.DEBUG) {
+                                        Log.d("TerminalZoom", "threshold hit: increase=$increase current=$current next=$next")
+                                    }
+                                    if (next != current) {
+                                        onFontSizeChange(next)
+                                    }
+                                    accumulatedScale = 1f
+                                }
+                            }
+
+                            if (maxScrollbackOffsetRows > 0 && pan.y != 0f) {
+                                terminalScrollState.dispatchRawDelta(-pan.y)
+                                val nearBottomAfterPan = terminalScrollState.value >=
+                                    (maxScrollPx - followThresholdPx).coerceAtLeast(0)
+                                terminalFollowMode = nearBottomAfterPan
+                            }
+                        }
+                    }
+            ) {
                 // Canvas layer: draw each character at its exact grid position to
                 // guarantee monospaced alignment for box-drawing characters.
                 Canvas(modifier = Modifier.fillMaxSize()) {
@@ -3025,7 +3085,8 @@ private fun SessionTerminalInline(
                     val rowH = rowHeightPx.toFloat()
 
                     for ((rowIdx, runs) in renderedRuns.withIndex()) {
-                        val y = (rowIdx * rowHeightPx).toFloat()
+                        val y = ((rowIdx * rowHeightPx) - verticalOffsetPx).toFloat()
+                        if (y + rowH <= 0f || y >= size.height) continue
                         for (run in runs) {
                             val x = run.col * charWidthPx
                             // Draw background rectangle for the whole run.
@@ -3070,9 +3131,12 @@ private fun SessionTerminalInline(
                 // Compose SelectionContainer still draws a visible selection highlight.
                 val selectionOutput = remember(terminalVersion) {
                     buildAnnotatedString {
-                        // Re-use the rendered AnnotatedString text but drop color spans
-                        // so that the transparent text color from the style takes effect.
-                        append(renderedOutput.text)
+                        append(
+                            emulator.renderSelectionText(
+                                scrollbackOffsetRows = 0,
+                                windowRows = totalRows,
+                            )
+                        )
                     }
                 }
                 // Match the selection overlay line height to the canvas row height
@@ -3092,19 +3156,24 @@ private fun SessionTerminalInline(
                     LocalTextToolbar provides terminalTextToolbar,
                     LocalTextSelectionColors provides selectionColors
                 ) {
-                    SelectionContainer {
-                        Text(
-                            text = selectionOutput,
-                            style = selectionStyle,
-                            softWrap = false,
-                            maxLines = Int.MAX_VALUE,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(terminalScrollState)
+                    ) {
+                        SelectionContainer {
+                            Text(
+                                text = selectionOutput,
+                                style = selectionStyle,
+                                softWrap = false,
+                                maxLines = Int.MAX_VALUE,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
 
-                if (connected) {
+                if (connected && cursorPos != null) {
                     val cursorCol = cursorPos.second.coerceIn(0, (termCols - 1).coerceAtLeast(0))
                     val cursorRow = cursorPos.first.coerceIn(0, (termRows - 1).coerceAtLeast(0))
                     val cursorX = with(LocalDensity.current) { (cursorCol * charWidthPx).toDp() }

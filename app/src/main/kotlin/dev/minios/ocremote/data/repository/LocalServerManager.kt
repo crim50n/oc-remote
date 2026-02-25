@@ -43,7 +43,7 @@ class LocalServerManager @Inject constructor(
 
     /** One-liner the user pastes into Termux to install everything. */
     fun getSetupCommand(): String =
-        "curl -fsSL $SETUP_SCRIPT_URL | bash"
+        "curl -fsSL -H \"Cache-Control: no-cache\" -H \"Pragma: no-cache\" \"$SETUP_SCRIPT_URL?ts=\$(date +%s)\" | bash"
 
     fun isTermuxInstalled(): Boolean {
         return try {
@@ -100,10 +100,22 @@ class LocalServerManager @Inject constructor(
         callerContext: Context,
         proxyUrl: String? = null,
         noProxyList: String? = null,
+        hostName: String? = null,
+        serverPassword: String? = null,
     ): Result<Unit> {
         return runCatching {
             check(isTermuxInstalled()) { "Termux is not installed" }
             val args = buildList {
+                if (!hostName.isNullOrBlank()) {
+                    add("--hostname")
+                    add(hostName)
+                }
+
+                if (!serverPassword.isNullOrBlank()) {
+                    add("--server-password")
+                    add(serverPassword)
+                }
+
                 if (!proxyUrl.isNullOrBlank()) {
                     add("--proxy")
                     add(proxyUrl)

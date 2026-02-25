@@ -63,6 +63,10 @@ data class HomeUiState(
     val localProxyEnabled: Boolean = false,
     val localProxyUrl: String = "",
     val localProxyNoProxy: String = LocalServerManager.DEFAULT_NO_PROXY_LIST,
+    val localServerAllowLan: Boolean = false,
+    val localServerPassword: String = "",
+    val localServerAutoStart: Boolean = false,
+    val localServerStartupTimeoutSec: Int = 30,
 )
 
 private data class LocalRuntimeErrorInfo(
@@ -87,6 +91,7 @@ class HomeViewModel @Inject constructor(
     private var serviceBinder: OpenCodeConnectionService.LocalBinder? = null
     private var sseObserverJob: Job? = null
     private val serverSettingsCheckJobs = mutableMapOf<String, Job>()
+    private var localAutoStartTriggered = false
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -129,6 +134,26 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.localProxyNoProxy.collect { value ->
                 _uiState.update { it.copy(localProxyNoProxy = value) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.localServerAllowLan.collect { enabled ->
+                _uiState.update { it.copy(localServerAllowLan = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.localServerPassword.collect { value ->
+                _uiState.update { it.copy(localServerPassword = value) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.localServerAutoStart.collect { enabled ->
+                _uiState.update { it.copy(localServerAutoStart = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.localServerStartupTimeoutSec.collect { seconds ->
+                _uiState.update { it.copy(localServerStartupTimeoutSec = seconds) }
             }
         }
     }
@@ -401,6 +426,11 @@ class HomeViewModel @Inject constructor(
                     setupCommand = if (!setupDone) localServerManager.getSetupCommand() else null,
                 )
             }
+
+            if (setupDone && !localAutoStartTriggered && settingsRepository.localServerAutoStart.first()) {
+                localAutoStartTriggered = true
+                startLocalServer(getApplication())
+            }
         }
     }
 
@@ -441,7 +471,15 @@ class HomeViewModel @Inject constructor(
                 _uiState.value.localProxyEnabled && it.isNotBlank()
             }
             val noProxyList = _uiState.value.localProxyNoProxy
-            val startResult = localServerManager.startServer(callerContext, proxyUrl, noProxyList)
+            val hostName = if (_uiState.value.localServerAllowLan) "0.0.0.0" else "127.0.0.1"
+            val serverPassword = _uiState.value.localServerPassword.trim().takeIf { it.isNotBlank() }
+            val startResult = localServerManager.startServer(
+                callerContext = callerContext,
+                proxyUrl = proxyUrl,
+                noProxyList = noProxyList,
+                hostName = hostName,
+                serverPassword = serverPassword,
+            )
             if (startResult.isFailure) {
                 val errorInfo = mapLocalRuntimeError(startResult.exceptionOrNull()?.message)
                 if (errorInfo.status == LocalRuntimeStatus.NeedsSetup) {
@@ -462,7 +500,8 @@ class HomeViewModel @Inject constructor(
                 return@launch
             }
 
-            val ready = waitForLocalServerReady(timeoutMs = 30000L)
+            val startupTimeoutMs = _uiState.value.localServerStartupTimeoutSec.coerceIn(10, 120) * 1000L
+            val ready = waitForLocalServerReady(timeoutMs = startupTimeoutMs)
             if (!ready) {
                 _uiState.update {
                     it.copy(
@@ -569,6 +608,30 @@ class HomeViewModel @Inject constructor(
     fun setLocalProxyNoProxy(value: String) {
         viewModelScope.launch {
             settingsRepository.setLocalProxyNoProxy(value)
+        }
+    }
+
+    fun setLocalServerAllowLan(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setLocalServerAllowLan(enabled)
+        }
+    }
+
+    fun setLocalServerPassword(value: String) {
+        viewModelScope.launch {
+            settingsRepository.setLocalServerPassword(value)
+        }
+    }
+
+    fun setLocalServerAutoStart(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setLocalServerAutoStart(enabled)
+        }
+    }
+
+    fun setLocalServerStartupTimeoutSec(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setLocalServerStartupTimeoutSec(value)
         }
     }
 

@@ -35,9 +35,25 @@
     <string name="home_local_permission_required">Grant Termux Run Command permission</string>
     <string name="home_local_open_sessions">Sessions</string>
     <string name="home_local_proxy_settings">Proxy</string>
+    <string name="home_local_launch_options">Local server launch options</string>
+    <string name="home_local_launch_options_title">Launch options</string>
+    <string name="home_local_launch_options_desc">Network, security, proxy, auto-start, and startup timeout</string>
+    <string name="home_local_network_section">Network</string>
+    <string name="home_local_security_section">Security</string>
+    <string name="home_local_proxy_section">Proxy</string>
+    <string name="home_local_autostart_section">Auto-start</string>
     <string name="home_local_proxy_enable">Use proxy for local runtime</string>
     <string name="home_local_proxy_url_label">Proxy URL</string>
     <string name="home_local_proxy_no_proxy_label">Proxy exclusions (NO_PROXY)</string>
+    <string name="home_local_server_password_label">Server password</string>
+    <string name="home_local_server_password_placeholder">Leave empty to disable authentication</string>
+    <string name="home_local_lan_password_warning">LAN access is enabled without a password. Anyone on your network can open this server.</string>
+    <string name="home_local_auto_start_label">Auto-start local server on app launch</string>
+    <string name="home_local_auto_start_desc">Start local runtime automatically when OC Remote opens</string>
+    <string name="home_local_startup_timeout_label">Startup timeout</string>
+    <string name="home_local_startup_timeout_value">%1$d sec</string>
+    <string name="home_local_allow_lan_access">Allow LAN access</string>
+    <string name="home_local_allow_lan_access_desc">Bind local server to 0.0.0.0 for other devices on your network</string>
     <string name="home_local_proxy_show_url">Show</string>
     <string name="home_local_proxy_hide_url">Hide</string>
     <string name="home_local_proxy_no_proxy_hint">Defaults are prefilled; you can edit exclusions as a comma-separated list.</string>
@@ -326,8 +342,9 @@
     <string name="settings_show_shell_button">Show shell button</string>
     <string name="settings_show_shell_button_desc">Show shell mode toggle near attachment button in chat</string>
     <string name="settings_compress_images">Optimize image attachments</string>
-    <string name="settings_compress_images_desc">Resize large screenshots and convert PNG/JPEG to WebP before sending</string>
+    <string name="settings_compress_images_desc">Resize large screenshots and convert PNG/JPEG to WebP before sending to reduce token usage</string>
     <string name="settings_compress_images_max_side">Max image side</string>
+    <string name="settings_compress_images_max_side_keep_original">Keep original resolution</string>
     <string name="settings_compress_images_max_side_value">%1$d px</string>
     <string name="settings_compress_images_quality">WebP quality</string>
     <string name="settings_compress_images_quality_value">%1$d%%</string>
@@ -454,7 +471,9 @@
     <string name="chat_session_exported">Session exported</string>
     <string name="chat_session_export_failed">Failed to export session</string>
     <string name="chat_session_exporting">Exporting… %s</string>
-    <string name="chat_images_optimized_summary">Images optimized (%1$d): %2$s -&gt; %3$s (~%4$d -&gt; ~%5$d tokens)</string>
+    <string name="chat_images_optimized_summary">Images optimized (%1$d)
+Size: %2$s -&gt; %3$s
+Tokens: ~%4$d -&gt; ~%5$d</string>
 
     <!-- About Screen -->
     <string name="about_title">About</string>

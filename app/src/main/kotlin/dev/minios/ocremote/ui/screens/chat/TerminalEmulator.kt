@@ -184,22 +184,37 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
         version++
     }
 
-    /** Render current screen to AnnotatedString. */
+    /** Total visible rows including scrollback history. */
     @Synchronized
-    fun render(): AnnotatedString {
+    fun totalRowsWithScrollback(): Int = scrollback.size + rows
+
+    /** Maximum scrollback offset for a given viewport height in rows. */
+    @Synchronized
+    fun maxScrollbackOffset(windowRows: Int): Int {
+        if (windowRows <= 0) return 0
+        return (totalRowsWithScrollback() - windowRows).coerceAtLeast(0)
+    }
+
+    /** Render visible window (screen + optional scrollback) to AnnotatedString. */
+    @Synchronized
+    fun render(scrollbackOffsetRows: Int = 0, windowRows: Int = rows): AnnotatedString {
         val defaultFg = Color(0xFFD3D7CF)
         val defaultBg = Color.Black
+        val visibleRows = resolveVisibleRows(scrollbackOffsetRows, windowRows)
 
         return buildAnnotatedString {
-            for (r in 0 until rows) {
+            for (r in visibleRows.indices) {
+                val row = visibleRows[r]
                 var runStart = 0
                 while (runStart < cols) {
-                    val refCell = screen[r][runStart]
+                    val refCell = cellAt(row, runStart)
                     val sb = StringBuilder()
                     sb.append(refCell.ch)
                     var runEnd = runStart + 1
-                    while (runEnd < cols && sameStyle(screen[r][runEnd], refCell)) {
-                        sb.append(screen[r][runEnd].ch)
+                    while (runEnd < cols) {
+                        val nextCell = cellAt(row, runEnd)
+                        if (!sameStyle(nextCell, refCell)) break
+                        sb.append(nextCell.ch)
                         runEnd++
                     }
                     // Resolve colors
@@ -222,9 +237,31 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
                     runStart = runEnd
                 }
 
-                if (r < rows - 1) append('\n')
+                if (r < visibleRows.lastIndex) append('\n')
             }
         }
+    }
+
+    /**
+     * Render visible window as plain text for copy/selection.
+     * Trailing spaces are trimmed per line to avoid copying terminal padding.
+     */
+    @Synchronized
+    fun renderSelectionText(scrollbackOffsetRows: Int = 0, windowRows: Int = rows): String {
+        val visibleRows = resolveVisibleRows(scrollbackOffsetRows, windowRows)
+        if (visibleRows.isEmpty()) return ""
+
+        val out = StringBuilder()
+        for (r in visibleRows.indices) {
+            val row = visibleRows[r]
+            val lineChars = CharArray(cols)
+            for (c in 0 until cols) {
+                lineChars[c] = cellAt(row, c).ch
+            }
+            out.append(String(lineChars).trimEnd(' '))
+            if (r < visibleRows.lastIndex) out.append('\n')
+        }
+        return out.toString()
     }
 
     /**
@@ -247,21 +284,25 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
      * `col * charWidth` — this avoids glyph-width misalignment for box-drawing characters.
      */
     @Synchronized
-    fun renderRuns(): List<List<TerminalRun>> {
+    fun renderRuns(scrollbackOffsetRows: Int = 0, windowRows: Int = rows): List<List<TerminalRun>> {
         val defaultFg = Color(0xFFD3D7CF)
         val defaultBg = Color.Black
+        val visibleRows = resolveVisibleRows(scrollbackOffsetRows, windowRows)
 
-        val result = ArrayList<List<TerminalRun>>(rows)
-        for (r in 0 until rows) {
+        val result = ArrayList<List<TerminalRun>>(visibleRows.size)
+        for (r in visibleRows.indices) {
+            val row = visibleRows[r]
             val runs = mutableListOf<TerminalRun>()
             var runStart = 0
             while (runStart < cols) {
-                val refCell = screen[r][runStart]
+                val refCell = cellAt(row, runStart)
                 val sb = StringBuilder()
                 sb.append(refCell.ch)
                 var runEnd = runStart + 1
-                while (runEnd < cols && sameStyle(screen[r][runEnd], refCell)) {
-                    sb.append(screen[r][runEnd].ch)
+                while (runEnd < cols) {
+                    val nextCell = cellAt(row, runEnd)
+                    if (!sameStyle(nextCell, refCell)) break
+                    sb.append(nextCell.ch)
                     runEnd++
                 }
                 val effFg: Color
@@ -292,6 +333,24 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
     /** Get cursor position for rendering. */
     @Synchronized
     fun getCursorPosition(): Pair<Int, Int> = cursorRow to cursorCol
+
+    /**
+     * Cursor position relative to the currently visible window.
+     * Returns null when cursor is outside the visible viewport (e.g. user scrolled into history).
+     */
+    @Synchronized
+    fun getCursorPositionInWindow(scrollbackOffsetRows: Int = 0, windowRows: Int = rows): Pair<Int, Int>? {
+        val rowCount = windowRows.coerceAtLeast(1)
+        val totalRows = scrollback.size + rows
+        val maxOffset = (totalRows - rowCount).coerceAtLeast(0)
+        val offset = scrollbackOffsetRows.coerceIn(0, maxOffset)
+        val startRow = (totalRows - rowCount - offset).coerceAtLeast(0)
+
+        val absoluteCursorRow = scrollback.size + cursorRow
+        val visibleCursorRow = absoluteCursorRow - startRow
+        if (visibleCursorRow !in 0 until rowCount) return null
+        return visibleCursorRow to cursorCol
+    }
 
     // ── Character Processing ─────────────────────────────────────────
 
@@ -1063,7 +1122,30 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
                 a.reverse == b.reverse && a.underline == b.underline && a.italic == b.italic
     }
 
+    private fun resolveVisibleRows(scrollbackOffsetRows: Int, windowRows: Int): List<Array<Cell>> {
+        val allRows = ArrayList<Array<Cell>>(scrollback.size + rows)
+        allRows.addAll(scrollback)
+        for (r in 0 until rows) {
+            allRows.add(screen[r])
+        }
+        if (allRows.isEmpty()) return emptyList()
+
+        val rowCount = windowRows.coerceAtLeast(1)
+        val maxOffset = (allRows.size - rowCount).coerceAtLeast(0)
+        val offset = scrollbackOffsetRows.coerceIn(0, maxOffset)
+        val start = (allRows.size - rowCount - offset).coerceAtLeast(0)
+        val end = (start + rowCount).coerceAtMost(allRows.size)
+        return allRows.subList(start, end)
+    }
+
+    private fun cellAt(row: Array<Cell>, col: Int): Cell {
+        if (col in row.indices) return row[col]
+        return EMPTY_CELL
+    }
+
     companion object {
+        private val EMPTY_CELL = Cell()
+
         fun makeScreen(rows: Int, cols: Int): Array<Array<Cell>> {
             return Array(rows) { Array(cols) { Cell() } }
         }
