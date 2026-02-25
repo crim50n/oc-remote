@@ -103,7 +103,7 @@ success_banner() {
 
 # Run a command in the background with a spinner so it never looks frozen.
 # Usage: spin "message" command [args...]
-SPIN_FRAMES=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+SPIN_FRAMES=('⠷' '⠯' '⠟' '⠻' '⠽' '⠾')
 spin() {
     local msg="$1"; shift
     local logfile
