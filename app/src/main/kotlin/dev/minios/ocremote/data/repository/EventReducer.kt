@@ -123,7 +123,9 @@ class EventReducer @Inject constructor() {
         _sessions.update { current ->
             (current + event.info).sortedByDescending { it.time.updated }
         }
-        _sessionStatuses.update { it + (event.info.id to SessionStatus.Idle) }
+        _sessionStatuses.update { current ->
+            if (event.info.id in current) current else current + (event.info.id to SessionStatus.Idle)
+        }
     }
     
     private fun handleSessionUpdated(event: SseEvent.SessionUpdated, serverId: String) {
