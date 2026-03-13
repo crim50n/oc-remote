@@ -262,8 +262,9 @@ class ChatViewModel @Inject constructor(
         // While the REST call is still loading, suppress SSE-only messages to prevent
         // showing a flash of partial data (e.g., 1-2 messages from SSE when opening via
         // notification deep-link before the full history arrives).
-        val chatMessages = if (loading && sessionMessages.size < 3) {
-            // Likely only SSE-provided messages; wait for REST to complete
+        val hasUserMessage = sessionMessages.any { it is Message.User }
+        val shouldSuppressPartialData = loading && sessionMessages.size < 3 && !hasUserMessage
+        val chatMessages = if (shouldSuppressPartialData) {
             emptyList()
         } else {
             val sorted = sessionMessages.sortedBy { it.time.created }
