@@ -115,8 +115,6 @@ import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.coil2.Coil2ImageTransformerImpl
-import com.mikepenz.markdown.compose.elements.highlightedCodeBlock
-import com.mikepenz.markdown.compose.elements.highlightedCodeFence
 import dev.minios.ocremote.domain.model.*
 import dev.minios.ocremote.data.api.AgentInfo
 import dev.minios.ocremote.data.api.CommandInfo
@@ -4153,8 +4151,8 @@ private fun MarkdownContent(
     )
 
     val components = markdownComponents(
-        codeBlock = highlightedCodeBlock,
-        codeFence = highlightedCodeFence
+        codeBlock = safeHighlightedCodeBlock,
+        codeFence = safeHighlightedCodeFence
     )
 
     SelectionContainer {
