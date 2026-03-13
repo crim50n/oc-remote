@@ -79,8 +79,8 @@ class EventReducer @Inject constructor() {
             is SseEvent.SessionCreated -> handleSessionCreated(event, serverId)
             is SseEvent.SessionUpdated -> handleSessionUpdated(event, serverId)
             is SseEvent.SessionDeleted -> handleSessionDeleted(event)
-            is SseEvent.SessionStatus -> handleSessionStatus(event)
-            is SseEvent.SessionIdle -> handleSessionIdle(event)
+            is SseEvent.SessionStatus -> handleSessionStatus(event, serverId)
+            is SseEvent.SessionIdle -> handleSessionIdle(event, serverId)
             is SseEvent.SessionDiff -> handleSessionDiff(event)
             is SseEvent.SessionError -> handleSessionError(event)
             
@@ -161,12 +161,14 @@ class EventReducer @Inject constructor() {
         _questions.update { it - sessionId }
     }
     
-    private fun handleSessionStatus(event: SseEvent.SessionStatus) {
+    private fun handleSessionStatus(event: SseEvent.SessionStatus, serverId: String) {
+        trackSession(serverId, event.sessionId)
         _sessionStatuses.update { it + (event.sessionId to event.status) }
         if (BuildConfig.DEBUG) Log.d(TAG, "Session ${event.sessionId} status: ${event.status}")
     }
     
-    private fun handleSessionIdle(event: SseEvent.SessionIdle) {
+    private fun handleSessionIdle(event: SseEvent.SessionIdle, serverId: String) {
+        trackSession(serverId, event.sessionId)
         _sessionStatuses.update { it + (event.sessionId to SessionStatus.Idle) }
     }
     
@@ -412,8 +414,6 @@ class EventReducer @Inject constructor() {
             return
         }
         
-        if (BuildConfig.DEBUG) Log.d(TAG, "Clearing state for server $serverId (${sessionIds.size} sessions)")
-        
         // Remove the server's session tracking
         _serverSessions.update { it - serverId }
         
@@ -434,6 +434,8 @@ class EventReducer @Inject constructor() {
             .toSet()
         _messages.update { it - sessionIds }
         _parts.update { it - messageIds }
+
+        if (BuildConfig.DEBUG) Log.d(TAG, "Clearing state for server $serverId (${sessionIds.size} sessions)")
     }
     
     // ============ Todo Events ============
