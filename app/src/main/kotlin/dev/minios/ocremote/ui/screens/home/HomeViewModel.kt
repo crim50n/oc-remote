@@ -14,6 +14,8 @@ import dev.minios.ocremote.R
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.minios.ocremote.data.api.OpenCodeApi
+import dev.minios.ocremote.data.api.ProviderCatalogResponse
+import dev.minios.ocremote.data.api.ProvidersResponse
 import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.data.repository.ServerRepository
@@ -33,6 +35,24 @@ import javax.inject.Inject
 
 private const val TAG = "HomeViewModel"
 private const val LOCAL_SERVER_NAME = "Local OpenCode"
+
+internal fun hasServerSettingsAccess(
+    providersResponse: ProvidersResponse,
+    providerCatalog: ProviderCatalogResponse? = null,
+): Boolean {
+    if (providersResponse.providers.isNotEmpty()) {
+        return true
+    }
+    if (providersResponse.default.isNotEmpty()) {
+        return true
+    }
+    if (providerCatalog == null) {
+        return false
+    }
+    return providerCatalog.all.isNotEmpty() ||
+        providerCatalog.connected.isNotEmpty() ||
+        providerCatalog.default.isNotEmpty()
+}
 
 enum class LocalRuntimeStatus {
     Unavailable,
@@ -251,11 +271,18 @@ class HomeViewModel @Inject constructor(
 
                 try {
                     val conn = ServerConnection.from(server.url, server.username, server.password)
-                    val response = api.getProviders(conn)
-                    val hasModels = response.providers.any { it.models.isNotEmpty() }
+                    val providersResponse = api.getProviders(conn)
+                    val providerCatalog = runCatching { api.listProviderCatalog(conn) }
+                        .getOrElse { error ->
+                            if (BuildConfig.DEBUG) {
+                                Log.d(TAG, "Provider catalog check failed for $serverId: ${error.message}")
+                            }
+                            null
+                        }
+                    val hasSettingsAccess = hasServerSettingsAccess(providersResponse, providerCatalog)
                     _uiState.update {
                         it.copy(
-                            serverSettingsReadyIds = if (hasModels) {
+                            serverSettingsReadyIds = if (hasSettingsAccess) {
                                 it.serverSettingsReadyIds + serverId
                             } else {
                                 it.serverSettingsReadyIds - serverId
