@@ -29,8 +29,9 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Image preview & save** — open sent and draft images in fullscreen preview and save to device storage
 - **Shell output copy** — bash output blocks support text selection and one-tap copy (command + output)
 - **HTML error fallback modes** — switch long HTML error payloads between rendered page view and raw code view
+- **Collapsible reasoning** — reasoning stays compact by default and expands on demand
 - **Slash commands** — `/new`, `/fork`, `/compact`, `/share`, `/rename`, `/undo`, `/redo`, `/shell`
-- **Swipe to revert** — swipe user messages to undo (with confirmation dialog)
+- **Message actions** — long-press user messages to revert with confirmation
 
 ### Terminal Mode
 - **Termux-like terminal mode** — full-screen terminal UI with dedicated extra keys and mobile-first interactions
@@ -43,7 +44,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 
 ### Session Management  
 - **Multi-session** — switch between sessions, view history
-- **Session actions** — create, fork, compact, review changes, share/unshare, rename via dropdown menu
+- **Session actions** — create, fork, compact, review changes, share/unshare, rename, and delete via explicit menus
 - **Terminal mode shortcut** — open the current session in terminal mode from the chat top bar
 - **Load older messages** — paginated history loading; initial batch size is configurable (25-200)
 - **Large-session stability** — `largeHeap`, paginated message loading, and OOM fallback retry with smaller limits
@@ -77,7 +78,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Auto-expand tool results** — show tool card contents expanded by default
 - **Initial message count** — configure how many messages to load per session (25–200)
 - **Confirm before send** — optional confirmation dialog before sending messages
-- **Haptic feedback** — optional send confirmation haptics (API 30+ `CONFIRM`, older `CONTEXT_CLICK`) and swipe feedback on revert gestures
+- **Haptic feedback** — optional send confirmation haptics (API 30+ `CONFIRM`, older `CONTEXT_CLICK`)
 - **Keep screen on** — prevents sleep while the chat screen is open
 - **Notifications** — toggle task completion notifications
 - **Silent notifications** — suppress sound and vibration for task notifications
