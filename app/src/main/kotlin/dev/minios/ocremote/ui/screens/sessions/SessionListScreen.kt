@@ -1197,23 +1197,7 @@ private fun SessionRow(
 
     val addColor = Color(0xFF4CAF50)
     val delColor = Color(0xFFE53935)
-
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { dismissValue ->
-            when (dismissValue) {
-                SwipeToDismissBoxValue.StartToEnd -> {
-                    onRename()
-                    false // don't settle — snap back
-                }
-                SwipeToDismissBoxValue.EndToStart -> {
-                    onDelete()
-                    false
-                }
-                SwipeToDismissBoxValue.Settled -> false
-            }
-        },
-        positionalThreshold = { it * 0.3f }
-    )
+    var showActions by remember { mutableStateOf(false) }
 
     val cardContent: @Composable () -> Unit = {
         val containerColor = if (isSelected) {
@@ -1369,86 +1353,37 @@ private fun SessionRow(
                         }
                     }
                 }
+                if (!isSelectionMode) {
+                    Box {
+                        IconButton(onClick = { showActions = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(
+                            expanded = showActions,
+                            onDismissRequest = { showActions = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.session_rename)) },
+                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                                onClick = {
+                                    showActions = false
+                                    onRename()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.delete)) },
+                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                                onClick = {
+                                    showActions = false
+                                    onDelete()
+                                },
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 
-    SwipeToDismissBox(
-        state = dismissState,
-        backgroundContent = {
-            val direction = dismissState.dismissDirection
-
-            // Rename background (swipe right)
-            val renameColor = MaterialTheme.colorScheme.primaryContainer
-            // Delete background (swipe left)
-            val deleteColor = MaterialTheme.colorScheme.errorContainer
-
-            val bgColor = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> renameColor
-                SwipeToDismissBoxValue.EndToStart -> deleteColor
-                else -> Color.Transparent
-            }
-            val iconTint = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.onPrimaryContainer
-                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.onErrorContainer
-                else -> Color.Transparent
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CardDefaults.shape)
-                    .background(bgColor)
-                    .padding(horizontal = 20.dp),
-                contentAlignment = when (direction) {
-                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                    else -> Alignment.CenterEnd
-                }
-            ) {
-                when (direction) {
-                    SwipeToDismissBoxValue.StartToEnd -> {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Edit,
-                                contentDescription = stringResource(R.string.session_rename),
-                                tint = iconTint,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                stringResource(R.string.session_rename),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = iconTint
-                            )
-                        }
-                    }
-                    SwipeToDismissBoxValue.EndToStart -> {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                stringResource(R.string.delete),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = iconTint
-                            )
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = stringResource(R.string.delete),
-                                tint = iconTint,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    else -> {}
-                }
-            }
-        },
-        enableDismissFromStartToEnd = !isSelectionMode,
-        enableDismissFromEndToStart = !isSelectionMode
-    ) {
-        cardContent()
-    }
+    cardContent()
 }

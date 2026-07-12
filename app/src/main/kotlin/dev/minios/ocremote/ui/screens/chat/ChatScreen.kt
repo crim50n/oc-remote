@@ -115,8 +115,6 @@ import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.coil2.Coil2ImageTransformerImpl
-import com.mikepenz.markdown.compose.elements.highlightedCodeBlock
-import com.mikepenz.markdown.compose.elements.highlightedCodeFence
 import dev.minios.ocremote.domain.model.*
 import dev.minios.ocremote.data.api.AgentInfo
 import dev.minios.ocremote.data.api.CommandInfo
@@ -836,7 +834,7 @@ private suspend fun buildAttachmentFromUri(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatScreen(
     onNavigateBack: () -> Unit,
@@ -3469,7 +3467,7 @@ private fun resolveStepsStatus(stepParts: List<Part>): String {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun ChatMessageBubble(
     chatMessage: ChatMessage,
@@ -3565,7 +3563,7 @@ private fun ChatMessageBubble(
     // Check if any tool is currently running (show spinner)
     val hasRunningTool = stepParts.any { it is Part.Tool && it.state is ToolState.Running }
 
-        val bubbleContent: @Composable () -> Unit = {
+        val bubbleContent: @Composable (Modifier) -> Unit = { modifier ->
         Surface(
             shape = RoundedCornerShape(
                 topStart = if (isUser) 18.dp else 4.dp,
@@ -3576,7 +3574,7 @@ private fun ChatMessageBubble(
             color = backgroundColor,
             border = bubbleBorder,
             tonalElevation = if (isAmoled || isUser) 0.dp else 1.dp,
-            modifier = Modifier.fillMaxWidth()
+            modifier = modifier.fillMaxWidth()
         ) {
             val compact = LocalCompactMessages.current
             Column(
@@ -3751,27 +3749,8 @@ private fun ChatMessageBubble(
         horizontalAlignment = alignment
     ) {
         if (isUser && onRevert != null) {
-            // Swipe-to-revert for user messages with confirmation dialog
             var showRevertConfirmation by remember { mutableStateOf(false) }
-            val hapticEnabled = LocalHapticFeedbackEnabled.current
-            val bubbleView = LocalView.current
-
-            val dismissState = rememberSwipeToDismissBoxState(
-                confirmValueChange = { value ->
-                    if (value != SwipeToDismissBoxValue.Settled) {
-                        if (hapticEnabled) {
-                            @Suppress("DEPRECATION")
-                            bubbleView.performHapticFeedback(
-                                android.view.HapticFeedbackConstants.LONG_PRESS,
-                                android.view.HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
-                                        android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-                            )
-                        }
-                        showRevertConfirmation = true
-                    }
-                    false // don't actually dismiss; wait for dialog confirmation
-                }
-            )
+            var showMessageActions by remember { mutableStateOf(false) }
 
             if (showRevertConfirmation) {
                 AlertDialog(
@@ -3796,53 +3775,29 @@ private fun ChatMessageBubble(
                 )
             }
 
-            SwipeToDismissBox(
-                state = dismissState,
-                backgroundContent = {
-                    val direction = dismissState.dismissDirection
-                    val bgColor = MaterialTheme.colorScheme.errorContainer
-                    val iconAlignment = if (direction == SwipeToDismissBoxValue.StartToEnd) {
-                        Alignment.CenterStart
-                    } else {
-                        Alignment.CenterEnd
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(
-                                topStart = 18.dp,
-                                topEnd = 4.dp,
-                                bottomStart = 18.dp,
-                                bottomEnd = 18.dp
-                            ))
-                            .background(bgColor)
-                            .padding(horizontal = 20.dp),
-                        contentAlignment = iconAlignment
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.Undo,
-                                contentDescription = stringResource(R.string.chat_revert),
-                                tint = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                            Text(
-                                text = stringResource(R.string.chat_revert),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                    }
-                },
-                enableDismissFromStartToEnd = true,
-                enableDismissFromEndToStart = true
-            ) {
-                bubbleContent()
+            Box {
+                bubbleContent(
+                    Modifier.combinedClickable(
+                        onClick = {},
+                        onLongClick = { showMessageActions = true },
+                    )
+                )
+                DropdownMenu(
+                    expanded = showMessageActions,
+                    onDismissRequest = { showMessageActions = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_revert)) },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null) },
+                        onClick = {
+                            showMessageActions = false
+                            showRevertConfirmation = true
+                        },
+                    )
+                }
             }
         } else {
-            bubbleContent()
+            bubbleContent(Modifier)
         }
     }
 }
@@ -3975,7 +3930,7 @@ private fun PartContent(
         }
         is Part.Reasoning -> {
             if (part.text.isNotBlank()) {
-                ReasoningBlock(text = part.text)
+                ReasoningBlock(part = part)
             }
         }
         is Part.Tool -> {
@@ -4157,8 +4112,8 @@ private fun MarkdownContent(
     )
 
     val components = markdownComponents(
-        codeBlock = highlightedCodeBlock,
-        codeFence = highlightedCodeFence
+        codeBlock = safeHighlightedCodeBlock,
+        codeFence = safeHighlightedCodeFence
     )
 
     SelectionContainer {
@@ -4231,8 +4186,9 @@ private fun preserveRawHtmlPayload(markdown: String): String {
 }
 
 @Composable
-private fun ReasoningBlock(text: String) {
+private fun ReasoningBlock(part: Part.Reasoning) {
     val isAmoled = isAmoledTheme()
+    var expanded by rememberSaveable(part.id) { mutableStateOf(false) }
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
@@ -4248,24 +4204,40 @@ private fun ReasoningBlock(text: String) {
                     .background(MaterialTheme.colorScheme.outlineVariant)
             )
             
-            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-                Text(
-                    text = stringResource(R.string.chat_status_thinking),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        letterSpacing = 0.6.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                        lineHeight = 20.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expanded = !expanded }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.chat_status_thinking),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            letterSpacing = 0.6.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = stringResource(if (expanded) R.string.chat_collapse else R.string.chat_expand),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                AnimatedVisibility(visible = expanded) {
+                    Text(
+                        text = part.text,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                            lineHeight = 20.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                }
             }
         }
     }

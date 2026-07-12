@@ -79,8 +79,8 @@ class EventReducer @Inject constructor() {
             is SseEvent.SessionCreated -> handleSessionCreated(event, serverId)
             is SseEvent.SessionUpdated -> handleSessionUpdated(event, serverId)
             is SseEvent.SessionDeleted -> handleSessionDeleted(event)
-            is SseEvent.SessionStatus -> handleSessionStatus(event)
-            is SseEvent.SessionIdle -> handleSessionIdle(event)
+            is SseEvent.SessionStatus -> handleSessionStatus(event, serverId)
+            is SseEvent.SessionIdle -> handleSessionIdle(event, serverId)
             is SseEvent.SessionDiff -> handleSessionDiff(event)
             is SseEvent.SessionError -> handleSessionError(event)
             
@@ -121,9 +121,12 @@ class EventReducer @Inject constructor() {
     private fun handleSessionCreated(event: SseEvent.SessionCreated, serverId: String) {
         trackSession(serverId, event.info.id)
         _sessions.update { current ->
-            (current + event.info).sortedByDescending { it.time.updated }
+            (current.filterNot { it.id == event.info.id } + event.info)
+                .sortedByDescending { it.time.updated }
         }
-        _sessionStatuses.update { it + (event.info.id to SessionStatus.Idle) }
+        _sessionStatuses.update { current ->
+            if (event.info.id in current) current else current + (event.info.id to SessionStatus.Idle)
+        }
     }
     
     private fun handleSessionUpdated(event: SseEvent.SessionUpdated, serverId: String) {
@@ -151,6 +154,10 @@ class EventReducer @Inject constructor() {
     
     private fun handleSessionDeleted(event: SseEvent.SessionDeleted) {
         val sessionId = event.info.id
+        _serverSessions.update { current ->
+            current.mapValues { (_, sessionIds) -> sessionIds - sessionId }
+                .filterValues { it.isNotEmpty() }
+        }
         _sessions.update { it.filter { session -> session.id != sessionId } }
         _sessionStatuses.update { it - sessionId }
         _messages.update { it - sessionId }
@@ -159,12 +166,13 @@ class EventReducer @Inject constructor() {
         _questions.update { it - sessionId }
     }
     
-    private fun handleSessionStatus(event: SseEvent.SessionStatus) {
+    private fun handleSessionStatus(event: SseEvent.SessionStatus, serverId: String) {
+        trackSession(serverId, event.sessionId)
         _sessionStatuses.update { it + (event.sessionId to event.status) }
-        if (BuildConfig.DEBUG) Log.d(TAG, "Session ${event.sessionId} status: ${event.status}")
     }
     
-    private fun handleSessionIdle(event: SseEvent.SessionIdle) {
+    private fun handleSessionIdle(event: SseEvent.SessionIdle, serverId: String) {
+        trackSession(serverId, event.sessionId)
         _sessionStatuses.update { it + (event.sessionId to SessionStatus.Idle) }
     }
     
@@ -373,13 +381,23 @@ class EventReducer @Inject constructor() {
     /**
      * Load messages for a session
      */
-    fun setMessages(sessionId: String, messages: List<MessageWithParts>) {
-        _messages.update { it + (sessionId to messages.map { msg -> msg.info }) }
-        
+    fun mergeMessages(sessionId: String, messages: List<MessageWithParts>) {
+        _messages.update { current ->
+            val merged = (current[sessionId].orEmpty() + messages.map { it.info })
+                .associateBy { it.id }
+                .values
+                .sortedBy { it.time.created }
+            current + (sessionId to merged)
+        }
+
         val partsMap = messages.associate { msg ->
             msg.info.id to msg.parts
         }
-        _parts.update { it + partsMap }
+        _parts.update { current ->
+            current + partsMap.mapValues { (messageId, loadedParts) ->
+                (current[messageId].orEmpty() + loadedParts).associateBy { it.id }.values.toList()
+            }
+        }
     }
     
     /**
@@ -409,8 +427,6 @@ class EventReducer @Inject constructor() {
             _serverSessions.update { it - serverId }
             return
         }
-        
-        if (BuildConfig.DEBUG) Log.d(TAG, "Clearing state for server $serverId (${sessionIds.size} sessions)")
         
         // Remove the server's session tracking
         _serverSessions.update { it - serverId }

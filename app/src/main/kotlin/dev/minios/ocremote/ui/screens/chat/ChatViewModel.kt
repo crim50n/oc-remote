@@ -121,6 +121,7 @@ class ChatViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(true)
     private val _error = MutableStateFlow<String?>(null)
     private val _isSending = MutableStateFlow(false)
+    private val _sentDuringInitialLoad = MutableStateFlow(false)
     private val _allProviders = MutableStateFlow<List<ProviderInfo>>(emptyList())
     private val _providers = MutableStateFlow<List<ProviderInfo>>(emptyList())
     private val _hiddenModels = MutableStateFlow<Set<String>>(emptySet())
@@ -228,7 +229,8 @@ class ChatViewModel @Inject constructor(
         _selectedVariant,
         _commands,
         _hasOlderMessages,
-        _isLoadingOlder
+        _isLoadingOlder,
+        _sentDuringInitialLoad,
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val allSessions = args[0] as List<Session>
@@ -254,6 +256,7 @@ class ChatViewModel @Inject constructor(
         val commands = args[17] as List<CommandInfo>
         val hasOlderMessages = args[18] as Boolean
         val isLoadingOlder = args[19] as Boolean
+        val sentDuringInitialLoad = args[20] as Boolean
 
         val session = allSessions.find { it.id == sessionId }
         val sessionMessages = allMessages[sessionId] ?: emptyList()
@@ -262,7 +265,7 @@ class ChatViewModel @Inject constructor(
         // While the REST call is still loading, suppress SSE-only messages to prevent
         // showing a flash of partial data (e.g., 1-2 messages from SSE when opening via
         // notification deep-link before the full history arrives).
-        val chatMessages = if (loading && sessionMessages.size < 3) {
+        val chatMessages = if (shouldSuppressPartialMessages(loading, sessionMessages.size, sentDuringInitialLoad)) {
             // Likely only SSE-provided messages; wait for REST to complete
             emptyList()
         } else {
@@ -445,7 +448,7 @@ class ChatViewModel @Inject constructor(
             _error.value = null
             try {
                 val messages = api.listMessages(conn, sessionId, limit = currentMessageLimit)
-                eventReducer.setMessages(sessionId, messages)
+                eventReducer.mergeMessages(sessionId, messages)
                 // If we got exactly the limit, there are likely more messages on the server
                 _hasOlderMessages.value = messages.size >= currentMessageLimit
                 if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${messages.size} messages for session $sessionId (limit=$currentMessageLimit, hasOlder=${_hasOlderMessages.value})")
@@ -457,7 +460,7 @@ class ChatViewModel @Inject constructor(
                     currentMessageLimit = (currentMessageLimit / 2).coerceAtLeast(10)
                     try {
                         val messages = api.listMessages(conn, sessionId, limit = currentMessageLimit)
-                        eventReducer.setMessages(sessionId, messages)
+                        eventReducer.mergeMessages(sessionId, messages)
                         _hasOlderMessages.value = messages.size >= currentMessageLimit
                         if (BuildConfig.DEBUG) Log.d(TAG, "Retry succeeded: loaded ${messages.size} messages (limit=$currentMessageLimit)")
                     } catch (retryEx: Exception) {
@@ -469,6 +472,7 @@ class ChatViewModel @Inject constructor(
                 }
             } finally {
                 _isLoading.value = false
+                _sentDuringInitialLoad.value = false
             }
         }
     }
@@ -483,7 +487,7 @@ class ChatViewModel @Inject constructor(
             currentMessageLimit *= 2
             try {
                 val messages = api.listMessages(conn, sessionId, limit = currentMessageLimit)
-                eventReducer.setMessages(sessionId, messages)
+                eventReducer.mergeMessages(sessionId, messages)
                 _hasOlderMessages.value = messages.size >= currentMessageLimit
                 if (BuildConfig.DEBUG) Log.d(TAG, "Loaded older: ${messages.size} messages (limit=$currentMessageLimit, hasOlder=${_hasOlderMessages.value})")
             } catch (e: Exception) {
@@ -760,6 +764,9 @@ class ChatViewModel @Inject constructor(
 
     private fun sendParts(parts: List<PromptPart>) {
         viewModelScope.launch {
+            if (_isLoading.value) {
+                _sentDuringInitialLoad.value = true
+            }
             _isSending.value = true
             try {
                 val model = if (_selectedProviderId.value != null && _selectedModelId.value != null) {

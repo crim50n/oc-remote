@@ -21,6 +21,7 @@ import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.service.OpenCodeConnectionService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -106,7 +107,14 @@ class HomeViewModel @Inject constructor(
             serviceBinder = null
             sseObserverJob?.cancel()
             sseObserverJob = null
-            _uiState.update { it.copy(connectedServerIds = emptySet()) }
+            serverSettingsCheckJobs.values.forEach { it.cancel() }
+            serverSettingsCheckJobs.clear()
+            _uiState.update {
+                it.copy(
+                    connectedServerIds = emptySet(),
+                    serverSettingsReadyIds = emptySet(),
+                )
+            }
         }
     }
 
@@ -251,19 +259,30 @@ class HomeViewModel @Inject constructor(
 
                 try {
                     val conn = ServerConnection.from(server.url, server.username, server.password)
-                    val response = api.getProviders(conn)
-                    val hasModels = response.providers.any { it.models.isNotEmpty() }
+                    api.getProviders(conn)
                     _uiState.update {
                         it.copy(
-                            serverSettingsReadyIds = if (hasModels) {
-                                it.serverSettingsReadyIds + serverId
-                            } else {
-                                it.serverSettingsReadyIds - serverId
-                            }
+                            serverSettingsReadyIds = resolveServerSettingsReadyIds(
+                                readyIds = it.serverSettingsReadyIds,
+                                connectedIds = it.connectedServerIds,
+                                serverId = serverId,
+                                probeSucceeded = true,
+                            )
                         )
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    _uiState.update { it.copy(serverSettingsReadyIds = it.serverSettingsReadyIds - serverId) }
+                    _uiState.update {
+                        it.copy(
+                            serverSettingsReadyIds = resolveServerSettingsReadyIds(
+                                readyIds = it.serverSettingsReadyIds,
+                                connectedIds = it.connectedServerIds,
+                                serverId = serverId,
+                                probeSucceeded = false,
+                            )
+                        )
+                    }
                     if (BuildConfig.DEBUG) Log.d(TAG, "Providers check failed for $serverId: ${e.message}")
                 }
             }
