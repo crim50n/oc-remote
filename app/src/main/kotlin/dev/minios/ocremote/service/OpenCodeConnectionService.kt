@@ -447,12 +447,14 @@ class OpenCodeConnectionService : Service() {
                     Log.e(TAG, "[${server.displayName}] Authentication failed; automatic reconnect stopped", e)
                     updateServerConnected(server.id, false)
                     _connectingServerIds.update { it - server.id }
+                    cleanupTerminatedConnection(server.id, coroutineContext[Job]!!)
                     break
                 } catch (e: dev.minios.ocremote.data.api.SseConnectionException) {
                     Log.e(TAG, "[${server.displayName}] SSE connection failed: ${e.message}")
                     updateServerConnected(server.id, false)
                     if (!e.retryable) {
                         _connectingServerIds.update { it - server.id }
+                        cleanupTerminatedConnection(server.id, coroutineContext[Job]!!)
                         break
                     }
                 } catch (e: Exception) {
@@ -476,17 +478,24 @@ class OpenCodeConnectionService : Service() {
             api.listProjects(conn).map { it.worktree }.ifEmpty { listOf(null) }
         } catch (e: Exception) {
             Log.w(TAG, "[${server.displayName}] Reconciliation project lookup failed", e)
-            listOf(null)
+            return
         }
 
+        val revision = eventReducer.pendingSnapshotRevision()
         val permissions = mutableListOf<SseEvent.PermissionAsked>()
         val questions = mutableListOf<SseEvent.QuestionAsked>()
         var complete = true
         for (directory in directories) {
             try {
-                api.listSessionStatuses(conn, directory).forEach { (sessionId, status) ->
-                    eventReducer.processEvent(SseEvent.SessionStatus(sessionId, status), server.id)
-                }
+                val statuses = api.listSessionStatuses(conn, directory)
+                val serverSessionIds = eventReducer.serverSessions.value[server.id].orEmpty()
+                val directorySessionIds = eventReducer.sessions.value
+                    .asSequence()
+                    .filter { it.id in serverSessionIds }
+                    .filter { directory == null || it.directory == directory }
+                    .map { it.id }
+                    .toSet()
+                eventReducer.replaceSessionStatuses(server.id, directorySessionIds, statuses)
                 permissions += api.listPendingPermissions(conn, directory).map { request ->
                     SseEvent.PermissionAsked(
                         id = request.id,
@@ -524,7 +533,27 @@ class OpenCodeConnectionService : Service() {
             }
         }
         if (complete) {
-            eventReducer.replacePendingRequests(server.id, permissions, questions)
+            eventReducer.replacePendingRequests(server.id, permissions, questions, revision)
+        }
+    }
+
+    private fun cleanupTerminatedConnection(serverId: String, job: Job) {
+        val state = connections[serverId] ?: return
+        if (state.sseJob !== job || !connections.remove(serverId, state)) return
+
+        _connectedServerIds.update { it - serverId }
+        _connectingServerIds.update { it - serverId }
+        eventReducer.clearForServer(serverId)
+
+        if (connections.isEmpty()) {
+            releaseWakeLock()
+            notificationWatchdogJob?.cancel()
+            notificationWatchdogJob = null
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            foregroundStarted = false
+            stopSelf()
+        } else {
+            updatePersistentNotification()
         }
     }
 
@@ -610,8 +639,8 @@ class OpenCodeConnectionService : Service() {
             }
             is SseEvent.SessionError -> {
                 if (event.sessionId != null && isChildSession(event.sessionId)) return
-                Log.i(TAG, "[${server.displayName}] Session error: ${event.error}")
-                showErrorNotification(server, event.sessionId, event.error)
+                Log.i(TAG, "[${server.displayName}] Session error: ${event.error.message}")
+                showErrorNotification(server, event.sessionId, event.error.message)
             }
             else -> { }
         }

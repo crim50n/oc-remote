@@ -175,9 +175,7 @@ class SseClient @Inject constructor(
                 }
 
                 "session.error" -> {
-                    val sessionId = props["sessionID"]?.jsonPrimitive?.content
-                    val error = props.str("error", "Unknown error")
-                    SseEvent.SessionError(sessionId = sessionId, error = error)
+                    parseSessionError(props, json)
                 }
 
                 "session.diff" -> {
@@ -411,6 +409,16 @@ class SseClient @Inject constructor(
     /** Safe string extraction with default. */
     private fun JsonObject.str(key: String, default: String = ""): String =
         this[key]?.jsonPrimitive?.content ?: default
+}
+
+internal fun parseSessionError(props: JsonObject, json: Json): SseEvent.SessionError {
+    val sessionId = props["sessionID"]?.jsonPrimitive?.contentOrNull
+    val error = when (val value = props["error"]) {
+        is JsonObject -> json.decodeFromJsonElement<Message.Assistant.ErrorInfo>(value)
+        is JsonPrimitive -> Message.Assistant.ErrorInfo(name = value.content)
+        else -> Message.Assistant.ErrorInfo(name = "Unknown error")
+    }
+    return SseEvent.SessionError(sessionId = sessionId, error = error)
 }
 
 /** Thrown when SSE returns 401 */

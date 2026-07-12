@@ -48,7 +48,7 @@ sealed class SseEvent {
     @Serializable
     data class SessionError(
         val sessionId: String?,
-        val error: String
+        val error: Message.Assistant.ErrorInfo,
     ) : SseEvent()
 
     // Message events
@@ -205,5 +205,4 @@ data class Project(
             ?: path.takeIf { it.isNotEmpty() }?.trimEnd('/')?.substringAfterLast('/')?.takeIf { it.isNotEmpty() }
             ?: id.take(8)
 }
-
 
