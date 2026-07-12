@@ -69,6 +69,18 @@ class EventReducerTest {
         assertEquals(setOf("second"), reducer.serverSessions.value["server-2"])
     }
 
+    @Test
+    fun pendingRequests_areUpsertedByRequestId() {
+        val reducer = EventReducer()
+        val first = SseEvent.PermissionAsked("permission", "session", "read")
+        val updated = first.copy(permission = "write")
+
+        reducer.processEvent(first, "server")
+        reducer.processEvent(updated, "server")
+
+        assertEquals(listOf(updated), reducer.permissions.value["session"])
+    }
+
     private fun session(id: String, updated: Long = 1) = Session(
         id = id,
         title = id,

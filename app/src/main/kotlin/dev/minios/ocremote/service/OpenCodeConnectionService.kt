@@ -205,9 +205,13 @@ class OpenCodeConnectionService : Service() {
      * Multiple servers can be connected simultaneously.
      */
     fun connect(server: ServerConfig) {
-        if (connections.containsKey(server.id)) {
+        val existing = connections[server.id]
+        if (existing?.sseJob?.isActive == true) {
             if (BuildConfig.DEBUG) Log.d(TAG, "Already connected to server ${server.id}, skipping")
             return
+        }
+        if (existing != null) {
+            connections.remove(server.id)
         }
 
         if (BuildConfig.DEBUG) Log.d(TAG, "Connecting to server: ${server.displayName} (${server.url})")
@@ -228,6 +232,7 @@ class OpenCodeConnectionService : Service() {
             sseJob = job,
             isConnected = false
         )
+        job.start()
 
         _connectingServerIds.update { it + server.id }
 
@@ -381,7 +386,7 @@ class OpenCodeConnectionService : Service() {
     // ============ SSE Connection with Auto-Reconnect ============
 
     private fun startSseConnection(server: ServerConfig, conn: ServerConnection): Job {
-        return serviceScope.launch {
+        return serviceScope.launch(start = CoroutineStart.LAZY) {
             var attempt = 0
 
             while (isActive) {
@@ -427,6 +432,9 @@ class OpenCodeConnectionService : Service() {
                                 updatePersistentNotification()
                             }
                             processEvent(server, event)
+                            if (event is SseEvent.ServerConnected) {
+                                launch { reconcileServerState(server, conn) }
+                            }
                         }
 
                     // Flow completed normally (server closed connection)
@@ -435,6 +443,18 @@ class OpenCodeConnectionService : Service() {
                 } catch (e: CancellationException) {
                     if (BuildConfig.DEBUG) Log.d(TAG, "[${server.displayName}] SSE job cancelled, not reconnecting")
                     throw e
+                } catch (e: dev.minios.ocremote.data.api.SseAuthException) {
+                    Log.e(TAG, "[${server.displayName}] Authentication failed; automatic reconnect stopped", e)
+                    updateServerConnected(server.id, false)
+                    _connectingServerIds.update { it - server.id }
+                    break
+                } catch (e: dev.minios.ocremote.data.api.SseConnectionException) {
+                    Log.e(TAG, "[${server.displayName}] SSE connection failed: ${e.message}")
+                    updateServerConnected(server.id, false)
+                    if (!e.retryable) {
+                        _connectingServerIds.update { it - server.id }
+                        break
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "[${server.displayName}] SSE connection failed: ${e.message}")
                     updateServerConnected(server.id, false)
@@ -448,6 +468,63 @@ class OpenCodeConnectionService : Service() {
                 updatePersistentNotification()
                 delay(delayMs)
             }
+        }
+    }
+
+    private suspend fun reconcileServerState(server: ServerConfig, conn: ServerConnection) {
+        val directories = try {
+            api.listProjects(conn).map { it.worktree }.ifEmpty { listOf(null) }
+        } catch (e: Exception) {
+            Log.w(TAG, "[${server.displayName}] Reconciliation project lookup failed", e)
+            listOf(null)
+        }
+
+        val permissions = mutableListOf<SseEvent.PermissionAsked>()
+        val questions = mutableListOf<SseEvent.QuestionAsked>()
+        var complete = true
+        for (directory in directories) {
+            try {
+                api.listSessionStatuses(conn, directory).forEach { (sessionId, status) ->
+                    eventReducer.processEvent(SseEvent.SessionStatus(sessionId, status), server.id)
+                }
+                permissions += api.listPendingPermissions(conn, directory).map { request ->
+                    SseEvent.PermissionAsked(
+                        id = request.id,
+                        sessionId = request.sessionId,
+                        permission = request.permission,
+                        patterns = request.patterns,
+                        always = request.always,
+                        metadata = request.metadata,
+                        tool = request.tool,
+                    )
+                }
+                questions += api.listPendingQuestions(conn, directory).map { request ->
+                    SseEvent.QuestionAsked(
+                        id = request.id,
+                        sessionId = request.sessionId,
+                        questions = request.questions.map { question ->
+                            SseEvent.QuestionAsked.Question(
+                                header = question.header,
+                                question = question.question,
+                                multiple = question.multiple,
+                                custom = question.custom,
+                                options = question.options.map { option ->
+                                    SseEvent.QuestionAsked.Option(option.label, option.description)
+                                },
+                            )
+                        },
+                        tool = request.tool,
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                complete = false
+                Log.w(TAG, "[${server.displayName}] Reconciliation failed for directory=$directory", e)
+            }
+        }
+        if (complete) {
+            eventReducer.replacePendingRequests(server.id, permissions, questions)
         }
     }
 

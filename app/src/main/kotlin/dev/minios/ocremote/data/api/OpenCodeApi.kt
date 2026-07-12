@@ -121,6 +121,28 @@ class OpenCodeApi @Inject constructor(
         }.body()
     }
 
+    suspend fun listSessionStatuses(
+        conn: ServerConnection,
+        directory: String? = null,
+    ): Map<String, SessionStatus> {
+        val payload: JsonObject = httpClient.get("${conn.baseUrl}/session/status") {
+            conn.authHeader?.let { header("Authorization", it) }
+            directory?.let { header("x-opencode-directory", it) }
+        }.body()
+        return payload.mapValues { (_, value) ->
+            val status = value.jsonObject
+            when (status["type"]?.jsonPrimitive?.content) {
+                "busy" -> SessionStatus.Busy
+                "retry" -> SessionStatus.Retry(
+                    attempt = status["attempt"]?.jsonPrimitive?.intOrNull ?: 0,
+                    message = status["message"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                    next = status["next"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: 0,
+                )
+                else -> SessionStatus.Idle
+            }
+        }
+    }
+
     suspend fun getSession(conn: ServerConnection, sessionId: String): Session {
         return httpClient.get("${conn.baseUrl}/session/$sessionId") {
             conn.authHeader?.let { header("Authorization", it) }

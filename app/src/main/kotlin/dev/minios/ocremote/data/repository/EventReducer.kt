@@ -268,8 +268,8 @@ class EventReducer @Inject constructor() {
     
     private fun handlePermissionAsked(event: SseEvent.PermissionAsked) {
         _permissions.update { current ->
-            val sessionPermissions = current[event.sessionId]?.toMutableList() ?: mutableListOf()
-            sessionPermissions.add(event)
+            val sessionPermissions = current[event.sessionId].orEmpty()
+                .filterNot { it.id == event.id } + event
             current + (event.sessionId to sessionPermissions)
         }
     }
@@ -289,8 +289,8 @@ class EventReducer @Inject constructor() {
     
     private fun handleQuestionAsked(event: SseEvent.QuestionAsked) {
         _questions.update { current ->
-            val sessionQuestions = current[event.sessionId]?.toMutableList() ?: mutableListOf()
-            sessionQuestions.add(event)
+            val sessionQuestions = current[event.sessionId].orEmpty()
+                .filterNot { it.id == event.id } + event
             current + (event.sessionId to sessionQuestions)
         }
     }
@@ -339,6 +339,20 @@ class EventReducer @Inject constructor() {
             } else {
                 current + (sessionId to questions)
             }
+        }
+    }
+
+    fun replacePendingRequests(
+        serverId: String,
+        permissions: List<SseEvent.PermissionAsked>,
+        questions: List<SseEvent.QuestionAsked>,
+    ) {
+        val sessionIds = _serverSessions.value[serverId].orEmpty()
+        _permissions.update { current ->
+            current.filterKeys { it !in sessionIds } + permissions.groupBy { it.sessionId }
+        }
+        _questions.update { current ->
+            current.filterKeys { it !in sessionIds } + questions.groupBy { it.sessionId }
         }
     }
     

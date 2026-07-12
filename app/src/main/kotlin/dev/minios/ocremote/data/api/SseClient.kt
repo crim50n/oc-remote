@@ -10,6 +10,7 @@ import io.ktor.client.statement.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -62,51 +63,49 @@ class SseClient @Inject constructor(
 
             if (statusCode !in 200..299) {
                 Log.e(TAG, "SSE failed with HTTP $statusCode")
-                throw SseConnectionException("HTTP $statusCode")
+                throw SseConnectionException(
+                    message = "HTTP $statusCode",
+                    retryable = statusCode == 408 || statusCode == 429 || statusCode >= 500,
+                )
             }
 
             val channel = response.bodyAsChannel()
-            var lastHeartbeat = System.currentTimeMillis()
-            var buffer = ""
+            val decoder = SseFrameDecoder()
             var eventCount = 0
 
             Log.i(TAG, "SSE stream opened, reading events...")
 
             while (!channel.isClosedForRead) {
-                if (System.currentTimeMillis() - lastHeartbeat > HEARTBEAT_TIMEOUT_MS) {
-                    Log.w(TAG, "Heartbeat timeout after $eventCount events, reconnecting...")
-                    break
-                }
-
-                val line = channel.readUTF8Line() ?: break
-
-                if (line.isEmpty()) {
-                    if (buffer.isNotEmpty()) {
-                        try {
-                            val event = parseEvent(buffer)
-                            if (event != null) {
-                                eventCount++
-                                if (event is SseEvent.ServerHeartbeat) {
-                                    lastHeartbeat = System.currentTimeMillis()
-                                    if (BuildConfig.DEBUG) Log.d(TAG, "Heartbeat received (total events: $eventCount)")
-                                } else {
-                                    if (BuildConfig.DEBUG) Log.d(TAG, "Event #$eventCount: ${event::class.simpleName}")
-                                    emit(event)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Parse error: ${buffer.take(200)}", e)
-                        }
-                        buffer = ""
+                val line = withTimeoutOrNull(HEARTBEAT_TIMEOUT_MS) { channel.readUTF8Line() }
+                    ?: if (channel.isClosedForRead) break else {
+                        throw SseConnectionException("SSE stream timed out")
                     }
-                } else if (line.startsWith("data: ")) {
-                    buffer += line.substring(6)
-                } else if (line.startsWith("data:")) {
-                    buffer += line.substring(5)
+                decoder.accept(line)?.let { data ->
+                    eventCount += processFrame(data) { emit(it) }
                 }
             }
 
+            decoder.finish()?.let { data ->
+                eventCount += processFrame(data) { emit(it) }
+            }
+
             Log.w(TAG, "SSE stream closed after $eventCount events")
+        }
+    }
+
+    private suspend fun processFrame(data: String, emitEvent: suspend (SseEvent) -> Unit): Int {
+        return try {
+            val event = parseEvent(data) ?: return 0
+            if (event is SseEvent.ServerHeartbeat) {
+                if (BuildConfig.DEBUG) Log.d(TAG, "Heartbeat received")
+            } else {
+                if (BuildConfig.DEBUG) Log.d(TAG, "Event: ${event::class.simpleName}")
+                emitEvent(event)
+            }
+            1
+        } catch (e: Exception) {
+            Log.e(TAG, "Parse error: ${data.take(200)}", e)
+            0
         }
     }
 
@@ -417,5 +416,8 @@ class SseClient @Inject constructor(
 /** Thrown when SSE returns 401 */
 class SseAuthException(message: String) : Exception(message)
 
-/** Thrown for non-2xx SSE responses */
-class SseConnectionException(message: String) : Exception(message)
+/** Thrown for SSE transport and HTTP failures. */
+class SseConnectionException(
+    message: String,
+    val retryable: Boolean = true,
+) : Exception(message)

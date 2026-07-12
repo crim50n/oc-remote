@@ -1467,21 +1467,6 @@ fun ChatScreen(
                     }
                 },
                 actions = {
-                    if (uiState.sessionStatus is SessionStatus.Busy) {
-                        IconButton(onClick = { viewModel.abortSession() }) {
-                            Icon(
-                                Icons.Default.Stop,
-                                contentDescription = stringResource(R.string.chat_stop),
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                    IconButton(onClick = { isTerminalMode = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Terminal,
-                            contentDescription = stringResource(R.string.tool_terminal)
-                        )
-                    }
                     Box {
                         val isAmoled = isAmoledTheme()
                         IconButton(onClick = { showMenu = true }) {
@@ -1493,6 +1478,14 @@ fun ChatScreen(
                             containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
                             border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null
                         ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.tool_terminal)) },
+                                leadingIcon = { Icon(Icons.Default.Terminal, contentDescription = null) },
+                                onClick = {
+                                    showMenu = false
+                                    isTerminalMode = true
+                                },
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.menu_open_in_web)) },
                                 onClick = {
@@ -1766,6 +1759,7 @@ fun ChatScreen(
                         viewModel.clearFileSearch()
                     }
                 },
+                onStop = viewModel::abortSession,
                 isSending = uiState.isSending,
                 isBusy = uiState.sessionStatus is SessionStatus.Busy,
                 messages = uiState.messages,
@@ -3795,6 +3789,17 @@ private fun ChatMessageBubble(
                         },
                     )
                 }
+            }
+            IconButton(
+                onClick = { showRevertConfirmation = true },
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.Undo,
+                    contentDescription = stringResource(R.string.chat_revert),
+                    modifier = Modifier.size(17.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                )
             }
         } else {
             bubbleContent(Modifier)
@@ -5941,6 +5946,7 @@ private fun ChatInputBar(
     textFieldValue: TextFieldValue,
     onTextFieldValueChange: (TextFieldValue) -> Unit,
     onSend: () -> Unit,
+    onStop: () -> Unit,
     isSending: Boolean,
     isBusy: Boolean = false,
     messages: List<ChatMessage> = emptyList(),
@@ -5984,7 +5990,9 @@ private fun ChatInputBar(
     }
 
     val text = textFieldValue.text
-    val canSend = (text.isNotBlank() || attachments.isNotEmpty()) && !isSending && (!isShellMode || !isBusy)
+    val hasDraft = text.isNotBlank() || attachments.isNotEmpty()
+    val action = composerAction(isBusy, isSending, hasDraft, isShellMode)
+    val canSend = action == ComposerAction.SEND
     var previewAttachmentIndex by remember { mutableStateOf(-1) }
 
     // Build merged slash commands: client commands + server commands (deduplicated)
@@ -6531,7 +6539,9 @@ private fun ChatInputBar(
                         .size(44.dp)
                         .clip(RoundedCornerShape(22.dp))
                         .background(
-                            if (isShellMode && !isSending) {
+                            if (action == ComposerAction.STOP) {
+                                MaterialTheme.colorScheme.errorContainer
+                            } else if (isShellMode && !isSending) {
                                 if (isAmoled) {
                                     Color.Black
                                 } else {
@@ -6554,8 +6564,10 @@ private fun ChatInputBar(
                         )
                         .combinedClickable(
                             onClick = {
-                                if (canSend) {
-                                    onSend()
+                                when (action) {
+                                    ComposerAction.SEND -> onSend()
+                                    ComposerAction.STOP -> onStop()
+                                    ComposerAction.DISABLED -> Unit
                                 }
                             },
                             onLongClick = {
@@ -6570,6 +6582,13 @@ private fun ChatInputBar(
                         BreathingCircleIndicator(
                             size = 20.dp,
                             color = MaterialTheme.colorScheme.primary
+                        )
+                    } else if (action == ComposerAction.STOP) {
+                        Icon(
+                            Icons.Default.Stop,
+                            contentDescription = stringResource(R.string.chat_stop),
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
                         )
                     } else {
                         Icon(
