@@ -273,12 +273,12 @@ class ChatViewModel @Inject constructor(
             } else {
                 sorted
             }
-            visible.map { msg ->
+            suppressRepeatedPatchCards(visible.map { msg ->
                 ChatMessage(
                     message = msg,
                     parts = allParts[msg.id] ?: emptyList()
                 )
-            }
+            })
         }
 
         // Resolve model: explicit selection > last user message's model > provider default
