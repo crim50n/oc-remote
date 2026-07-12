@@ -1,6 +1,7 @@
 package dev.minios.ocremote.ui.screens.server
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +42,7 @@ fun ServerSettingsScreen(
 ) {
     val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.server_settings_title)) },
@@ -47,13 +50,17 @@ fun ServerSettingsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(padding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -61,7 +68,7 @@ fun ServerSettingsScreen(
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
+                    containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer
                 ),
                 border = if (isAmoled) {
                     BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
@@ -101,7 +108,7 @@ fun ServerSettingsScreen(
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
+                    containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer
                 ),
                 border = if (isAmoled) {
                     BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))

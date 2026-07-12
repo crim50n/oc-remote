@@ -1,6 +1,7 @@
 package dev.minios.ocremote.ui.screens.server
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,12 +25,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,6 +70,7 @@ fun ServerModelFilterScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.server_settings_models)) },
@@ -74,13 +78,17 @@ fun ServerModelFilterScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
@@ -93,15 +101,11 @@ fun ServerModelFilterScreen(
                 },
                 placeholder = { Text(stringResource(R.string.server_settings_search_placeholder)) },
                 singleLine = true,
-                colors = if (isAmoled) {
-                    androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.Black,
-                        unfocusedContainerColor = Color.Black,
-                        disabledContainerColor = Color.Black,
-                    )
-                } else {
-                    androidx.compose.material3.OutlinedTextFieldDefaults.colors()
-                }
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+                    unfocusedContainerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+                    disabledContainerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+                )
             )
             Spacer(Modifier.height(8.dp))
 
@@ -141,7 +145,7 @@ fun ServerModelFilterScreen(
                             Card(
                                 shape = RoundedCornerShape(12.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
+                                    containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer
                                 ),
                                 border = if (isAmoled) {
                                     BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))

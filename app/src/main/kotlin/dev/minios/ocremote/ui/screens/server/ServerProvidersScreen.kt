@@ -4,6 +4,7 @@ import android.util.Log
 import android.widget.Toast
 import dev.minios.ocremote.BuildConfig
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -69,6 +72,8 @@ fun ServerProvidersScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
+    val popupColor = if (isAmoled) Color.Black else AlertDialogDefaults.containerColor
+    val popupBorder = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)) else null
     val uriHandler = LocalUriHandler.current
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
@@ -146,8 +151,8 @@ fun ServerProvidersScreen(
         BasicAlertDialog(onDismissRequest = { connectProvider = null }) {
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)) else null,
+                color = popupColor,
+                border = popupBorder,
                 tonalElevation = if (isAmoled) 0.dp else 6.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -201,8 +206,8 @@ fun ServerProvidersScreen(
         }) {
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)) else null,
+                color = popupColor,
+                border = popupBorder,
                 tonalElevation = if (isAmoled) 0.dp else 6.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -219,9 +224,9 @@ fun ServerProvidersScreen(
                         singleLine = true,
                         colors = if (isAmoled) {
                             androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Black,
-                                unfocusedContainerColor = Color.Black,
-                                disabledContainerColor = Color.Black,
+                                focusedContainerColor = popupColor,
+                                unfocusedContainerColor = popupColor,
+                                disabledContainerColor = popupColor,
                             )
                         } else androidx.compose.material3.OutlinedTextFieldDefaults.colors()
                     )
@@ -254,8 +259,8 @@ fun ServerProvidersScreen(
         }) {
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)) else null,
+                color = popupColor,
+                border = popupBorder,
                 tonalElevation = if (isAmoled) 0.dp else 6.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -390,6 +395,7 @@ fun ServerProvidersScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.server_settings_providers)) },
@@ -397,13 +403,17 @@ fun ServerProvidersScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(padding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -485,7 +495,7 @@ private fun ProviderRow(
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh
+            containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer
         ),
         border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null
     ) {

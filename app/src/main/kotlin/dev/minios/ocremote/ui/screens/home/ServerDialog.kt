@@ -94,6 +94,7 @@ fun ServerDialog(
     val scrollState = rememberScrollState()
 
     val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
+    val dialogContainerColor = if (isAmoled) Color.Black else AlertDialogDefaults.containerColor
     val switchColors = if (isAmoled) {
         SwitchDefaults.colors(
             checkedThumbColor = MaterialTheme.colorScheme.primary,
@@ -110,7 +111,7 @@ fun ServerDialog(
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+            color = dialogContainerColor,
             border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
             tonalElevation = if (isAmoled) 0.dp else 6.dp,
             modifier = Modifier
@@ -131,7 +132,7 @@ fun ServerDialog(
                 ) {
                     Text(
                         text = if (server != null) stringResource(R.string.home_edit) else stringResource(R.string.server_add),
-                        style = MaterialTheme.typography.headlineSmall
+                        style = MaterialTheme.typography.titleMedium
                     )
 
                     OutlinedTextField(

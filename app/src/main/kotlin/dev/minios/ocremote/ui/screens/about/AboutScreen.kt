@@ -2,6 +2,7 @@ package dev.minios.ocremote.ui.screens.about
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -13,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -30,6 +32,7 @@ fun AboutScreen(
     val version = BuildConfig.VERSION_NAME
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.about_title)) },
@@ -40,13 +43,17 @@ fun AboutScreen(
                             contentDescription = null
                         )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(padding)
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -95,8 +102,12 @@ fun AboutScreen(
             val opencodeUrl = stringResource(R.string.about_opencode_url)
 
             OutlinedCard(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
             ) {
+                val itemColors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 // GitHub repo
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.about_github)) },
@@ -116,7 +127,8 @@ fun AboutScreen(
                     },
                     modifier = Modifier.clickable {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl)))
-                    }
+                    },
+                    colors = itemColors,
                 )
 
                 HorizontalDivider(
@@ -143,7 +155,8 @@ fun AboutScreen(
                     },
                     modifier = Modifier.clickable {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(opencodeUrl)))
-                    }
+                    },
+                    colors = itemColors,
                 )
 
                 HorizontalDivider(
@@ -159,7 +172,8 @@ fun AboutScreen(
                     },
                     leadingContent = {
                         Icon(Icons.Default.Description, contentDescription = null)
-                    }
+                    },
+                    colors = itemColors,
                 )
             }
         }

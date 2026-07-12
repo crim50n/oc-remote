@@ -48,7 +48,7 @@
     <!-- Notifications -->
     <string name="notification_channel_connection">Notifications</string>
     <string name="notification_channel_tasks">Connexion OpenCode</string>
-    <string name="notification_connected">Notifications de tâches</string>
+    <string name="notification_connected">Connecté à %1$s</string>
     <string name="notification_task_complete">Connecté à %1$s</string>
     <string name="notification_permission_required">Tâche terminée</string>
     <!-- Errors -->
@@ -167,9 +167,9 @@
     <string name="chat_permission_label">Question</string>
     <string name="chat_question_inline">Autorisation : %1$s</string>
     <string name="chat_aborted">Question : %1$s</string>
-    <string name="chat_retry">Annulé : %1$s</string>
-    <string name="chat_tasks_count">Nouvelle tentative #%1$d : %2$s</string>
-    <string name="chat_cost_format">%1$d/%2$d</string>
+    <string name="chat_retry">Nouvelle tentative #%1$d : %2$s</string>
+    <string name="chat_tasks_count">%1$d/%2$d</string>
+    <string name="chat_cost_format">$%1$s</string>
     <string name="chat_collapse">$%1$s</string>
     <string name="chat_expand">Réduire</string>
     <string name="home_battery_title">Développer</string>
@@ -222,7 +222,7 @@
     <string name="chat_message_undo_failed">Message annulé</string>
     <string name="chat_message_redone">Échec de l’annulation</string>
     <string name="chat_message_redo_failed">Message refait</string>
-    <string name="chat_command_executed">Échec de la restauration</string>
+    <string name="chat_command_executed">/%1$s exécutée</string>
     <string name="chat_command_failed">/%1$s exécuté</string>
     <string name="chat_message_reverted">Échec de l’exécution de /%1$s</string>
     <string name="chat_message_revert_failed">Message annulé</string>
@@ -282,18 +282,18 @@
     <string name="notification_channel_tasks_silent_desc">Notifications de tâches (silencieuses)</string>
     <string name="notification_channel_permissions">Notifications silencieuses lors de la fin des tâches OpenCode</string>
     <string name="notification_channel_permissions_desc">Demandes d’autorisations</string>
-    <string name="notification_connecting">Notifications lorsque OpenCode nécessite des autorisations</string>
-    <string name="notification_connected_count">Connexion à %1$s…</string>
+    <string name="notification_connecting">Connexion à %1$s…</string>
+    <string name="notification_connected_count">Connecté à %1$d serveur(s) sur %2$d</string>
     <string name="notification_disconnect_all">Connecté à %1$d sur %2$d serveurs</string>
-    <string name="notification_inbox_title">Tout déconnecter</string>
+    <string name="notification_inbox_title">OC Remote — %1$d/%2$d connecté(s)</string>
     <string name="notification_status_connected">OC Remote — %1$d/%2$d connectés</string>
     <string name="notification_status_connecting">Connecté</string>
     <string name="notification_response_ready">Connexion…</string>
     <string name="notification_new_session">Réponse prête</string>
-    <string name="notification_needs_permission_project">Nouvelle session</string>
-    <string name="notification_needs_permission">%1$s dans %2$s nécessite une autorisation</string>
-    <string name="notification_has_question_project">%1$s nécessite une autorisation</string>
-    <string name="notification_has_question">%1$s dans %2$s a une question</string>
+    <string name="notification_needs_permission_project">%1$s dans %2$s nécessite une autorisation</string>
+    <string name="notification_needs_permission">%1$s nécessite une autorisation</string>
+    <string name="notification_has_question_project">%1$s dans %2$s a une question</string>
+    <string name="notification_has_question">%1$s a une question</string>
     <string name="notification_question">%1$s a une question</string>
     <string name="notification_session_error">Question</string>
     <string name="notification_group_summary">Erreur de session</string>
@@ -359,7 +359,7 @@
     <string name="server_settings_no_connect_methods">Aucune méthode de connexion disponible pour ce fournisseur</string>
     <string name="server_settings_api_key_title">Clé API pour %1$s</string>
     <string name="server_settings_api_key_placeholder">Coller la clé API</string>
-    <string name="server_settings_oauth_title">%1$d sp</string>
+    <string name="server_settings_oauth_title">Connecter %1$s</string>
     <string name="server_settings_oauth_open_browser">Ouvrir dans le navigateur</string>
     <string name="server_settings_oauth_code_placeholder">Coller le code d’autorisation</string>
     <string name="server_settings_oauth_complete">Terminé</string>
@@ -434,7 +434,9 @@
     <string name="settings_compress_images_max_side_value">%1$d px</string>
     <string name="settings_compress_images_quality">Qualité WebP</string>
     <string name="settings_compress_images_quality_value">%1$d%%</string>
-    <string name="chat_images_optimized_summary">Redimensionner les captures d’écran volumineuses et convertir PNG/JPEG en WebP avant l’envoi pour réduire l’utilisation des tokens</string>
+    <string name="chat_images_optimized_summary">Images optimisées (%1$d)
+Taille : %2$s -&gt; %3$s
+Tokens : ~%4$d -&gt; ~%5$d</string>
     <string name="settings_compress_images_max_side_keep_original">Conserver la résolution d’origine</string>
     <string name="home_local_allow_lan_access">Autoriser l\'accès LAN</string>
     <string name="home_local_allow_lan_access_desc">Lier le serveur local à 0.0.0.0 pour les autres appareils de votre réseau</string>

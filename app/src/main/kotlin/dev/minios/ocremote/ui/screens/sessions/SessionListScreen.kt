@@ -151,6 +151,7 @@ fun SessionListScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             if (uiState.isSelectionMode) {
                 TopAppBar(
@@ -178,7 +179,7 @@ fun SessionListScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = if (isAmoledTheme()) Color.Black else MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = MaterialTheme.colorScheme.surface
                     )
                 )
             } else {
@@ -196,7 +197,10 @@ fun SessionListScreen(
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                         }
                     },
-                    actions = {}
+                    actions = {},
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
                 )
             }
         },
@@ -242,6 +246,7 @@ fun SessionListScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(padding)
         ) {
             val allSessions = uiState.sessionGroups.flatMap { it.sessions }
@@ -391,7 +396,7 @@ fun SessionListScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.sessions_delete_selected),
-                        style = MaterialTheme.typography.headlineSmall
+                        style = MaterialTheme.typography.titleMedium
                     )
                     Text(stringResource(R.string.sessions_delete_selected_confirm, uiState.selectedIds.size))
                     Row(
@@ -432,7 +437,7 @@ fun SessionListScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.session_rename),
-                        style = MaterialTheme.typography.headlineSmall
+                        style = MaterialTheme.typography.titleMedium
                     )
                     OutlinedTextField(
                         value = renameText,
@@ -479,7 +484,7 @@ fun SessionListScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.session_delete),
-                        style = MaterialTheme.typography.headlineSmall
+                        style = MaterialTheme.typography.titleMedium
                     )
                     Text(stringResource(R.string.session_delete_confirm, deleteSessionTitle))
                     Row(
@@ -1218,7 +1223,7 @@ private fun SessionRow(
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
             }
         } else {
-            if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceVariant
+            if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerLow
         }
 
         val cardColors = CardDefaults.cardColors(containerColor = containerColor)

@@ -1430,6 +1430,7 @@ fun ChatScreen(
         LocalImageSaveRequest provides requestSaveImage,
     ) {
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             if (!isTerminalMode) {
@@ -1637,7 +1638,10 @@ fun ChatScreen(
                             )
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
             }
         },

@@ -127,7 +127,9 @@ fun OpenCodeTheme(
             val window = (view.context as Activity).window
             // Use surface color for status bar (less jarring than primary)
             window.statusBarColor = colorScheme.surface.toArgb()
+            window.navigationBarColor = colorScheme.surface.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
     }
 

@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -117,6 +118,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) },
@@ -127,13 +129,17 @@ fun SettingsScreen(
                             contentDescription = stringResource(R.string.close)
                         )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -160,7 +166,7 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { showReconnectModeDialog = true }
             )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
 
             // ======== Appearance ========
             SectionHeader(stringResource(R.string.settings_section_appearance))
@@ -211,7 +217,7 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { viewModel.setAmoledDark(!amoledDark) }
             )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
 
             // ======== Chat Display ========
             SectionHeader(stringResource(R.string.settings_section_chat_display))
@@ -277,7 +283,7 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { viewModel.setCollapseTools(!collapseTools) }
             )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
 
             // ======== Chat Behavior ========
             SectionHeader(stringResource(R.string.settings_section_chat_behavior))
@@ -393,7 +399,7 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { showTerminalFontSizeDialog = true }
             )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
 
             // ======== Advanced ========
             SectionHeader(stringResource(R.string.settings_section_advanced))
@@ -423,7 +429,7 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { showLocalLaunchOptionsDialog = true },
             )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
 
             // ======== Notifications ========
             SectionHeader(stringResource(R.string.settings_section_notifications))
@@ -583,12 +589,18 @@ fun SettingsScreen(
 
 @Composable
 private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp)
-    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp)
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -634,6 +646,9 @@ private fun LocalServerLaunchOptionsDialog(
     val trimmedNoProxy = localNoProxyList.trim()
     val trimmedServerPassword = localServerPassword.trim()
     val canSave = !localEnabled || trimmedProxyUrl.isNotBlank()
+    val dialogListItemColors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    val bodyMaxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.58f
+    val bodyScrollState = rememberScrollState()
 
     val switchColors = if (isAmoled) {
         SwitchDefaults.colors(
@@ -655,11 +670,16 @@ private fun LocalServerLaunchOptionsDialog(
         title = {
             Text(
                 text = stringResource(R.string.home_local_launch_options),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleMedium,
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = bodyMaxHeight)
+                    .verticalScroll(bodyScrollState),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Text(stringResource(R.string.home_local_network_section), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                 ListItem(
@@ -672,6 +692,7 @@ private fun LocalServerLaunchOptionsDialog(
                             colors = switchColors,
                         )
                     },
+                    colors = dialogListItemColors,
                 )
 
                 Text(stringResource(R.string.home_local_security_section), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -725,6 +746,7 @@ private fun LocalServerLaunchOptionsDialog(
                             colors = switchColors,
                         )
                     },
+                    colors = dialogListItemColors,
                 )
 
                 if (localEnabled) {
@@ -760,11 +782,13 @@ private fun LocalServerLaunchOptionsDialog(
                     )
                 }
 
-                Text(
-                    text = stringResource(R.string.home_local_proxy_no_proxy_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (localEnabled) {
+                    Text(
+                        text = stringResource(R.string.home_local_proxy_no_proxy_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
 
                 Text(stringResource(R.string.home_local_autostart_section), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
@@ -783,6 +807,7 @@ private fun LocalServerLaunchOptionsDialog(
                             colors = switchColors,
                         )
                     },
+                    colors = dialogListItemColors,
                 )
 
                 ListItem(
@@ -804,6 +829,7 @@ private fun LocalServerLaunchOptionsDialog(
                             colors = switchColors,
                         )
                     },
+                    colors = dialogListItemColors,
                 )
 
                 ExposedDropdownMenuBox(
@@ -882,7 +908,7 @@ private fun amoledDialogModifier(): Modifier {
     return if (isAmoledTheme) {
         Modifier.border(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.78f),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
             shape = RoundedCornerShape(28.dp),
         )
     } else {
@@ -895,6 +921,17 @@ private fun amoledDialogContainerColor(): Color {
     val isAmoledTheme = MaterialTheme.colorScheme.background == Color.Black &&
         MaterialTheme.colorScheme.surface == Color.Black
     return if (isAmoledTheme) Color.Black else AlertDialogDefaults.containerColor
+}
+
+@Composable
+private fun amoledSelectedItemColor(): Color {
+    val isAmoledTheme = MaterialTheme.colorScheme.background == Color.Black &&
+        MaterialTheme.colorScheme.surface == Color.Black
+    return if (isAmoledTheme) {
+        Color.Black
+    } else {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+    }
 }
 
 /**
@@ -935,10 +972,10 @@ private fun <K> SettingsPickerDialog(
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+            color = amoledDialogContainerColor(),
             border = if (isAmoled) BorderStroke(
                 1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
             ) else null,
             tonalElevation = if (isAmoled) 0.dp else 6.dp,
             modifier = Modifier
@@ -978,8 +1015,7 @@ private fun <K> SettingsPickerDialog(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(
                                     when {
-                                        isSelected && isAmoled -> Color.Black
-                                        isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                                        isSelected -> amoledSelectedItemColor()
                                         else -> Color.Transparent
                                     }
                                 )
@@ -1152,7 +1188,12 @@ private fun TerminalFontSizeDialog(
         modifier = amoledDialogModifier(),
         onDismissRequest = onDismiss,
         containerColor = amoledDialogContainerColor(),
-        title = { Text(stringResource(R.string.settings_terminal_font_size)) },
+        title = {
+            Text(
+                text = stringResource(R.string.settings_terminal_font_size),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(

@@ -1,5 +1,6 @@
 package dev.minios.ocremote
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -91,6 +92,7 @@ class MainActivity : ComponentActivity() {
         terminalKeyInterceptor = interceptor
     }
 
+    @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (terminalKeyInterceptor?.invoke(event) == true) {
             return true

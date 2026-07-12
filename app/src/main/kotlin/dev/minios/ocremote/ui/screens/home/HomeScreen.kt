@@ -187,6 +187,7 @@ fun HomeScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.home_title)) },
@@ -200,13 +201,17 @@ fun HomeScreen(
                     IconButton(onClick = onNavigateToAbout) {
                         Icon(Icons.Default.Info, contentDescription = stringResource(R.string.about_title))
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(padding)
         ) {
             when {
@@ -422,7 +427,7 @@ private fun LocalRuntimeCard(
     val cardContainerColor = if (isAmoled) {
         Color.Black
     } else {
-        MaterialTheme.colorScheme.surfaceContainerHighest
+        MaterialTheme.colorScheme.surfaceContainer
     }
     val cardContentColor = if (isAmoled) {
         MaterialTheme.colorScheme.onSurface
@@ -860,6 +865,7 @@ private fun LocalLaunchOptionsDialog(
                         title = {
                             Text(
                                 text = stringResource(R.string.home_local_launch_options_title),
+                                style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -869,6 +875,9 @@ private fun LocalLaunchOptionsDialog(
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.close))
                             }
                         },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = containerColor
+                        )
                     )
                 },
             ) { innerPadding ->
@@ -1218,7 +1227,7 @@ private fun ServerCard(
     val cardContainerColor = if (isAmoled) {
         Color.Black
     } else {
-        MaterialTheme.colorScheme.surfaceContainerHighest
+        MaterialTheme.colorScheme.surfaceContainer
     }
     val cardContentColor = if (isConnected && !isAmoled) {
         MaterialTheme.colorScheme.onSurfaceVariant
