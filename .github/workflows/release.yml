@@ -146,10 +146,10 @@ jobs:
             gh release upload "$TAG" release-apks/*.apk release-metadata/update.json --clobber
           else
             echo "Creating new release $TAG..."
-            if [ -f "RELEASE_NOTES_${VERSION}.md" ]; then
+            if [ -f "release-notes/RELEASE_NOTES_${VERSION}.md" ]; then
               gh release create $TAG \
                  --title "${VERSION}" \
-                 --notes-file "RELEASE_NOTES_${VERSION}.md" \
+                 --notes-file "release-notes/RELEASE_NOTES_${VERSION}.md" \
                  release-apks/*.apk release-metadata/update.json
             else
               gh release create $TAG \

@@ -30,10 +30,11 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Image preview & save** — open sent and draft images in fullscreen preview and save to device storage
 - **Shell output copy** — bash output blocks support text selection and one-tap copy (command + output)
 - **HTML error fallback modes** — switch long HTML error payloads between rendered page view and raw code view
-- **Collapsible reasoning** — reasoning stays compact by default and expands on demand
+- **Collapsible reasoning** — reasoning expands on demand, with optional auto-expand and turn dividers for multi-message responses
 - **Slash commands** — `/new`, `/fork`, `/compact`, `/share`, `/rename`, `/undo`, `/redo`, `/shell`
 - **Message actions** — long-press user messages to revert with confirmation
 - **Reliable delivery** — outgoing prompts stay visible with queued state while delayed server events and history are reconciled
+- **Interaction queue** — simultaneous permissions and questions stay ordered with position, retry, parent-chat routing, and permanent-approval confirmation
 
 ### Terminal Mode
 - **Termux-like terminal mode** — full-screen terminal UI with dedicated extra keys and mobile-first interactions
@@ -43,12 +44,13 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **TUI rendering improvements** — better full-grid rendering behavior for terminal UIs
 - **Terminal shortcuts** — Ctrl/Alt latching, volume-key virtual modifiers (Ctrl/Fn), and `Ctrl+Alt+V` paste
 - **Selection toolbar paste** — terminal selection menu includes paste action integrated with terminal input
+- **Mobile navigation and recovery** — inertial scrollback, pinch zoom, explicit connection states, reconnect for transient failures, and in-place restart for exited tabs
 
 ### Session Management  
 - **Multi-session** — switch between sessions, view history
-- **Project browser** — search sessions and optionally group them by project with branch badges and project-scoped new chats
+- **Project browser** — search sessions, optionally group them by project, and start chats from 5–50 configurable recent directories
 - **Session organization** — favorite and reorder important sessions across servers, filter Favorites by reusable custom categories, and keep offline favorites visible until their server reconnects
-- **Session actions** — create, fork, compact, run a code review, share/unshare, rename, and delete via explicit menus
+- **Session actions** — create, reload, fork, compact, run a code review, share/unshare, rename, and delete via explicit menus
 - **Terminal mode shortcut** — open the current session in terminal mode from the chat top bar
 - **Load older messages** — paginated history loading; initial batch size is configurable (25-200)
 - **Large-session stability** — `largeHeap`, paginated message loading, and OOM fallback retry with smaller limits
@@ -83,6 +85,8 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Compact messages** — reduce spacing between messages for denser layout
 - **Auto-expand tool results** — show tool card contents expanded by default
 - **Initial message count** — configure how many messages to load per session (25–200)
+- **Recent directories** — choose how many projects appear in the quick new-session dialog (5–50, default 20)
+- **Reasoning display** — optionally auto-expand reasoning and show dividers between messages in one response
 - **Confirm before send** — optional confirmation dialog before sending messages
 - **Haptic feedback** — optional send confirmation haptics (API 30+ `CONFIRM`, older `CONTEXT_CLICK`)
 - **Keep screen on** — prevents sleep while the chat screen is open

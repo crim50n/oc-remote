@@ -169,4 +169,3 @@ All tool cards are expandable/collapsible with a "steps" toggle:
 
 - "Open in Web" action in chat dropdown menu opens the full OpenCode WebUI for the current session
 - Pull-to-refresh, file upload support, in-WebView navigation
-

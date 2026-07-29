@@ -22,7 +22,8 @@ Feature release focused on cross-server session organization, reliable chat and 
 - Added explicit terminal tab states for starting, reconnecting, disconnected, and exited sessions; transient failures reconnect the existing PTY while exited sessions can restart in the same tab.
 - Added a privacy-sanitized Diagnostics screen with severity filters, bounded persistent storage, crash capture, copy, file sharing, and confirmation-protected clearing.
 - Added secure in-app GitHub Release updates with automatic discovery, manual checks from About, verified downloads, progress, and handoff to Android's system installer.
-- Improved reconnect recovery, notification navigation, Busy/Idle accuracy, and Stop behavior while reducing background preload work, battery use, and memory pressure on large multi-server installations.
+- Improved reconnect recovery, notification navigation, Busy/Idle accuracy, and Stop behavior across large multi-server installations.
+- Added a Background WakeLock setting for more reliable screen-off notifications, with wake and network recovery when continuous background activity is disabled.
 - Dismissed stale task, permission, question, and session-error notifications when their chat is opened, while preserving alerts for other sessions (#25).
 - Revealed newly promoted active sessions when the session list is near the top, without disrupting deeper scroll positions or active searches (#26).
 - Fixed a navigation crash when server credentials or identifiers contain literal percent sequences such as `%NR` or `%25` (#28).
