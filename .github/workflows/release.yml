@@ -94,9 +94,9 @@ jobs:
           "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
 
           BADGING=$("$BUILD_TOOLS/aapt" dump badging "$APK" | head -1)
-          APK_PACKAGE=$(printf '%s\n' "$BADGING" | sed -n "s/.*name='\([^']*\)'.*/\1/p")
-          APK_VERSION_CODE=$(printf '%s\n' "$BADGING" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p")
-          APK_VERSION_NAME=$(printf '%s\n' "$BADGING" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p")
+          APK_PACKAGE=$(printf '%s\n' "$BADGING" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")
+          APK_VERSION_CODE=$(printf '%s\n' "$BADGING" | sed -n "s/^package: name='[^']*' versionCode='\([^']*\)'.*/\1/p")
+          APK_VERSION_NAME=$(printf '%s\n' "$BADGING" | sed -n "s/^package: name='[^']*' versionCode='[^']*' versionName='\([^']*\)'.*/\1/p")
           test "$APK_PACKAGE" = "dev.minios.ocremote" || { echo "::error::APK package mismatch"; exit 1; }
           test "$APK_VERSION_CODE" = "$VERSION_CODE" || { echo "::error::APK versionCode mismatch"; exit 1; }
           test "$APK_VERSION_NAME" = "$VERSION" || { echo "::error::APK versionName mismatch"; exit 1; }
