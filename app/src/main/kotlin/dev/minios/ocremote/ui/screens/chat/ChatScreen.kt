@@ -118,6 +118,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.Stroke
+import dev.minios.ocremote.service.SessionNotificationCoordinator
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.unit.Dp
@@ -1060,17 +1061,32 @@ fun ChatScreen(
         }
     }
 
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, viewModel.serverId, viewModel.sessionId) {
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            SessionNotificationCoordinator.activate(context, viewModel.serverId, viewModel.sessionId)
+        }
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
-                terminalCtrlLatched = false
-                terminalAltLatched = false
-                terminalVirtualCtrlDown = false
-                terminalVirtualFnDown = false
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    SessionNotificationCoordinator.activate(context, viewModel.serverId, viewModel.sessionId)
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    SessionNotificationCoordinator.deactivate(viewModel.serverId, viewModel.sessionId)
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    terminalCtrlLatched = false
+                    terminalAltLatched = false
+                    terminalVirtualCtrlDown = false
+                    terminalVirtualFnDown = false
+                }
+                else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            SessionNotificationCoordinator.deactivate(viewModel.serverId, viewModel.sessionId)
+        }
     }
 
     DisposableEffect(isTerminalMode) {

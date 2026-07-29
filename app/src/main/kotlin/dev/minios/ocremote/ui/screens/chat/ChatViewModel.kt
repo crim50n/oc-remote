@@ -232,7 +232,7 @@ class ChatViewModel @Inject constructor(
     private val username: String = savedStateHandle.get<String>("username").orEmpty()
     private val password: String = savedStateHandle.get<String>("password").orEmpty()
     val serverName: String = savedStateHandle.get<String>("serverName").orEmpty()
-    private val serverId: String = savedStateHandle.get<String>("serverId").orEmpty()
+    val serverId: String = savedStateHandle.get<String>("serverId").orEmpty()
     val sessionId: String = savedStateHandle.get<String>("sessionId").orEmpty()
 
     private val conn = ServerConnection.from(serverUrl, username, password.ifEmpty { null })

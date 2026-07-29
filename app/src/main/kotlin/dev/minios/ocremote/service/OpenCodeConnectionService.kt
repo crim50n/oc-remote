@@ -904,11 +904,6 @@ class OpenCodeConnectionService : Service() {
         )
     }
 
-    /** Generate a stable notification ID for a server+session event type. */
-    private fun eventNotificationId(serverId: String, sessionId: String, typeOffset: Int): Int {
-        return (serverId + sessionId).hashCode() + typeOffset
-    }
-
     companion object {
         const val ACTION_OPEN_SESSION = "dev.minios.ocremote.OPEN_SESSION"
         const val ACTION_DISCONNECT = "dev.minios.ocremote.DISCONNECT"
@@ -1087,8 +1082,7 @@ class OpenCodeConnectionService : Service() {
                 .setVibrate(longArrayOf(0, 500, 200, 500))
         }
 
-        notificationManager.notify(notifId, builder.build())
-        showServerGroupSummary(server)
+        postEventNotification(server, sessionId, notifId, builder.build())
     }
 
     private fun showPermissionNotification(server: ServerConfig, sessionId: String, permission: String) {
@@ -1117,8 +1111,7 @@ class OpenCodeConnectionService : Service() {
             .setGroup("server_${server.id}")
             .build()
 
-        notificationManager.notify(notifId, notification)
-        showServerGroupSummary(server)
+        postEventNotification(server, sessionId, notifId, notification)
     }
 
     private fun showQuestionNotification(server: ServerConfig, sessionId: String, questionText: String) {
@@ -1147,8 +1140,7 @@ class OpenCodeConnectionService : Service() {
             .setGroup("server_${server.id}")
             .build()
 
-        notificationManager.notify(notifId, notification)
-        showServerGroupSummary(server)
+        postEventNotification(server, sessionId, notifId, notification)
     }
 
     private fun showErrorNotification(server: ServerConfig, sessionId: String?, error: String) {
@@ -1174,8 +1166,24 @@ class OpenCodeConnectionService : Service() {
             .setGroup("server_${server.id}")
             .build()
 
-        notificationManager.notify(notifId, notification)
-        showServerGroupSummary(server)
+        postEventNotification(server, sessionId, notifId, notification)
+    }
+
+    private fun postEventNotification(
+        server: ServerConfig,
+        sessionId: String?,
+        notificationId: Int,
+        notification: Notification,
+    ) {
+        val post = {
+            notificationManager.notify(notificationId, notification)
+            showServerGroupSummary(server)
+        }
+        if (sessionId == null) {
+            post()
+        } else {
+            SessionNotificationCoordinator.postUnlessActive(server.id, sessionId, post)
+        }
     }
 
     /**
@@ -1183,7 +1191,7 @@ class OpenCodeConnectionService : Service() {
      * event notifications from the same server together.
      */
     private fun showServerGroupSummary(server: ServerConfig) {
-        val summaryId = "server_summary_${server.id}".hashCode()
+        val summaryId = serverGroupSummaryNotificationId(server.id)
         val summary = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_TASKS_SILENT_ID)
             .setContentTitle(server.displayName)
             .setContentText(getString(R.string.notification_group_summary))
