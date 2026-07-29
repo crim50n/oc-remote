@@ -332,7 +332,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -440,8 +439,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -449,7 +446,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -478,9 +474,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -553,8 +546,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
@@ -932,7 +923,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -1040,8 +1030,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -1049,7 +1037,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -1078,9 +1065,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -1153,8 +1137,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
@@ -1532,7 +1514,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -1640,8 +1621,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -1649,7 +1628,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -1678,9 +1656,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -1753,8 +1728,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
@@ -2132,7 +2105,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -2240,8 +2212,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -2249,7 +2219,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -2278,9 +2247,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -2353,8 +2319,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
@@ -2732,7 +2696,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -2840,8 +2803,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -2849,7 +2810,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -2878,9 +2838,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -2953,8 +2910,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
@@ -3332,7 +3287,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -3440,8 +3394,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -3449,7 +3401,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -3478,9 +3429,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -3553,8 +3501,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
@@ -3932,7 +3878,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -4040,8 +3985,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -4049,7 +3992,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -4078,9 +4020,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -4153,8 +4092,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
@@ -4532,7 +4469,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -4640,8 +4576,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -4649,7 +4583,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -4678,9 +4611,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -4753,8 +4683,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
@@ -5132,7 +5060,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -5240,8 +5167,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -5249,7 +5174,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -5278,9 +5202,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -5353,8 +5274,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
@@ -5732,7 +5651,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -5840,8 +5758,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -5849,7 +5765,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -5878,9 +5793,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -5953,8 +5865,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
@@ -6332,7 +6242,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -6440,8 +6349,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -6449,7 +6356,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -6478,9 +6384,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -6553,8 +6456,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
@@ -6932,7 +6833,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -7040,8 +6940,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -7049,7 +6947,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -7078,9 +6975,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -7153,8 +7047,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
@@ -7532,7 +7424,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -7640,8 +7531,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -7649,7 +7538,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -7678,9 +7566,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -7753,8 +7638,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
@@ -8132,7 +8015,6 @@ checksums:
         notification_connected: 421b8ce610d0bce3a49ad3d3f6460c38
         notification_connected_count: c51b2cdeaf042d86a13ea6509f56fba1
         notification_connecting: e711594c4bd23861703297be951bb726
-        notification_disconnect_all: 3849cdd59f60e704f1541613f7c9a89e
         notification_exit: e66bf02eaeef7abb21c93fa7e379156d
         notification_export_progress: 51c17bbf9de8bd23355aad9344528263
         notification_group_summary: e74fbfe7c58179fcfb5374214091ccbf
@@ -8240,8 +8122,6 @@ checksums:
         session_favorite_move_down: d9554d73d232164f319364fe5fdf4c19
         session_favorite_move_up: 9e5155ccc84761853e164f9ad83084fe
         session_favorite_remove: 467bbd4253b213ee3cd2db3ab5caa423
-        session_move_down: f6d2856cbca929523e6a023c17f9702d
-        session_move_up: 595fbd20febf791eec14fa5c2457055c
         session_pin: c66f8da6de5b0f5c30838feca9c6a4f8
         session_pin_move_down: 4a5513c0e76ccc58411fc2b1e2da39b5
         session_pin_move_up: 7a17fd821723d1ad40d6050f47d7ba93
@@ -8249,7 +8129,6 @@ checksums:
         session_rename: 20c58b9ea02525be4caed952c014eaec
         session_rename_button: 70176fe5a292a918dc59a23e3b7ca3e8
         session_rename_title: 37ca4a5ed776d617f864cd357d0dc3ec
-        session_reorder_pinned: 1668db4e19e3f55d0423ac775ebac503
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
@@ -8278,9 +8157,6 @@ checksums:
         sessions_open_other_project: be870357b21d7b31f9f58db3c22a71f5
         sessions_open_project: 64d8c18f97c8d35442f5e522c64438f0
         sessions_project_summary: 908339c75e2f18f1558965d9ff15392d
-        sessions_pull_to_refresh: a5368149cc1e8de39909fcbd848d9de4
-        sessions_refreshing: 19f61902940b718f5faed75b5052e451
-        sessions_release_to_refresh: 81b5d412df62802968cf0b7477c407fb
         sessions_retrying: 4538065bf08149e7303b0c988d7f78f8
         sessions_search_folders: e2761c07df5b28d75f4c0376b4cf3995
         sessions_select_all: 00410497fa6957c2c9d7593808dca615
@@ -8353,8 +8229,6 @@ checksums:
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
-        settings_show_shell_button: 5c290a959c437a0f3097755ffd799985
-        settings_show_shell_button_desc: 73a6f914d75019c4ea78237f64f4926d
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146

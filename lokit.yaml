@@ -1,13 +1,17 @@
 # lokit configuration for OC Remote Android app
 # See: https://github.com/minios-linux/lokit
 #
-# yaml-language-server: $schema=https://raw.githubusercontent.com/minios-linux/lokit/master/lokit.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/minios-linux/lokit/refs/heads/master/lokit.schema.json
 
 source_lang: en
 
 languages: [ru, de, es, fr, it, id, pt-BR, ja, ko, zh-CN, uk, tr, ar, pl]
 
+provider:
+  id: copilot
+  model: gpt-4.1
+
 targets:
   - name: OC Remote Android
     format: android
-    dir: app/src/main/res
+    to: app/src/main/res
