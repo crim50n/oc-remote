@@ -600,4 +600,6 @@
     <string name="chat_terminal_close_tab">탭 닫기</string>
     <string name="chat_terminal_new_tab">새로 만들기</string>
     <string name="chat_terminal_keyboard">키보드</string>
+    <string name="settings_recent_directories">최근 디렉터리</string>
+    <string name="settings_recent_directories_desc">빠른 새 세션 대화상자에 디렉터리 %1$d개</string>
 </resources>

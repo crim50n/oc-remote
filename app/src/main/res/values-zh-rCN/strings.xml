@@ -600,4 +600,6 @@
     <string name="chat_terminal_close_tab">关闭标签页</string>
     <string name="chat_terminal_new_tab">新建</string>
     <string name="chat_terminal_keyboard">键盘</string>
+    <string name="settings_recent_directories">最近的目录</string>
+    <string name="settings_recent_directories_desc">快速新建会话对话框中有 %1$d 个目录</string>
 </resources>

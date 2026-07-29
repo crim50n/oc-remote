@@ -538,6 +538,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62
@@ -1136,6 +1138,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62
@@ -1734,6 +1738,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62
@@ -2332,6 +2338,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62
@@ -2930,6 +2938,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62
@@ -3528,6 +3538,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62
@@ -4126,6 +4138,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62
@@ -4724,6 +4738,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62
@@ -5322,6 +5338,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62
@@ -5920,6 +5938,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62
@@ -6518,6 +6538,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62
@@ -7116,6 +7138,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62
@@ -7714,6 +7738,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62
@@ -8312,6 +8338,8 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
+        settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
         settings_reconnect_conservative: 4f8c72e1c39247b719771638a483b8d9
         settings_reconnect_mode: 682eee7b1846e8f26ecd4b06aa7e8a62

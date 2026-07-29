@@ -600,4 +600,6 @@
     <string name="chat_terminal_close_tab">タブを閉じる</string>
     <string name="chat_terminal_new_tab">新規</string>
     <string name="chat_terminal_keyboard">キーボード</string>
+    <string name="settings_recent_directories">最近使用したディレクトリ</string>
+    <string name="settings_recent_directories_desc">クイック新規セッションダイアログに%1$d個のディレクトリ</string>
 </resources>

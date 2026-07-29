@@ -606,4 +606,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="chat_terminal_close_tab">Tutup tab</string>
     <string name="chat_terminal_new_tab">Baru</string>
     <string name="chat_terminal_keyboard">Keyboard</string>
+    <string name="settings_recent_directories">Direktori terbaru</string>
+    <string name="settings_recent_directories_desc">%1$d direktori di dialog sesi baru cepat</string>
 </resources>

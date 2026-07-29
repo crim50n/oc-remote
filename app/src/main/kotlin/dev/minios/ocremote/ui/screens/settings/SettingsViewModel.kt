@@ -51,6 +51,12 @@ class SettingsViewModel @Inject constructor(
         initialValue = 50
     )
 
+    val recentDirectoryCount = settingsRepository.recentDirectoryCount.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 20,
+    )
+
     val codeWordWrap = settingsRepository.codeWordWrap.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -240,6 +246,12 @@ class SettingsViewModel @Inject constructor(
     fun setInitialMessageCount(count: Int) {
         viewModelScope.launch {
             settingsRepository.setInitialMessageCount(count)
+        }
+    }
+
+    fun setRecentDirectoryCount(count: Int) {
+        viewModelScope.launch {
+            settingsRepository.setRecentDirectoryCount(count)
         }
     }
 

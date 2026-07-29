@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.HorizontalRule
 import androidx.compose.material.icons.filled.Language
@@ -91,6 +92,7 @@ fun SettingsScreen(
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
 
     val initialMessageCount by viewModel.initialMessageCount.collectAsState()
+    val recentDirectoryCount by viewModel.recentDirectoryCount.collectAsState()
     val codeWordWrap by viewModel.codeWordWrap.collectAsState()
     val confirmBeforeSend by viewModel.confirmBeforeSend.collectAsState()
     val amoledDark by viewModel.amoledDark.collectAsState()
@@ -113,6 +115,7 @@ fun SettingsScreen(
     var showThemeDialog by remember { mutableStateOf(false) }
     var showFontSizeDialog by remember { mutableStateOf(false) }
     var showMessageCountDialog by remember { mutableStateOf(false) }
+    var showRecentDirectoryCountDialog by remember { mutableStateOf(false) }
     var showReconnectModeDialog by remember { mutableStateOf(false) }
     var showTerminalFontSizeDialog by remember { mutableStateOf(false) }
     var showImageMaxSideDialog by remember { mutableStateOf(false) }
@@ -179,6 +182,15 @@ fun SettingsScreen(
                     Icon(Icons.Default.Sync, contentDescription = null)
                 },
                 modifier = Modifier.clickable { showReconnectModeDialog = true }
+            )
+
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_recent_directories)) },
+                supportingContent = {
+                    Text(stringResource(R.string.settings_recent_directories_desc, recentDirectoryCount))
+                },
+                leadingContent = { Icon(Icons.Default.Folder, contentDescription = null) },
+                modifier = Modifier.clickable { showRecentDirectoryCountDialog = true },
             )
 
             ListItem(
@@ -573,6 +585,17 @@ fun SettingsScreen(
                     showMessageCountDialog = false
                 },
                 onDismiss = { showMessageCountDialog = false }
+            )
+        }
+
+        if (showRecentDirectoryCountDialog) {
+            RecentDirectoryCountPickerDialog(
+                currentCount = recentDirectoryCount,
+                onCountSelected = { count ->
+                    viewModel.setRecentDirectoryCount(count)
+                    showRecentDirectoryCountDialog = false
+                },
+                onDismiss = { showRecentDirectoryCountDialog = false },
             )
         }
 
@@ -1325,6 +1348,21 @@ private fun MessageCountPickerDialog(
         selectedKey = currentCount,
         onSelect = onCountSelected,
         onDismiss = onDismiss
+    )
+}
+
+@Composable
+private fun RecentDirectoryCountPickerDialog(
+    currentCount: Int,
+    onCountSelected: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    SettingsPickerDialog(
+        title = stringResource(R.string.settings_recent_directories),
+        options = listOf(5, 10, 15, 20, 30, 50).map { it to "$it" },
+        selectedKey = currentCount,
+        onSelect = onCountSelected,
+        onDismiss = onDismiss,
     )
 }
 

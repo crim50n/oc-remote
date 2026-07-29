@@ -600,4 +600,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="chat_terminal_close_tab">Sekmeyi kapat</string>
     <string name="chat_terminal_new_tab">Yeni</string>
     <string name="chat_terminal_keyboard">Klavye</string>
+    <string name="settings_recent_directories">Son dizinler</string>
+    <string name="settings_recent_directories_desc">Hızlı yeni oturum penceresinde %1$d dizin</string>
 </resources>

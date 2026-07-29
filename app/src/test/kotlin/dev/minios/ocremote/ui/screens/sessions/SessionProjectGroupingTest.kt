@@ -100,6 +100,17 @@ class SessionProjectGroupingTest {
     }
 
     @Test
+    fun recentDirectoriesRespectConfiguredLimit() {
+        val sessions = (1L..10L).map { updated ->
+            item("session-$updated", "/repo-$updated", updated = updated)
+        }
+
+        val directories = recentSessionDirectories(sessions, limit = 5)
+
+        assertEquals(listOf(10L, 9L, 8L, 7L, 6L), directories.map { it.lastUsed })
+    }
+
+    @Test
     fun recentDirectoriesGroupTrailingSlashesAndUseLatestActivity() {
         val directories = recentSessionDirectories(
             listOf(

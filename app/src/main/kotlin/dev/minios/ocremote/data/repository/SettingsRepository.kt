@@ -35,6 +35,7 @@ class SettingsRepository @Inject constructor(
         private val NOTIFICATIONS_KEY = booleanPreferencesKey("notifications_enabled")
 
         private val INITIAL_MESSAGE_COUNT_KEY = intPreferencesKey("initial_message_count")
+        private val RECENT_DIRECTORY_COUNT_KEY = intPreferencesKey("recent_directory_count")
         private val CODE_WORD_WRAP_KEY = booleanPreferencesKey("code_word_wrap")
         private val CONFIRM_BEFORE_SEND_KEY = booleanPreferencesKey("confirm_before_send")
         private val AMOLED_DARK_KEY = booleanPreferencesKey("amoled_dark")
@@ -343,6 +344,17 @@ class SettingsRepository @Inject constructor(
     suspend fun setInitialMessageCount(count: Int) {
         dataStore.edit { preferences ->
             preferences[INITIAL_MESSAGE_COUNT_KEY] = count
+        }
+    }
+
+    /** Number of directories shown in the quick new-session dialog. Default: 20. */
+    val recentDirectoryCount: Flow<Int> = dataStore.data.map { preferences ->
+        (preferences[RECENT_DIRECTORY_COUNT_KEY] ?: 20).coerceIn(5, 50)
+    }
+
+    suspend fun setRecentDirectoryCount(count: Int) {
+        dataStore.edit { preferences ->
+            preferences[RECENT_DIRECTORY_COUNT_KEY] = count.coerceIn(5, 50)
         }
     }
 

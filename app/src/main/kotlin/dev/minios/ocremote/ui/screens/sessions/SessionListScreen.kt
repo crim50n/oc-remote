@@ -191,6 +191,7 @@ fun SessionListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val groupByProject by viewModel.groupSessionsByProject.collectAsState()
+    val recentDirectoryCount by viewModel.recentDirectoryCount.collectAsState()
     val isAmoled = isAmoledTheme()
     // Navigate to newly created session
     LaunchedEffect(viewModel) {
@@ -594,6 +595,7 @@ fun SessionListScreen(
         val allSessions = uiState.sessionGroups.flatMap { it.sessions }
         NewSessionQuickDialog(
             sessions = allSessions,
+            limit = recentDirectoryCount,
             onSelectDirectory = { directory ->
                 showQuickNewSession = false
                 viewModel.createNewSession(directory = directory)
@@ -1295,12 +1297,13 @@ private fun DirectoryRow(
 @Composable
 private fun NewSessionQuickDialog(
     sessions: List<SessionItem>,
+    limit: Int,
     onSelectDirectory: (String) -> Unit,
     onBrowse: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val dirEntries = remember(sessions) {
-        recentSessionDirectories(sessions)
+    val dirEntries = remember(sessions, limit) {
+        recentSessionDirectories(sessions, limit)
     }
 
     Dialog(

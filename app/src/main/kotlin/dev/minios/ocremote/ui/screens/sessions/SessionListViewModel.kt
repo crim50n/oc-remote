@@ -176,6 +176,12 @@ class SessionListViewModel @Inject constructor(
         false,
     )
 
+    val recentDirectoryCount: StateFlow<Int> = settingsRepository.recentDirectoryCount.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        20,
+    )
+
     private val favoriteSessionIds: StateFlow<List<String>> = settingsRepository.favoriteSessionIds(serverId).stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),

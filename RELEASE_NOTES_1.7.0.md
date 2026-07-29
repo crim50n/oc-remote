@@ -7,7 +7,7 @@ Feature release focused on cross-server session organization, reliable chat and 
 - Added persistent cross-server Favorites with global ordering, offline snapshots, connect prompts, and consistent session cards.
 - Added reusable session categories with custom names, colors, icons, per-session assignment, category filters, and animated Busy accents.
 - Added project-aware session browsing with search, optional project grouping, branch badges, expandable sections, project paths, and project-scoped new chats.
-- Expanded the quick new-session dialog from 8 to 20 recently used project directories (#23).
+- Made the quick new-session directory count configurable from 5 to 50, with 20 shown by default (#23).
 - Expanded Android sharing to accept one or multiple supported files and added a destination picker that prioritizes Favorites, preserves their global order, and displays categories for connected sessions.
 - Added device attachments for images, PDFs, text, source code, and configuration files with MIME and size validation.
 - Made outgoing prompts durable and visible immediately while delivery is confirmed; prompts not accepted by the server are removed from the local queue and restored to the composer instead of remaining stuck.

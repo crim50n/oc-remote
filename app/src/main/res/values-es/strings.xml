@@ -600,4 +600,6 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="chat_terminal_close_tab">Cerrar pestaña</string>
     <string name="chat_terminal_new_tab">Nuevo</string>
     <string name="chat_terminal_keyboard">Teclado</string>
+    <string name="settings_recent_directories">Directorios recientes</string>
+    <string name="settings_recent_directories_desc">%1$d directorios en el diálogo rápido de nueva sesión</string>
 </resources>

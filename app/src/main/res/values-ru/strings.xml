@@ -601,4 +601,6 @@
     <string name="chat_terminal_close_tab">Закрыть вкладку</string>
     <string name="chat_terminal_new_tab">Новая</string>
     <string name="chat_terminal_keyboard">Клавиатура</string>
+    <string name="settings_recent_directories">Недавние каталоги</string>
+    <string name="settings_recent_directories_desc">%1$d каталогов в быстром диалоге новой сессии</string>
 </resources>

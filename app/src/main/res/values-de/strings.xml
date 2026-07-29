@@ -600,4 +600,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="chat_terminal_close_tab">Tab schließen</string>
     <string name="chat_terminal_new_tab">Neu</string>
     <string name="chat_terminal_keyboard">Tastatur</string>
+    <string name="settings_recent_directories">Zuletzt verwendete Verzeichnisse</string>
+    <string name="settings_recent_directories_desc">%1$d Verzeichnisse im Schnellstart-Dialog für neue Sitzungen</string>
 </resources>

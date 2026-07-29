@@ -421,6 +421,8 @@
     <string name="settings_notifications_desc">Notify when agent completes a task</string>
 
     <string name="settings_initial_messages">Messages to load initially</string>
+    <string name="settings_recent_directories">Recent directories</string>
+    <string name="settings_recent_directories_desc">%1$d directories in the quick new-session dialog</string>
     <string name="settings_code_word_wrap">Word wrap in code blocks</string>
     <string name="settings_code_word_wrap_desc">Wrap long lines instead of horizontal scrolling</string>
     <string name="settings_confirm_send">Confirm before sending</string>
