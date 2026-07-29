@@ -15,6 +15,7 @@ Feature release focused on cross-server session organization, reliable chat and 
 - Improved OpenCode event compatibility for streamed reasoning, tool progress, shell events, workspace state, model and agent updates, and tool attachments.
 - Added detailed context usage with input, output, reasoning, cache, session totals, remaining capacity, message count, and cost.
 - Improved reasoning and Markdown with descriptive elapsed-time titles, optional auto-expand, GFM parsing, task markers, tables, multilingual tilde handling, and code-copy actions.
+- Made wide Markdown tables horizontally scrollable instead of compressing their content beyond readability (#27).
 - Improved tool, patch, edit, attachment, and session cards with compact output, copy actions, file-change summaries, completed attachments, unified metadata, and pulsing activity accents.
 - Fixed streaming auto-scroll, recovered older history around reverts, and added a local Reload session action.
 - Upgraded terminal interaction with inertial scrollback, smoother pinch zoom, Samsung/Gboard-safe input, shared rendering metrics, and improved accessibility.
@@ -25,10 +26,11 @@ Feature release focused on cross-server session organization, reliable chat and 
 - Dismissed stale task, permission, question, and session-error notifications when their chat is opened, while preserving alerts for other sessions (#25).
 - Revealed newly promoted active sessions when the session list is near the top, without disrupting deeper scroll positions or active searches (#26).
 - Fixed a navigation crash when server credentials or identifiers contain literal percent sequences such as `%NR` or `%25` (#28).
-- Made child and subagent sessions safely read-only while preserving history, context visibility, and tool-driven navigation.
+- Made child and subagent sessions safely read-only while preserving history, context visibility, and tool-driven navigation (#24).
 - Improved provider OAuth errors and local runtime setup with clearer server details, localhost-first defaults, LAN/auth and proxy controls, background launch, auto-start, and timeout handling.
 - Standardized dialogs, menus, cards, buttons, pickers, terminal controls, and chat surfaces across light, dark, dynamic, and AMOLED themes.
 - Updated all supported localizations for the new workflows and interface text.
+- Added explicit trademark and branding guidance for the project's independent OpenCode client status (#17).
 
 ## Version
 
