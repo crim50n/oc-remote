@@ -7,17 +7,23 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
+import dev.minios.ocremote.logging.AppLogger as Log
 import androidx.annotation.StringRes
 import dev.minios.ocremote.BuildConfig
 import dev.minios.ocremote.R
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.minios.ocremote.data.api.OpenCodeApi
+import dev.minios.ocremote.data.api.ServerAuthenticationException
 import dev.minios.ocremote.data.api.ServerConnection
+import dev.minios.ocremote.data.api.ServerHealthHttpException
 import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.data.repository.ServerRepository
 import dev.minios.ocremote.data.repository.SettingsRepository
+import dev.minios.ocremote.data.repository.DiagnosticLogRepository
+import dev.minios.ocremote.data.update.UpdateRepository
+import dev.minios.ocremote.data.update.UpdateState
+import dev.minios.ocremote.data.update.AvailableUpdate
 import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.service.OpenCodeConnectionService
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,7 +33,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -70,6 +79,8 @@ data class HomeUiState(
     val localServerRunInBackground: Boolean = true,
     val localServerAutoStart: Boolean = false,
     val localServerStartupTimeoutSec: Int = 30,
+    val updateState: UpdateState = UpdateState.Idle,
+    val hasFavoriteSessions: Boolean = false,
 )
 
 private data class LocalRuntimeErrorInfo(
@@ -86,6 +97,8 @@ class HomeViewModel @Inject constructor(
     private val api: OpenCodeApi,
     private val localServerManager: LocalServerManager,
     private val settingsRepository: SettingsRepository,
+    private val diagnosticLogRepository: DiagnosticLogRepository,
+    private val updateRepository: UpdateRepository,
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -94,6 +107,8 @@ class HomeViewModel @Inject constructor(
     private var serviceBinder: OpenCodeConnectionService.LocalBinder? = null
     private var sseObserverJob: Job? = null
     private val serverSettingsCheckJobs = mutableMapOf<String, Job>()
+    private val connectionAttemptJobs = mutableMapOf<String, Job>()
+    private val connectionAttemptGenerations = mutableMapOf<String, Int>()
     private var localAutoStartTriggered = false
 
     private val serviceConnection = object : ServiceConnection {
@@ -122,7 +137,15 @@ class HomeViewModel @Inject constructor(
         loadServers()
         bindToService()
         observeSettings()
+        observeFavoriteSessions()
         refreshLocalRuntimeState()
+        viewModelScope.launch {
+            updateRepository.state.collect { state -> _uiState.update { it.copy(updateState = state) } }
+        }
+        viewModelScope.launch {
+            updateRepository.restore()
+            updateRepository.check(manual = false)
+        }
     }
 
     private fun observeSettings() {
@@ -182,6 +205,23 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.localServerStartupTimeoutSec.collect { seconds ->
                 _uiState.update { it.copy(localServerStartupTimeoutSec = seconds) }
+            }
+        }
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private fun observeFavoriteSessions() {
+        viewModelScope.launch {
+            serverRepository.servers.flatMapLatest { servers ->
+                if (servers.isEmpty()) {
+                    flowOf(false)
+                } else {
+                    combine(servers.map { settingsRepository.favoriteSessionIds(it.id) }) { favoritesByServer ->
+                        favoritesByServer.any(List<String>::isNotEmpty)
+                    }
+                }
+            }.collect { hasFavorites ->
+                _uiState.update { it.copy(hasFavoriteSessions = hasFavorites) }
             }
         }
     }
@@ -371,18 +411,29 @@ class HomeViewModel @Inject constructor(
             )
         }
 
-        viewModelScope.launch {
+        connectionAttemptJobs.remove(serverId)?.cancel()
+        val generation = (connectionAttemptGenerations[serverId] ?: 0) + 1
+        connectionAttemptGenerations[serverId] = generation
+        val job = viewModelScope.launch {
             try {
-                val isHealthy = serverRepository.checkServerHealth(server)
-                if (!isHealthy) {
+                val healthResult = serverRepository.checkHealth(server)
+                if (connectionAttemptGenerations[serverId] != generation) return@launch
+                if (healthResult.getOrNull()?.healthy != true) {
+                    val error = healthResult.exceptionOrNull()
+                    val message = when (error) {
+                        is ServerAuthenticationException -> s(R.string.home_server_auth_failed)
+                        is ServerHealthHttpException -> s(R.string.home_server_health_http_error, error.statusCode)
+                        else -> s(R.string.home_server_not_responding)
+                    }
                     _uiState.update {
                         it.copy(
                             connectingServerIds = it.connectingServerIds - serverId,
-                            connectionErrors = it.connectionErrors + (serverId to "Server is not responding")
+                            connectionErrors = it.connectionErrors + (serverId to message)
                         )
                     }
                     return@launch
                 }
+                if (serverId !in _uiState.value.connectingServerIds) return@launch
 
                 val context = getApplication<Application>()
                 val intent = Intent(context, OpenCodeConnectionService::class.java).apply {
@@ -401,7 +452,10 @@ class HomeViewModel @Inject constructor(
 
                 // Connection state will be updated by the service via
                 // observeServiceConnectionState() — no optimistic update needed.
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
+                if (connectionAttemptGenerations[serverId] != generation) return@launch
                 _uiState.update {
                     it.copy(
                         connectingServerIds = it.connectingServerIds - serverId,
@@ -410,6 +464,8 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+        connectionAttemptJobs[serverId] = job
+        job.invokeOnCompletion { connectionAttemptJobs.remove(serverId, job) }
     }
 
     fun refreshLocalRuntimeState() {
@@ -518,7 +574,11 @@ class HomeViewModel @Inject constructor(
                 _uiState.value.localProxyEnabled && it.isNotBlank()
             }
             val noProxyList = _uiState.value.localProxyNoProxy
-            val hostName = if (_uiState.value.localServerAllowLan) "0.0.0.0" else "127.0.0.1"
+            val hostName = if (_uiState.value.localServerAllowLan) {
+                "0.0.0.0"
+            } else {
+                LocalServerManager.DEFAULT_LOCAL_HOST
+            }
             val serverUsername = _uiState.value.localServerUsername.trim().takeIf { it.isNotBlank() }
             val serverPassword = _uiState.value.localServerPassword.trim().takeIf { it.isNotBlank() }
             val runInBackground = _uiState.value.localServerRunInBackground
@@ -533,6 +593,17 @@ class HomeViewModel @Inject constructor(
             )
             if (startResult.isFailure) {
                 val errorInfo = mapLocalRuntimeError(startResult.exceptionOrNull()?.message)
+                diagnosticLogRepository.record(
+                    level = "ERROR",
+                    category = "Local runtime",
+                    message = errorInfo.message,
+                    details = mapOf(
+                        "stage" to "start",
+                        "proxyEnabled" to _uiState.value.localProxyEnabled.toString(),
+                        "proxyConfigured" to (!proxyUrl.isNullOrBlank()).toString(),
+                        "allowLan" to _uiState.value.localServerAllowLan.toString(),
+                    ),
+                )
                 if (errorInfo.status == LocalRuntimeStatus.NeedsSetup) {
                     settingsRepository.setLocalSetupCompleted(false)
                 }
@@ -558,6 +629,18 @@ class HomeViewModel @Inject constructor(
                 password = serverPassword,
             )
             if (!ready) {
+                diagnosticLogRepository.record(
+                    level = "ERROR",
+                    category = "Local runtime",
+                    message = s(R.string.home_local_error_timeout),
+                    details = mapOf(
+                        "stage" to "health-check",
+                        "timeoutSeconds" to _uiState.value.localServerStartupTimeoutSec.toString(),
+                        "proxyEnabled" to _uiState.value.localProxyEnabled.toString(),
+                        "proxyConfigured" to (!proxyUrl.isNullOrBlank()).toString(),
+                        "allowLan" to _uiState.value.localServerAllowLan.toString(),
+                    ),
+                )
                 _uiState.update {
                     it.copy(
                         termuxInstalled = true,
@@ -708,6 +791,18 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun prepareInstall(release: AvailableUpdate) {
+        viewModelScope.launch { updateRepository.prepareInstall(release) }
+    }
+
+    fun installerLaunched() {
+        updateRepository.markInstallerLaunched()
+    }
+
+    fun checkForUpdates() {
+        viewModelScope.launch { updateRepository.check(manual = true) }
+    }
+
     private suspend fun waitForLocalServerReady(
         timeoutMs: Long = 30000L,
         username: String,
@@ -790,15 +885,21 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun s(@StringRes id: Int): String = getApplication<Application>().getString(id)
+    private fun s(@StringRes id: Int, vararg args: Any): String =
+        getApplication<Application>().getString(id, *args)
 
     /**
      * Disconnect from a specific server.
      */
     fun disconnectFromServer(serverId: String) {
+        connectionAttemptGenerations[serverId] = (connectionAttemptGenerations[serverId] ?: 0) + 1
+        connectionAttemptJobs.remove(serverId)?.cancel()
         serviceBinder?.getService()?.disconnect(serverId)
         _uiState.update {
-            it.copy(connectedServerIds = it.connectedServerIds - serverId)
+            it.copy(
+                connectedServerIds = it.connectedServerIds - serverId,
+                connectingServerIds = it.connectingServerIds - serverId,
+            )
         }
     }
 
@@ -807,6 +908,9 @@ class HomeViewModel @Inject constructor(
         sseObserverJob?.cancel()
         serverSettingsCheckJobs.values.forEach { it.cancel() }
         serverSettingsCheckJobs.clear()
+        connectionAttemptJobs.values.forEach { it.cancel() }
+        connectionAttemptJobs.clear()
+        connectionAttemptGenerations.clear()
         try {
             getApplication<Application>().unbindService(serviceConnection)
         } catch (e: Exception) {

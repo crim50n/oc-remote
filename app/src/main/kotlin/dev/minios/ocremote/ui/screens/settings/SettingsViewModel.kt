@@ -81,6 +81,18 @@ class SettingsViewModel @Inject constructor(
         initialValue = false
     )
 
+    val expandReasoning = settingsRepository.expandReasoning.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false,
+    )
+
+    val showTurnDividers = settingsRepository.showTurnDividers.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = true,
+    )
+
     val hapticFeedback = settingsRepository.hapticFeedback.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -91,6 +103,12 @@ class SettingsViewModel @Inject constructor(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = "normal"
+    )
+
+    val backgroundWakeLock = settingsRepository.backgroundWakeLock.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = true,
     )
 
     val keepScreenOn = settingsRepository.keepScreenOn.stateIn(
@@ -255,6 +273,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setExpandReasoning(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setExpandReasoning(enabled) }
+    }
+
+    fun setShowTurnDividers(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setShowTurnDividers(enabled) }
+    }
+
     fun setHapticFeedback(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setHapticFeedback(enabled)
@@ -264,6 +290,12 @@ class SettingsViewModel @Inject constructor(
     fun setReconnectMode(mode: String) {
         viewModelScope.launch {
             settingsRepository.setReconnectMode(mode)
+        }
+    }
+
+    fun setBackgroundWakeLock(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setBackgroundWakeLock(enabled)
         }
     }
 

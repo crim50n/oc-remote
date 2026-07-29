@@ -1,14 +1,27 @@
 package dev.minios.ocremote.ui.screens.chat
 
+import android.widget.Toast
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -16,7 +29,8 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import android.util.Log
+import dev.minios.ocremote.R
+import dev.minios.ocremote.logging.AppLogger as Log
 import com.mikepenz.markdown.compose.LocalMarkdownColors
 import com.mikepenz.markdown.compose.LocalMarkdownDimens
 import com.mikepenz.markdown.compose.LocalMarkdownPadding
@@ -25,6 +39,7 @@ import com.mikepenz.markdown.compose.components.MarkdownComponent
 import com.mikepenz.markdown.compose.elements.MarkdownCodeBackground
 import com.mikepenz.markdown.compose.elements.MarkdownCodeBlock
 import com.mikepenz.markdown.compose.elements.MarkdownCodeFence
+import com.mikepenz.markdown.compose.elements.MarkdownTable
 import com.mikepenz.markdown.compose.elements.material.MarkdownBasicText
 import dev.snipme.highlights.Highlights
 import dev.snipme.highlights.model.BoldHighlight
@@ -41,6 +56,17 @@ internal val safeHighlightedCodeFence: MarkdownComponent = {
 internal val safeHighlightedCodeBlock: MarkdownComponent = {
     SafeMarkdownHighlightedCodeBlock(it.content, it.node)
 }
+
+internal val horizontallyScrollableMarkdownTable: MarkdownComponent = {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+    ) {
+        MarkdownTable(it.content, it.node, it.typography.text)
+    }
+}
+
 
 @Composable
 private fun SafeMarkdownHighlightedCodeFence(
@@ -74,6 +100,8 @@ private fun SafeMarkdownHighlightedCode(
     val backgroundCodeColor = LocalMarkdownColors.current.codeBackground
     val codeBackgroundCornerSize = LocalMarkdownDimens.current.codeBackgroundCornerSize
     val codeBlockPadding = LocalMarkdownPadding.current.codeBlock
+    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     val codeScrollModifier = if (LocalCodeWordWrap.current) {
         Modifier
     } else {
@@ -90,13 +118,36 @@ private fun SafeMarkdownHighlightedCode(
             .fillMaxWidth()
             .padding(vertical = 8.dp),
     ) {
-        MarkdownBasicText(
-            annotatedCode,
-            color = LocalMarkdownColors.current.codeText,
-            modifier = codeScrollModifier
-                .padding(codeBlockPadding),
-            style = style,
-        )
+        Column(modifier = Modifier.fillMaxWidth()) {
+            MarkdownBasicText(
+                annotatedCode,
+                color = LocalMarkdownColors.current.codeText,
+                modifier = codeScrollModifier
+                    .padding(codeBlockPadding),
+                style = style,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                IconButton(
+                    onClick = {
+                        clipboard.setText(AnnotatedString(code))
+                        Toast.makeText(context, R.string.chat_copied_clipboard, Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier
+                        .padding(end = 4.dp, bottom = 4.dp)
+                        .size(22.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = stringResource(R.string.chat_copy),
+                        modifier = Modifier.size(14.dp),
+                        tint = LocalMarkdownColors.current.codeText.copy(alpha = 0.42f),
+                    )
+                }
+            }
+        }
     }
 }
 

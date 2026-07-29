@@ -13,6 +13,7 @@ data class Session(
     val slug: String = "",
     @SerialName("projectID") val projectId: String = "",
     val directory: String = "",
+    @SerialName("workspaceID") val workspaceId: String? = null,
     @SerialName("parentID") val parentId: String? = null,
     val title: String? = null,
     val version: String = "",

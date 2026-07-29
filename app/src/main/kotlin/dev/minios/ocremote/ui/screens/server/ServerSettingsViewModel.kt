@@ -1,6 +1,6 @@
 package dev.minios.ocremote.ui.screens.server
 
-import android.util.Log
+import dev.minios.ocremote.logging.AppLogger as Log
 import dev.minios.ocremote.BuildConfig
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -12,19 +12,35 @@ import dev.minios.ocremote.data.api.ProviderAuthMethod
 import dev.minios.ocremote.data.api.ProviderInfo
 import dev.minios.ocremote.data.api.ProviderModel
 import dev.minios.ocremote.data.api.ProviderOauthAuthorization
+import dev.minios.ocremote.data.api.ProviderAuthException
 import dev.minios.ocremote.data.api.ServerConfigPatch
 import dev.minios.ocremote.data.api.ServerConfigResponse
 import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.repository.SettingsRepository
+import dev.minios.ocremote.data.repository.DiagnosticLogRepository
+import dev.minios.ocremote.data.repository.LocalServerManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
 import javax.inject.Inject
 
 private const val TAG = "ServerSettingsViewModel"
+
+internal fun shouldSuggestLocalProxy(
+    isLocalServer: Boolean,
+    proxyConfigured: Boolean,
+    statusCode: Int?,
+    message: String,
+): Boolean {
+    if (!isLocalServer || proxyConfigured) return false
+    return statusCode?.let { it >= 500 } == true ||
+        listOf("403", "network", "connect", "token exchange", "timeout", "dns")
+            .any { message.contains(it, ignoreCase = true) }
+}
 
 data class ServerSettingsUiState(
     val serverName: String = "",
@@ -39,7 +55,8 @@ data class ServerSettingsUiState(
     val pendingOauth: PendingOauth? = null,
     val isSaving: Boolean = false,
     val isLoading: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val oauthProxyHint: Boolean = false,
 )
 
 data class PendingOauth(
@@ -80,7 +97,8 @@ data class ModelToggle(
 class ServerSettingsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val api: OpenCodeApi,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val diagnosticLogRepository: DiagnosticLogRepository,
 ) : ViewModel() {
 
     private val serverUrl: String = URLDecoder.decode(
@@ -250,7 +268,14 @@ class ServerSettingsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start provider oauth", e)
-                _uiState.update { it.copy(isSaving = false, error = e.message ?: "Failed to start OAuth") }
+                val proxyHint = recordOauthFailure("authorize", providerId, methodIndex, e)
+                _uiState.update {
+                    it.copy(
+                        isSaving = false,
+                        error = e.message ?: "Failed to start OAuth",
+                        oauthProxyHint = proxyHint,
+                    )
+                }
             }
         }
     }
@@ -288,7 +313,10 @@ class ServerSettingsViewModel @Inject constructor(
                 loadProviders()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to complete provider oauth", e)
-                _uiState.update { it.copy(error = e.message ?: "Failed to complete OAuth") }
+                val proxyHint = recordOauthFailure("callback", pending.providerId, pending.methodIndex, e)
+                _uiState.update {
+                    it.copy(error = e.message ?: "Failed to complete OAuth", oauthProxyHint = proxyHint)
+                }
             } finally {
                 _uiState.update { it.copy(isSaving = false) }
             }
@@ -296,11 +324,41 @@ class ServerSettingsViewModel @Inject constructor(
     }
 
     fun cancelProviderOauth() {
-        _uiState.update { it.copy(pendingOauth = null, error = null) }
+        _uiState.update { it.copy(pendingOauth = null, error = null, oauthProxyHint = false) }
     }
 
     fun clearError() {
-        _uiState.update { it.copy(error = null) }
+        _uiState.update { it.copy(error = null, oauthProxyHint = false) }
+    }
+
+    private suspend fun recordOauthFailure(
+        stage: String,
+        providerId: String,
+        methodIndex: Int,
+        error: Exception,
+    ): Boolean {
+        val isLocal = serverUrl.trimEnd('/') == LocalServerManager.LOCAL_SERVER_URL
+        val proxyEnabled = settingsRepository.localProxyEnabled.first()
+        val proxyConfigured = proxyEnabled && settingsRepository.localProxyUrl.first().isNotBlank()
+        val statusCode = (error as? ProviderAuthException)?.statusCode
+        val message = error.message ?: error::class.simpleName.orEmpty()
+        val proxyHint = shouldSuggestLocalProxy(isLocal, proxyConfigured, statusCode, message)
+        diagnosticLogRepository.record(
+            level = "ERROR",
+            category = "Provider OAuth",
+            message = message,
+            details = mapOf(
+                "stage" to stage,
+                "provider" to providerId,
+                "methodIndex" to methodIndex.toString(),
+                "server" to if (isLocal) "local" else "remote",
+                "httpStatus" to (statusCode?.toString() ?: "unknown"),
+                "localProxyEnabled" to proxyEnabled.toString(),
+                "localProxyConfigured" to proxyConfigured.toString(),
+                "missingProxyLikely" to proxyHint.toString(),
+            ),
+        )
+        return proxyHint
     }
 
     fun disconnectProvider(providerId: String) {

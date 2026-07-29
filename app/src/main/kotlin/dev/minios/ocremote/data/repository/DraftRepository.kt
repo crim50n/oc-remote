@@ -1,7 +1,7 @@
 package dev.minios.ocremote.data.repository
 
 import android.content.Context
-import android.util.Log
+import dev.minios.ocremote.logging.AppLogger as Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString

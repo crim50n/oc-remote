@@ -7,6 +7,7 @@ import java.net.URLEncoder
  */
 sealed class Screen(val route: String) {
     data object Home : Screen("home")
+    data object CrossServerSessions : Screen("cross_server_sessions")
     
     data object WebView : Screen("webview") {
         fun createRoute(
@@ -114,5 +115,6 @@ sealed class Screen(val route: String) {
     }
     
     data object Settings : Screen("settings")
+    data object Diagnostics : Screen("diagnostics")
     data object About : Screen("about")
 }

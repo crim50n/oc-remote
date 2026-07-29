@@ -1,6 +1,6 @@
 package dev.minios.ocremote.ui.screens.chat
 
-import android.util.Log
+import dev.minios.ocremote.logging.AppLogger as Log
 import dev.minios.ocremote.data.api.OpenCodeApi
 import dev.minios.ocremote.data.api.PtySocket
 import dev.minios.ocremote.data.api.ServerConnection
@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -17,11 +18,40 @@ private const val WORKSPACE_TAG = "ServerTerminalWorkspace"
 private val RECONNECT_BACKOFF_MS = longArrayOf(1_000L, 2_000L, 5_000L, 10_000L, 30_000L)
 private const val DEFAULT_TERMINAL_FONT_SIZE_SP = 13f
 
+internal fun isMissingPtyFailure(error: Throwable): Boolean {
+    return generateSequence(error) { it.cause }
+        .any { cause -> cause.message?.contains("404 Not Found", ignoreCase = true) == true }
+}
+
+enum class TerminalTabState {
+    Starting,
+    Connected,
+    Reconnecting,
+    Disconnected,
+    Exited,
+}
+
+enum class TerminalRecoveryAction {
+    None,
+    Reconnect,
+    Restart,
+}
+
+internal fun terminalRecoveryAction(state: TerminalTabState, hasPty: Boolean): TerminalRecoveryAction = when {
+    state == TerminalTabState.Connected || state == TerminalTabState.Starting -> TerminalRecoveryAction.None
+    state == TerminalTabState.Exited || !hasPty -> TerminalRecoveryAction.Restart
+    else -> TerminalRecoveryAction.Reconnect
+}
+
 data class TerminalTabUi(
     val id: String,
     val title: String,
-    val connected: Boolean,
-)
+    val state: TerminalTabState,
+    val hasPty: Boolean,
+) {
+    val connected: Boolean get() = state == TerminalTabState.Connected
+    val recoveryAction: TerminalRecoveryAction get() = terminalRecoveryAction(state, hasPty)
+}
 
 internal class ServerTerminalWorkspace(
     private val api: OpenCodeApi,
@@ -38,8 +68,18 @@ internal class ServerTerminalWorkspace(
         var readerJob: Job? = null,
         var reconnectJob: Job? = null,
         var reconnectAttempt: Int = 0,
-        var connected: Boolean = false,
+        var state: TerminalTabState = TerminalTabState.Starting,
         var lastSize: Pair<Int, Int>? = null,
+        var pendingSize: Pair<Int, Int>? = null,
+        var resizeJob: Job? = null,
+    )
+
+    private data class ResizeRequest(
+        val tabId: String,
+        val ptyId: String,
+        val cols: Int,
+        val rows: Int,
+        val directory: String?,
     )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -73,53 +113,91 @@ internal class ServerTerminalWorkspace(
     }
 
     fun ensureActiveTab(cwd: String?, directory: String?, onResult: (Boolean) -> Unit = {}) {
-        val hasActive = synchronized(lock) { activeTabLocked() != null }
-        if (hasActive) {
-            onResult(true)
+        val active = synchronized(lock) { activeTabLocked() }
+        if (active == null) {
+            val tab = synchronized(lock) { addTabLocked(directory) }
+            startTabCreation(tab, cwd, removeOnFailure = true, onResult)
             return
         }
-        createTab(cwd = cwd, directory = directory, onResult = onResult)
+        if (active.state == TerminalTabState.Disconnected && active.ptyId != null) {
+            recoverTab(active.id, onResult)
+        } else {
+            onResult(true)
+        }
     }
 
     fun createTab(cwd: String?, directory: String?, onResult: (Boolean) -> Unit = {}) {
-        val tab = synchronized(lock) {
-            val index = tabs.size + 1
-            RuntimeTab(
-                id = UUID.randomUUID().toString(),
-                title = "Tab $index",
-                fontSizeSp = defaultFontSizeSp,
-                directory = directory,
-            ).also {
-                tabs.add(it)
-                _activeTabId.value = it.id
-                publishTabsLocked()
-            }
-        }
+        val tab = synchronized(lock) { addTabLocked(directory) }
+        startTabCreation(tab, cwd, removeOnFailure = true, onResult)
+    }
+
+    private fun addTabLocked(directory: String?): RuntimeTab {
+        val tab = RuntimeTab(
+            id = UUID.randomUUID().toString(),
+            title = "Tab ${tabs.size + 1}",
+            fontSizeSp = defaultFontSizeSp,
+            directory = directory,
+        )
+        tabs.add(tab)
+        _activeTabId.value = tab.id
+        publishTabsLocked()
+        return tab
+    }
+
+    private fun startTabCreation(
+        tab: RuntimeTab,
+        cwd: String?,
+        removeOnFailure: Boolean,
+        onResult: (Boolean) -> Unit,
+    ) {
         publishActiveState()
 
         scope.launch {
+            var createdPtyId: String? = null
             try {
                 val info = api.createPty(
                     conn = conn,
                     title = tab.title,
                     cwd = cwd,
-                    directory = directory,
+                    directory = tab.directory,
                 )
-                val socket = api.openPtySocket(conn, info.id, cursor = 0, directory = directory)
+                createdPtyId = info.id
+                val socket = api.openPtySocket(conn, info.id, cursor = 0, directory = tab.directory)
 
-                synchronized(lock) {
-                    tab.ptyId = info.id
-                    bindConnectedSocketLocked(tab, socket)
+                val accepted = synchronized(lock) {
+                    if (tabs.none { it.id == tab.id }) {
+                        false
+                    } else {
+                        if (!removeOnFailure) tab.emulator.reset()
+                        tab.ptyId = info.id
+                        bindConnectedSocketLocked(tab, socket)
+                        true
+                    }
+                }
+                if (!accepted) {
+                    socket.close()
+                    api.removePty(conn, info.id)
+                    return@launch
                 }
 
                 publishActiveState()
                 onResult(true)
             } catch (e: Exception) {
                 Log.e(WORKSPACE_TAG, "Failed to create tab", e)
+                createdPtyId?.let { ptyId ->
+                    try {
+                        api.removePty(conn, ptyId)
+                    } catch (_: Exception) {
+                    }
+                }
                 synchronized(lock) {
-                    tabs.removeAll { it.id == tab.id }
-                    if (_activeTabId.value == tab.id) {
-                        _activeTabId.value = tabs.lastOrNull()?.id
+                    if (removeOnFailure) {
+                        tabs.removeAll { it.id == tab.id }
+                        if (_activeTabId.value == tab.id) {
+                            _activeTabId.value = tabs.lastOrNull()?.id
+                        }
+                    } else {
+                        tab.state = TerminalTabState.Exited
                     }
                     publishTabsLocked()
                 }
@@ -151,6 +229,7 @@ internal class ServerTerminalWorkspace(
 
         removed.readerJob?.cancel()
         removed.reconnectJob?.cancel()
+        removed.resizeJob?.cancel()
         scope.launch {
             try {
                 removed.socket?.close()
@@ -185,15 +264,12 @@ internal class ServerTerminalWorkspace(
 
     fun setActiveFontSize(fontSizeSp: Float) {
         val clamped = fontSizeSp.coerceIn(6f, 20f)
-        val tab = synchronized(lock) { activeTabLocked() } ?: run {
-            android.util.Log.w("TerminalZoom", "setActiveFontSize: no active tab!")
-            return
-        }
-        android.util.Log.d("TerminalZoom", "setActiveFontSize: clamped=$clamped old=${tab.fontSizeSp} tabId=${tab.id} activeId=${_activeTabId.value} flowId=${System.identityHashCode(_activeFontSizeSp)} workspaceId=${System.identityHashCode(this)}")
-        tab.fontSizeSp = clamped
-        if (_activeTabId.value == tab.id) {
-            _activeFontSizeSp.value = clamped
-            android.util.Log.d("TerminalZoom", "setActiveFontSize: StateFlow updated to ${_activeFontSizeSp.value}")
+        synchronized(lock) {
+            val tab = activeTabLocked() ?: return
+            tab.fontSizeSp = clamped
+            if (_activeTabId.value == tab.id) {
+                _activeFontSizeSp.value = clamped
+            }
         }
     }
 
@@ -209,64 +285,88 @@ internal class ServerTerminalWorkspace(
 
     fun resizeActive(cols: Int, rows: Int) {
         if (cols <= 0 || rows <= 0) return
-        val tab = synchronized(lock) { activeTabLocked() } ?: return
-
-        android.util.Log.d("TerminalZoom", "resizeActive: cols=$cols rows=$rows ptyId=${tab.ptyId} lastSize=${tab.lastSize} connected=${tab.connected} tabDir=${tab.directory}")
-
-        tab.emulator.resize(cols, rows)
-        if (_activeTabId.value == tab.id) {
-            _activeVersion.value = tab.emulator.version
-        }
-
-        val ptyId = tab.ptyId ?: run {
-            android.util.Log.w("TerminalZoom", "resizeActive: no ptyId, skipping server resize")
-            return
-        }
         val size = cols to rows
-        if (tab.lastSize == size && tab.connected) {
-            android.util.Log.d("TerminalZoom", "resizeActive: dedup, same size and connected")
-            return
-        }
-        tab.lastSize = size
-        if (!tab.connected) {
-            android.util.Log.d("TerminalZoom", "resizeActive: not connected, skipping server resize")
-            return
-        }
-
-        // Use the directory stored on the tab (the one used when creating the PTY)
-        // rather than the caller's sessionDirectory, which may differ if loadSession()
-        // completed after the PTY was created.
-        val tabDirectory = tab.directory
-        android.util.Log.d("TerminalZoom", "resizeActive: sending updatePtySize cols=$cols rows=$rows dir=$tabDirectory")
-        scope.launch {
-            try {
-                val ok = api.updatePtySize(
-                    conn = conn,
-                    ptyId = ptyId,
-                    cols = cols,
-                    rows = rows,
-                    directory = tabDirectory,
-                )
-                android.util.Log.d("TerminalZoom", "resizeActive: updatePtySize result=$ok")
-                if (!ok) Log.w(WORKSPACE_TAG, "Resize rejected for tab ${tab.id}")
-            } catch (e: Exception) {
-                Log.w(WORKSPACE_TAG, "Failed to resize tab ${tab.id}: ${cols}x$rows", e)
+        synchronized(lock) {
+            val tab = activeTabLocked() ?: return
+            if (tab.lastSize == size) return
+            tab.emulator.resize(cols, rows)
+            tab.lastSize = size
+            if (_activeTabId.value == tab.id) {
+                _activeVersion.value = tab.emulator.version
+            }
+            if (tab.state == TerminalTabState.Connected && tab.ptyId != null) {
+                tab.pendingSize = size
+                scheduleResizeLocked(tab)
             }
         }
     }
 
-    fun reconnectTab(tabId: String, onResult: (Boolean) -> Unit = {}) {
-        val scheduled = synchronized(lock) {
-            val tab = tabs.firstOrNull { it.id == tabId } ?: return@synchronized false
-            if (tab.connected) return@synchronized true
-            if (tab.ptyId == null) return@synchronized false
-            if (tab.reconnectJob?.isActive == true) return@synchronized true
-            tab.reconnectJob = scope.launch {
-                reconnectLoop(tabId = tab.id, immediate = true, onFirstResult = null)
+    private fun scheduleResizeLocked(tab: RuntimeTab) {
+        if (tab.resizeJob?.isActive == true) return
+        tab.resizeJob = scope.launch { resizeLoop(tab.id) }
+    }
+
+    private suspend fun resizeLoop(tabId: String) {
+        while (true) {
+            delay(120)
+            val request = synchronized(lock) {
+                val tab = tabs.firstOrNull { it.id == tabId } ?: return
+                val size = tab.pendingSize
+                val ptyId = tab.ptyId
+                if (size == null || ptyId == null || tab.state != TerminalTabState.Connected) {
+                    tab.resizeJob = null
+                    return
+                }
+                tab.pendingSize = null
+                ResizeRequest(tab.id, ptyId, size.first, size.second, tab.directory)
             }
-            true
+            try {
+                val ok = api.updatePtySize(
+                    conn = conn,
+                    ptyId = request.ptyId,
+                    cols = request.cols,
+                    rows = request.rows,
+                    directory = request.directory,
+                )
+                if (!ok) Log.w(WORKSPACE_TAG, "Resize rejected for tab ${request.tabId}")
+            } catch (e: Exception) {
+                Log.w(WORKSPACE_TAG, "Failed to resize tab ${request.tabId}: ${request.cols}x${request.rows}", e)
+            }
         }
-        onResult(scheduled)
+    }
+
+    fun recoverTab(tabId: String, onResult: (Boolean) -> Unit = {}) {
+        val tab = synchronized(lock) { tabs.firstOrNull { it.id == tabId } }
+        if (tab == null) {
+            onResult(false)
+            return
+        }
+        when (terminalRecoveryAction(tab.state, tab.ptyId != null)) {
+            TerminalRecoveryAction.None -> onResult(true)
+            TerminalRecoveryAction.Restart -> {
+                synchronized(lock) {
+                    tab.readerJob?.cancel()
+                    tab.reconnectJob?.cancel()
+                    tab.resizeJob?.cancel()
+                    tab.socket = null
+                    tab.ptyId = null
+                    tab.state = TerminalTabState.Starting
+                    tab.reconnectAttempt = 0
+                    publishTabsLocked()
+                }
+                startTabCreation(tab, tab.directory, removeOnFailure = false, onResult)
+            }
+            TerminalRecoveryAction.Reconnect -> synchronized(lock) {
+                tab.reconnectJob?.cancel()
+                tab.reconnectAttempt = 0
+                tab.state = TerminalTabState.Reconnecting
+                tab.reconnectJob = scope.launch {
+                    reconnectLoop(tabId = tab.id, immediate = true, onFirstResult = onResult)
+                }
+                publishTabsLocked()
+            }
+        }
+        publishActiveState()
     }
 
     fun closeAll() {
@@ -280,6 +380,7 @@ internal class ServerTerminalWorkspace(
         all.forEach { tab ->
             tab.readerJob?.cancel()
             tab.reconnectJob?.cancel()
+            tab.resizeJob?.cancel()
             scope.launch {
                 try {
                     tab.socket?.close()
@@ -301,7 +402,7 @@ internal class ServerTerminalWorkspace(
 
     private fun bindConnectedSocketLocked(tab: RuntimeTab, socket: PtySocket) {
         tab.socket = socket
-        tab.connected = true
+        tab.state = TerminalTabState.Connected
         tab.reconnectAttempt = 0
         tab.reconnectJob?.cancel()
         tab.reconnectJob = null
@@ -321,21 +422,9 @@ internal class ServerTerminalWorkspace(
             }
         }
         publishTabsLocked()
-        tab.lastSize?.let { (cols, rows) ->
-            scope.launch {
-                try {
-                    val ptyId = synchronized(lock) { tabs.firstOrNull { it.id == tab.id }?.ptyId } ?: return@launch
-                    api.updatePtySize(
-                        conn = conn,
-                        ptyId = ptyId,
-                        cols = cols,
-                        rows = rows,
-                        directory = tab.directory,
-                    )
-                } catch (e: Exception) {
-                    Log.w(WORKSPACE_TAG, "Failed to apply pending resize for tab ${tab.id}", e)
-                }
-            }
+        tab.lastSize?.let { size ->
+            tab.pendingSize = size
+            scheduleResizeLocked(tab)
         }
     }
 
@@ -345,8 +434,11 @@ internal class ServerTerminalWorkspace(
             val tab = tabs.firstOrNull { it.id == tabId } ?: return
             if (tab.socket !== socket) return
             tab.socket = null
-            tab.connected = false
+            tab.state = TerminalTabState.Reconnecting
             tab.readerJob = null
+            tab.resizeJob?.cancel()
+            tab.resizeJob = null
+            tab.pendingSize = tab.lastSize
             publishTabsLocked()
             shouldReconnect = tab.ptyId != null && tab.reconnectJob?.isActive != true
             if (shouldReconnect) {
@@ -363,7 +455,7 @@ internal class ServerTerminalWorkspace(
         while (true) {
             val snapshot = synchronized(lock) {
                 val tab = tabs.firstOrNull { it.id == tabId } ?: return
-                if (tab.connected) {
+                if (tab.state == TerminalTabState.Connected) {
                     tab.reconnectJob = null
                     if (firstAttempt) onFirstResult?.invoke(true)
                     return
@@ -398,33 +490,58 @@ internal class ServerTerminalWorkspace(
                 if (firstAttempt) onFirstResult?.invoke(true)
                 return
             } catch (e: Exception) {
+                if (isMissingPtyFailure(e)) {
+                    Log.w(WORKSPACE_TAG, "PTY no longer exists for tab $tabId")
+                    synchronized(lock) {
+                        val tab = tabs.firstOrNull { it.id == tabId } ?: return
+                        tab.ptyId = null
+                        tab.state = TerminalTabState.Exited
+                        tab.reconnectJob = null
+                        publishTabsLocked()
+                    }
+                    publishActiveState()
+                    if (firstAttempt) onFirstResult?.invoke(false)
+                    return
+                }
                 Log.w(WORKSPACE_TAG, "Reconnect failed for tab $tabId", e)
                 synchronized(lock) {
                     val tab = tabs.firstOrNull { it.id == tabId } ?: return
                     tab.reconnectAttempt += 1
+                    if (tab.reconnectAttempt >= RECONNECT_BACKOFF_MS.size) {
+                        tab.state = TerminalTabState.Disconnected
+                        tab.reconnectJob = null
+                    }
                     publishTabsLocked()
                 }
                 if (firstAttempt) onFirstResult?.invoke(false)
                 firstAttempt = false
+                val stopped = synchronized(lock) {
+                    tabs.firstOrNull { it.id == tabId }?.state == TerminalTabState.Disconnected
+                }
+                if (stopped) return
             }
         }
     }
 
     private fun publishTabsLocked() {
-        _tabList.value = tabs.map { TerminalTabUi(it.id, it.title, it.connected) }
+        _tabList.value = tabs.map { TerminalTabUi(it.id, it.title, it.state, it.ptyId != null) }
     }
 
     private fun publishActiveState() {
-        val active = synchronized(lock) { activeTabLocked() }
+        val active = synchronized(lock) {
+            activeTabLocked()?.let {
+                Triple(it.state == TerminalTabState.Connected, it.emulator.version, it.fontSizeSp)
+            }
+        }
         if (active == null) {
             _activeConnected.value = false
             _activeVersion.value = 0L
             _activeFontSizeSp.value = defaultFontSizeSp
             return
         }
-        _activeConnected.value = active.connected
-        _activeVersion.value = active.emulator.version
-        _activeFontSizeSp.value = active.fontSizeSp
+        _activeConnected.value = active.first
+        _activeVersion.value = active.second
+        _activeFontSizeSp.value = active.third
     }
 }
 

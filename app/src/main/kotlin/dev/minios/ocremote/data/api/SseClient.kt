@@ -1,6 +1,6 @@
 package dev.minios.ocremote.data.api
 
-import android.util.Log
+import dev.minios.ocremote.logging.AppLogger as Log
 import dev.minios.ocremote.BuildConfig
 import dev.minios.ocremote.domain.model.*
 import io.ktor.client.*
@@ -10,13 +10,40 @@ import io.ktor.client.statement.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "SseClient"
-private const val HEARTBEAT_TIMEOUT_MS = 40_000L
+private const val HEARTBEAT_TIMEOUT_MS = 90_000L
+
+data class ScopedSseEvent(
+    val event: SseEvent,
+    val directory: String? = null,
+    val projectId: String? = null,
+    val workspaceId: String? = null,
+    val eventId: String? = null,
+    val durableSeq: Long? = null,
+)
+
+internal fun sseEventData(payload: JsonObject): JsonObject =
+    payload["properties"]?.jsonObject
+        ?: payload["data"]?.jsonObject
+        ?: JsonObject(emptyMap())
+
+internal fun isHighFrequencySseEvent(event: SseEvent): Boolean = when (event) {
+    is SseEvent.MessagePartDelta,
+    is SseEvent.MessagePartUpdated,
+    is SseEvent.NextTextDelta,
+    is SseEvent.NextReasoningDelta,
+    is SseEvent.NextToolInputDelta,
+    is SseEvent.NextToolProgress,
+    is SseEvent.ServerHeartbeat -> true
+    else -> false
+}
 
 /**
  * SSE (Server-Sent Events) Client
@@ -36,9 +63,13 @@ class SseClient @Inject constructor(
      * The flow does NOT auto-reconnect internally — callers should handle
      * reconnection themselves (the service already does exponential backoff).
      */
-    fun connectToGlobalEvents(conn: ServerConnection, directory: String? = null): Flow<SseEvent> = flow {
+    fun connectToGlobalEvents(
+        conn: ServerConnection,
+        directory: String? = null,
+        onOpen: suspend () -> Unit = {},
+    ): Flow<ScopedSseEvent> = flow {
         val sseUrl = "${conn.baseUrl}/global/event"
-        Log.i(TAG, "Connecting to SSE: $sseUrl (auth=${conn.authHeader != null})")
+        Log.i(TAG, "Connecting to global SSE (auth=${conn.authHeader != null})")
 
         val statement = httpClient.prepareGet(sseUrl) {
             conn.authHeader?.let { header("Authorization", it) }
@@ -74,6 +105,7 @@ class SseClient @Inject constructor(
             var eventCount = 0
 
             Log.i(TAG, "SSE stream opened, reading events...")
+            onOpen()
 
             while (!channel.isClosedForRead) {
                 val line = withTimeoutOrNull(HEARTBEAT_TIMEOUT_MS) { channel.readUTF8Line() }
@@ -89,22 +121,26 @@ class SseClient @Inject constructor(
                 eventCount += processFrame(data) { emit(it) }
             }
 
-            Log.w(TAG, "SSE stream closed after $eventCount events")
+            if (currentCoroutineContext().isActive) {
+                Log.w(TAG, "SSE stream closed after $eventCount events")
+            } else if (BuildConfig.DEBUG) {
+                Log.d(TAG, "SSE stream cancelled after $eventCount events")
+            }
         }
     }
 
-    private suspend fun processFrame(data: String, emitEvent: suspend (SseEvent) -> Unit): Int {
+    private suspend fun processFrame(data: String, emitEvent: suspend (ScopedSseEvent) -> Unit): Int {
         return try {
             val event = parseEvent(data) ?: return 0
-            if (event is SseEvent.ServerHeartbeat) {
-                if (BuildConfig.DEBUG) Log.d(TAG, "Heartbeat received")
-            } else {
-                if (BuildConfig.DEBUG) Log.d(TAG, "Event: ${event::class.simpleName}")
+            if (event.event !is SseEvent.ServerHeartbeat) {
+                if (BuildConfig.DEBUG && !isHighFrequencySseEvent(event.event)) {
+                    Log.d(TAG, "Event: ${event.event::class.simpleName}")
+                }
                 emitEvent(event)
             }
             1
         } catch (e: Exception) {
-            Log.e(TAG, "Parse error: ${data.take(200)}", e)
+            Log.e(TAG, "SSE event parse failed", e)
             0
         }
     }
@@ -114,21 +150,161 @@ class SseClient @Inject constructor(
      * Global endpoint wraps events: {directory, payload: {type, properties}}
      * Per-instance endpoint sends directly: {type, properties}
      */
-    private fun parseEvent(data: String): SseEvent? {
+    private fun parseEvent(data: String): ScopedSseEvent? {
         val root = json.parseToJsonElement(data).jsonObject
 
         val payload = root["payload"]?.jsonObject ?: root
         val type = payload["type"]?.jsonPrimitive?.content ?: return null
-        val properties = payload["properties"]?.jsonObject ?: JsonObject(emptyMap())
+        val properties = sseEventData(payload)
+        val directory = root["directory"]?.jsonPrimitive?.contentOrNull
 
-        return parseEventByType(type, properties)
+        return ScopedSseEvent(
+            event = parseEventByType(
+                type,
+                properties,
+                directory,
+                root["workspace"]?.jsonPrimitive?.contentOrNull,
+            ) ?: return null,
+            directory = directory,
+            projectId = root["project"]?.jsonPrimitive?.contentOrNull,
+            workspaceId = root["workspace"]?.jsonPrimitive?.contentOrNull,
+            eventId = payload["id"]?.jsonPrimitive?.contentOrNull,
+            durableSeq = payload["durable"]?.jsonObject?.get("seq")?.jsonPrimitive?.longOrNull,
+        )
     }
 
-    private fun parseEventByType(type: String, props: JsonObject): SseEvent? {
+    private fun parseEventByType(
+        type: String,
+        props: JsonObject,
+        envelopeDirectory: String? = null,
+        envelopeWorkspace: String? = null,
+    ): SseEvent? {
         return try {
             when (type) {
                 "server.connected" -> SseEvent.ServerConnected
                 "server.heartbeat" -> SseEvent.ServerHeartbeat
+                "server.instance.disposed" -> SseEvent.ServerInstanceDisposed(
+                    directory = props.str("directory").ifBlank { envelopeDirectory.orEmpty() },
+                )
+                "global.disposed" -> SseEvent.GlobalDisposed
+                "workspace.status" -> SseEvent.WorkspaceStatus(
+                    workspaceId = props.str("workspaceID"),
+                    status = props.str("status"),
+                )
+                "workspace.ready" -> SseEvent.WorkspaceReady(envelopeWorkspace, props.str("name"))
+                "workspace.failed" -> SseEvent.WorkspaceFailed(envelopeWorkspace, props.str("message"))
+                "worktree.ready" -> SseEvent.WorktreeReady(
+                    directory = envelopeDirectory,
+                    name = props.str("name"),
+                    branch = props["branch"]?.jsonPrimitive?.contentOrNull,
+                )
+                "worktree.failed" -> SseEvent.WorktreeFailed(envelopeDirectory, props.str("message"))
+
+                "session.next.prompt.admitted" -> SseEvent.PromptAdmitted(
+                    sessionId = props.str("sessionID"),
+                    messageId = props.str("messageID"),
+                    delivery = props.str("delivery"),
+                    prompt = props["prompt"],
+                    timestamp = props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.prompted" -> SseEvent.Prompted(
+                    sessionId = props.str("sessionID"),
+                    messageId = props.str("messageID"),
+                    delivery = props.str("delivery"),
+                    prompt = props["prompt"],
+                    timestamp = props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.step.started" -> SseEvent.NextStepStarted(
+                    sessionId = props.str("sessionID"),
+                    assistantMessageId = props.str("assistantMessageID"),
+                    agent = props.str("agent"),
+                    model = props["model"] ?: JsonObject(emptyMap()),
+                    timestamp = props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.step.ended" -> SseEvent.NextStepEnded(
+                    sessionId = props.str("sessionID"),
+                    assistantMessageId = props.str("assistantMessageID"),
+                    finish = props.str("finish"),
+                    cost = props["cost"]?.jsonPrimitive?.doubleOrNull ?: 0.0,
+                    tokens = props["tokens"] ?: JsonObject(emptyMap()),
+                    timestamp = props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.step.failed" -> SseEvent.NextStepFailed(
+                    props.str("sessionID"), props.str("assistantMessageID"),
+                    props["error"] ?: JsonObject(emptyMap()), props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.agent.switched" -> SseEvent.NextAgentSwitched(
+                    props.str("sessionID"), props.str("messageID"), props.str("agent"),
+                )
+                "session.next.model.switched" -> SseEvent.NextModelSwitched(
+                    props.str("sessionID"), props.str("messageID"), props["model"] ?: JsonObject(emptyMap()),
+                )
+                "session.next.context.updated" -> SseEvent.NextContextUpdated(
+                    props.str("sessionID"), props.str("messageID"), props.str("text"),
+                    props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.synthetic" -> SseEvent.NextSynthetic(
+                    props.str("sessionID"), props.str("messageID"), props.str("text"),
+                    props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.shell.started" -> SseEvent.NextShellStarted(
+                    props.str("sessionID"), props.str("messageID"), props.str("callID"), props.str("command"),
+                    props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.shell.ended" -> SseEvent.NextShellEnded(
+                    props.str("sessionID"), props.str("callID"), props.str("output"),
+                    props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.text.started" -> SseEvent.NextTextStarted(
+                    props.str("sessionID"), props.str("assistantMessageID"), props.str("textID"),
+                    props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.text.delta" -> SseEvent.NextTextDelta(
+                    props.str("sessionID"), props.str("assistantMessageID"), props.str("textID"), props.str("delta"),
+                )
+                "session.next.text.ended" -> SseEvent.NextTextEnded(
+                    props.str("sessionID"), props.str("assistantMessageID"), props.str("textID"), props.str("text"),
+                    props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.reasoning.started" -> SseEvent.NextReasoningStarted(
+                    props.str("sessionID"), props.str("assistantMessageID"), props.str("reasoningID"),
+                    props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.reasoning.delta" -> SseEvent.NextReasoningDelta(
+                    props.str("sessionID"), props.str("assistantMessageID"), props.str("reasoningID"), props.str("delta"),
+                )
+                "session.next.reasoning.ended" -> SseEvent.NextReasoningEnded(
+                    props.str("sessionID"), props.str("assistantMessageID"), props.str("reasoningID"), props.str("text"),
+                    props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.tool.input.started" -> SseEvent.NextToolInputStarted(
+                    props.str("sessionID"), props.str("assistantMessageID"), props.str("callID"), props.str("name"),
+                    props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.tool.input.delta" -> SseEvent.NextToolInputDelta(
+                    props.str("sessionID"), props.str("assistantMessageID"), props.str("callID"), props.str("delta"),
+                )
+                "session.next.tool.input.ended" -> SseEvent.NextToolInputEnded(
+                    props.str("sessionID"), props.str("assistantMessageID"), props.str("callID"), props.str("text"),
+                )
+                "session.next.tool.called" -> SseEvent.NextToolCalled(
+                    props.str("sessionID"), props.str("assistantMessageID"), props.str("callID"), props.str("tool"),
+                    props["input"] ?: JsonObject(emptyMap()), props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.tool.progress" -> SseEvent.NextToolProgress(
+                    props.str("sessionID"), props.str("assistantMessageID"), props.str("callID"),
+                    props["structured"] ?: JsonObject(emptyMap()), props["content"] ?: JsonArray(emptyList()),
+                    props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.tool.success" -> SseEvent.NextToolSuccess(
+                    props.str("sessionID"), props.str("assistantMessageID"), props.str("callID"),
+                    props["structured"] ?: JsonObject(emptyMap()), props["content"] ?: JsonArray(emptyList()),
+                    props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
+                "session.next.tool.failed" -> SseEvent.NextToolFailed(
+                    props.str("sessionID"), props.str("assistantMessageID"), props.str("callID"),
+                    props["error"] ?: JsonObject(emptyMap()), props["timestamp"]?.jsonPrimitive?.longOrNull ?: 0,
+                )
 
                 "session.status" -> {
                     val sessionId = props.str("sessionID")
@@ -146,15 +322,15 @@ class SseClient @Inject constructor(
                         else -> SessionStatus.Idle
                     }
 
-                    Log.i(TAG, "Session $sessionId status -> $statusType")
                     SseEvent.SessionStatus(sessionId = sessionId, status = status)
                 }
 
                 "session.idle" -> {
                     val sessionId = props.str("sessionID")
-                    Log.i(TAG, "Session $sessionId idle")
                     SseEvent.SessionIdle(sessionId = sessionId)
                 }
+
+                "session.compacted" -> SseEvent.SessionCompacted(props.str("sessionID"))
 
                 "session.created" -> {
                     val infoObj = props["info"]?.jsonObject ?: props
@@ -340,6 +516,8 @@ class SseClient @Inject constructor(
                     val info = json.decodeFromJsonElement<Project>(infoObj)
                     SseEvent.ProjectUpdated(info)
                 }
+
+                "sync", "pty.updated" -> null
 
                 else -> {
                     if (BuildConfig.DEBUG) Log.d(TAG, "Unhandled event: $type")

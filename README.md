@@ -20,11 +20,12 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 ## Features
 
 ### Native UI
-- **Full chat interface** — native Material 3 UI with markdown rendering (code blocks, tables, syntax highlighting)
+- **Full chat interface** — native Material 3 UI with GFM markdown, code blocks, task markers, strikethrough, scrollable tables, syntax highlighting, and copy actions
 - **Message streaming** — real-time text streaming with auto-scroll
 - **Smart scroll behavior** — manual scroll disables auto-scroll; automatically re-enables when scrolled to bottom
 - **File mentions** — `@file` autocomplete with server-backed path search and quick insert
-- **Image support** — inline base64 images in chat
+- **Attachment support** — send images, PDFs, text, source code, and configuration files from device storage
+- **Android sharing** — share one or multiple supported files into an existing or new chat on a connected server
 - **Tool outputs** — expandable tool-call cards with selectable monospace output
 - **Image preview & save** — open sent and draft images in fullscreen preview and save to device storage
 - **Shell output copy** — bash output blocks support text selection and one-tap copy (command + output)
@@ -32,6 +33,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Collapsible reasoning** — reasoning stays compact by default and expands on demand
 - **Slash commands** — `/new`, `/fork`, `/compact`, `/share`, `/rename`, `/undo`, `/redo`, `/shell`
 - **Message actions** — long-press user messages to revert with confirmation
+- **Reliable delivery** — outgoing prompts stay visible with queued state while delayed server events and history are reconciled
 
 ### Terminal Mode
 - **Termux-like terminal mode** — full-screen terminal UI with dedicated extra keys and mobile-first interactions
@@ -44,13 +46,16 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 
 ### Session Management  
 - **Multi-session** — switch between sessions, view history
-- **Session actions** — create, fork, compact, review changes, share/unshare, rename, and delete via explicit menus
+- **Project browser** — search sessions and optionally group them by project with branch badges and project-scoped new chats
+- **Session organization** — favorite and reorder important sessions across servers, filter Favorites by reusable custom categories, and keep offline favorites visible until their server reconnects
+- **Session actions** — create, fork, compact, run a code review, share/unshare, rename, and delete via explicit menus
 - **Terminal mode shortcut** — open the current session in terminal mode from the chat top bar
 - **Load older messages** — paginated history loading; initial batch size is configurable (25-200)
 - **Large-session stability** — `largeHeap`, paginated message loading, and OOM fallback retry with smaller limits
 - **Session export** — export full session as JSON file with streaming progress notification
 - **Multi-select in sessions** — long-press to enter selection mode, select multiple sessions, and delete in one action
 - **Draft persistence** — input text, image attachments, and @file mentions saved per session; survives navigation, app restart, and WebUI detours
+- **Read-only subagents** — child-agent sessions expose their history and context without unsafe prompt or shell controls
 
 ### Model & Agent Selection
 - **Model picker** — select provider and model with variant support; provider icons shown in headers
@@ -58,7 +63,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Reliable agent mode persistence** — explicit Plan/Build choice is preserved correctly between UI state and sent commands
 - **Provider icons** — 74 vector icons for AI providers shown in model picker and next to assistant responses
 - **Token usage** — displays total tokens and cost in toolbar subtitle
-- **Context window** — percentage display above input, color-coded (normal < 70%, warning 70-90%, critical > 90%)
+- **Context window details** — color-coded usage indicator with input/output/reasoning/cache, session totals, remaining capacity, and cost
 - **Compact layout** — horizontally scrollable toolbar prevents overflow on long translations
 
 ### Localization
@@ -69,6 +74,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 ### Settings
 - **Language** — 15 locales (system default, English, Russian, German, Spanish, French, Italian, Portuguese BR, Indonesian, Japanese, Korean, Chinese Simplified, Ukrainian, Turkish, Arabic, Polish)
 - **Reconnect mode** — aggressive (1–5s), normal (1–30s), or conservative (1–60s) backoff strategy
+- **Background WakeLock** — optionally keep screen-off SSE delivery active continuously, or reconnect after device wake and network changes
 - **Theme** — light, dark, or system default
 - **Dynamic colors** — Material You dynamic color support (Android 12+)
 - **AMOLED dark mode** — pure black surfaces with accent borders across chat bubbles, cards, menus, dialogs, and input blocks (works with both static and dynamic colors)
@@ -83,6 +89,8 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Notifications** — toggle task completion notifications
 - **Silent notifications** — suppress sound and vibration for task notifications
 - **Image optimization controls** — tune max image side (keep original or 720–2560 px) and WebP quality for attachments
+- **Diagnostics** — inspect privacy-sanitized application logs by severity, then copy, share, or clear them without ADB
+- **Secure in-app updates** — automatic daily discovery plus manual checks from About; GitHub Release APKs are downloaded in-app, verified by SHA-256, package/version, and signing certificate, then handed to Android's system installer
 
 ### Connection
 - **Multi-server** — connect to multiple OpenCode servers simultaneously
@@ -128,6 +136,16 @@ opencode serve --port 4096 --hostname 0.0.0.0
 # Install on connected device
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+## Trademark and branding
+
+The software license applies to the source code.
+
+“OC Remote”, the OC Remote logo, application icon and other project
+branding are not licensed for use as the identity of derivative
+applications. Forks must use a clearly distinct name and visual identity.
+
+See [TRADEMARKS.md](TRADEMARKS.md).
 
 ## License
 

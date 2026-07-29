@@ -60,8 +60,15 @@ sealed class ToolState {
 
         @Serializable
         data class Attachment(
-            val type: String,
-            val data: String? = null
+            val id: String = "",
+            @kotlinx.serialization.SerialName("sessionID") val sessionId: String = "",
+            @kotlinx.serialization.SerialName("messageID") val messageId: String = "",
+            val type: String = "file",
+            val mime: String = "application/octet-stream",
+            val filename: String? = null,
+            val url: String? = null,
+            val source: kotlinx.serialization.json.JsonElement? = null,
+            val data: String? = null,
         )
     }
 

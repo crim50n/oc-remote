@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.util.Log
+import dev.minios.ocremote.logging.AppLogger as Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,6 +22,7 @@ class LocalServerManager @Inject constructor(
 ) {
     companion object {
         const val LOCAL_SERVER_URL = "http://127.0.0.1:4096"
+        const val DEFAULT_LOCAL_HOST = "127.0.0.1"
         const val DEFAULT_NO_PROXY_LIST = "localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
         private const val TERMUX_PACKAGE = "com.termux"
@@ -116,7 +117,7 @@ class LocalServerManager @Inject constructor(
         callerContext: Context,
         proxyUrl: String? = null,
         noProxyList: String? = null,
-        hostName: String? = null,
+        hostName: String = DEFAULT_LOCAL_HOST,
         serverUsername: String? = null,
         serverPassword: String? = null,
         runInBackground: Boolean = true,
@@ -124,7 +125,7 @@ class LocalServerManager @Inject constructor(
         return runCatching {
             check(isTermuxInstalled()) { "Termux is not installed" }
             val args = buildList {
-                if (!hostName.isNullOrBlank()) {
+                if (hostName.isNotBlank()) {
                     add("--hostname")
                     add(hostName)
                 }

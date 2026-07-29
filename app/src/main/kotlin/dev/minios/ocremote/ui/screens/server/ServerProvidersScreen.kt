@@ -1,6 +1,6 @@
 package dev.minios.ocremote.ui.screens.server
 
-import android.util.Log
+import dev.minios.ocremote.logging.AppLogger as Log
 import android.widget.Toast
 import dev.minios.ocremote.BuildConfig
 import androidx.compose.foundation.BorderStroke
@@ -20,8 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material3.AlertDialogDefaults
-import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,12 +27,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.Button
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -56,6 +52,10 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalUriHandler
@@ -63,6 +63,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import dev.minios.ocremote.R
+import dev.minios.ocremote.ui.components.AppCardShape
+import dev.minios.ocremote.ui.components.AppDialog
+import dev.minios.ocremote.ui.components.AppPrimaryButton
+import dev.minios.ocremote.ui.components.AppSecondaryButton
+import dev.minios.ocremote.ui.components.appAmoledBorder
+import dev.minios.ocremote.ui.components.isAmoledTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,9 +77,7 @@ fun ServerProvidersScreen(
     viewModel: ServerSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
-    val popupColor = if (isAmoled) Color.Black else AlertDialogDefaults.containerColor
-    val popupBorder = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)) else null
+    val isAmoled = isAmoledTheme()
     val uriHandler = LocalUriHandler.current
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
@@ -148,14 +152,10 @@ fun ServerProvidersScreen(
         val methods = uiState.authMethods[provider.providerId].orEmpty().ifEmpty {
             listOf(dev.minios.ocremote.data.api.ProviderAuthMethod(type = "api", label = stringResource(R.string.server_settings_auth_method_api)))
         }
-        BasicAlertDialog(onDismissRequest = { connectProvider = null }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = popupColor,
-                border = popupBorder,
-                tonalElevation = if (isAmoled) 0.dp else 6.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+        AppDialog(onDismissRequest = {
+            connectProvider = null
+            viewModel.clearError()
+        }, modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -166,7 +166,7 @@ fun ServerProvidersScreen(
                     )
 
                     methods.forEachIndexed { idx, method ->
-                        Button(
+                        AppPrimaryButton(
                             onClick = {
                                 if (method.type == "api") {
                                     connectProvider = null
@@ -177,40 +177,34 @@ fun ServerProvidersScreen(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !uiState.isSaving,
-                            shape = RoundedCornerShape(12.dp),
                         ) {
                             Text(method.label)
                         }
                     }
 
-                    if (!uiState.error.isNullOrBlank()) {
+                    if (uiState.oauthProxyHint) {
                         Text(
-                            text = uiState.error!!,
+                            text = stringResource(R.string.server_settings_oauth_proxy_hint),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { connectProvider = null }) { Text(stringResource(R.string.cancel)) }
+                        AppSecondaryButton(onClick = {
+                            connectProvider = null
+                            viewModel.clearError()
+                        }) { Text(stringResource(R.string.cancel)) }
                     }
                 }
-            }
         }
     }
 
     apiKeyProvider?.let { provider ->
-        BasicAlertDialog(onDismissRequest = {
+        AppDialog(onDismissRequest = {
             apiKeyProvider = null
             apiKey = ""
-        }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = popupColor,
-                border = popupBorder,
-                tonalElevation = if (isAmoled) 0.dp else 6.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+        }, modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -224,18 +218,18 @@ fun ServerProvidersScreen(
                         singleLine = true,
                         colors = if (isAmoled) {
                             androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = popupColor,
-                                unfocusedContainerColor = popupColor,
-                                disabledContainerColor = popupColor,
+                                focusedContainerColor = Color.Black,
+                                unfocusedContainerColor = Color.Black,
+                                disabledContainerColor = Color.Black,
                             )
                         } else androidx.compose.material3.OutlinedTextFieldDefaults.colors()
                     )
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = {
+                        AppSecondaryButton(onClick = {
                             apiKeyProvider = null
                             apiKey = ""
                         }) { Text(stringResource(R.string.cancel)) }
-                        TextButton(
+                        AppPrimaryButton(
                             onClick = {
                                 viewModel.connectProviderApi(provider.providerId, apiKey)
                                 apiKeyProvider = null
@@ -245,7 +239,6 @@ fun ServerProvidersScreen(
                         ) { Text(stringResource(R.string.connect)) }
                     }
                 }
-            }
         }
     }
 
@@ -253,17 +246,10 @@ fun ServerProvidersScreen(
         val deviceCode = remember(pending.authorization.instructions) {
             extractOAuthDeviceCode(pending.authorization.instructions)
         }
-        BasicAlertDialog(onDismissRequest = {
+        AppDialog(onDismissRequest = {
             oauthCode = ""
             viewModel.cancelProviderOauth()
-        }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = popupColor,
-                border = popupBorder,
-                tonalElevation = if (isAmoled) 0.dp else 6.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+        }, modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -300,6 +286,10 @@ fun ServerProvidersScreen(
                                         context.getString(R.string.server_settings_oauth_code_copied),
                                         Toast.LENGTH_SHORT,
                                     ).show()
+                                }
+                                .semantics {
+                                    role = Role.Button
+                                    contentDescription = context.getString(R.string.server_settings_oauth_copy_code)
                                 },
                         ) {
                             Row(
@@ -321,9 +311,9 @@ fun ServerProvidersScreen(
                                 )
                                 Icon(
                                     Icons.Default.ContentCopy,
-                                    contentDescription = stringResource(R.string.server_settings_oauth_copy_code),
+                                    contentDescription = null,
                                     modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -347,13 +337,12 @@ fun ServerProvidersScreen(
                         )
                     }
                     if (pending.authorization.url.isNotBlank()) {
-                        Button(
+                        AppPrimaryButton(
                             onClick = {
                                 oauthBrowserOpened = true
                                 uriHandler.openUri(pending.authorization.url)
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
                         ) {
                             Text(stringResource(R.string.server_settings_oauth_open_browser))
                         }
@@ -374,13 +363,27 @@ fun ServerProvidersScreen(
                             } else androidx.compose.material3.OutlinedTextFieldDefaults.colors()
                         )
                     }
+                    if (!uiState.error.isNullOrBlank()) {
+                        Text(
+                            text = uiState.error!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    if (uiState.oauthProxyHint) {
+                        Text(
+                            text = stringResource(R.string.server_settings_oauth_proxy_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = {
+                        AppSecondaryButton(onClick = {
                             oauthCode = ""
                             viewModel.cancelProviderOauth()
                         }) { Text(stringResource(R.string.cancel)) }
                         if (pending.authorization.method == "code") {
-                            TextButton(
+                            AppPrimaryButton(
                                 onClick = {
                                     viewModel.completeProviderOauth(oauthCode)
                                     oauthCode = ""
@@ -390,7 +393,6 @@ fun ServerProvidersScreen(
                         }
                     }
                 }
-            }
         }
     }
 
@@ -418,7 +420,8 @@ fun ServerProvidersScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (!uiState.error.isNullOrBlank()) {
+            val providerDialogVisible = connectProvider != null || apiKeyProvider != null || uiState.pendingOauth != null
+            if (!providerDialogVisible && !uiState.error.isNullOrBlank()) {
                 item {
                     Text(
                         text = uiState.error!!,
@@ -493,11 +496,11 @@ private fun ProviderRow(
     showSource: Boolean
 ) {
     Card(
-        shape = RoundedCornerShape(12.dp),
+        shape = AppCardShape,
         colors = CardDefaults.cardColors(
             containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer
         ),
-        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null
+        border = appAmoledBorder(0.65f),
     ) {
         Row(
             modifier = Modifier

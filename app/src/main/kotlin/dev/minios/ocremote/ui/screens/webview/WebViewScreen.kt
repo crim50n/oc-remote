@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Base64
-import android.util.Log
+import dev.minios.ocremote.logging.AppLogger as Log
 import android.view.ViewGroup
 import android.webkit.*
 import androidx.activity.compose.BackHandler
@@ -158,12 +158,12 @@ fun WebViewScreen(
 
                         webViewClient = object : WebViewClient() {
                             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                                Log.d("WebViewScreen", "Page started: $url")
+                                Log.d("WebViewScreen", "Page load started")
                                 isLoading = true
                             }
 
                             override fun onPageFinished(view: WebView?, url: String?) {
-                                Log.d("WebViewScreen", "Page finished: $url")
+                                Log.d("WebViewScreen", "Page load finished")
                                 isLoading = false
                                 isRefreshing = false
                             }
@@ -187,7 +187,7 @@ fun WebViewScreen(
                                 request: WebResourceRequest?,
                                 error: WebResourceError?
                             ) {
-                                Log.e("WebViewScreen", "Error loading ${request?.url}: ${error?.description} (code=${error?.errorCode})")
+                                Log.e("WebViewScreen", "Page load failed (code=${error?.errorCode})")
                                 // Only handle main frame errors
                                 if (request?.isForMainFrame == true) {
                                     isLoading = false

@@ -49,6 +49,9 @@
     <string name="home_local_server_username_placeholder">Leave empty to use server default (opencode)</string>
     <string name="home_local_server_password_label">Server password</string>
     <string name="home_local_server_password_placeholder">Leave empty to disable authentication</string>
+    <string name="home_server_auth_failed">Authentication failed. Check the server username and password.</string>
+    <string name="home_server_health_http_error">Server health check failed (HTTP %1$d).</string>
+    <string name="home_server_not_responding">Server is not responding.</string>
     <string name="home_local_lan_password_warning">LAN access is enabled without a password. Anyone on your network can open this server.</string>
     <string name="home_local_run_background_label">Run server in background</string>
     <string name="home_local_run_background_desc">Use Termux background task mode to start local runtime</string>
@@ -62,6 +65,22 @@
     <string name="home_local_proxy_show_url">Show</string>
     <string name="home_local_proxy_hide_url">Hide</string>
     <string name="home_local_proxy_no_proxy_hint">Defaults are prefilled; you can edit exclusions as a comma-separated list.</string>
+    <string name="server_settings_oauth_proxy_hint">The local OpenCode server is running without a proxy. If this provider is unavailable on your network, configure a proxy in Local server launch options, then restart the server.</string>
+    <string name="diagnostics_title">Diagnostics</string>
+    <string name="diagnostics_settings_desc">View and share privacy-safe application logs without ADB</string>
+    <string name="diagnostics_empty">No diagnostic events yet</string>
+    <string name="diagnostics_empty_desc">Events matching the selected logging level will appear here.</string>
+    <string name="diagnostics_copy">Copy diagnostics</string>
+    <string name="diagnostics_share">Share diagnostics</string>
+    <string name="diagnostics_clear">Clear diagnostics</string>
+    <string name="diagnostics_clear_confirm_title">Clear diagnostics?</string>
+    <string name="diagnostics_clear_confirm_message">All collected diagnostic events will be permanently deleted.</string>
+    <string name="diagnostics_log_level">Logging level</string>
+    <string name="diagnostics_level_error">Errors only</string>
+    <string name="diagnostics_level_warn">Warnings and errors</string>
+    <string name="diagnostics_level_info">Info, warnings, and errors</string>
+    <string name="diagnostics_level_debug">Debug (maximum detail)</string>
+    <string name="diagnostics_level_current">Logging: %1$s</string>
     <string name="home_local_open_termux_overlay_settings">Open Termux overlay settings</string>
     <string name="home_local_error_timeout">Server did not respond within 30 seconds. Check Termux for errors.</string>
     <string name="home_local_message_stop_sent">Stop command sent</string>
@@ -71,6 +90,19 @@
     <string name="home_local_error_background_launch">Android blocked background launch. Keep the app in foreground and try again.</string>
     <string name="home_local_error_not_installed">Local runtime is not installed yet. Tap Setup to install it.</string>
     <string name="home_local_error_launch_failed">Failed to launch Termux command.</string>
+    <string name="update_available_title">Update available</string>
+    <string name="update_available_message">Version %1$s is ready.</string>
+    <string name="update_open_release">View release</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_up_to_date">You have the latest version.</string>
+    <string name="update_error">Could not check for updates.</string>
+    <string name="update_download_and_install">Download and install</string>
+    <string name="update_downloading_percent">Downloading update… %1$d%%</string>
+    <string name="update_downloading">Downloading update…</string>
+    <string name="update_opening_installer">Open installer</string>
+    <string name="update_retry">Retry</string>
+    <string name="update_prepare_error">Could not download or verify the update.</string>
+    <string name="update_installer_launch_failed">Could not open the installer.</string>
     
     <!-- Server Management -->
     <string name="server_name">Server Name</string>
@@ -86,6 +118,8 @@
     <string name="server_save">Save</string>
     <string name="server_cancel">Cancel</string>
     <string name="server_delete">Delete</string>
+    <string name="server_delete_confirm_title">Delete server?</string>
+    <string name="server_delete_confirm_message">Delete “%1$s”? This cannot be undone.</string>
     <string name="server_add">Add Server</string>
     <string name="server_invalid_url">Invalid URL format</string>
     <string name="server_auto_connect">Auto-connect on app launch</string>
@@ -109,6 +143,12 @@
     <string name="sessions_empty">No sessions yet</string>
     <string name="sessions_tap_plus">Tap + to start a new conversation</string>
     <string name="sessions_open_project">Open project</string>
+    <string name="search_sessions">Search sessions…</string>
+    <string name="sessions_no_search_results">No matching sessions</string>
+    <string name="sessions_project_summary">%1$s · %2$d sessions</string>
+    <string name="sessions_new_in_project">New session in this project</string>
+    <string name="sessions_view_recent">Show recent sessions</string>
+    <string name="sessions_view_projects">Group sessions by project</string>
     <string name="sessions_search_folders">Search folders</string>
     <string name="sessions_no_folders">No folders found</string>
     <string name="sessions_empty_directory">Empty directory</string>
@@ -122,6 +162,38 @@
     <string name="session_status_busy">Working…</string>
     <string name="session_status_retry">Retrying (%1$d/%2$d)</string>
     <string name="session_rename">Rename Session</string>
+    <string name="session_copy_id">Copy session ID</string>
+    <string name="session_favorite_add">Add to favorites</string>
+    <string name="session_favorite_remove">Remove from favorites</string>
+    <string name="session_favorite">Favorite</string>
+    <string name="session_favorite_move_up">Move favorite up</string>
+    <string name="session_favorite_move_down">Move favorite down</string>
+    <string name="session_category">Category</string>
+    <string name="session_category_none">No category</string>
+    <string name="cross_sessions_favorites_title">Favorites and categories</string>
+    <string name="cross_sessions_favorites">Favorites</string>
+    <string name="cross_sessions_empty_favorites">No favorite sessions on connected servers</string>
+    <string name="cross_sessions_empty_category">No sessions in this category on connected servers</string>
+    <string name="cross_sessions_toggle_favorite">Add or remove favorite</string>
+    <string name="cross_sessions_retrying">Retrying (%1$d)</string>
+    <string name="cross_sessions_all">All</string>
+    <string name="cross_sessions_empty_favorite_category">No favorite sessions in this category on connected servers</string>
+    <string name="cross_sessions_offline">Offline</string>
+    <string name="cross_sessions_connect_title">Connect to server?</string>
+    <string name="cross_sessions_connect_message">%1$s is offline. Connect to open this session?</string>
+    <string name="cross_sessions_empty_favorites_any_server">No favorite sessions</string>
+    <string name="cross_sessions_empty_favorite_category_any_server">No favorite sessions in this category</string>
+
+    <!-- Legacy localization keys retained until generated locale files drop them. -->
+    <string name="session_pin">Pin session</string>
+    <string name="session_unpin">Unpin session</string>
+    <string name="session_pinned">Pinned</string>
+    <string name="session_pin_move_up">Move pinned session up</string>
+    <string name="session_pin_move_down">Move pinned session down</string>
+    <string name="cross_sessions_title">Pinned and categories</string>
+    <string name="cross_sessions_pinned">Pinned</string>
+    <string name="cross_sessions_empty_pinned">No pinned sessions on connected servers</string>
+    <string name="cross_sessions_toggle_pin">Toggle pin</string>
     <string name="session_rename_title">Title</string>
     <string name="session_rename_button">Rename</string>
     <string name="session_delete">Delete Session</string>
@@ -145,6 +217,14 @@
     <string name="chat_revert_message">This will undo this message and all subsequent messages. File changes will be reversed.</string>
     <string name="chat_restore">Restore</string>
     <string name="chat_attach">Attach</string>
+    <string name="chat_attach_title">Attach</string>
+    <string name="chat_attach_photo">Photo or image</string>
+    <string name="chat_attach_photo_hint">Choose one or more images from your gallery</string>
+    <string name="chat_attach_device_file">File from device</string>
+    <string name="chat_attach_device_file_hint">Images, PDF, text, code, and configuration files</string>
+    <string name="chat_attach_project_file">File from project</string>
+    <string name="chat_attach_project_file_hint">Reference a file available on the OpenCode server</string>
+    <string name="chat_file_attachment_rejected">%1$d file(s) were unsupported or exceeded the size limit</string>
     <string name="chat_remove">Remove</string>
     <string name="chat_clear">Clear</string>
     <string name="chat_scroll_bottom">Scroll to bottom</string>
@@ -218,6 +298,7 @@
     <string name="chat_files_changed">%1$d file changed</string>
     <string name="chat_files_changed_plural">%1$d files changed</string>
     <string name="chat_free_label">Free</string>
+    <string name="chat_select_model">Select model</string>
     <string name="chat_question_label">Question</string>
     <string name="chat_permission_label">Permission: %1$s</string>
     <string name="chat_question_inline">Question: %1$s</string>
@@ -231,6 +312,19 @@
     <string name="chat_tasks_count">%1$d/%2$d</string>
     <string name="chat_cost_format">$%1$s</string>
     <string name="chat_context_format">%1$d%% ctx</string>
+    <string name="chat_context_details">Context usage</string>
+    <string name="chat_context_used">%1$s of %2$s used</string>
+    <string name="chat_context_remaining">%1$s tokens available</string>
+    <string name="chat_context_current_turn">Current context</string>
+    <string name="chat_context_input">Input</string>
+    <string name="chat_context_output">Output</string>
+    <string name="chat_context_reasoning">Reasoning</string>
+    <string name="chat_context_cache_read">Cache read</string>
+    <string name="chat_context_cache_write">Cache write</string>
+    <string name="chat_context_session_totals">Session totals</string>
+    <string name="chat_context_tokens_processed">Tokens processed</string>
+    <string name="chat_context_messages">Messages</string>
+    <string name="chat_context_cost">Cost</string>
     <string name="chat_collapse">Collapse</string>
     <string name="chat_expand">Expand</string>
     <string name="chat_tokens_summary">%1$s tokens</string>
@@ -278,6 +372,14 @@
     <string name="chat_terminal_run">Run</string>
     <string name="chat_terminal_connected">Connected</string>
     <string name="chat_terminal_disconnected">Disconnected</string>
+    <string name="chat_terminal_starting">Starting</string>
+    <string name="chat_terminal_reconnecting">Reconnecting</string>
+    <string name="chat_terminal_exited">Exited</string>
+    <string name="chat_terminal_reconnect_tab">Reconnect tab</string>
+    <string name="chat_terminal_restart_tab">Restart tab</string>
+    <string name="chat_terminal_close_tab">Close tab</string>
+    <string name="chat_terminal_new_tab">New</string>
+    <string name="chat_terminal_keyboard">Keyboard</string>
     <string name="chat_terminal_ctrl_c">Ctrl+C</string>
     <string name="chat_terminal_clear">Clear</string>
     <string name="chat_terminal_connect_failed">Failed to open terminal</string>
@@ -318,7 +420,7 @@
     <string name="settings_font_size_large">Large</string>
     <string name="settings_notifications_desc">Notify when agent completes a task</string>
 
-    <string name="settings_initial_messages">Initial messages to load</string>
+    <string name="settings_initial_messages">Messages to load initially</string>
     <string name="settings_code_word_wrap">Word wrap in code blocks</string>
     <string name="settings_code_word_wrap_desc">Wrap long lines instead of horizontal scrolling</string>
     <string name="settings_confirm_send">Confirm before sending</string>
@@ -344,6 +446,8 @@
     <string name="settings_reconnect_aggressive">Aggressive (1–5s)</string>
     <string name="settings_reconnect_normal">Normal (1–30s)</string>
     <string name="settings_reconnect_conservative">Conservative (1–60s)</string>
+    <string name="settings_background_wake_lock">Keep background connection awake</string>
+    <string name="settings_background_wake_lock_desc">More reliable notifications while the screen is off, with higher battery use. When disabled, connections recover after wake or network changes.</string>
     <string name="settings_keep_screen_on">Keep screen on</string>
     <string name="settings_keep_screen_on_desc">Prevent screen timeout while in chat</string>
     <string name="settings_compress_images">Optimize image attachments</string>
@@ -355,6 +459,16 @@
     <string name="settings_compress_images_quality_value">%1$d%%</string>
     <string name="settings_local_runtime">Show local runtime controls</string>
     <string name="settings_local_runtime_desc">Show Termux local OpenCode controls on Home screen</string>
+    <string name="settings_session_categories">Session categories</string>
+    <string name="settings_session_categories_desc">Create reusable labels with a name, color, and icon</string>
+    <string name="settings_category_add">Add category</string>
+    <string name="settings_category_edit">Edit category</string>
+    <string name="settings_category_name">Name</string>
+    <string name="settings_category_color">Color</string>
+    <string name="settings_category_icon">Icon</string>
+    <string name="settings_category_save">Save category</string>
+    <string name="settings_category_delete">Delete category</string>
+    <string name="settings_categories_empty">No categories yet</string>
     <string name="settings_terminal_font_size">Terminal default font size</string>
     <string name="settings_terminal_font_size_value">%1$d sp</string>
     <string name="settings_silent_notifications">Silent notifications</string>
@@ -423,7 +537,7 @@
     <string name="notification_connected">Connected to %1$s</string>
     <string name="notification_connecting">Connecting to %1$s…</string>
     <string name="notification_connected_count">Connected to %1$d of %2$d servers</string>
-    <string name="notification_disconnect_all">Disconnect All</string>
+    <string name="notification_exit">Exit</string>
     <string name="notification_inbox_title">OC Remote — %1$d/%2$d connected</string>
     <string name="notification_status_connected">Connected</string>
     <string name="notification_status_connecting">Connecting…</string>
@@ -457,8 +571,16 @@
     <string name="image_count_single">1 image</string>
     <string name="image_count_multiple">%1$d images</string>
     <string name="share_send_image_to">Send image to…</string>
+    <string name="attachment_count_single">1 attachment</string>
+    <string name="attachment_count_multiple">%1$d attachments</string>
+    <string name="share_send_attachments_to">Send attachments to…</string>
     <string name="share_no_connected_servers">No connected servers</string>
     <string name="share_connect_first">Connect to a server first, then share images</string>
+    <string name="share_no_servers_body">Connect a server to choose a chat for these attachments. They will stay ready while you connect.</string>
+    <string name="share_add_server">Add server</string>
+    <string name="share_manage_servers">Go to servers</string>
+    <string name="share_no_sessions">No chats yet</string>
+    <string name="share_create_session_body">Create a chat to send these attachments.</string>
 
     <!-- Chat pagination -->
     <string name="chat_load_earlier">Load earlier messages</string>
@@ -467,10 +589,11 @@
 
     <!-- Chat menu actions -->
     <string name="menu_open_in_web">Open in Web</string>
+    <string name="menu_reload_session">Reload session</string>
     <string name="menu_new_session">New session</string>
     <string name="menu_fork_session">Fork session</string>
     <string name="menu_compact_session">Compact session</string>
-    <string name="menu_review_changes">Review changes</string>
+    <string name="menu_review_changes">Run code review</string>
     <string name="menu_share_session">Share session</string>
     <string name="menu_rename_session">Rename session</string>
     <string name="menu_export_session">Export session</string>
@@ -480,6 +603,21 @@
     <string name="chat_images_optimized_summary">Images optimized (%1$d)
 Size: %2$s -&gt; %3$s
 Tokens: ~%4$d -&gt; ~%5$d</string>
+    <string name="pending_request_position">%1$d / %2$d</string>
+    <string name="permission_always_confirm_title">Always allow this permission?</string>
+    <string name="permission_always_confirm_message">Future matching operations may be approved automatically.</string>
+    <string name="permission_always_scope">Applies to: %1$s</string>
+    <string name="pending_request_reply_failed">Could not send the response. Try again.</string>
+    <string name="settings_expand_reasoning">Auto-expand reasoning</string>
+    <string name="settings_expand_reasoning_desc">Show the thinking process by default; tap its header to toggle</string>
+    <string name="settings_turn_dividers">Turn dividers</string>
+    <string name="settings_turn_dividers_desc">Show dividers between messages in the same response</string>
+    <string name="chat_reasoning_active">Thinking…</string>
+    <string name="chat_reasoning_complete">Thought for %1$s</string>
+    <string name="chat_message_queued">Queued</string>
+    <string name="chat_message_sent">Sent</string>
+    <string name="chat_subagent_session">Subagent session</string>
+    <string name="chat_subagent_read_only_description">Messages can’t be sent to a subagent session.</string>
 
     <!-- About Screen -->
     <string name="about_title">About</string>
@@ -492,4 +630,6 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="about_opencode_url">https://github.com/anomalyco/opencode</string>
     <string name="about_license">License</string>
     <string name="about_license_value">MIT</string>
+    <string name="about_check_updates">Check for updates</string>
+    <string name="about_check_updates_desc">Check GitHub for a newer release</string>
 </resources>

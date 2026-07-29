@@ -1,6 +1,6 @@
 package dev.minios.ocremote.ui.screens.sessions
 
-import android.util.Log
+import dev.minios.ocremote.logging.AppLogger as Log
 import androidx.lifecycle.SavedStateHandle
 import dev.minios.ocremote.BuildConfig
 import androidx.lifecycle.ViewModel
@@ -10,9 +10,13 @@ import dev.minios.ocremote.data.api.FileNode
 import dev.minios.ocremote.data.api.OpenCodeApi
 import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.repository.EventReducer
+import dev.minios.ocremote.data.repository.DirectoryScope
+import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.domain.model.Project
 import dev.minios.ocremote.domain.model.Session
 import dev.minios.ocremote.domain.model.SessionStatus
+import dev.minios.ocremote.domain.model.SessionCategory
+import dev.minios.ocremote.domain.model.FavoriteSessionSnapshot
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -25,6 +29,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -41,6 +46,7 @@ data class SessionListUiState(
     val error: String? = null,
     val selectedIds: Set<String> = emptySet(),
     val isSelectionMode: Boolean = false,
+    val categories: List<SessionCategory> = emptyList(),
 )
 
 /** A group of sessions belonging to a project. */
@@ -49,23 +55,112 @@ data class ProjectSessionGroup(
     val projectName: String,
     val directory: String,
     val sessions: List<SessionItem>,
+    val branch: String? = null,
     /** Per-session tilde-path labels (sessionId -> tildePath) for flat display. */
     val sessionDirLabels: Map<String, String> = emptyMap()
 )
 
-/** Helper for session directory info. */
-private data class SessionDirInfo(val name: String, val tildePath: String)
+internal fun buildProjectSessionGroups(
+    sessions: List<SessionItem>,
+    projects: List<Project>,
+    homeDir: String?,
+    branches: Map<DirectoryScope, String?>,
+    serverId: String,
+): List<ProjectSessionGroup> {
+    fun normalized(path: String) = path.trimEnd('/').ifEmpty { "/" }
+    fun displayPath(path: String): String {
+        val dir = normalized(path)
+        return if (!homeDir.isNullOrBlank() && (dir == homeDir || dir.startsWith("$homeDir/"))) {
+            "~" + dir.removePrefix(homeDir)
+        } else {
+            dir
+        }
+    }
+    fun projectFor(session: Session): Project? {
+        projects.firstOrNull { it.id.isNotBlank() && it.id == session.projectId }?.let { return it }
+        val directory = normalized(session.directory)
+        return projects
+            .filter { project ->
+                val root = normalized(project.worktree.ifBlank { project.path })
+                directory == root || directory.startsWith("$root/")
+            }
+            .maxByOrNull { normalized(it.worktree.ifBlank { it.path }).length }
+    }
+
+    return sessions
+        .groupBy { item ->
+            val project = projectFor(item.session)
+            project?.id?.takeIf { it.isNotBlank() }
+                ?: "directory:${normalized(item.session.directory)}"
+        }
+        .map { (key, items) ->
+            val sorted = sortSessionItems(items)
+            val project = projectFor(sorted.first().session)
+            val directory = normalized(
+                project?.worktree?.takeIf { it.isNotBlank() }
+                    ?: project?.path?.takeIf { it.isNotBlank() }
+                    ?: sorted.first().session.directory,
+            )
+            val branch = branches.entries.firstOrNull { (scope, _) ->
+                scope.serverId == serverId && normalized(scope.directory) == directory
+            }?.value
+            ProjectSessionGroup(
+                projectId = project?.id ?: key,
+                projectName = project?.displayName
+                    ?: directory.substringAfterLast('/').ifEmpty { "/" },
+                directory = directory,
+                sessions = sorted,
+                branch = branch,
+                sessionDirLabels = sorted.associate { it.session.id to displayPath(it.session.directory) },
+            )
+        }
+        .sortedWith(compareByDescending<ProjectSessionGroup> { group ->
+            group.sessions.any { it.isFavorite }
+        }.thenBy { group ->
+            group.sessions.mapNotNull { it.favoriteIndex }.minOrNull() ?: Int.MAX_VALUE
+        }.thenByDescending { group ->
+            group.sessions.maxOfOrNull { it.session.time.updated } ?: 0
+        }.thenBy { it.projectName.lowercase() })
+}
 
 data class SessionItem(
     val session: Session,
-    val status: SessionStatus = SessionStatus.Idle
+    val status: SessionStatus = SessionStatus.Idle,
+    val favoriteIndex: Int? = null,
+    val category: SessionCategory? = null,
+) {
+    val isFavorite: Boolean get() = favoriteIndex != null
+}
+
+internal fun sortSessionItems(items: List<SessionItem>): List<SessionItem> = items.sortedWith(
+    compareByDescending<SessionItem> { it.isFavorite }
+        .thenBy { it.favoriteIndex ?: Int.MAX_VALUE }
+        .thenByDescending { it.session.time.updated }
 )
+
+internal data class DirectoryPathQuery(val parent: String, val segment: String)
+
+internal fun parseDirectoryPathQuery(query: String, homeDirectory: String): DirectoryPathQuery? {
+    val trimmed = query.trim()
+    val expanded = when {
+        trimmed == "~" -> homeDirectory
+        trimmed.startsWith("~/") -> homeDirectory.trimEnd('/') + trimmed.removePrefix("~")
+        trimmed.startsWith('/') -> trimmed
+        else -> return null
+    }
+    if (expanded == "/") return DirectoryPathQuery("/", "")
+    if (expanded.endsWith('/')) return DirectoryPathQuery(expanded.trimEnd('/').ifEmpty { "/" }, "")
+    val parent = expanded.substringBeforeLast('/', missingDelimiterValue = "")
+        .ifEmpty { "/" }
+    return DirectoryPathQuery(parent, expanded.substringAfterLast('/'))
+}
 
 @HiltViewModel
 class SessionListViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val eventReducer: EventReducer,
-    private val api: OpenCodeApi
+    private val api: OpenCodeApi,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     val serverUrl: String = URLDecoder.decode(
@@ -86,6 +181,31 @@ class SessionListViewModel @Inject constructor(
 
     private val conn = ServerConnection.from(serverUrl, username, password.ifEmpty { null })
 
+    val groupSessionsByProject: StateFlow<Boolean> = settingsRepository.groupSessionsByProject.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        false,
+    )
+
+    private val favoriteSessionIds: StateFlow<List<String>> = settingsRepository.favoriteSessionIds(serverId).stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        emptyList(),
+    )
+
+    private val sessionCategories: StateFlow<List<SessionCategory>> = settingsRepository.sessionCategories.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        emptyList(),
+    )
+
+    private val categoryAssignments: StateFlow<Map<String, String>> =
+        settingsRepository.sessionCategoryAssignments(serverId).stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            emptyMap(),
+        )
+
     private val _error = MutableStateFlow<String?>(null)
     private val _isLoading = MutableStateFlow(true)
     private val _projects = MutableStateFlow<List<Project>>(emptyList())
@@ -105,6 +225,10 @@ class SessionListViewModel @Inject constructor(
             _projects,
             _homeDir,
             _selectedIds,
+            eventReducer.vcsBranches,
+            favoriteSessionIds,
+            sessionCategories,
+            categoryAssignments,
         )
     ) { values ->
         val allSessions = values[0] as List<Session>
@@ -115,6 +239,12 @@ class SessionListViewModel @Inject constructor(
         val projects = values[5] as List<Project>
         val homeDir = values[6] as String?
         val selectedIds = values[7] as Set<String>
+        val branches = values[8] as Map<DirectoryScope, String?>
+        val favoriteIds = values[9] as List<String>
+        val categories = values[10] as List<SessionCategory>
+        val assignments = values[11] as Map<String, String>
+        val favoriteOrder = favoriteIds.withIndex().associate { (index, id) -> id to index }
+        val categoriesById = categories.associateBy { it.id }
 
         // Filter sessions belonging to this server
         val serverSessionIds = serverSessions[serverId] ?: emptySet()
@@ -124,35 +254,15 @@ class SessionListViewModel @Inject constructor(
             .map { session ->
                 SessionItem(
                     session = session,
-                    status = statuses[session.id] ?: SessionStatus.Idle
+                    status = statuses[session.id] ?: SessionStatus.Idle,
+                    favoriteIndex = favoriteOrder[session.id],
+                    category = assignments[session.id]?.let(categoriesById::get),
                 )
             }
 
-        // Build a flat list sorted by time — each session carries its own
-        // tilde-path label derived from session.directory
-        val allItems = sessions.map { item ->
-            val dir = item.session.directory.trimEnd('/').ifEmpty { "/" }
-            val tildePath = if (homeDir != null && dir.startsWith(homeDir)) {
-                "~" + dir.removePrefix(homeDir)
-            } else {
-                dir
-            }
-            val dirName = dir.substringAfterLast('/').ifEmpty { "/" }
-            item to SessionDirInfo(dirName, tildePath)
-        }
+        val groups = buildProjectSessionGroups(sessions, projects, homeDir, branches, serverId)
 
-        // Single group containing all sessions (flat, sorted by time)
-        val groups = listOf(
-            ProjectSessionGroup(
-                projectId = "",
-                projectName = "",
-                directory = "",
-                sessions = allItems.map { it.first },
-                sessionDirLabels = allItems.associate { it.first.session.id to it.second.tildePath }
-            )
-        )
-
-        val visibleSessionIds = allItems.map { it.first.session.id }.toSet()
+        val visibleSessionIds = sessions.map { it.session.id }.toSet()
         val validSelectedIds = selectedIds.intersect(visibleSessionIds)
         if (validSelectedIds != selectedIds) {
             _selectedIds.value = validSelectedIds
@@ -166,6 +276,7 @@ class SessionListViewModel @Inject constructor(
             error = error,
             selectedIds = validSelectedIds,
             isSelectionMode = validSelectedIds.isNotEmpty(),
+            categories = categories,
         )
     }.stateIn(
         viewModelScope,
@@ -176,6 +287,64 @@ class SessionListViewModel @Inject constructor(
     init {
         loadHomeDir()
         loadSessions()
+        viewModelScope.launch {
+            while (true) {
+                delay(5_000)
+                refreshSessionStatuses()
+            }
+        }
+    }
+
+    fun setGroupSessionsByProject(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setGroupSessionsByProject(enabled) }
+    }
+
+    fun toggleFavorite(sessionId: String) {
+        val favorites = favoriteSessionIds.value
+        val session = uiState.value.sessionGroups
+            .asSequence()
+            .flatMap { it.sessions.asSequence() }
+            .firstOrNull { it.session.id == sessionId }
+            ?.session
+        viewModelScope.launch {
+            settingsRepository.setSessionFavorite(
+                serverId = serverId,
+                sessionId = sessionId,
+                favorite = sessionId !in favorites,
+                snapshot = session?.let(FavoriteSessionSnapshot::from),
+            )
+        }
+    }
+
+    fun moveFavorite(sessionId: String, offset: Int) {
+        viewModelScope.launch {
+            settingsRepository.moveFavoriteSession(serverId, sessionId, offset)
+        }
+    }
+
+    fun setSessionCategory(sessionId: String, categoryId: String?) {
+        viewModelScope.launch {
+            settingsRepository.setSessionCategory(serverId, sessionId, categoryId)
+        }
+    }
+
+    fun saveSessionCategory(id: String?, name: String, color: String, icon: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            settingsRepository.saveSessionCategory(
+                SessionCategory(
+                    id = id ?: java.util.UUID.randomUUID().toString(),
+                    name = trimmed,
+                    color = color,
+                    icon = icon,
+                ),
+            )
+        }
+    }
+
+    fun deleteSessionCategory(categoryId: String) {
+        viewModelScope.launch { settingsRepository.deleteSessionCategory(categoryId) }
     }
 
     fun loadSessions() {
@@ -203,16 +372,39 @@ class SessionListViewModel @Inject constructor(
                             totalSessions += sessions.size
                             if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${sessions.size} sessions for project ${project.displayName}")
                         } catch (e: Exception) {
+                            if (e is CancellationException) throw e
                             Log.w(TAG, "Failed to load sessions for project ${project.displayName}: ${e.message}")
                         }
                     }
                     if (BuildConfig.DEBUG) Log.d(TAG, "Total: loaded $totalSessions sessions across ${projects.size} projects for server $serverId")
                 }
+                refreshSessionStatuses(projects)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to load sessions", e)
                 _error.value = e.message ?: "Failed to load sessions"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    private suspend fun refreshSessionStatuses(projects: List<Project> = _projects.value) {
+        val directories: List<String?> = projects.map { it.worktree.takeIf(String::isNotBlank) }
+            .ifEmpty { listOf(null) }
+        val serverSessionIds = eventReducer.serverSessions.value[serverId].orEmpty()
+        for (directory in directories) {
+            try {
+                val sessionIds = eventReducer.sessions.value.asSequence()
+                    .filter { it.id in serverSessionIds }
+                    .filter { directory == null || it.directory == directory }
+                    .map { it.id }
+                    .toSet()
+                val statuses = api.listSessionStatuses(conn, directory)
+                eventReducer.replaceSessionStatuses(serverId, sessionIds, statuses)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                if (BuildConfig.DEBUG) Log.d(TAG, "Failed to refresh project statuses: ${e::class.java.simpleName}")
             }
         }
     }
@@ -224,6 +416,7 @@ class SessionListViewModel @Inject constructor(
                 _projects.value = projects
                 if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${projects.size} projects")
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to load projects", e)
             }
         }
@@ -244,6 +437,7 @@ class SessionListViewModel @Inject constructor(
                 if (BuildConfig.DEBUG) Log.d(TAG, "Created new session: ${session.id}")
                 _navigateToSession.tryEmit(session.id)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to create session", e)
                 _error.value = e.message ?: "Failed to create session"
             }
@@ -255,12 +449,15 @@ class SessionListViewModel @Inject constructor(
             try {
                 val success = api.deleteSession(conn, sessionId)
                 if (success) {
+                    settingsRepository.setSessionFavorite(serverId, sessionId, false)
+                    settingsRepository.setSessionCategory(serverId, sessionId, null)
                     if (BuildConfig.DEBUG) Log.d(TAG, "Deleted session $sessionId")
                     loadSessions()
                 } else {
                     _error.value = "Failed to delete session"
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to delete session", e)
                 _error.value = e.message ?: "Failed to delete session"
             }
@@ -297,12 +494,17 @@ class SessionListViewModel @Inject constructor(
                     }.awaitAll()
                 }
                 val failed = results.filterNot { it.second }
+                results.filter { it.second }.forEach { (id, _) ->
+                    settingsRepository.setSessionFavorite(serverId, id, false)
+                    settingsRepository.setSessionCategory(serverId, id, null)
+                }
                 if (failed.isNotEmpty()) {
                     _error.value = "Failed to delete ${failed.size} session(s)"
                 }
                 clearSelection()
                 loadSessions()
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to delete selected sessions", e)
                 _error.value = e.message ?: "Failed to delete selected sessions"
             }
@@ -316,6 +518,7 @@ class SessionListViewModel @Inject constructor(
                 if (BuildConfig.DEBUG) Log.d(TAG, "Renamed session $sessionId to '$newTitle'")
                 loadSessions()
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to rename session", e)
                 _error.value = e.message ?: "Failed to rename session"
             }
@@ -331,9 +534,10 @@ class SessionListViewModel @Inject constructor(
             val paths = api.getServerPaths(conn)
             val home = paths.home
             _homeDir.value = home
-            if (BuildConfig.DEBUG) Log.d(TAG, "Server home directory: $home")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Server home directory resolved")
             home
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "Failed to get server paths", e)
             "/"
         }
@@ -345,20 +549,53 @@ class SessionListViewModel @Inject constructor(
             val nodes = api.listDirectory(conn, path = "", directory = directory)
             nodes.filter { it.type == "directory" }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to list directory: $directory", e)
+            if (e is CancellationException) throw e
+            Log.e(TAG, "Failed to list directory", e)
             emptyList()
         }
     }
 
-    /** Search for directories matching a query, scoped to a base directory. */
+    /** Search names fuzzily, but resolve typed absolute and home-relative paths like the WebUI. */
     suspend fun searchDirectories(query: String, directory: String): List<String> {
+        val pathQuery = parseDirectoryPathQuery(query, directory)
+        if (pathQuery != null) {
+            val parentNodes = listDirectories(pathQuery.parent)
+            if (pathQuery.segment.isEmpty()) {
+                return (listOf(pathQuery.parent) + parentNodes.map { node ->
+                    node.absolute ?: joinDirectory(pathQuery.parent, node.name)
+                }).distinct()
+            }
+
+            val matches = parentNodes.filter { node ->
+                node.name.contains(pathQuery.segment, ignoreCase = true)
+            }
+            val exact = matches.firstOrNull { it.name.equals(pathQuery.segment, ignoreCase = true) }
+            if (exact != null) {
+                val exactPath = exact.absolute ?: joinDirectory(pathQuery.parent, exact.name)
+                val children = listDirectories(exactPath).map { node ->
+                    node.absolute ?: joinDirectory(exactPath, node.name)
+                }
+                return (listOf(exactPath) + children).distinct()
+            }
+            return matches.map { it.absolute ?: joinDirectory(pathQuery.parent, it.name) }.distinct()
+        }
+
         return try {
             api.findFiles(conn, query = query, type = "directory", directory = directory, limit = 50)
+                .map { result ->
+                    if (result.startsWith('/')) result.trimEnd('/')
+                    else joinDirectory(directory, result)
+                }
+                .distinct()
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "Failed to search directories", e)
             emptyList()
         }
     }
+
+    private fun joinDirectory(parent: String, child: String): String =
+        if (parent == "/") "/${child.trim('/')}" else "${parent.trimEnd('/')}/${child.trim('/')}"
 
     /** Create a directory inside the currently browsed path. */
     suspend fun createDirectory(parentDirectory: String, folderName: String): Result<String> {

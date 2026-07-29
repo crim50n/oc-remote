@@ -20,6 +20,24 @@ sealed class SseEvent {
     @Serializable
     data class ServerInstanceDisposed(val directory: String) : SseEvent()
 
+    @Serializable
+    data object GlobalDisposed : SseEvent()
+
+    @Serializable
+    data class WorkspaceStatus(val workspaceId: String, val status: String) : SseEvent()
+
+    @Serializable
+    data class WorkspaceReady(val workspaceId: String?, val name: String) : SseEvent()
+
+    @Serializable
+    data class WorkspaceFailed(val workspaceId: String?, val message: String) : SseEvent()
+
+    @Serializable
+    data class WorktreeReady(val directory: String?, val name: String, val branch: String? = null) : SseEvent()
+
+    @Serializable
+    data class WorktreeFailed(val directory: String?, val message: String) : SseEvent()
+
     // Session lifecycle
     @Serializable
     data class SessionCreated(val info: Session) : SseEvent()
@@ -46,9 +64,163 @@ sealed class SseEvent {
     data class SessionIdle(val sessionId: String) : SseEvent()
 
     @Serializable
+    data class SessionCompacted(val sessionId: String) : SseEvent()
+
+    @Serializable
     data class SessionError(
         val sessionId: String?,
         val error: Message.Assistant.ErrorInfo,
+    ) : SseEvent()
+
+    @Serializable
+    data class PromptAdmitted(
+        val sessionId: String,
+        val messageId: String,
+        val delivery: String,
+        val prompt: JsonElement? = null,
+        val timestamp: Long = 0,
+    ) : SseEvent()
+
+    @Serializable
+    data class Prompted(
+        val sessionId: String,
+        val messageId: String,
+        val delivery: String,
+        val prompt: JsonElement? = null,
+        val timestamp: Long = 0,
+    ) : SseEvent()
+
+    @Serializable
+    data class NextStepStarted(
+        val sessionId: String,
+        val assistantMessageId: String,
+        val agent: String,
+        val model: JsonElement,
+        val timestamp: Long,
+    ) : SseEvent()
+
+    @Serializable
+    data class NextStepEnded(
+        val sessionId: String,
+        val assistantMessageId: String,
+        val finish: String,
+        val cost: Double,
+        val tokens: JsonElement,
+        val timestamp: Long,
+    ) : SseEvent()
+
+    @Serializable
+    data class NextStepFailed(
+        val sessionId: String,
+        val assistantMessageId: String,
+        val error: JsonElement,
+        val timestamp: Long,
+    ) : SseEvent()
+
+    @Serializable
+    data class NextAgentSwitched(val sessionId: String, val messageId: String, val agent: String) : SseEvent()
+
+    @Serializable
+    data class NextModelSwitched(val sessionId: String, val messageId: String, val model: JsonElement) : SseEvent()
+
+    @Serializable
+    data class NextContextUpdated(val sessionId: String, val messageId: String, val text: String, val timestamp: Long) : SseEvent()
+
+    @Serializable
+    data class NextSynthetic(val sessionId: String, val messageId: String, val text: String, val timestamp: Long) : SseEvent()
+
+    @Serializable
+    data class NextShellStarted(
+        val sessionId: String,
+        val messageId: String,
+        val callId: String,
+        val command: String,
+        val timestamp: Long,
+    ) : SseEvent()
+
+    @Serializable
+    data class NextShellEnded(val sessionId: String, val callId: String, val output: String, val timestamp: Long) : SseEvent()
+
+    @Serializable
+    data class NextTextStarted(val sessionId: String, val messageId: String, val textId: String, val timestamp: Long) : SseEvent()
+
+    @Serializable
+    data class NextTextDelta(val sessionId: String, val messageId: String, val textId: String, val delta: String) : SseEvent()
+
+    @Serializable
+    data class NextTextEnded(val sessionId: String, val messageId: String, val textId: String, val text: String, val timestamp: Long) : SseEvent()
+
+    @Serializable
+    data class NextReasoningStarted(val sessionId: String, val messageId: String, val reasoningId: String, val timestamp: Long) : SseEvent()
+
+    @Serializable
+    data class NextReasoningDelta(val sessionId: String, val messageId: String, val reasoningId: String, val delta: String) : SseEvent()
+
+    @Serializable
+    data class NextReasoningEnded(val sessionId: String, val messageId: String, val reasoningId: String, val text: String, val timestamp: Long) : SseEvent()
+
+    @Serializable
+    data class NextToolInputStarted(
+        val sessionId: String,
+        val messageId: String,
+        val callId: String,
+        val name: String,
+        val timestamp: Long,
+    ) : SseEvent()
+
+    @Serializable
+    data class NextToolInputDelta(
+        val sessionId: String,
+        val messageId: String,
+        val callId: String,
+        val delta: String,
+    ) : SseEvent()
+
+    @Serializable
+    data class NextToolInputEnded(
+        val sessionId: String,
+        val messageId: String,
+        val callId: String,
+        val text: String,
+    ) : SseEvent()
+
+    @Serializable
+    data class NextToolCalled(
+        val sessionId: String,
+        val messageId: String,
+        val callId: String,
+        val tool: String,
+        val input: JsonElement,
+        val timestamp: Long,
+    ) : SseEvent()
+
+    @Serializable
+    data class NextToolProgress(
+        val sessionId: String,
+        val messageId: String,
+        val callId: String,
+        val structured: JsonElement,
+        val content: JsonElement,
+        val timestamp: Long,
+    ) : SseEvent()
+
+    @Serializable
+    data class NextToolSuccess(
+        val sessionId: String,
+        val messageId: String,
+        val callId: String,
+        val structured: JsonElement,
+        val content: JsonElement,
+        val timestamp: Long,
+    ) : SseEvent()
+
+    @Serializable
+    data class NextToolFailed(
+        val sessionId: String,
+        val messageId: String,
+        val callId: String,
+        val error: JsonElement,
+        val timestamp: Long,
     ) : SseEvent()
 
     // Message events
@@ -205,4 +377,3 @@ data class Project(
             ?: path.takeIf { it.isNotEmpty() }?.trimEnd('/')?.substringAfterLast('/')?.takeIf { it.isNotEmpty() }
             ?: id.take(8)
 }
-

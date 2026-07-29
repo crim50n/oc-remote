@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
@@ -21,16 +23,21 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -48,6 +55,7 @@ import dev.minios.ocremote.R
 import dev.minios.ocremote.data.api.FileNode
 import dev.minios.ocremote.domain.model.Project
 import dev.minios.ocremote.domain.model.SessionStatus
+import dev.minios.ocremote.domain.model.SessionCategory
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -55,12 +63,26 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.animation.core.*
 import androidx.compose.ui.graphics.graphicsLayer
-
-@Composable
-private fun isAmoledTheme(): Boolean {
-    val colors = MaterialTheme.colorScheme
-    return colors.background == Color.Black && colors.surface == Color.Black
-}
+import dev.minios.ocremote.ui.components.AppDialog
+import dev.minios.ocremote.ui.components.AppDialogShape
+import dev.minios.ocremote.ui.components.AppPrimaryButton
+import dev.minios.ocremote.ui.components.AppSearchShape
+import dev.minios.ocremote.ui.components.AppSecondaryButton
+import dev.minios.ocremote.ui.components.SessionCardContent
+import dev.minios.ocremote.ui.components.AppCardShape
+import dev.minios.ocremote.ui.components.appAmoledBorder
+import dev.minios.ocremote.ui.components.appDialogContainerColor
+import dev.minios.ocremote.ui.components.appDialogElevation
+import dev.minios.ocremote.ui.components.appPopupBorder
+import dev.minios.ocremote.ui.components.appPopupContainerColor
+import dev.minios.ocremote.ui.components.isAmoledTheme
+import dev.minios.ocremote.ui.components.AppLoadingEdge
+import dev.minios.ocremote.ui.components.sessionCategoryColor
+import dev.minios.ocremote.ui.components.sessionCategoryIcon
+import dev.minios.ocremote.ui.screens.settings.SessionCategoriesDialog
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.SwipeRefreshState
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 
 /** Pulsing dots loading indicator — 3 dots that scale up/down in sequence. */
 @Composable
@@ -103,10 +125,22 @@ private fun PulsingDotsIndicator(
                         scaleY = scale.value
                         alpha = 0.3f + 0.7f * ((scale.value - 0.4f) / 0.6f)
                     }
-                    .background(color, CircleShape)
+                .background(color, CircleShape)
             )
         }
     }
+}
+
+@Composable
+private fun ServerRefreshEdge(
+    state: SwipeRefreshState,
+    refreshTriggerDistance: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    val triggerPx = with(density) { refreshTriggerDistance.toPx() }.coerceAtLeast(1f)
+    val progress = (state.indicatorOffset / triggerPx).coerceIn(0f, 1f)
+    AppLoadingEdge(active = state.isRefreshing, progress = progress, modifier = modifier)
 }
 
 /**
@@ -121,6 +155,7 @@ fun SessionListScreen(
     viewModel: SessionListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val groupByProject by viewModel.groupSessionsByProject.collectAsState()
     val isAmoled = isAmoledTheme()
     // Navigate to newly created session
     LaunchedEffect(viewModel) {
@@ -145,15 +180,40 @@ fun SessionListScreen(
     // Project picker dialog state
     var showOpenProject by remember { mutableStateOf(false) }
     var showQuickNewSession by remember { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var collapsedProjects by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    val visibleGroups = remember(uiState.sessionGroups, searchQuery) {
+        val query = searchQuery.trim()
+        if (query.isEmpty()) {
+            uiState.sessionGroups
+        } else {
+            uiState.sessionGroups.mapNotNull { group ->
+                val projectMatches = group.projectName.contains(query, ignoreCase = true) ||
+                    group.directory.contains(query, ignoreCase = true) ||
+                    group.branch?.contains(query, ignoreCase = true) == true
+                val sessions = if (projectMatches) group.sessions else group.sessions.filter { item ->
+                    item.session.title?.contains(query, ignoreCase = true) == true ||
+                        item.session.id.contains(query, ignoreCase = true) ||
+                        item.session.directory.contains(query, ignoreCase = true)
+                }
+                group.copy(sessions = sessions).takeIf { sessions.isNotEmpty() }
+            }
+        }
+    }
 
     BackHandler(enabled = uiState.isSelectionMode) {
         viewModel.clearSelection()
     }
 
+    val allSessions = uiState.sessionGroups.flatMap { it.sessions }
+    val refreshTriggerDistance = 80.dp
+    val swipeRefreshState = rememberSwipeRefreshState(uiState.isLoading && allSessions.isNotEmpty())
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            if (uiState.isSelectionMode) {
+            Box {
+                if (uiState.isSelectionMode) {
                 TopAppBar(
                     title = {
                         Text(
@@ -182,7 +242,7 @@ fun SessionListScreen(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
                 )
-            } else {
+                } else {
                 TopAppBar(
                     title = {
                         Column {
@@ -197,10 +257,26 @@ fun SessionListScreen(
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                         }
                     },
-                    actions = {},
+                    actions = {
+                        IconButton(onClick = { viewModel.setGroupSessionsByProject(!groupByProject) }) {
+                            Icon(
+                                imageVector = if (groupByProject) Icons.AutoMirrored.Filled.ViewList else Icons.Default.Folder,
+                                contentDescription = stringResource(
+                                    if (groupByProject) R.string.sessions_view_recent
+                                    else R.string.sessions_view_projects,
+                                ),
+                            )
+                        }
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
+                    )
+                }
+                ServerRefreshEdge(
+                    state = swipeRefreshState,
+                    refreshTriggerDistance = refreshTriggerDistance,
+                    modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
         },
@@ -243,14 +319,21 @@ fun SessionListScreen(
             }
         }
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(padding)
+        SwipeRefresh(
+            state = swipeRefreshState,
+            onRefresh = viewModel::loadSessions,
+            swipeEnabled = !uiState.isSelectionMode && !uiState.isLoading,
+            refreshTriggerDistance = refreshTriggerDistance,
+            modifier = Modifier.fillMaxSize().padding(padding),
+            indicator = { _, _ -> },
         ) {
-            val allSessions = uiState.sessionGroups.flatMap { it.sessions }
-            when {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .graphicsLayer { translationY = swipeRefreshState.indicatorOffset * 0.45f },
+            ) {
+                when {
                 uiState.isLoading && allSessions.isEmpty() -> {
                     PulsingDotsIndicator(
                         modifier = Modifier.align(Alignment.Center),
@@ -277,7 +360,7 @@ fun SessionListScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )
-                        Button(onClick = { viewModel.loadSessions() }) {
+                        AppPrimaryButton(onClick = { viewModel.loadSessions() }) {
                             Text(stringResource(R.string.retry))
                         }
                     }
@@ -314,16 +397,110 @@ fun SessionListScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        for (group in uiState.sessionGroups) {
-                            items(group.sessions, key = { it.session.id }) { item ->
+                        item(key = "session-search") {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 4.dp),
+                                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                                trailingIcon = {
+                                    if (searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { searchQuery = "" }) {
+                                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                                        }
+                                    }
+                                },
+                                placeholder = { Text(stringResource(R.string.search_sessions)) },
+                                singleLine = true,
+                                shape = AppSearchShape,
+                            )
+                        }
+                        if (visibleGroups.isEmpty()) {
+                            item(key = "no-search-results") {
+                                Text(
+                                    text = stringResource(R.string.sessions_no_search_results),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 40.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        if (!groupByProject) {
+                            val recentSessions = visibleGroups
+                                .flatMap { group -> group.sessions.map { group to it } }
+                                .sortedWith(
+                                    compareByDescending<Pair<ProjectSessionGroup, SessionItem>> { (_, item) -> item.isFavorite }
+                                        .thenBy { (_, item) -> item.favoriteIndex ?: Int.MAX_VALUE }
+                                        .thenByDescending { (_, item) -> item.session.time.updated }
+                                )
+                            items(recentSessions, key = { (_, item) -> item.session.id }) { (group, item) ->
+                                val untitledLabel = stringResource(R.string.session_untitled)
+                                SessionRow(
+                                    item = item,
+                                    projectName = group.sessionDirLabels[item.session.id] ?: group.directory,
+                                    isSelectionMode = uiState.isSelectionMode,
+                                    isSelected = item.session.id in uiState.selectedIds,
+                                    favoriteCount = allSessions.count { it.isFavorite },
+                                    categories = uiState.categories,
+                                    onClick = {
+                                        if (uiState.isSelectionMode) viewModel.toggleSelection(item.session.id)
+                                        else onNavigateToChat(item.session.id, false)
+                                    },
+                                    onLongClick = { viewModel.toggleSelection(item.session.id) },
+                                    onToggleFavorite = { viewModel.toggleFavorite(item.session.id) },
+                                    onMoveFavorite = { offset -> viewModel.moveFavorite(item.session.id, offset) },
+                                    onSetCategory = { categoryId ->
+                                        viewModel.setSessionCategory(item.session.id, categoryId)
+                                    },
+                                    onSaveCategory = viewModel::saveSessionCategory,
+                                    onDeleteCategory = viewModel::deleteSessionCategory,
+                                    onRename = {
+                                        renameSessionId = item.session.id
+                                        renameText = item.session.title ?: ""
+                                        showRenameDialog = true
+                                    },
+                                    onDelete = {
+                                        deleteSessionId = item.session.id
+                                        deleteSessionTitle = item.session.title ?: untitledLabel
+                                        showDeleteDialog = true
+                                    },
+                                )
+                            }
+                        } else {
+                            for (group in visibleGroups) {
+                                val expanded = searchQuery.isNotBlank() || group.projectId !in collapsedProjects
+                                item(key = "project-${group.projectId}") {
+                                ProjectHeader(
+                                    name = group.projectName,
+                                    directory = group.directory,
+                                    branch = group.branch,
+                                    sessionCount = group.sessions.size,
+                                    expanded = expanded,
+                                    onToggle = {
+                                        collapsedProjects = if (group.projectId in collapsedProjects) {
+                                            collapsedProjects - group.projectId
+                                        } else {
+                                            collapsedProjects + group.projectId
+                                        }
+                                    },
+                                    onNewSession = { viewModel.createNewSession(group.directory) },
+                                )
+                            }
+                                if (expanded) items(group.sessions, key = { it.session.id }) { item ->
                                 val untitledLabel = stringResource(R.string.session_untitled)
                                 val dirLabel = group.sessionDirLabels[item.session.id]
-                                    ?: group.directory.ifEmpty { group.projectName }
+                                    ?.takeIf { item.session.directory.trimEnd('/') != group.directory.trimEnd('/') }
                                 SessionRow(
                                     item = item,
                                     projectName = dirLabel,
                                     isSelectionMode = uiState.isSelectionMode,
                                     isSelected = item.session.id in uiState.selectedIds,
+                                    favoriteCount = allSessions.count { it.isFavorite },
+                                    categories = uiState.categories,
                                     onClick = {
                                         if (uiState.isSelectionMode) {
                                             viewModel.toggleSelection(item.session.id)
@@ -332,6 +509,13 @@ fun SessionListScreen(
                                         }
                                     },
                                     onLongClick = { viewModel.toggleSelection(item.session.id) },
+                                    onToggleFavorite = { viewModel.toggleFavorite(item.session.id) },
+                                    onMoveFavorite = { offset -> viewModel.moveFavorite(item.session.id, offset) },
+                                    onSetCategory = { categoryId ->
+                                        viewModel.setSessionCategory(item.session.id, categoryId)
+                                    },
+                                    onSaveCategory = viewModel::saveSessionCategory,
+                                    onDeleteCategory = viewModel::deleteSessionCategory,
                                     onRename = {
                                         renameSessionId = item.session.id
                                         renameText = item.session.title ?: ""
@@ -343,9 +527,11 @@ fun SessionListScreen(
                                         showDeleteDialog = true
                                     }
                                 )
+                                }
                             }
                         }
                     }
+                }
                 }
             }
         }
@@ -382,14 +568,7 @@ fun SessionListScreen(
     }
 
     if (showDeleteSelectedDialog) {
-        BasicAlertDialog(onDismissRequest = { showDeleteSelectedDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
-                tonalElevation = if (isAmoled) 0.dp else 6.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+        AppDialog(onDismissRequest = { showDeleteSelectedDialog = false }, modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -403,34 +582,26 @@ fun SessionListScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        TextButton(onClick = { showDeleteSelectedDialog = false }) {
+                        AppSecondaryButton(onClick = { showDeleteSelectedDialog = false }) {
                             Text(stringResource(R.string.cancel))
                         }
-                        TextButton(
+                        AppPrimaryButton(
                             onClick = {
                                 viewModel.deleteSelected()
                                 showDeleteSelectedDialog = false
                             },
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            destructive = true,
                         ) {
                             Text(stringResource(R.string.delete))
                         }
                     }
                 }
-            }
         }
     }
 
     // Rename dialog
     if (showRenameDialog) {
-        BasicAlertDialog(onDismissRequest = { showRenameDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
-                tonalElevation = if (isAmoled) 0.dp else 6.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+        AppDialog(onDismissRequest = { showRenameDialog = false }, modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -450,10 +621,10 @@ fun SessionListScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        TextButton(onClick = { showRenameDialog = false }) {
+                        AppSecondaryButton(onClick = { showRenameDialog = false }) {
                             Text(stringResource(R.string.cancel))
                         }
-                        TextButton(
+                        AppPrimaryButton(
                             onClick = {
                                 viewModel.renameSession(renameSessionId, renameText)
                                 showRenameDialog = false
@@ -464,20 +635,12 @@ fun SessionListScreen(
                         }
                     }
                 }
-            }
         }
     }
 
     // Delete confirmation dialog
     if (showDeleteDialog) {
-        BasicAlertDialog(onDismissRequest = { showDeleteDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
-                tonalElevation = if (isAmoled) 0.dp else 6.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+        AppDialog(onDismissRequest = { showDeleteDialog = false }, modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -491,21 +654,20 @@ fun SessionListScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        TextButton(onClick = { showDeleteDialog = false }) {
+                        AppSecondaryButton(onClick = { showDeleteDialog = false }) {
                             Text(stringResource(R.string.cancel))
                         }
-                        TextButton(
+                        AppPrimaryButton(
                             onClick = {
                                 viewModel.deleteSession(deleteSessionId)
                                 showDeleteDialog = false
                             },
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            destructive = true,
                         ) {
                             Text(stringResource(R.string.delete))
                         }
                     }
                 }
-            }
         }
     }
 }
@@ -513,12 +675,19 @@ fun SessionListScreen(
 @Composable
 private fun ProjectHeader(
     name: String,
-    sessionCount: Int
+    directory: String,
+    branch: String?,
+    sessionCount: Int,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onNewSession: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 16.dp, bottom = 4.dp, start = 4.dp, end = 4.dp),
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onToggle)
+            .padding(top = 12.dp, bottom = 8.dp, start = 8.dp, end = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -528,18 +697,44 @@ private fun ProjectHeader(
             modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
         )
-        Text(
-            text = name,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = "$sessionCount",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        Column(modifier = Modifier.weight(1f)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (!branch.isNullOrBlank()) {
+                    Surface(
+                        shape = RoundedCornerShape(5.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                    ) {
+                        Text(
+                            text = branch,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+            Text(
+                text = stringResource(R.string.sessions_project_summary, directory, sessionCount),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        IconButton(onClick = onNewSession) {
+            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sessions_new_in_project))
+        }
+        Icon(
+            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -632,10 +827,10 @@ private fun OpenProjectDialog(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .fillMaxHeight(0.75f),
-            shape = RoundedCornerShape(16.dp),
-            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
-            tonalElevation = if (isAmoled) 0.dp else 6.dp
+            shape = AppDialogShape,
+            color = appDialogContainerColor(),
+            border = appAmoledBorder(),
+            tonalElevation = appDialogElevation(),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Header
@@ -660,7 +855,7 @@ private fun OpenProjectDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(AppSearchShape)
                         .background(
                             if (isAmoled) {
                                 Color.Black
@@ -673,7 +868,7 @@ private fun OpenProjectDialog(
                                 Modifier.border(
                                     width = 1.dp,
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
-                                    shape = RoundedCornerShape(8.dp)
+                                    shape = AppSearchShape
                                 )
                             } else {
                                 Modifier
@@ -711,16 +906,15 @@ private fun OpenProjectDialog(
                             innerTextField()
                         }
                     )
-                        if (searchQuery.isNotEmpty()) {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = stringResource(R.string.chat_clear),
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .clickable { searchQuery = "" },
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             )
                         }
+                    }
                 }
 
                 // Breadcrumb / current path (when not searching)
@@ -729,7 +923,8 @@ private fun OpenProjectDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 4.dp)
+                                    .heightIn(min = 48.dp)
+                                    .padding(horizontal = 20.dp, vertical = 4.dp)
                             .then(
                                 if (canGoUp) Modifier
                                     .clip(RoundedCornerShape(4.dp))
@@ -795,11 +990,7 @@ private fun OpenProjectDialog(
                                     contentPadding = PaddingValues(vertical = 4.dp)
                                 ) {
                                     items(searchResults) { path ->
-                                        // Paths from find/file are relative to the directory context (homeDir).
-                                        // Join properly: strip trailing slashes from both parts.
-                                        val base = (homeDir ?: "").trimEnd('/')
-                                        val rel = path.trimStart('/').trimEnd('/')
-                                        val absolutePath = "$base/$rel"
+                                        val absolutePath = path.trimEnd('/').ifEmpty { "/" }
                                         DirectoryRow(
                                             displayPath = tildeReplace(absolutePath) + "/",
                                             onClick = { onSelect(absolutePath) },
@@ -849,47 +1040,32 @@ private fun OpenProjectDialog(
                         }
                     }
 
-                    if (isAmoled) {
-                        Surface(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .navigationBarsPadding()
-                                .imePadding()
-                                .padding(16.dp)
-                                .size(56.dp)
-                                .clickable {
-                                    showCreateFolderDialog = true
-                                    createFolderError = null
-                                    if (newFolderName.isBlank()) newFolderName = ""
-                                },
-                            shape = CircleShape,
-                            color = Color.Black,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
-                            tonalElevation = 0.dp,
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Default.CreateNewFolder,
-                                    contentDescription = stringResource(R.string.sessions_create_folder),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
-                    } else {
-                        FloatingActionButton(
-                            onClick = {
-                                showCreateFolderDialog = true
-                                createFolderError = null
-                                if (newFolderName.isBlank()) newFolderName = ""
-                            },
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .navigationBarsPadding()
-                                .imePadding()
-                                .padding(16.dp),
-                        ) {
-                            Icon(Icons.Default.CreateNewFolder, contentDescription = stringResource(R.string.sessions_create_folder))
-                        }
+                    FloatingActionButton(
+                        onClick = {
+                            showCreateFolderDialog = true
+                            createFolderError = null
+                            if (newFolderName.isBlank()) newFolderName = ""
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .navigationBarsPadding()
+                            .imePadding()
+                            .padding(16.dp)
+                            .then(if (isAmoled) Modifier.appPopupBorder(FloatingActionButtonDefaults.shape) else Modifier),
+                        containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = if (isAmoled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer,
+                        elevation = if (isAmoled) {
+                            FloatingActionButtonDefaults.elevation(
+                                defaultElevation = 0.dp,
+                                pressedElevation = 0.dp,
+                                focusedElevation = 0.dp,
+                                hoveredElevation = 0.dp,
+                            )
+                        } else {
+                            FloatingActionButtonDefaults.elevation()
+                        },
+                    ) {
+                        Icon(Icons.Default.CreateNewFolder, contentDescription = stringResource(R.string.sessions_create_folder))
                     }
                 }
             }
@@ -897,12 +1073,20 @@ private fun OpenProjectDialog(
     }
 
     if (showCreateFolderDialog) {
-        AlertDialog(
+        AppDialog(
             onDismissRequest = {
                 if (!isCreatingFolder) showCreateFolderDialog = false
             },
-            title = { Text(stringResource(R.string.sessions_create_folder_title)) },
-            text = {
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.sessions_create_folder_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = newFolderName,
@@ -925,58 +1109,59 @@ private fun OpenProjectDialog(
                         )
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val parent = currentDir ?: homeDir ?: "/"
-                        val name = newFolderName.trim()
-                        if (name.isBlank()) {
-                            createFolderError = context.getString(R.string.sessions_create_folder_invalid_name)
-                            return@TextButton
-                        }
-
-                        isCreatingFolder = true
-                        scope.launch {
-                            val result = viewModel.createDirectory(parent, name)
-                            isCreatingFolder = false
-                            result.onSuccess { createdPath ->
-                                showCreateFolderDialog = false
-                                newFolderName = ""
-                                createFolderError = null
-                                searchQuery = ""
-                                currentDir = parent
-                                directories = viewModel.listDirectories(parent)
-                                Toast
-                                    .makeText(
-                                        context,
-                                        context.getString(R.string.sessions_create_folder_success, tildeReplace(createdPath)),
-                                        Toast.LENGTH_SHORT,
-                                    )
-                                    .show()
-                            }.onFailure { error ->
-                                createFolderError = error.message ?: context.getString(R.string.sessions_create_folder_failed)
-                            }
-                        }
-                    },
-                    enabled = !isCreatingFolder,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
                 ) {
-                    if (isCreatingFolder) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(stringResource(R.string.sessions_create_folder_create))
+                    AppSecondaryButton(
+                        onClick = { showCreateFolderDialog = false },
+                        enabled = !isCreatingFolder,
+                    ) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    AppPrimaryButton(
+                        onClick = {
+                            val parent = currentDir ?: homeDir ?: "/"
+                            val name = newFolderName.trim()
+                            if (name.isBlank()) {
+                                createFolderError = context.getString(R.string.sessions_create_folder_invalid_name)
+                                return@AppPrimaryButton
+                            }
+
+                            isCreatingFolder = true
+                            scope.launch {
+                                val result = viewModel.createDirectory(parent, name)
+                                isCreatingFolder = false
+                                result.onSuccess { createdPath ->
+                                    showCreateFolderDialog = false
+                                    newFolderName = ""
+                                    createFolderError = null
+                                    searchQuery = ""
+                                    currentDir = parent
+                                    directories = viewModel.listDirectories(parent)
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            context.getString(R.string.sessions_create_folder_success, tildeReplace(createdPath)),
+                                            Toast.LENGTH_SHORT,
+                                        )
+                                        .show()
+                                }.onFailure { error ->
+                                    createFolderError = error.message ?: context.getString(R.string.sessions_create_folder_failed)
+                                }
+                            }
+                        },
+                        enabled = !isCreatingFolder,
+                    ) {
+                        if (isCreatingFolder) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text(stringResource(R.string.sessions_create_folder_create))
+                        }
                     }
                 }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showCreateFolderDialog = false },
-                    enabled = !isCreatingFolder,
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
+            }
+        }
     }
 }
 
@@ -1001,6 +1186,7 @@ private fun DirectoryRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
+            .heightIn(min = 48.dp)
             .padding(horizontal = 20.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1036,7 +1222,6 @@ private fun DirectoryRow(
             if (onNavigate != null) {
                 IconButton(
                     onClick = onNavigate,
-                    modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
                         Icons.Default.ChevronRight,
@@ -1062,7 +1247,6 @@ private fun NewSessionQuickDialog(
     onBrowse: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val isAmoled = isAmoledTheme()
     // Group sessions by directory, keep most recently updated first
     data class DirEntry(val directory: String, val name: String, val count: Int, val lastUsed: Long)
     val dirEntries = remember(sessions) {
@@ -1089,10 +1273,10 @@ private fun NewSessionQuickDialog(
             modifier = Modifier
                 .fillMaxWidth(0.88f)
                 .wrapContentHeight(),
-            shape = RoundedCornerShape(16.dp),
-            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
-            tonalElevation = if (isAmoled) 0.dp else 6.dp
+            shape = AppDialogShape,
+            color = appDialogContainerColor(),
+            border = appAmoledBorder(),
+            tonalElevation = appDialogElevation(),
         ) {
             Column(modifier = Modifier.padding(vertical = 16.dp)) {
                 // Header
@@ -1187,17 +1371,23 @@ private fun SessionRow(
     projectName: String? = null,
     isSelectionMode: Boolean,
     isSelected: Boolean,
+    favoriteCount: Int,
+    categories: List<SessionCategory>,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onMoveFavorite: (Int) -> Unit,
+    onSetCategory: (String?) -> Unit,
+    onSaveCategory: (String?, String, String, String) -> Unit,
+    onDeleteCategory: (String) -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit
 ) {
     val isAmoled = isAmoledTheme()
-    val dateFormat = remember { SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()) }
-
-    val addColor = Color(0xFF4CAF50)
-    val delColor = Color(0xFFE53935)
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val context = LocalContext.current
     var showActions by remember { mutableStateOf(false) }
+    var showCategoryPicker by remember { mutableStateOf(false) }
 
     val cardContent: @Composable () -> Unit = {
         val containerColor = if (isSelected) {
@@ -1229,139 +1419,111 @@ private fun SessionRow(
                     onLongClick = onLongClick,
                 ),
             colors = cardColors,
-            border = cardBorder
+            border = cardBorder,
+            shape = AppCardShape,
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AnimatedVisibility(
-                    visible = isSelectionMode,
-                    enter = expandHorizontally(expandFrom = Alignment.Start) + fadeIn(),
-                    exit = shrinkHorizontally(shrinkTowards = Alignment.Start) + fadeOut()
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = isSelected,
-                            onCheckedChange = { onClick() },
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                }
-                // Content column
-                Column(modifier = Modifier.weight(1f)) {
-                    // Project name label
-                    if (!projectName.isNullOrBlank()) {
-                        Text(
-                            text = projectName,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                    }
-
-                    // Title
-                    Text(
-                        text = item.session.title ?: stringResource(R.string.session_untitled),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    // Date + status + diff summary row
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = dateFormat.format(Date(item.session.time.updated)),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
-
-                        // Status indicator
-                        when (item.status) {
-                            is SessionStatus.Busy -> {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    PulsingDotsIndicator(
-                                        dotSize = 4.dp,
-                                        dotSpacing = 2.dp,
-                                        color = MaterialTheme.colorScheme.tertiary
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.sessions_working),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.tertiary
-                                    )
-                                }
-                            }
-                            is SessionStatus.Retry -> {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.error)
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.sessions_retrying),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            }
-                            else -> { /* Idle - no label */ }
-                        }
-
-                        // Diff summary (+N/-N)
-                        val summary = item.session.summary
-                        if (summary != null && (summary.additions > 0 || summary.deletions > 0)) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                if (summary.additions > 0) {
-                                    Text(
-                                        text = stringResource(R.string.session_changes_additions, summary.additions),
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = FontFamily.Monospace,
-                                            fontSize = 11.sp,
-                                            color = addColor
-                                        )
-                                    )
-                                }
-                                if (summary.deletions > 0) {
-                                    Text(
-                                        text = stringResource(R.string.session_changes_deletions, summary.deletions),
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = FontFamily.Monospace,
-                                            fontSize = 11.sp,
-                                            color = delColor
-                                        )
-                                    )
-                                }
+            Column {
+                SessionCardContent(
+                    session = item.session,
+                    status = item.status,
+                    isFavorite = item.isFavorite,
+                    category = item.category,
+                    contextLabel = projectName.orEmpty(),
+                    leadingContent = {
+                        AnimatedVisibility(
+                            visible = isSelectionMode,
+                            enter = expandHorizontally(expandFrom = Alignment.Start) + fadeIn(),
+                            exit = shrinkHorizontally(shrinkTowards = Alignment.Start) + fadeOut(),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = { onClick() },
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
                             }
                         }
-                    }
-                }
-                if (!isSelectionMode) {
-                    Box {
+                    },
+                    trailingContent = {
+                        if (!isSelectionMode) {
+                            Box {
                         IconButton(onClick = { showActions = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                         }
                         DropdownMenu(
                             expanded = showActions,
                             onDismissRequest = { showActions = false },
+                            modifier = Modifier.appPopupBorder(),
+                            containerColor = appPopupContainerColor(),
                         ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(stringResource(if (item.isFavorite) R.string.session_favorite_remove else R.string.session_favorite_add))
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        if (item.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    showActions = false
+                                    onToggleFavorite()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.session_category)) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = item.category?.let { sessionCategoryIcon(it.icon) }
+                                            ?: Icons.Default.Label,
+                                        contentDescription = null,
+                                        tint = item.category?.let { sessionCategoryColor(it.color) }
+                                            ?: LocalContentColor.current,
+                                    )
+                                },
+                                onClick = {
+                                    showActions = false
+                                    showCategoryPicker = true
+                                },
+                            )
+                            if (item.isFavorite) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.session_favorite_move_up)) },
+                                    leadingIcon = { Icon(Icons.Default.ArrowUpward, contentDescription = null) },
+                                    enabled = (item.favoriteIndex ?: 0) > 0,
+                                    onClick = {
+                                        showActions = false
+                                        onMoveFavorite(-1)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.session_favorite_move_down)) },
+                                    leadingIcon = { Icon(Icons.Default.ArrowDownward, contentDescription = null) },
+                                    enabled = (item.favoriteIndex ?: Int.MAX_VALUE) < favoriteCount - 1,
+                                    onClick = {
+                                        showActions = false
+                                        onMoveFavorite(1)
+                                    },
+                                )
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.session_copy_id)) },
+                                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+                                onClick = {
+                                    showActions = false
+                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(item.session.id))
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.chat_copied_clipboard),
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                },
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.session_rename)) },
                                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
@@ -1371,19 +1533,152 @@ private fun SessionRow(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.delete)) },
-                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                                text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                },
                                 onClick = {
                                     showActions = false
                                     onDelete()
                                 },
                             )
                         }
-                    }
-                }
+                            }
+                        }
+                    },
+                )
             }
         }
     }
 
     cardContent()
+
+    if (showCategoryPicker) {
+        SessionCategoryPickerDialog(
+            categories = categories,
+            selectedCategoryId = item.category?.id,
+            onSelect = { categoryId ->
+                onSetCategory(categoryId)
+                showCategoryPicker = false
+            },
+            onSaveCategory = onSaveCategory,
+            onDeleteCategory = onDeleteCategory,
+            onDismiss = { showCategoryPicker = false },
+        )
+    }
+}
+
+@Composable
+internal fun SessionCategoryPickerDialog(
+    categories: List<SessionCategory>,
+    selectedCategoryId: String?,
+    onSelect: (String?) -> Unit,
+    onSaveCategory: (String?, String, String, String) -> Unit,
+    onDeleteCategory: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var showManager by remember { mutableStateOf(false) }
+    AppDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.session_category),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 360.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onSelect(null) }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.LabelOff, contentDescription = null)
+                    Text(
+                        text = stringResource(R.string.session_category_none),
+                        modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                    )
+                    if (selectedCategoryId == null) Icon(Icons.Default.Check, contentDescription = null)
+                }
+                categories.forEach { category ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSelect(category.id) }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = sessionCategoryIcon(category.icon),
+                            contentDescription = null,
+                            tint = sessionCategoryColor(category.color),
+                        )
+                        Text(
+                            text = category.name,
+                            modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                        )
+                        if (selectedCategoryId == category.id) Icon(Icons.Default.Check, contentDescription = null)
+                    }
+                }
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 4.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f),
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { showManager = true }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = stringResource(R.string.settings_session_categories),
+                    modifier = Modifier.padding(start = 12.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            AppSecondaryButton(
+                onClick = onDismiss,
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    }
+    if (showManager) {
+        SessionCategoriesDialog(
+            categories = categories,
+            onSave = onSaveCategory,
+            onDelete = onDeleteCategory,
+            onDismiss = { showManager = false },
+        )
+    }
 }

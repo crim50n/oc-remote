@@ -1,13 +1,18 @@
 package dev.minios.ocremote.service
 
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
-import android.util.Log
+import android.os.SystemClock
+import dev.minios.ocremote.logging.AppLogger as Log
 import androidx.core.app.NotificationCompat
 import dev.minios.ocremote.BuildConfig
 import dev.minios.ocremote.MainActivity
@@ -16,12 +21,13 @@ import dev.minios.ocremote.data.api.OpenCodeApi
 import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.api.SseClient
 import dev.minios.ocremote.data.repository.EventReducer
-import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.data.repository.ServerRepository
+import dev.minios.ocremote.data.repository.ServerConnectionStateRepository
 import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.domain.model.Message
 import dev.minios.ocremote.domain.model.Part
 import dev.minios.ocremote.domain.model.ServerConfig
+import dev.minios.ocremote.domain.model.Session
 import dev.minios.ocremote.domain.model.SseEvent
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
@@ -47,6 +53,27 @@ private const val WAKELOCK_TAG = "OpenCodeRemote::SSEConnection"
 private const val RECONNECT_BASE_DELAY_MS = 1_000L   // 1 second
 private const val RECONNECT_MAX_DELAY_MS = 30_000L   // 30 seconds
 private const val RECONNECT_BACKOFF_FACTOR = 2.0
+private const val RECOVERY_DEBOUNCE_MS = 5_000L
+private const val MAX_RECONCILED_MESSAGE_SESSIONS = 20
+internal const val FAILED_CONNECTION_TIMEOUT_MS = 15 * 60 * 1000L
+
+internal fun hasFailedConnectionTimedOut(failureStartedAt: Long, now: Long): Boolean {
+    return now - failureStartedAt >= FAILED_CONNECTION_TIMEOUT_MS
+}
+
+internal fun sessionsNeedingMessageReconciliation(
+    localSessions: Map<String, Session>,
+    remoteSessions: List<Session>,
+    limit: Int = MAX_RECONCILED_MESSAGE_SESSIONS,
+): List<Session> = remoteSessions
+    .asSequence()
+    .filter { remote ->
+        val local = localSessions[remote.id]
+        local == null || remote.time.updated > local.time.updated
+    }
+    .sortedByDescending { it.time.updated }
+    .take(limit)
+    .toList()
 
 /**
  * Per-server connection state held by the service.
@@ -66,7 +93,7 @@ private data class ServerConnectionState(
  * - Processes events via EventReducer (with serverId tracking)
  * - Shows notifications for task completion and permission requests
  * - Auto-reconnects with exponential backoff on disconnection/error
- * - Holds a single partial WakeLock while any server is connected
+ * - Optionally holds a single partial WakeLock while any server is connected
  * - Shows an InboxStyle persistent notification summarising connected servers
  * - Groups event notifications by server
  *
@@ -104,14 +131,50 @@ class OpenCodeConnectionService : Service() {
     @Inject
     lateinit var serverRepository: ServerRepository
 
+    @Inject
+    lateinit var serverConnectionStateRepository: ServerConnectionStateRepository
+
     private val binder = LocalBinder()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** All active/pending server connections keyed by serverId. */
-    private val connections = mutableMapOf<String, ServerConnectionState>()
+    private val connections = ConcurrentHashMap<String, ServerConnectionState>()
 
-    private var notificationWatchdogJob: Job? = null
+    private var autoConnectJob: Job? = null
+    @Volatile
+    private var recoveryJob: Job? = null
+    private val reconciliationJobs = ConcurrentHashMap<String, Job>()
+    private val explicitlyDisconnectedServerIds = ConcurrentHashMap.newKeySet<String>()
     private var wakeLock: PowerManager.WakeLock? = null
+    @Volatile
+    private var backgroundWakeLockEnabled = false
+    @Volatile
+    private var lastRecoveryAt = 0L
+    @Volatile
+    private var lastDefaultNetwork: Network? = null
+    private lateinit var connectivityManager: ConnectivityManager
+    @Volatile
+    private var lastPersistentNotificationState: List<Triple<String, String, Boolean>>? = null
+
+    private val wakeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED) {
+                val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+                if (powerManager.isDeviceIdleMode) return
+            }
+            recoverConnectionsWithoutWakeLock("device wake")
+        }
+    }
+
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            val previous = lastDefaultNetwork
+            lastDefaultNetwork = network
+            if (previous != null && previous != network) {
+                recoverConnectionsWithoutWakeLock("default network changed")
+            }
+        }
+    }
 
     private lateinit var notificationManager: NotificationManager
     private var foregroundStarted: Boolean = false
@@ -136,10 +199,38 @@ class OpenCodeConnectionService : Service() {
         if (BuildConfig.DEBUG) Log.d(TAG, "Service created")
 
         notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         createNotificationChannels()
 
-        serviceScope.launch {
+        val wakeFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(wakeReceiver, wakeFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(wakeReceiver, wakeFilter)
+        }
+        connectivityManager.registerDefaultNetworkCallback(networkCallback)
+
+        autoConnectJob = serviceScope.launch {
             autoConnectConfiguredServers()
+        }
+        serviceScope.launch {
+            settingsRepository.backgroundWakeLock.collect { enabled ->
+                if (backgroundWakeLockEnabled == enabled) return@collect
+                backgroundWakeLockEnabled = enabled
+                if (enabled && connections.isNotEmpty()) {
+                    acquireWakeLock()
+                } else if (!enabled) {
+                    releaseWakeLock()
+                }
+                Log.i(TAG, "Background WakeLock ${if (enabled) "enabled" else "disabled"}")
+            }
+        }
+        serviceScope.launch {
+            connectedServerIds.collect(serverConnectionStateRepository::updateConnectedServerIds)
         }
     }
 
@@ -147,9 +238,11 @@ class OpenCodeConnectionService : Service() {
         if (BuildConfig.DEBUG) Log.d(TAG, "Service started, action=${intent?.action}")
 
         when (intent?.action) {
-            ACTION_DISCONNECT_ALL -> {
-                Log.i(TAG, "Disconnect All requested via notification")
-                disconnectAllVisibleServers()
+            ACTION_EXIT -> {
+                Log.i(TAG, "Exit requested via notification")
+                notificationManager.cancelAll()
+                sendBroadcast(Intent(ACTION_APP_EXIT).setPackage(packageName))
+                disconnectAll()
                 return START_NOT_STICKY
             }
             ACTION_DISCONNECT -> {
@@ -162,29 +255,34 @@ class OpenCodeConnectionService : Service() {
             }
         }
 
-        ensureForegroundStarted()
-
         // Read server details from intent and connect
-        intent?.let { i ->
-            val serverId = i.getStringExtra("server_id")
-            val serverName = i.getStringExtra("server_name")
-            val serverUrl = i.getStringExtra("server_url")
-            val serverUsername = i.getStringExtra("server_username") ?: "opencode"
-            val serverPassword = i.getStringExtra("server_password")
-
-            if (serverId != null && serverUrl != null) {
-                val serverConfig = ServerConfig(
+        val serverId = intent?.getStringExtra("server_id")
+        val serverUrl = intent?.getStringExtra("server_url")
+        if (serverId != null && serverUrl != null) {
+            connect(
+                ServerConfig(
                     id = serverId,
                     url = serverUrl,
-                    username = serverUsername,
-                    password = serverPassword,
-                    name = serverName
+                    username = intent.getStringExtra("server_username") ?: "opencode",
+                    password = intent.getStringExtra("server_password"),
+                    name = intent.getStringExtra("server_name"),
                 )
-                connect(serverConfig)
-            }
+            )
+            return START_NOT_STICKY
         }
 
-        return START_STICKY
+        // A sticky restart has no server extras. Give auto-connect a chance, then remove any orphan notification.
+        ensureForegroundStarted()
+        serviceScope.launch {
+            autoConnectJob?.join()
+            if (connections.isEmpty()) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                notificationManager.cancel(PERSISTENT_NOTIFICATION_ID)
+                foregroundStarted = false
+                stopSelf(startId)
+            }
+        }
+        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder {
@@ -192,6 +290,9 @@ class OpenCodeConnectionService : Service() {
     }
 
     override fun onDestroy() {
+        serverConnectionStateRepository.updateConnectedServerIds(emptySet())
+        unregisterReceiver(wakeReceiver)
+        connectivityManager.unregisterNetworkCallback(networkCallback)
         super.onDestroy()
         if (BuildConfig.DEBUG) Log.d(TAG, "Service destroyed")
         disconnectAllInternal(stopService = false)
@@ -204,53 +305,54 @@ class OpenCodeConnectionService : Service() {
      * Connect to an OpenCode server. If already connected to this server, no-op.
      * Multiple servers can be connected simultaneously.
      */
+    @Synchronized
     fun connect(server: ServerConfig) {
-        val existing = connections[server.id]
-        if (existing?.sseJob?.isActive == true) {
+        explicitlyDisconnectedServerIds.remove(server.id)
+        connectInternal(server)
+    }
+
+    @Synchronized
+    private fun connectInternal(server: ServerConfig) {
+        var replacement: ServerConnectionState? = null
+        var replaced: ServerConnectionState? = null
+        connections.compute(server.id) { _, existing ->
+            if (existing != null && !existing.sseJob.isCompleted) return@compute existing
+            replaced = existing
+            val conn = ServerConnection.from(server.url, server.username, server.password)
+            ServerConnectionState(
+                config = server,
+                conn = conn,
+                sseJob = startSseConnection(server, conn),
+                isConnected = false,
+            ).also { replacement = it }
+        }
+        val state = replacement
+        if (state == null) {
             if (BuildConfig.DEBUG) Log.d(TAG, "Already connected to server ${server.id}, skipping")
             return
         }
-        if (existing != null) {
-            connections.remove(server.id)
-        }
+        replaced?.sseJob?.cancel()
 
-        if (BuildConfig.DEBUG) Log.d(TAG, "Connecting to server: ${server.displayName} (${server.url})")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Connecting to configured server")
 
         ensureForegroundStarted()
-
-        val conn = ServerConnection.from(server.url, server.username, server.password)
-
-        // Acquire wake lock (shared — first connect acquires, last disconnect releases)
         acquireWakeLock()
-
-        // Start SSE connection with auto-reconnect
-        val job = startSseConnection(server, conn)
-
-        connections[server.id] = ServerConnectionState(
-            config = server,
-            conn = conn,
-            sseJob = job,
-            isConnected = false
-        )
-        job.start()
-
         _connectingServerIds.update { it + server.id }
-
-        // Update persistent notification
         updatePersistentNotification()
-
-        // Start watchdog if not already running
-        startNotificationWatchdog()
+        state.sseJob.start()
     }
 
     /**
      * Disconnect from a single server.
      */
+    @Synchronized
     fun disconnect(serverId: String) {
         if (BuildConfig.DEBUG) Log.d(TAG, "Disconnecting server $serverId")
 
+        explicitlyDisconnectedServerIds.add(serverId)
         val state = connections.remove(serverId) ?: return
         state.sseJob.cancel()
+        reconciliationJobs.remove(serverId)?.cancel()
 
         _connectedServerIds.update { it - serverId }
         _connectingServerIds.update { it - serverId }
@@ -260,9 +362,8 @@ class OpenCodeConnectionService : Service() {
         if (connections.isEmpty()) {
             // Last server disconnected — clean up and stop service
             releaseWakeLock()
-            notificationWatchdogJob?.cancel()
-            notificationWatchdogJob = null
             stopForeground(STOP_FOREGROUND_REMOVE)
+            lastPersistentNotificationState = null
             foregroundStarted = false
             stopSelf()
         } else {
@@ -277,27 +378,16 @@ class OpenCodeConnectionService : Service() {
         disconnectAllInternal(stopService = true)
     }
 
-    private fun disconnectAllVisibleServers() {
-        val visibleServerIds = connections.values
-            .filterNot { isLocalServer(it.config) }
-            .map { it.config.id }
-
-        if (visibleServerIds.isEmpty()) {
-            updatePersistentNotification()
-            return
-        }
-
-        for (serverId in visibleServerIds) {
-            disconnect(serverId)
-        }
-    }
-
+    @Synchronized
     private fun disconnectAllInternal(stopService: Boolean) {
         if (BuildConfig.DEBUG) Log.d(TAG, "Disconnecting all servers")
+        if (stopService) autoConnectJob?.cancel()
 
         for ((_, state) in connections) {
             state.sseJob.cancel()
         }
+        reconciliationJobs.values.forEach { it.cancel() }
+        reconciliationJobs.clear()
         val serverIds = connections.keys.toList()
         connections.clear()
 
@@ -309,11 +399,10 @@ class OpenCodeConnectionService : Service() {
         }
 
         releaseWakeLock()
-        notificationWatchdogJob?.cancel()
-        notificationWatchdogJob = null
 
         if (stopService) {
             stopForeground(STOP_FOREGROUND_REMOVE)
+            lastPersistentNotificationState = null
             foregroundStarted = false
             stopSelf()
         }
@@ -324,15 +413,23 @@ class OpenCodeConnectionService : Service() {
             val autoConnectServers = serverRepository.servers.first().filter { it.autoConnect }
             if (autoConnectServers.isEmpty()) return
             Log.i(TAG, "Auto-connecting ${autoConnectServers.size} server(s)")
-            autoConnectServers.forEach { connect(it) }
+            autoConnectServers.forEach { server ->
+                if (server.id !in explicitlyDisconnectedServerIds) connectInternal(server)
+            }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Failed to auto-connect servers", e)
         }
     }
 
+    @Synchronized
     private fun ensureForegroundStarted() {
         if (foregroundStarted) return
         startForeground(PERSISTENT_NOTIFICATION_ID, createPersistentNotification())
+        lastPersistentNotificationState = connections.values
+            .map { Triple(it.config.id, it.config.displayName, it.isConnected) }
+            .sortedBy { it.first }
         foregroundStarted = true
     }
 
@@ -343,28 +440,10 @@ class OpenCodeConnectionService : Service() {
         return connections[serverId]?.sseJob?.isActive == true
     }
 
-    // ============ Notification Watchdog ============
-
-    private fun startNotificationWatchdog() {
-        if (notificationWatchdogJob?.isActive == true) return
-        notificationWatchdogJob = serviceScope.launch {
-            while (isActive && connections.isNotEmpty()) {
-                delay(5_000)
-                if (!isNotificationVisible()) {
-                    Log.i(TAG, "Foreground notification was dismissed, restoring it")
-                    startForeground(PERSISTENT_NOTIFICATION_ID, createPersistentNotification())
-                }
-            }
-        }
-    }
-
-    private fun isNotificationVisible(): Boolean {
-        return notificationManager.activeNotifications.any { it.id == PERSISTENT_NOTIFICATION_ID }
-    }
-
     // ============ WakeLock ============
 
     private fun acquireWakeLock() {
+        if (!backgroundWakeLockEnabled) return
         if (wakeLock?.isHeld == true) return
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG).apply {
@@ -383,99 +462,171 @@ class OpenCodeConnectionService : Service() {
         wakeLock = null
     }
 
+    /**
+     * Without a WakeLock Android may suspend a healthy-looking socket during Doze. Replacing each SSE job after
+     * wake/network recovery forces a fresh stream and the normal server-state reconciliation.
+     */
+    @Synchronized
+    private fun recoverConnectionsWithoutWakeLock(reason: String) {
+        if (backgroundWakeLockEnabled || connections.isEmpty()) return
+        if (recoveryJob?.isActive == true) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastRecoveryAt < RECOVERY_DEBOUNCE_MS) return
+        lastRecoveryAt = now
+
+        recoveryJob = serviceScope.launch {
+            val states = connections.values.toList()
+            if (states.isEmpty() || backgroundWakeLockEnabled) return@launch
+            Log.i(TAG, "Recovering ${states.size} connection(s) after $reason")
+            for (state in states) {
+                val job = startSseConnection(state.config, state.conn, preload = false)
+                val replacement = state.copy(sseJob = job, isConnected = false)
+                if (!connections.replace(state.config.id, state, replacement)) {
+                    job.cancel()
+                    continue
+                }
+                state.sseJob.cancel()
+                reconciliationJobs.remove(state.config.id)?.cancel()
+                _connectedServerIds.update { it - state.config.id }
+                _connectingServerIds.update { it + state.config.id }
+                job.start()
+            }
+            updatePersistentNotification()
+        }
+    }
+
     // ============ SSE Connection with Auto-Reconnect ============
 
-    private fun startSseConnection(server: ServerConfig, conn: ServerConnection): Job {
+    private fun startSseConnection(
+        server: ServerConfig,
+        conn: ServerConnection,
+        preload: Boolean = true,
+    ): Job {
         return serviceScope.launch(start = CoroutineStart.LAZY) {
+            val currentJob = coroutineContext[Job]!!
             var attempt = 0
+            var failureStartedAt: Long? = SystemClock.elapsedRealtime()
+            var preloaded = !preload
 
             while (isActive) {
+                failureStartedAt?.let { failedSince ->
+                    if (hasFailedConnectionTimedOut(failedSince, SystemClock.elapsedRealtime())) {
+                        Log.w(TAG, "[${server.displayName}] Stopping reconnect after 15 minutes without a connection")
+                        cleanupTerminatedConnection(server.id, currentJob)
+                        return@launch
+                    }
+                }
                 attempt++
                 Log.i(TAG, "[${server.displayName}] SSE connection attempt #$attempt")
 
-                // Pre-load sessions via REST API for all projects
-                try {
-                    val projects = api.listProjects(conn)
-                    if (projects.isEmpty()) {
-                        // Fallback: load sessions without directory header (server CWD only)
-                        val sessions = api.listSessions(conn)
-                        eventReducer.setSessions(server.id, sessions)
-                        Log.i(TAG, "[${server.displayName}] Pre-loaded ${sessions.size} sessions (no projects)")
-                    } else {
-                        var totalSessions = 0
-                        for (project in projects) {
-                            try {
-                                val sessions = api.listSessions(conn, directory = project.worktree)
-                                eventReducer.setSessions(server.id, sessions)
-                                totalSessions += sessions.size
-                            } catch (e: Exception) {
-                                Log.w(TAG, "[${server.displayName}] Failed to pre-load sessions for project ${project.displayName}: ${e.message}")
+                if (!preloaded) {
+                    preloaded = true
+                    // Pre-load once. Reconciliation refreshes state after a successful reconnect.
+                    try {
+                        val projects = api.listProjects(conn)
+                        if (projects.isEmpty()) {
+                            val sessions = api.listSessions(conn)
+                            eventReducer.setSessions(server.id, sessions)
+                            Log.i(TAG, "[${server.displayName}] Pre-loaded ${sessions.size} sessions (no projects)")
+                        } else {
+                            var totalSessions = 0
+                            for (project in projects) {
+                                try {
+                                    val sessions = api.listSessions(conn, directory = project.worktree)
+                                    eventReducer.setSessions(server.id, sessions)
+                                    totalSessions += sessions.size
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "[${server.displayName}] Failed to pre-load sessions for project ${project.displayName}: ${e.message}")
+                                }
                             }
+                            Log.i(TAG, "[${server.displayName}] Pre-loaded $totalSessions sessions across ${projects.size} projects")
                         }
-                        Log.i(TAG, "[${server.displayName}] Pre-loaded $totalSessions sessions across ${projects.size} projects")
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "[${server.displayName}] Failed to pre-load sessions: ${e.message}")
                     }
-                } catch (e: Exception) {
-                    Log.w(TAG, "[${server.displayName}] Failed to pre-load sessions: ${e.message}")
                 }
 
                 try {
-                    sseClient.connectToGlobalEvents(conn)
+                    sseClient.connectToGlobalEvents(
+                        conn = conn,
+                        onOpen = {
+                            if (connections[server.id]?.sseJob === currentJob) {
+                                updateServerConnected(server.id, true, currentJob)
+                                attempt = 0
+                                failureStartedAt = null
+                            }
+                        },
+                    )
                         .catch { error ->
                             Log.e(TAG, "[${server.displayName}] SSE stream error", error)
-                            updateServerConnected(server.id, false)
+                            updateServerConnected(server.id, false, currentJob)
                             throw error
                         }
-                        .collect { event ->
+                        .collect { scoped ->
+                            if (connections[server.id]?.sseJob !== currentJob) return@collect
+                            val event = scoped.event
                             if (connections[server.id]?.isConnected != true) {
-                                updateServerConnected(server.id, true)
+                                updateServerConnected(server.id, true, currentJob)
                                 attempt = 0
-                                updatePersistentNotification()
+                                failureStartedAt = null
                             }
-                            processEvent(server, event)
+                            processEvent(server, event, scoped.directory, scoped.workspaceId)
                             if (event is SseEvent.ServerConnected) {
-                                launch { reconcileServerState(server, conn) }
+                                startReconciliation(server, conn)
                             }
                         }
 
                     // Flow completed normally (server closed connection)
                     Log.w(TAG, "[${server.displayName}] SSE stream completed")
-                    updateServerConnected(server.id, false)
+                    updateServerConnected(server.id, false, currentJob)
                 } catch (e: CancellationException) {
                     if (BuildConfig.DEBUG) Log.d(TAG, "[${server.displayName}] SSE job cancelled, not reconnecting")
                     throw e
                 } catch (e: dev.minios.ocremote.data.api.SseAuthException) {
                     Log.e(TAG, "[${server.displayName}] Authentication failed; automatic reconnect stopped", e)
-                    updateServerConnected(server.id, false)
-                    _connectingServerIds.update { it - server.id }
-                    cleanupTerminatedConnection(server.id, coroutineContext[Job]!!)
+                    updateServerConnected(server.id, false, currentJob)
+                    cleanupTerminatedConnection(server.id, currentJob)
                     break
                 } catch (e: dev.minios.ocremote.data.api.SseConnectionException) {
                     Log.e(TAG, "[${server.displayName}] SSE connection failed: ${e.message}")
-                    updateServerConnected(server.id, false)
+                    updateServerConnected(server.id, false, currentJob)
                     if (!e.retryable) {
-                        _connectingServerIds.update { it - server.id }
-                        cleanupTerminatedConnection(server.id, coroutineContext[Job]!!)
+                        cleanupTerminatedConnection(server.id, currentJob)
                         break
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "[${server.displayName}] SSE connection failed: ${e.message}")
-                    updateServerConnected(server.id, false)
+                    updateServerConnected(server.id, false, currentJob)
                 }
 
                 // If this server was removed from connections, stop the loop
                 if (!connections.containsKey(server.id)) break
 
+                val now = SystemClock.elapsedRealtime()
+                val failedSince = failureStartedAt ?: now.also { failureStartedAt = it }
                 val delayMs = calculateBackoff(attempt)
                 Log.i(TAG, "[${server.displayName}] Reconnecting in ${delayMs}ms (attempt #$attempt)")
-                updatePersistentNotification()
-                delay(delayMs)
+                val remainingMs = FAILED_CONNECTION_TIMEOUT_MS - (now - failedSince)
+                delay(minOf(delayMs, remainingMs.coerceAtLeast(1L)))
             }
         }
+    }
+
+    private fun startReconciliation(server: ServerConfig, conn: ServerConnection) {
+        val job = serviceScope.launch { reconcileServerState(server, conn) }
+        reconciliationJobs.put(server.id, job)?.cancel()
+        job.invokeOnCompletion { reconciliationJobs.remove(server.id, job) }
     }
 
     private suspend fun reconcileServerState(server: ServerConfig, conn: ServerConnection) {
         val directories = try {
             api.listProjects(conn).map { it.worktree }.ifEmpty { listOf(null) }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "[${server.displayName}] Reconciliation project lookup failed", e)
             return
@@ -487,6 +638,22 @@ class OpenCodeConnectionService : Service() {
         var complete = true
         for (directory in directories) {
             try {
+                val localSessions = eventReducer.sessions.value.associateBy { it.id }
+                val sessions = api.listSessions(conn, directory)
+                val changedSessions = sessionsNeedingMessageReconciliation(localSessions, sessions)
+                eventReducer.setSessions(server.id, sessions)
+                changedSessions.forEach { session ->
+                    try {
+                        eventReducer.mergeMessages(
+                            session.id,
+                            api.listMessages(conn, session.id, limit = 50, directory = directory),
+                        )
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "[${server.displayName}] Message reconciliation failed for ${session.id}", e)
+                    }
+                }
                 val statuses = api.listSessionStatuses(conn, directory)
                 val serverSessionIds = eventReducer.serverSessions.value[server.id].orEmpty()
                 val directorySessionIds = eventReducer.sessions.value
@@ -529,7 +696,7 @@ class OpenCodeConnectionService : Service() {
                 throw e
             } catch (e: Exception) {
                 complete = false
-                Log.w(TAG, "[${server.displayName}] Reconciliation failed for directory=$directory", e)
+                Log.w(TAG, "[${server.displayName}] Reconciliation failed for project", e)
             }
         }
         if (complete) {
@@ -537,19 +704,20 @@ class OpenCodeConnectionService : Service() {
         }
     }
 
+    @Synchronized
     private fun cleanupTerminatedConnection(serverId: String, job: Job) {
         val state = connections[serverId] ?: return
         if (state.sseJob !== job || !connections.remove(serverId, state)) return
+        reconciliationJobs.remove(serverId)?.cancel()
 
         _connectedServerIds.update { it - serverId }
         _connectingServerIds.update { it - serverId }
-        eventReducer.clearForServer(serverId)
+        eventReducer.clearTransientForServer(serverId)
 
         if (connections.isEmpty()) {
             releaseWakeLock()
-            notificationWatchdogJob?.cancel()
-            notificationWatchdogJob = null
             stopForeground(STOP_FOREGROUND_REMOVE)
+            lastPersistentNotificationState = null
             foregroundStarted = false
             stopSelf()
         } else {
@@ -557,9 +725,18 @@ class OpenCodeConnectionService : Service() {
         }
     }
 
-    private fun updateServerConnected(serverId: String, connected: Boolean) {
-        val state = connections[serverId] ?: return
-        connections[serverId] = state.copy(isConnected = connected)
+    private fun updateServerConnected(serverId: String, connected: Boolean, expectedJob: Job) {
+        var changed = false
+        connections.computeIfPresent(serverId) { _, state ->
+            if (state.sseJob !== expectedJob) return@computeIfPresent state
+            if (state.isConnected == connected) {
+                state
+            } else {
+                changed = true
+                state.copy(isConnected = connected)
+            }
+        }
+        if (!changed) return
         if (connected) {
             _connectingServerIds.update { it - serverId }
             _connectedServerIds.update { it + serverId }
@@ -567,6 +744,7 @@ class OpenCodeConnectionService : Service() {
             _connectedServerIds.update { it - serverId }
             _connectingServerIds.update { it + serverId }
         }
+        updatePersistentNotification()
     }
 
     private suspend fun calculateBackoff(attempt: Int): Long {
@@ -591,10 +769,8 @@ class OpenCodeConnectionService : Service() {
         return session?.parentId != null
     }
 
-    private fun processEvent(server: ServerConfig, event: SseEvent) {
-        if (BuildConfig.DEBUG) Log.d(TAG, "[${server.displayName}] SSE event: ${event.javaClass.simpleName}")
-
-        eventReducer.processEvent(event, server.id)
+    private fun processEvent(server: ServerConfig, event: SseEvent, directory: String?, workspaceId: String?) {
+        eventReducer.processEvent(event, server.id, directory, workspaceId)
 
         when (event) {
             is SseEvent.SessionIdle -> {
@@ -604,6 +780,7 @@ class OpenCodeConnectionService : Service() {
 
                     // Give reducer a brief moment to receive trailing message/part events.
                     delay(250)
+                    if (!connections.containsKey(server.id)) return@launch
 
                     val assistantMessageId = latestNotifiableAssistantMessageId(event.sessionId)
                     if (assistantMessageId == null) {
@@ -613,7 +790,10 @@ class OpenCodeConnectionService : Service() {
                         return@launch
                     }
 
-                    val previousNotified = lastNotifiedAssistantMessageBySession[event.sessionId]
+                    val previousNotified = lastNotifiedAssistantMessageBySession.put(
+                        event.sessionId,
+                        assistantMessageId,
+                    )
                     if (previousNotified == assistantMessageId) {
                         if (BuildConfig.DEBUG) {
                             Log.d(TAG, "[${server.displayName}] Skip duplicate response-ready (${event.sessionId}, msg=$assistantMessageId)")
@@ -621,7 +801,6 @@ class OpenCodeConnectionService : Service() {
                         return@launch
                     }
 
-                    lastNotifiedAssistantMessageBySession[event.sessionId] = assistantMessageId
                     Log.i(TAG, "[${server.displayName}] Session idle -> Response ready for ${event.sessionId}")
                         showTaskCompleteNotification(server, event.sessionId)
                 }
@@ -712,6 +891,7 @@ class OpenCodeConnectionService : Service() {
             putExtra(EXTRA_SERVER_USERNAME, server.username)
             putExtra(EXTRA_SERVER_PASSWORD, server.password ?: "")
             putExtra(EXTRA_SERVER_NAME, server.displayName)
+            putExtra(EXTRA_SERVER_ID, server.id)
             sessionPath?.let { putExtra(EXTRA_SESSION_PATH, it) }
             sessionId?.let { putExtra(EXTRA_SESSION_ID, it) }
         }
@@ -732,11 +912,13 @@ class OpenCodeConnectionService : Service() {
     companion object {
         const val ACTION_OPEN_SESSION = "dev.minios.ocremote.OPEN_SESSION"
         const val ACTION_DISCONNECT = "dev.minios.ocremote.DISCONNECT"
-        const val ACTION_DISCONNECT_ALL = "dev.minios.ocremote.DISCONNECT_ALL"
+        const val ACTION_EXIT = "dev.minios.ocremote.EXIT"
+        const val ACTION_APP_EXIT = "dev.minios.ocremote.APP_EXIT"
         const val EXTRA_SERVER_URL = "server_url"
         const val EXTRA_SERVER_USERNAME = "server_username"
         const val EXTRA_SERVER_PASSWORD = "server_password"
         const val EXTRA_SERVER_NAME = "server_name"
+        const val EXTRA_SERVER_ID = "server_id"
         const val EXTRA_SESSION_PATH = "session_path"
         const val EXTRA_SESSION_ID = "sessionId"
     }
@@ -797,16 +979,6 @@ class OpenCodeConnectionService : Service() {
 
     // ============ Persistent Notification (InboxStyle, multi-server) ============
 
-    private fun isLocalServer(server: ServerConfig): Boolean {
-        val normalizedUrl = server.url.trim().lowercase(Locale.US).removeSuffix("/")
-        if (normalizedUrl == LocalServerManager.LOCAL_SERVER_URL.lowercase(Locale.US)) return true
-
-        val host = server.host.lowercase(Locale.US)
-        val port = server.port
-        return (host == "127.0.0.1" || host == "localhost" || host == "::1" || host == "[::1]") &&
-            port == 4096
-    }
-
     private fun createPersistentNotification(): Notification {
         val tapIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -816,16 +988,15 @@ class OpenCodeConnectionService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        // Disconnect All action
-        val disconnectAllIntent = Intent(this, OpenCodeConnectionService::class.java).apply {
-            action = ACTION_DISCONNECT_ALL
+        val exitIntent = Intent(this, OpenCodeConnectionService::class.java).apply {
+            action = ACTION_EXIT
         }
-        val disconnectAllPendingIntent = PendingIntent.getService(
-            this, 1, disconnectAllIntent,
+        val exitPendingIntent = PendingIntent.getService(
+            this, 1, exitIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val visibleConnections = connections.values.filterNot { isLocalServer(it.config) }
+        val visibleConnections = connections.values.sortedBy { it.config.id }
         val serverCount = visibleConnections.size
         val connectedCount = visibleConnections.count { it.isConnected }
 
@@ -850,8 +1021,8 @@ class OpenCodeConnectionService : Service() {
         if (serverCount > 0) {
             builder.addAction(
                 R.mipmap.ic_launcher,
-                getString(R.string.notification_disconnect_all),
-                disconnectAllPendingIntent,
+                getString(R.string.notification_exit),
+                exitPendingIntent,
             )
         }
 
@@ -869,7 +1040,22 @@ class OpenCodeConnectionService : Service() {
         return builder.build()
     }
 
+    @Synchronized
     private fun updatePersistentNotification() {
+        if (connections.isEmpty()) {
+            if (foregroundStarted) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                foregroundStarted = false
+            }
+            notificationManager.cancel(PERSISTENT_NOTIFICATION_ID)
+            lastPersistentNotificationState = null
+            return
+        }
+        val state = connections.values
+            .map { Triple(it.config.id, it.config.displayName, it.isConnected) }
+            .sortedBy { it.first }
+        if (state == lastPersistentNotificationState) return
+        lastPersistentNotificationState = state
         val notification = createPersistentNotification()
         notificationManager.notify(PERSISTENT_NOTIFICATION_ID, notification)
     }

@@ -1,6 +1,6 @@
 package dev.minios.ocremote.data.api
 
-import android.util.Log
+import dev.minios.ocremote.logging.AppLogger as Log
 import dev.minios.ocremote.BuildConfig
 import dev.minios.ocremote.domain.model.*
 import io.ktor.client.*
@@ -19,6 +19,7 @@ import io.ktor.websocket.send
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -51,6 +52,16 @@ data class ServerConnection(
     }
 }
 
+class ServerAuthenticationException(val statusCode: Int) : Exception("Server authentication failed (HTTP $statusCode)")
+
+class ServerHealthHttpException(val statusCode: Int) : Exception("Server health check failed (HTTP $statusCode)")
+
+internal fun healthStatusException(statusCode: Int): Exception? = when (statusCode) {
+    in 200..299 -> null
+    401, 403 -> ServerAuthenticationException(statusCode)
+    else -> ServerHealthHttpException(statusCode)
+}
+
 /**
  * OpenCode REST API Client
  *
@@ -69,9 +80,11 @@ class OpenCodeApi @Inject constructor(
     // ============ Global ============
 
     suspend fun getHealth(conn: ServerConnection): ServerHealth {
-        return httpClient.get("${conn.baseUrl}/global/health") {
+        val response = httpClient.get("${conn.baseUrl}/global/health") {
             conn.authHeader?.let { header("Authorization", it) }
-        }.body()
+        }
+        healthStatusException(response.status.value)?.let { throw it }
+        return response.body()
     }
 
     /**
@@ -91,6 +104,27 @@ class OpenCodeApi @Inject constructor(
             conn.authHeader?.let { header("Authorization", it) }
         }.body()
     }
+
+    suspend fun getProjectDirectories(
+        conn: ServerConnection,
+        projectId: String,
+        directory: String? = null,
+        workspaceId: String? = null,
+    ): List<ProjectDirectory> = httpClient.get("${conn.baseUrl}/project/$projectId/directories") {
+        conn.authHeader?.let { header("Authorization", it) }
+        directory?.let { parameter("directory", it) }
+        workspaceId?.let { parameter("workspace", it) }
+    }.body()
+
+    suspend fun listWorkspaces(
+        conn: ServerConnection,
+        directory: String,
+        workspaceId: String? = null,
+    ): List<WorkspaceInfo> = httpClient.get("${conn.baseUrl}/experimental/workspace") {
+        conn.authHeader?.let { header("Authorization", it) }
+        parameter("directory", directory)
+        workspaceId?.let { parameter("workspace", it) }
+    }.body()
 
     suspend fun getCurrentProject(conn: ServerConnection): Project {
         return httpClient.get("${conn.baseUrl}/project/current") {
@@ -143,9 +177,21 @@ class OpenCodeApi @Inject constructor(
         }
     }
 
-    suspend fun getSession(conn: ServerConnection, sessionId: String): Session {
+    suspend fun getSession(conn: ServerConnection, sessionId: String, directory: String? = null): Session {
         return httpClient.get("${conn.baseUrl}/session/$sessionId") {
             conn.authHeader?.let { header("Authorization", it) }
+            directory?.let { header("x-opencode-directory", it) }
+        }.body()
+    }
+
+    suspend fun listChildSessions(
+        conn: ServerConnection,
+        sessionId: String,
+        directory: String? = null,
+    ): List<Session> {
+        return httpClient.get("${conn.baseUrl}/session/$sessionId/children") {
+            conn.authHeader?.let { header("Authorization", it) }
+            directory?.let { header("x-opencode-directory", it) }
         }.body()
     }
 
@@ -328,7 +374,7 @@ class OpenCodeApi @Inject constructor(
         directory: String? = null
     ): PtyInfo {
         if (BuildConfig.DEBUG) {
-            Log.d("OpenCodeApi", "createPty: POST ${conn.baseUrl}/pty title=$title cwd=$cwd directory=$directory")
+            Log.d("OpenCodeApi", "createPty: request")
         }
         val response = httpClient.post("${conn.baseUrl}/pty") {
             conn.authHeader?.let { header("Authorization", it) }
@@ -338,15 +384,15 @@ class OpenCodeApi @Inject constructor(
         }
         val body = response.bodyAsText()
         if (BuildConfig.DEBUG) {
-            Log.d("OpenCodeApi", "createPty: response status=${response.status} body=$body")
+            Log.d("OpenCodeApi", "createPty: status=${response.status}")
         }
         if (!response.status.isSuccess()) {
-            throw java.io.IOException("createPty failed: ${response.status}: $body")
+            throw java.io.IOException("createPty failed: ${response.status}")
         }
 
         val info = parsePtyInfoFromCreateResponse(body, title, cwd)
         if (BuildConfig.DEBUG) {
-            Log.d("OpenCodeApi", "createPty: response status=${response.status} ptyId=${info.id}")
+            Log.d("OpenCodeApi", "createPty: response parsed")
         }
         return info
     }
@@ -359,7 +405,7 @@ class OpenCodeApi @Inject constructor(
 
         // Some local builds return only an id or wrap it in data/pty.
         val id = extractPtyIdFromResponse(trimmed)
-            ?: throw java.io.IOException("createPty: could not parse PTY id from response: $trimmed")
+            ?: throw java.io.IOException("createPty: could not parse PTY id")
 
         return PtyInfo(
             id = id,
@@ -419,8 +465,7 @@ class OpenCodeApi @Inject constructor(
     ): Boolean {
         val body = PtyUpdateRequest(size = PtySize(rows = rows, cols = cols))
         if (BuildConfig.DEBUG) {
-            val jsonStr = json.encodeToString(PtyUpdateRequest.serializer(), body)
-            Log.d("OpenCodeApi", "updatePtySize: PUT ${conn.baseUrl}/pty/$ptyId body=$jsonStr directory=$directory")
+            Log.d("OpenCodeApi", "updatePtySize: ${cols}x$rows")
         }
         val response = httpClient.put("${conn.baseUrl}/pty/$ptyId") {
             conn.authHeader?.let { header("Authorization", it) }
@@ -429,8 +474,7 @@ class OpenCodeApi @Inject constructor(
             setBody(body)
         }
         if (BuildConfig.DEBUG) {
-            val respBody = try { response.bodyAsText() } catch (_: Exception) { "<no body>" }
-            Log.d("OpenCodeApi", "updatePtySize: response status=${response.status} body=$respBody")
+            Log.d("OpenCodeApi", "updatePtySize: status=${response.status}")
         }
         return response.status.isSuccess()
     }
@@ -457,11 +501,32 @@ class OpenCodeApi @Inject constructor(
 
     // ============ Messages ============
 
-    suspend fun listMessages(conn: ServerConnection, sessionId: String, limit: Int? = null): List<MessageWithParts> {
-        return httpClient.get("${conn.baseUrl}/session/$sessionId/message") {
+    suspend fun listMessages(
+        conn: ServerConnection,
+        sessionId: String,
+        limit: Int? = null,
+        directory: String? = null,
+    ): List<MessageWithParts> {
+        return listMessagesPage(conn, sessionId, limit, directory = directory).messages
+    }
+
+    suspend fun listMessagesPage(
+        conn: ServerConnection,
+        sessionId: String,
+        limit: Int? = null,
+        before: String? = null,
+        directory: String? = null,
+    ): MessagePage {
+        val response = httpClient.get("${conn.baseUrl}/session/$sessionId/message") {
             conn.authHeader?.let { header("Authorization", it) }
             limit?.let { parameter("limit", it) }
-        }.body()
+            before?.let { parameter("before", it) }
+            directory?.let { header("x-opencode-directory", it) }
+        }
+        return MessagePage(
+            messages = response.body(),
+            nextCursor = response.headers["X-Next-Cursor"]?.takeIf { it.isNotBlank() },
+        )
     }
 
     /** Returns messages as raw JSON string (for export without re-serialization). */
@@ -541,6 +606,7 @@ class OpenCodeApi @Inject constructor(
     suspend fun promptAsync(
         conn: ServerConnection,
         sessionId: String,
+        messageId: String,
         parts: List<PromptPart>,
         model: ModelSelection? = null,
         agent: String? = null,
@@ -552,6 +618,7 @@ class OpenCodeApi @Inject constructor(
             directory?.let { header("x-opencode-directory", it) }
             contentType(ContentType.Application.Json)
             setBody(PromptRequest(
+                messageId = messageId,
                 parts = parts,
                 model = model,
                 agent = agent,
@@ -561,6 +628,59 @@ class OpenCodeApi @Inject constructor(
         if (!response.status.isSuccess()) {
             throw RuntimeException("prompt_async failed: ${response.status}")
         }
+    }
+
+    suspend fun switchSessionAgentV2(
+        conn: ServerConnection,
+        sessionId: String,
+        agent: String,
+        directory: String? = null,
+        workspaceId: String? = null,
+    ) {
+        val response = httpClient.post("${conn.baseUrl}/api/session/$sessionId/agent") {
+            conn.authHeader?.let { header("Authorization", it) }
+            directory?.let { parameter("directory", it) }
+            workspaceId?.let { parameter("workspace", it) }
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("agent" to agent))
+        }
+        if (!response.status.isSuccess()) throw RuntimeException("V2 agent switch failed: ${response.status}")
+    }
+
+    suspend fun switchSessionModelV2(
+        conn: ServerConnection,
+        sessionId: String,
+        model: ModelSelection,
+        variant: String? = null,
+        directory: String? = null,
+        workspaceId: String? = null,
+    ) {
+        val response = httpClient.post("${conn.baseUrl}/api/session/$sessionId/model") {
+            conn.authHeader?.let { header("Authorization", it) }
+            directory?.let { parameter("directory", it) }
+            workspaceId?.let { parameter("workspace", it) }
+            contentType(ContentType.Application.Json)
+            setBody(V2ModelRef(model.providerId, model.modelId, variant))
+        }
+        if (!response.status.isSuccess()) throw RuntimeException("V2 model switch failed: ${response.status}")
+    }
+
+    suspend fun promptV2(
+        conn: ServerConnection,
+        sessionId: String,
+        request: V2PromptRequest,
+        directory: String? = null,
+        workspaceId: String? = null,
+    ): V2AdmittedPrompt {
+        val response = httpClient.post("${conn.baseUrl}/api/session/$sessionId/prompt") {
+            conn.authHeader?.let { header("Authorization", it) }
+            directory?.let { parameter("directory", it) }
+            workspaceId?.let { parameter("workspace", it) }
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        if (!response.status.isSuccess()) throw RuntimeException("V2 prompt admission failed: ${response.status}")
+        return response.body<V2DataResponse<V2AdmittedPrompt>>().data
     }
 
     // ============ Permissions ============
@@ -616,14 +736,13 @@ class OpenCodeApi @Inject constructor(
     ): Boolean {
         val url = "${conn.baseUrl}/question/$requestId/reply"
         val bodyJson = json.encodeToString(QuestionReplyBody.serializer(), QuestionReplyBody(answers = answers))
-        if (BuildConfig.DEBUG) Log.d("OpenCodeApi", "replyToQuestion: POST $url, directory=$directory, bodyJson=$bodyJson")
+        if (BuildConfig.DEBUG) Log.d("OpenCodeApi", "replyToQuestion: answers=${answers.size}")
         val result = httpClient.post(url) {
             conn.authHeader?.let { header("Authorization", it) }
             directory?.let { header("x-opencode-directory", it) }
             setBody(io.ktor.http.content.TextContent(bodyJson, ContentType.Application.Json))
         }
-        val responseBody = result.bodyAsText()
-        if (BuildConfig.DEBUG) Log.d("OpenCodeApi", "replyToQuestion: status=${result.status}, responseBody=$responseBody")
+        if (BuildConfig.DEBUG) Log.d("OpenCodeApi", "replyToQuestion: status=${result.status}")
         return result.status.isSuccess()
     }
 
@@ -637,7 +756,7 @@ class OpenCodeApi @Inject constructor(
         directory: String? = null
     ): Boolean {
         val url = "${conn.baseUrl}/question/$requestId/reject"
-        if (BuildConfig.DEBUG) Log.d("OpenCodeApi", "rejectQuestion: POST $url, directory=$directory")
+        if (BuildConfig.DEBUG) Log.d("OpenCodeApi", "rejectQuestion: request")
         val result = httpClient.post(url) {
             conn.authHeader?.let { header("Authorization", it) }
             directory?.let { header("x-opencode-directory", it) }
@@ -701,14 +820,19 @@ class OpenCodeApi @Inject constructor(
         val response = httpClient.post("${conn.baseUrl}/provider/$providerId/oauth/authorize") {
             conn.authHeader?.let { header("Authorization", it) }
             contentType(ContentType.Application.Json)
-            setBody(mapOf("method" to methodIndex))
+            setBody(ProviderOauthAuthorizeRequest(method = methodIndex))
         }
         val body = response.bodyAsText().trim()
         if (BuildConfig.DEBUG) {
-            Log.d("OpenCodeApi", "authorizeProviderOauth: status=${response.status} body=$body")
+            Log.d("OpenCodeApi", "authorizeProviderOauth: status=${response.status}")
         }
 
-        if (!response.status.isSuccess()) return null
+        if (!response.status.isSuccess()) {
+            throw ProviderAuthException(
+                response.status.value,
+                providerAuthErrorMessage(json, response.status.value, body, "Failed to start OAuth"),
+            )
+        }
         if (body.isBlank() || body == "null") return ProviderOauthAuthorization()
 
         return runCatching {
@@ -729,19 +853,24 @@ class OpenCodeApi @Inject constructor(
         methodIndex: Int,
         code: String? = null
     ): Boolean {
-        val body = if (code != null) mapOf("method" to methodIndex, "code" to code)
-        else mapOf("method" to methodIndex)
-        if (BuildConfig.DEBUG) Log.d(TAG, "completeProviderOauth: POST /provider/$providerId/oauth/callback body=$body")
+        val body = ProviderOauthCallbackRequest(method = methodIndex, code = code)
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "completeProviderOauth: POST /provider/$providerId/oauth/callback method=$methodIndex hasCode=${code != null}")
+        }
         val response = httpClient.post("${conn.baseUrl}/provider/$providerId/oauth/callback") {
             conn.authHeader?.let { header("Authorization", it) }
             contentType(ContentType.Application.Json)
             setBody(body)
         }
-        if (BuildConfig.DEBUG) {
-            val responseBody = response.bodyAsText()
-            Log.d(TAG, "completeProviderOauth: status=${response.status}, body=$responseBody")
+        val responseBody = response.bodyAsText().trim()
+        if (BuildConfig.DEBUG) Log.d(TAG, "completeProviderOauth: status=${response.status}")
+        if (!response.status.isSuccess()) {
+            throw ProviderAuthException(
+                response.status.value,
+                providerAuthErrorMessage(json, response.status.value, responseBody, "Failed to complete OAuth"),
+            )
         }
-        return response.status.isSuccess()
+        return true
     }
 
     /**
@@ -762,13 +891,12 @@ class OpenCodeApi @Inject constructor(
      * DELETE /auth/{providerID}
      */
     suspend fun removeProviderAuth(conn: ServerConnection, providerId: String): Boolean {
-        if (BuildConfig.DEBUG) Log.d(TAG, "removeProviderAuth: DELETE ${conn.baseUrl}/auth/$providerId")
+        if (BuildConfig.DEBUG) Log.d(TAG, "removeProviderAuth: request")
         val response = httpClient.delete("${conn.baseUrl}/auth/$providerId") {
             conn.authHeader?.let { header("Authorization", it) }
         }
         if (BuildConfig.DEBUG) {
-            val body = response.bodyAsText()
-            Log.d(TAG, "removeProviderAuth: status=${response.status}, body=$body")
+            Log.d(TAG, "removeProviderAuth: status=${response.status}")
         }
         return response.status.isSuccess()
     }
@@ -852,7 +980,10 @@ class OpenCodeApi @Inject constructor(
     suspend fun findFiles(conn: ServerConnection, query: String, type: String? = null, directory: String? = null, limit: Int? = null, dirs: String? = null): List<String> {
         return httpClient.get("${conn.baseUrl}/find/file") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directory?.let {
+                parameter("directory", it)
+                header("x-opencode-directory", it)
+            }
             parameter("query", query)
             type?.let { parameter("type", it) }
             limit?.let { parameter("limit", it) }
@@ -870,7 +1001,10 @@ class OpenCodeApi @Inject constructor(
     suspend fun listDirectory(conn: ServerConnection, path: String = "", directory: String? = null): List<FileNode> {
         return httpClient.get("${conn.baseUrl}/file") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directory?.let {
+                parameter("directory", it)
+                header("x-opencode-directory", it)
+            }
             parameter("path", path)
         }.body()
     }
@@ -907,6 +1041,7 @@ class PtySocket(
 
 @Serializable
 data class PromptRequest(
+    @SerialName("messageID") val messageId: String,
     val parts: List<PromptPart>,
     val model: ModelSelection? = null,
     val agent: String? = null,
@@ -914,6 +1049,75 @@ data class PromptRequest(
     val format: OutputFormat? = null,
     val system: String? = null,
     val noReply: Boolean? = null
+)
+
+@Serializable
+data class ProjectDirectory(
+    val directory: String,
+    val strategy: String? = null,
+)
+
+@Serializable
+data class WorkspaceInfo(
+    val id: String,
+    val type: String,
+    val branch: String,
+    val name: String? = null,
+    val directory: String,
+    @SerialName("projectID") val projectId: String,
+    val timeUsed: Long,
+    val extra: JsonElement? = null,
+)
+
+@Serializable
+data class V2DataResponse<T>(val data: T)
+
+@Serializable
+data class V2PromptRequest(
+    val id: String,
+    val prompt: V2Prompt,
+    val delivery: String = "steer",
+    val resume: Boolean = true,
+)
+
+@Serializable
+data class V2Prompt(
+    val text: String,
+    val files: List<V2FileAttachment> = emptyList(),
+    val agents: List<V2AgentAttachment> = emptyList(),
+)
+
+@Serializable
+data class V2FileAttachment(
+    val uri: String,
+    val name: String? = null,
+    val description: String? = null,
+)
+
+@Serializable
+data class V2AgentAttachment(val name: String)
+
+@Serializable
+data class V2ModelRef(
+    @SerialName("providerID") val providerId: String,
+    @SerialName("modelID") val modelId: String,
+    val variant: String? = null,
+)
+
+@Serializable
+data class V2AdmittedPrompt(
+    val admittedSeq: Long,
+    val id: String,
+    @SerialName("sessionID") val sessionId: String,
+    val prompt: V2Prompt,
+    val delivery: String,
+    val timeCreated: Long,
+    val promotedSeq: Long? = null,
+)
+
+data class MessagePage(
+    val messages: List<MessageWithParts>,
+    val nextCursor: String?,
 )
 
 @Serializable
@@ -1067,6 +1271,55 @@ data class ProviderOauthAuthorization(
     val method: String = "none",
     val instructions: String = ""
 )
+
+@Serializable
+internal data class ProviderOauthAuthorizeRequest(
+    val method: Int,
+)
+
+@Serializable
+internal data class ProviderOauthCallbackRequest(
+    val method: Int,
+    val code: String? = null,
+)
+
+internal class ProviderAuthException(
+    val statusCode: Int,
+    message: String,
+) : Exception(message)
+
+internal fun providerAuthErrorMessage(
+    json: Json,
+    statusCode: Int,
+    body: String,
+    fallback: String,
+): String {
+    val parsed = runCatching { json.parseToJsonElement(body) }.getOrNull() as? JsonObject
+    val data = parsed?.get("data") as? JsonObject
+    val error = parsed?.get("error") as? JsonObject
+    val errors = parsed?.get("errors") as? JsonArray
+    val detail = sequenceOf(
+        data?.get("message"),
+        error?.get("message"),
+        parsed?.get("message"),
+        errors?.firstOrNull()?.let { it as? JsonObject }?.get("message"),
+    ).mapNotNull { element ->
+        runCatching { element?.jsonPrimitive?.contentOrNull }.getOrNull()
+    }.firstOrNull { it.isNotBlank() }
+        ?: body.takeIf { it.isNotBlank() && !it.trimStart().startsWith("<") }
+
+    val conciseDetail = detail
+        ?.lineSequence()
+        ?.firstOrNull { it.isNotBlank() }
+        ?.trim()
+        ?.removePrefix("Error: ")
+        ?.take(240)
+    return if (conciseDetail.isNullOrBlank()) {
+        "$fallback (HTTP $statusCode)"
+    } else {
+        "$conciseDetail (HTTP $statusCode)"
+    }
+}
 
 @Serializable
 data class ServerConfigResponse(

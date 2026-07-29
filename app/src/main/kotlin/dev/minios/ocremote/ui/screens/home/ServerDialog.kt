@@ -19,6 +19,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.minios.ocremote.R
 import dev.minios.ocremote.domain.model.ServerConfig
+import dev.minios.ocremote.ui.components.isAmoledTheme
+import dev.minios.ocremote.ui.components.AppDialog
+import dev.minios.ocremote.ui.components.AppDialogActions
 
 /**
  * Parse and validate a server URL string.
@@ -93,8 +96,7 @@ fun ServerDialog(
     val dialogMaxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.9f
     val scrollState = rememberScrollState()
 
-    val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
-    val dialogContainerColor = if (isAmoled) Color.Black else AlertDialogDefaults.containerColor
+    val isAmoled = isAmoledTheme()
     val switchColors = if (isAmoled) {
         SwitchDefaults.colors(
             checkedThumbColor = MaterialTheme.colorScheme.primary,
@@ -108,16 +110,10 @@ fun ServerDialog(
         SwitchDefaults.colors()
     }
 
-    BasicAlertDialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = dialogContainerColor,
-            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
-            tonalElevation = if (isAmoled) 0.dp else 6.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = dialogMaxHeight)
-        ) {
+    AppDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth().heightIn(max = dialogMaxHeight),
+    ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -217,40 +213,32 @@ fun ServerDialog(
                     }
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.server_cancel))
-                    }
-                    TextButton(
-                        onClick = {
-                            val normalizedUrl = validateAndNormalizeUrl(url)
-                            urlError = when {
-                                url.isBlank() -> urlRequiredText
-                                normalizedUrl == null -> urlInvalidText
-                                else -> null
-                            }
-
-                            if (urlError == null && normalizedUrl != null) {
-                                val finalName = name.trim().ifBlank {
-                                    deriveServerNameFromUrl(normalizedUrl)
-                                }
-                                onSave(
-                                    finalName,
-                                    normalizedUrl,
-                                    username.ifBlank { "opencode" },
-                                    password,
-                                    autoConnect
-                                )
-                            }
+                AppDialogActions(
+                    dismissText = stringResource(R.string.server_cancel),
+                    confirmText = stringResource(R.string.server_save),
+                    onDismiss = onDismiss,
+                    onConfirm = {
+                        val normalizedUrl = validateAndNormalizeUrl(url)
+                        urlError = when {
+                            url.isBlank() -> urlRequiredText
+                            normalizedUrl == null -> urlInvalidText
+                            else -> null
                         }
-                    ) {
-                        Text(stringResource(R.string.server_save))
-                    }
-                }
+
+                        if (urlError == null && normalizedUrl != null) {
+                            val finalName = name.trim().ifBlank {
+                                deriveServerNameFromUrl(normalizedUrl)
+                            }
+                            onSave(
+                                finalName,
+                                normalizedUrl,
+                                username.ifBlank { "opencode" },
+                                password,
+                                autoConnect,
+                            )
+                        }
+                    },
+                )
             }
-        }
     }
 }

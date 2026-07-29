@@ -4,13 +4,19 @@ import dev.minios.ocremote.domain.model.Session
 import dev.minios.ocremote.domain.model.SessionStatus
 import dev.minios.ocremote.domain.model.SseEvent
 import dev.minios.ocremote.domain.model.Message
+import dev.minios.ocremote.domain.model.MessageWithParts
 import dev.minios.ocremote.domain.model.Part
+import dev.minios.ocremote.domain.model.PendingInteraction
 import dev.minios.ocremote.domain.model.TimeInfo
+import dev.minios.ocremote.domain.model.ToolState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class EventReducerTest {
 
@@ -73,6 +79,103 @@ class EventReducerTest {
     }
 
     @Test
+    fun instanceDisposal_preservesPersistedSessionsAndMessages() {
+        val reducer = EventReducer()
+        val disposed = session("disposed").copy(directory = "/first")
+        val retained = session("retained").copy(directory = "/second")
+        reducer.processEvent(SseEvent.SessionCreated(disposed), "server")
+        reducer.processEvent(SseEvent.SessionCreated(retained), "server")
+        reducer.processEvent(SseEvent.MessageUpdated(Message.User(
+            id = "message",
+            sessionId = disposed.id,
+            time = TimeInfo(created = 1),
+        )), "server")
+
+        reducer.processEvent(SseEvent.ServerInstanceDisposed("/first"), "server")
+
+        assertEquals(setOf(disposed, retained), reducer.sessions.value.toSet())
+        assertEquals(setOf(disposed.id, retained.id), reducer.serverSessions.value["server"])
+        assertEquals(listOf("message"), reducer.messages.value[disposed.id]?.map { it.id })
+    }
+
+    @Test
+    fun transientServerClear_preservesHistoryButResetsBusyStatus() {
+        val reducer = EventReducer()
+        val session = session("session")
+        reducer.processEvent(SseEvent.SessionCreated(session), "server")
+        reducer.processEvent(SseEvent.SessionStatus(session.id, SessionStatus.Busy), "server")
+        reducer.processEvent(SseEvent.MessageUpdated(Message.User(
+            id = "message",
+            sessionId = session.id,
+            time = TimeInfo(created = 1),
+        )), "server")
+
+        reducer.clearTransientForServer("server")
+
+        assertEquals(listOf(session), reducer.sessions.value)
+        assertEquals(listOf("message"), reducer.messages.value[session.id]?.map { it.id })
+        assertEquals(SessionStatus.Idle, reducer.sessionStatuses.value[session.id])
+    }
+
+    @Test
+    fun directoryScopedEvents_doNotOverwriteAnotherWorkspace() {
+        val reducer = EventReducer()
+        val first = DirectoryScope("server", "/project", "workspace-1")
+        val second = DirectoryScope("server", "/project", "workspace-2")
+
+        reducer.processEvent(SseEvent.VcsBranchUpdated("main"), "server", first.directory, first.workspaceId)
+        reducer.processEvent(SseEvent.VcsBranchUpdated("feature"), "server", second.directory, second.workspaceId)
+
+        assertEquals("main", reducer.vcsBranches.value[first])
+        assertEquals("feature", reducer.vcsBranches.value[second])
+    }
+
+    @Test
+    fun promptLifecycle_tracksAdmissionAndPromotion() {
+        val reducer = EventReducer()
+        val admitted = SseEvent.PromptAdmitted("session", "message", "queue")
+
+        reducer.processEvent(admitted, "server")
+        assertEquals(PromptDeliveryState.ADMITTED, reducer.promptDeliveries.value["message"]?.state)
+
+        reducer.processEvent(SseEvent.Prompted("session", "message", "queue"), "server")
+        assertEquals(PromptDeliveryState.PROMOTED, reducer.promptDeliveries.value["message"]?.state)
+    }
+
+    @Test
+    fun nextStream_projectsPromptAssistantTextAndToolLifecycle() {
+        val reducer = EventReducer()
+        val prompt = buildJsonObject { put("text", "hello") }
+        reducer.processEvent(SseEvent.Prompted("session", "user", "steer", prompt, 1), "server")
+        reducer.processEvent(SseEvent.NextStepStarted(
+            "session",
+            "assistant",
+            "build",
+            buildJsonObject { put("providerID", "provider"); put("modelID", "model") },
+            2,
+        ), "server")
+        reducer.processEvent(SseEvent.NextTextStarted("session", "assistant", "text", 3), "server")
+        reducer.processEvent(SseEvent.NextTextDelta("session", "assistant", "text", "answer"), "server")
+        reducer.processEvent(SseEvent.NextToolInputStarted("session", "assistant", "call", "bash", 4), "server")
+        reducer.processEvent(SseEvent.NextToolCalled(
+            "session", "assistant", "call", "bash", buildJsonObject { put("command", "pwd") }, 5,
+        ), "server")
+        reducer.processEvent(SseEvent.NextToolSuccess(
+            "session",
+            "assistant",
+            "call",
+            buildJsonObject { put("exit", 0) },
+            buildJsonArray { add(buildJsonObject { put("type", "text"); put("text", "/tmp") }) },
+            6,
+        ), "server")
+
+        assertEquals(listOf("user", "assistant"), reducer.messages.value["session"]?.map { it.id })
+        assertEquals("answer", reducer.parts.value["assistant"]?.filterIsInstance<Part.Text>()?.single()?.text)
+        val tool = reducer.parts.value["assistant"]?.filterIsInstance<Part.Tool>()?.single()
+        assertEquals("/tmp", (tool?.state as ToolState.Completed).output)
+    }
+
+    @Test
     fun pendingRequests_areUpsertedByRequestId() {
         val reducer = EventReducer()
         val first = SseEvent.PermissionAsked("permission", "session", "read")
@@ -81,7 +184,36 @@ class EventReducerTest {
         reducer.processEvent(first, "server")
         reducer.processEvent(updated, "server")
 
-        assertEquals(listOf(updated), reducer.permissions.value["session"])
+        assertEquals(listOf(PendingInteraction.Permission(updated)), reducer.pendingInteractions.value)
+    }
+
+    @Test
+    fun pendingRequests_preserveInterleavedOrderAndUpdateInPlace() {
+        val reducer = EventReducer()
+        val permission = SseEvent.PermissionAsked("permission", "session", "read")
+        val question = question("question", "session", "Original")
+        val updated = question("question", "session", "Updated")
+
+        reducer.processEvent(permission, "server")
+        reducer.processEvent(question, "server")
+        reducer.processEvent(updated, "server")
+
+        assertEquals(
+            listOf(PendingInteraction.Permission(permission), PendingInteraction.Question(updated)),
+            reducer.pendingInteractions.value,
+        )
+    }
+
+    @Test
+    fun pendingRequests_withSameIdAndDifferentTypesRemainDistinct() {
+        val reducer = EventReducer()
+
+        reducer.processEvent(SseEvent.PermissionAsked("request", "session", "read"), "server")
+        reducer.processEvent(question("request", "session", "Question"), "server")
+
+        assertEquals(2, reducer.pendingInteractions.value.size)
+        reducer.removePermission("session", "request")
+        assertTrue(reducer.pendingInteractions.value.single() is PendingInteraction.Question)
     }
 
     @Test
@@ -101,7 +233,87 @@ class EventReducerTest {
         )
 
         assertFalse(replaced)
-        assertNull(reducer.permissions.value["session"])
+        assertTrue(reducer.pendingInteractions.value.isEmpty())
+    }
+
+    @Test
+    fun pendingSnapshot_preservesKnownOrderAndAppendsRestOnlyRequestsDeterministically() {
+        val reducer = EventReducer()
+        reducer.processEvent(question("existing-question", "session", "Existing"), "server")
+        reducer.processEvent(SseEvent.PermissionAsked("existing-permission", "session", "read"), "server")
+        val revision = reducer.pendingSnapshotRevision()
+
+        val applied = reducer.replacePendingRequests(
+            serverId = "server",
+            permissions = listOf(
+                SseEvent.PermissionAsked("z", "session", "write"),
+                SseEvent.PermissionAsked("existing-permission", "session", "updated"),
+                SseEvent.PermissionAsked("a", "session", "read"),
+            ),
+            questions = listOf(question("existing-question", "session", "Updated")),
+            expectedRevision = revision,
+        )
+
+        assertTrue(applied)
+        assertEquals(
+            listOf("existing-question", "existing-permission", "a", "z"),
+            reducer.pendingInteractions.value.map { it.id },
+        )
+    }
+
+    @Test
+    fun optimisticQuestionRemoval_invalidatesOlderSnapshot() {
+        val reducer = EventReducer()
+        val request = question("question", "session", "Question")
+        reducer.processEvent(request, "server")
+        val revision = reducer.pendingSnapshotRevision()
+
+        reducer.removeQuestion("session", request.id)
+
+        assertFalse(
+            reducer.replacePendingRequests(
+                serverId = "server",
+                permissions = emptyList(),
+                questions = listOf(request),
+                expectedRevision = revision,
+            ),
+        )
+        assertTrue(reducer.pendingInteractions.value.isEmpty())
+    }
+
+    @Test
+    fun sessionDeletion_removesPendingAndInvalidatesOlderSnapshot() {
+        val reducer = EventReducer()
+        val session = session("session")
+        val request = question("question", session.id, "Question")
+        reducer.processEvent(SseEvent.SessionCreated(session), "server")
+        reducer.processEvent(request, "server")
+        val revision = reducer.pendingSnapshotRevision()
+
+        reducer.processEvent(SseEvent.SessionDeleted(session), "server")
+
+        assertFalse(
+            reducer.replacePendingRequests(
+                serverId = "server",
+                permissions = emptyList(),
+                questions = listOf(request),
+                expectedRevision = revision,
+            ),
+        )
+        assertTrue(reducer.pendingInteractions.value.isEmpty())
+    }
+
+    @Test
+    fun clearForServer_removesPendingButKeepsOtherServersQueue() {
+        val reducer = EventReducer()
+        val first = question("first", "first-session", "First")
+        val second = question("second", "second-session", "Second")
+        reducer.processEvent(first, "first-server")
+        reducer.processEvent(second, "second-server")
+
+        reducer.clearForServer("first-server")
+
+        assertEquals(listOf(PendingInteraction.Question(second)), reducer.pendingInteractions.value)
     }
 
     @Test
@@ -143,6 +355,54 @@ class EventReducerTest {
 
         val part = reducer.parts.value["message"]?.single() as Part.Text
         assertEquals("start one two", part.text)
+    }
+
+    @Test
+    fun restMerge_doesNotReplaceLongerStreamingTextWithStaleSnapshot() {
+        val reducer = EventReducer()
+        val message = Message.Assistant("message", "session", time = TimeInfo(1), parentId = "user")
+        reducer.processEvent(SseEvent.MessageUpdated(message), "server")
+        reducer.processEvent(
+            SseEvent.MessagePartUpdated(Part.Text("part", "session", "message", text = "streamed text")),
+            "server",
+        )
+
+        reducer.mergeMessages(
+            "session",
+            listOf(MessageWithParts(message, listOf(Part.Text("part", "session", "message", text = "")))),
+        )
+
+        assertEquals("streamed text", (reducer.parts.value["message"]?.single() as Part.Text).text)
+    }
+
+    @Test
+    fun clearSessionHistory_preservesOtherSessionsAndMetadata() {
+        val reducer = EventReducer()
+        val first = session("first")
+        val second = session("second")
+        reducer.setSessions("server", listOf(first, second))
+        reducer.mergeMessages(
+            first.id,
+            listOf(MessageWithParts(
+                Message.User("first-message", first.id, time = TimeInfo(1)),
+                listOf(Part.Text("first-part", first.id, "first-message", text = "first")),
+            )),
+        )
+        reducer.mergeMessages(
+            second.id,
+            listOf(MessageWithParts(
+                Message.User("second-message", second.id, time = TimeInfo(2)),
+                listOf(Part.Text("second-part", second.id, "second-message", text = "second")),
+            )),
+        )
+
+        reducer.clearSessionHistory(first.id)
+
+        assertNull(reducer.messages.value[first.id])
+        assertNull(reducer.parts.value["first-message"])
+        assertEquals(listOf("second-message"), reducer.messages.value[second.id]?.map { it.id })
+        assertEquals("second", (reducer.parts.value["second-message"]?.single() as Part.Text).text)
+        assertEquals(setOf(first, second), reducer.sessions.value.toSet())
     }
 
     @Test
@@ -191,5 +451,17 @@ class EventReducerTest {
         id = id,
         title = id,
         time = Session.Time(created = 1, updated = updated),
+    )
+
+    private fun question(id: String, sessionId: String, text: String) = SseEvent.QuestionAsked(
+        id = id,
+        sessionId = sessionId,
+        questions = listOf(
+            SseEvent.QuestionAsked.Question(
+                header = "Header",
+                question = text,
+                options = listOf(SseEvent.QuestionAsked.Option("Yes", "Confirm")),
+            ),
+        ),
     )
 }

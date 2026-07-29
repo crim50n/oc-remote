@@ -43,7 +43,19 @@ import androidx.core.content.ContextCompat
 import dev.minios.ocremote.R
 import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.domain.model.ServerConfig
+import dev.minios.ocremote.ui.screens.settings.LocalServerLaunchOptionsDialog
 import dev.minios.ocremote.ui.theme.StatusConnected
+import dev.minios.ocremote.data.update.UpdateState
+import dev.minios.ocremote.data.update.UpdatePolicy
+import dev.minios.ocremote.ui.components.AppCardShape
+import dev.minios.ocremote.ui.components.AppDialog
+import dev.minios.ocremote.ui.components.AppPrimaryButton
+import dev.minios.ocremote.ui.components.AppSecondaryButton
+import dev.minios.ocremote.ui.components.appAmoledBorder
+import dev.minios.ocremote.ui.components.isAmoledTheme
+import dev.minios.ocremote.ui.components.appPopupBorder
+import dev.minios.ocremote.ui.components.appPopupContainerColor
+import dev.minios.ocremote.ui.components.rememberUpdateInstallLauncher
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -113,7 +125,9 @@ private fun PulsingDotsIndicator(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    addServerRequest: Int = 0,
     onNavigateToSessions: (serverUrl: String, username: String, password: String, serverName: String, serverId: String) -> Unit = { _, _, _, _, _ -> },
+    onNavigateToCrossServerSessions: () -> Unit = {},
     onNavigateToServerSettings: (serverUrl: String, username: String, password: String, serverName: String, serverId: String) -> Unit = { _, _, _, _, _ -> },
     onNavigateToSettings: () -> Unit = {},
     onNavigateToAbout: () -> Unit = {},
@@ -122,6 +136,16 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    val launchInstaller = rememberUpdateInstallLauncher(viewModel::installerLaunched)
+
+    val readyUpdate = uiState.updateState as? UpdateState.ReadyToInstall
+    LaunchedEffect(readyUpdate?.apkPath) {
+        readyUpdate?.let { launchInstaller(it.apkPath) }
+    }
+
+    LaunchedEffect(addServerRequest) {
+        if (addServerRequest > 0) viewModel.showAddServerDialog()
+    }
 
     // Track battery optimization status, re-check when app resumes
     var isBatteryOptimized by remember { mutableStateOf(false) }
@@ -243,6 +267,28 @@ fun HomeScreen(
                                         context.startActivity(intent)
                                     }
                                 )
+                            }
+                        }
+
+                        if (uiState.updateState is UpdateState.Available || uiState.updateState is UpdateState.Error) {
+                            item(key = "__app_update") {
+                                UpdateAvailableCard(
+                                    updateState = uiState.updateState,
+                                    onPrepareInstall = viewModel::prepareInstall,
+                                    onOpenInstaller = launchInstaller,
+                                    onCheckUpdates = viewModel::checkForUpdates,
+                                    onOpenRelease = { releaseUrl ->
+                                        context.startActivity(
+                                            Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl)),
+                                        )
+                                    },
+                                )
+                            }
+                        }
+
+                        if (uiState.hasFavoriteSessions) {
+                            item(key = "__favorite_sessions") {
+                                FavoritesCard(onClick = onNavigateToCrossServerSessions)
                             }
                         }
 
@@ -375,7 +421,7 @@ fun HomeScreen(
         }
 
         if (showLocalLaunchOptionsDialog) {
-            LocalLaunchOptionsDialog(
+            LocalServerLaunchOptionsDialog(
                 enabled = uiState.localProxyEnabled,
                 proxyUrl = uiState.localProxyUrl,
                 noProxyList = uiState.localProxyNoProxy,
@@ -386,18 +432,161 @@ fun HomeScreen(
                 autoStart = uiState.localServerAutoStart,
                 startupTimeoutSec = uiState.localServerStartupTimeoutSec,
                 onDismiss = { showLocalLaunchOptionsDialog = false },
-                onProxyEnabledChange = viewModel::setLocalProxyEnabled,
-                onProxyUrlChange = viewModel::setLocalProxyUrl,
-                onNoProxyListChange = viewModel::setLocalProxyNoProxy,
-                onAllowLanAccessChange = viewModel::setLocalServerAllowLan,
-                onServerUsernameChange = viewModel::setLocalServerUsername,
-                onServerPasswordChange = viewModel::setLocalServerPassword,
-                onRunInBackgroundChange = viewModel::setLocalServerRunInBackground,
-                onAutoStartChange = viewModel::setLocalServerAutoStart,
-                onStartupTimeoutSecChange = viewModel::setLocalServerStartupTimeoutSec,
+                onSave = { proxyEnabled, savedProxyUrl, savedNoProxyList, savedAllowLan, username, password, background, savedAutoStart, timeout ->
+                    viewModel.setLocalProxyEnabled(proxyEnabled)
+                    viewModel.setLocalProxyUrl(savedProxyUrl)
+                    viewModel.setLocalProxyNoProxy(savedNoProxyList)
+                    viewModel.setLocalServerAllowLan(savedAllowLan)
+                    viewModel.setLocalServerUsername(username)
+                    viewModel.setLocalServerPassword(password)
+                    viewModel.setLocalServerRunInBackground(background)
+                    viewModel.setLocalServerAutoStart(savedAutoStart && background)
+                    viewModel.setLocalServerStartupTimeoutSec(timeout)
+                    showLocalLaunchOptionsDialog = false
+                },
             )
         }
 
+    }
+}
+
+@Composable
+private fun FavoritesCard(onClick: () -> Unit) {
+    val isAmoled = isAmoledTheme()
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = AppCardShape,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        border = appAmoledBorder(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                Icons.Default.Star,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = stringResource(R.string.cross_sessions_favorites),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun UpdateAvailableCard(
+    updateState: UpdateState,
+    onPrepareInstall: (dev.minios.ocremote.data.update.AvailableUpdate) -> Unit,
+    onOpenInstaller: (String) -> Unit,
+    onCheckUpdates: () -> Unit,
+    onOpenRelease: (String) -> Unit,
+) {
+    val release = when (updateState) {
+        is UpdateState.Available -> updateState.release
+        is UpdateState.Error -> updateState.release
+        else -> return
+    }
+    val isAmoled = isAmoledTheme()
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = AppCardShape,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.primaryContainer,
+        ),
+        border = appAmoledBorder(),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.SystemUpdate,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.update_available_title), style = MaterialTheme.typography.titleSmall)
+                Text(
+                    when (updateState) {
+                        is UpdateState.Downloading -> updateState.progressPercent?.let {
+                            stringResource(R.string.update_downloading_percent, it)
+                        } ?: stringResource(R.string.update_downloading)
+
+                        is UpdateState.Error -> if (release != null) {
+                            stringResource(R.string.update_prepare_error)
+                        } else {
+                            stringResource(R.string.update_error)
+                        }
+
+                        else -> stringResource(R.string.update_available_message, requireNotNull(release).versionName)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            when (updateState) {
+                is UpdateState.Downloading -> TextButton(
+                    onClick = {},
+                    enabled = false,
+                ) { Text(stringResource(R.string.update_downloading)) }
+
+                is UpdateState.ReadyToInstall -> TextButton(
+                    onClick = { onOpenInstaller(updateState.apkPath) },
+                ) { Text(stringResource(R.string.update_opening_installer)) }
+
+                is UpdateState.Available -> TextButton(
+                    onClick = {
+                        val availableRelease = requireNotNull(release)
+                        if (UpdatePolicy.isInstallable(availableRelease)) onPrepareInstall(availableRelease)
+                        else onOpenRelease(availableRelease.releaseUrl)
+                    },
+                ) {
+                    Text(
+                        stringResource(
+                            if (UpdatePolicy.isInstallable(requireNotNull(release))) {
+                                R.string.update_download_and_install
+                            } else {
+                                R.string.update_open_release
+                            },
+                        ),
+                    )
+                }
+
+                is UpdateState.Error -> TextButton(
+                    onClick = {
+                        if (release == null) onCheckUpdates()
+                        else if (UpdatePolicy.isInstallable(release)) onPrepareInstall(release)
+                        else onOpenRelease(release.releaseUrl)
+                    },
+                ) {
+                    Text(
+                        stringResource(
+                            when {
+                                release == null -> R.string.about_check_updates
+                                UpdatePolicy.isInstallable(release) -> R.string.update_retry
+                                else -> R.string.update_open_release
+                            },
+                        ),
+                    )
+                }
+
+                else -> Unit
+            }
+        }
     }
 }
 
@@ -422,8 +611,7 @@ private fun LocalRuntimeCard(
     onOpenLocalLaunchOptions: () -> Unit,
     onInstallTermux: () -> Unit,
 ) {
-    val isAmoled = MaterialTheme.colorScheme.background == Color.Black &&
-        MaterialTheme.colorScheme.surface == Color.Black
+    val isAmoled = isAmoledTheme()
     val cardContainerColor = if (isAmoled) {
         Color.Black
     } else {
@@ -437,6 +625,7 @@ private fun LocalRuntimeCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = AppCardShape,
         colors = CardDefaults.cardColors(
             containerColor = cardContainerColor,
         ),
@@ -511,22 +700,10 @@ private fun LocalRuntimeCard(
 
             // Fix command copy button (for errors with a known fix)
             if (runtimeStatus == LocalRuntimeStatus.Error && !fixCommand.isNullOrBlank()) {
-                OutlinedButton(
+                AppSecondaryButton(
                     onClick = { onCopyFixCommand(fixCommand) },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = if (isAmoled) {
-                        ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.Black,
-                            contentColor = MaterialTheme.colorScheme.primary,
-                        )
-                    } else {
-                        ButtonDefaults.outlinedButtonColors()
-                    },
-                    border = if (isAmoled) {
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                    } else {
-                        ButtonDefaults.outlinedButtonBorder
-                    },
+                    outlined = true,
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
@@ -535,22 +712,10 @@ private fun LocalRuntimeCard(
             }
 
             if (runtimeStatus == LocalRuntimeStatus.Error && needsOverlaySettings) {
-                OutlinedButton(
+                AppSecondaryButton(
                     onClick = onOpenTermuxOverlaySettings,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = if (isAmoled) {
-                        ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.Black,
-                            contentColor = MaterialTheme.colorScheme.primary,
-                        )
-                    } else {
-                        ButtonDefaults.outlinedButtonColors()
-                    },
-                    border = if (isAmoled) {
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                    } else {
-                        ButtonDefaults.outlinedButtonBorder
-                    },
+                    outlined = true,
                 ) {
                     Icon(Icons.Default.OpenInNew, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
@@ -562,22 +727,10 @@ private fun LocalRuntimeCard(
             when {
                 // Termux not installed — show install button
                 !termuxInstalled -> {
-                    OutlinedButton(
+                    AppSecondaryButton(
                         onClick = onInstallTermux,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = if (isAmoled) {
-                            ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color.Black,
-                                contentColor = MaterialTheme.colorScheme.primary,
-                            )
-                        } else {
-                            ButtonDefaults.outlinedButtonColors()
-                        },
-                        border = if (isAmoled) {
-                            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                        } else {
-                            ButtonDefaults.outlinedButtonBorder
-                        },
+                        outlined = true,
                     ) {
                         Icon(Icons.Default.Download, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -592,44 +745,19 @@ private fun LocalRuntimeCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = cardContentColor.copy(alpha = 0.85f),
                     )
-                    Button(
+                    AppPrimaryButton(
                         onClick = onSetup,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = if (isAmoled) {
-                            ButtonDefaults.buttonColors(
-                                containerColor = Color.Black,
-                                contentColor = MaterialTheme.colorScheme.primary,
-                            )
-                        } else {
-                            ButtonDefaults.buttonColors()
-                        },
-                        border = if (isAmoled) {
-                            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                        } else {
-                            null
-                        },
                     ) {
                         Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.home_local_setup))
                     }
 
-                    OutlinedButton(
+                    AppSecondaryButton(
                         onClick = onStart,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = if (isAmoled) {
-                            ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color.Black,
-                                contentColor = MaterialTheme.colorScheme.primary,
-                            )
-                        } else {
-                            ButtonDefaults.outlinedButtonColors()
-                        },
-                        border = if (isAmoled) {
-                            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                        } else {
-                            ButtonDefaults.outlinedButtonBorder
-                        },
+                        outlined = true,
                     ) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
@@ -651,22 +779,9 @@ private fun LocalRuntimeCard(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         if (localServerConnected) {
-                            Button(
+                            AppPrimaryButton(
                                 onClick = onOpenLocalSessions,
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = if (isAmoled) {
-                                    ButtonDefaults.buttonColors(
-                                        containerColor = Color.Black,
-                                        contentColor = MaterialTheme.colorScheme.primary,
-                                    )
-                                } else {
-                                    ButtonDefaults.buttonColors()
-                                },
-                                border = if (isAmoled) {
-                                    BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                                } else {
-                                    null
-                                },
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
@@ -674,29 +789,18 @@ private fun LocalRuntimeCard(
                             }
                         }
 
-                        OutlinedButton(
+                        AppSecondaryButton(
                             onClick = onStop,
                             modifier = Modifier.fillMaxWidth(),
                             enabled = runtimeStatus == LocalRuntimeStatus.Running,
-                            colors = if (isAmoled) {
-                                ButtonDefaults.outlinedButtonColors(
-                                    containerColor = Color.Black,
-                                    contentColor = MaterialTheme.colorScheme.primary,
-                                )
-                            } else {
-                                ButtonDefaults.outlinedButtonColors()
-                            },
-                            border = if (isAmoled) {
-                                BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                            } else {
-                                ButtonDefaults.outlinedButtonBorder
-                            },
+                            destructive = true,
+                            outlined = true,
                         ) {
                             if (runtimeStatus == LocalRuntimeStatus.Starting || runtimeStatus == LocalRuntimeStatus.Stopping) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(18.dp),
                                     strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = MaterialTheme.colorScheme.error,
                                 )
                                 Spacer(Modifier.width(8.dp))
                             }
@@ -711,44 +815,19 @@ private fun LocalRuntimeCard(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Button(
+                        AppPrimaryButton(
                             onClick = onStart,
                             modifier = Modifier.fillMaxWidth(),
-                            colors = if (isAmoled) {
-                                ButtonDefaults.buttonColors(
-                                    containerColor = Color.Black,
-                                    contentColor = MaterialTheme.colorScheme.primary,
-                                )
-                            } else {
-                                ButtonDefaults.buttonColors()
-                            },
-                            border = if (isAmoled) {
-                                BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                            } else {
-                                null
-                            },
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.home_local_start))
                         }
 
-                        OutlinedButton(
+                        AppSecondaryButton(
                             onClick = onSetup,
                             modifier = Modifier.fillMaxWidth(),
-                            colors = if (isAmoled) {
-                                ButtonDefaults.outlinedButtonColors(
-                                    containerColor = Color.Black,
-                                    contentColor = MaterialTheme.colorScheme.primary,
-                                )
-                            } else {
-                                ButtonDefaults.outlinedButtonColors()
-                            },
-                            border = if (isAmoled) {
-                                BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                            } else {
-                                ButtonDefaults.outlinedButtonBorder
-                            },
+                            outlined = true,
                         ) {
                             Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
@@ -776,22 +855,10 @@ private fun LocalRuntimeCard(
                     )
                 }
 
-                OutlinedButton(
+                AppSecondaryButton(
                     onClick = onOpenLocalSessions,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = if (isAmoled) {
-                        ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.Black,
-                            contentColor = MaterialTheme.colorScheme.primary,
-                        )
-                    } else {
-                        ButtonDefaults.outlinedButtonColors()
-                    },
-                    border = if (isAmoled) {
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                    } else {
-                        ButtonDefaults.outlinedButtonBorder
-                    },
+                    outlined = true,
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
@@ -799,377 +866,6 @@ private fun LocalRuntimeCard(
                 }
             }
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun LocalLaunchOptionsDialog(
-    enabled: Boolean,
-    proxyUrl: String,
-    noProxyList: String,
-    allowLanAccess: Boolean,
-    serverUsername: String,
-    serverPassword: String,
-    runInBackground: Boolean,
-    autoStart: Boolean,
-    startupTimeoutSec: Int,
-    onDismiss: () -> Unit,
-    onProxyEnabledChange: (Boolean) -> Unit,
-    onProxyUrlChange: (String) -> Unit,
-    onNoProxyListChange: (String) -> Unit,
-    onAllowLanAccessChange: (Boolean) -> Unit,
-    onServerUsernameChange: (String) -> Unit,
-    onServerPasswordChange: (String) -> Unit,
-    onRunInBackgroundChange: (Boolean) -> Unit,
-    onAutoStartChange: (Boolean) -> Unit,
-    onStartupTimeoutSecChange: (Int) -> Unit,
-) {
-    val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
-    val timeoutOptions = listOf(15, 30, 45, 60, 90, 120)
-    var localServerUsername by remember(serverUsername) { mutableStateOf(serverUsername) }
-    var localServerPassword by remember(serverPassword) { mutableStateOf(serverPassword) }
-    var localProxyUrl by remember(proxyUrl) { mutableStateOf(proxyUrl) }
-    var localNoProxyList by remember(noProxyList) { mutableStateOf(noProxyList) }
-    var maskPassword by remember { mutableStateOf(true) }
-    var maskProxy by remember { mutableStateOf(true) }
-    var showTimeoutDialog by remember { mutableStateOf(false) }
-    val fieldColors = if (isAmoled) {
-        OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = Color.Black,
-            unfocusedContainerColor = Color.Black,
-            disabledContainerColor = Color.Black,
-        )
-    } else {
-        OutlinedTextFieldDefaults.colors()
-    }
-
-    val switchColors = if (isAmoled) {
-        SwitchDefaults.colors(
-            checkedThumbColor = MaterialTheme.colorScheme.primary,
-            checkedTrackColor = Color.Black,
-            checkedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-            uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-            uncheckedTrackColor = Color.Black,
-            uncheckedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f),
-        )
-    } else SwitchDefaults.colors()
-
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        val containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface
-        Surface(modifier = Modifier.fillMaxSize(), color = containerColor) {
-            Scaffold(
-                containerColor = containerColor,
-                topBar = {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                text = stringResource(R.string.home_local_launch_options_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = onDismiss) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.close))
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = containerColor
-                        )
-                    )
-                },
-            ) { innerPadding ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(vertical = 4.dp)
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.home_local_network_section),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp, top = 8.dp)
-                    )
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.home_local_allow_lan_access)) },
-                        supportingContent = { Text(stringResource(R.string.home_local_allow_lan_access_desc)) },
-                        trailingContent = {
-                            Switch(checked = allowLanAccess, onCheckedChange = onAllowLanAccessChange, colors = switchColors)
-                        },
-                        modifier = Modifier.clickable { onAllowLanAccessChange(!allowLanAccess) },
-                    )
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                    Text(
-                        text = stringResource(R.string.home_local_security_section),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp)
-                    )
-                    OutlinedTextField(
-                        value = localServerUsername,
-                        onValueChange = {
-                            localServerUsername = it
-                            onServerUsernameChange(it.trim())
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        singleLine = true,
-                        label = { Text(stringResource(R.string.home_local_server_username_label)) },
-                        placeholder = { Text(stringResource(R.string.home_local_server_username_placeholder)) },
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Text),
-                        colors = fieldColors,
-                    )
-                    OutlinedTextField(
-                        value = localServerPassword,
-                        onValueChange = {
-                            localServerPassword = it
-                            onServerPasswordChange(it.trim())
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        singleLine = true,
-                        label = { Text(stringResource(R.string.home_local_server_password_label)) },
-                        placeholder = { Text(stringResource(R.string.home_local_server_password_placeholder)) },
-                        visualTransformation = if (maskPassword) FullStringMaskTransformation else VisualTransformation.None,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password),
-                        trailingIcon = {
-                            IconButton(onClick = { maskPassword = !maskPassword }) {
-                                Icon(
-                                    imageVector = if (maskPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = null,
-                                )
-                            }
-                        },
-                        colors = fieldColors,
-                    )
-                    if (allowLanAccess && localServerPassword.isBlank()) {
-                        Text(
-                            text = stringResource(R.string.home_local_lan_password_warning),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        )
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                    Text(
-                        text = stringResource(R.string.home_local_proxy_section),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp)
-                    )
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.home_local_proxy_enable)) },
-                        supportingContent = { Text(stringResource(R.string.home_local_proxy_url_label)) },
-                        trailingContent = {
-                            Switch(checked = enabled, onCheckedChange = onProxyEnabledChange, colors = switchColors)
-                        },
-                        modifier = Modifier.clickable { onProxyEnabledChange(!enabled) },
-                    )
-                    if (enabled) {
-                        OutlinedTextField(
-                            value = localProxyUrl,
-                            onValueChange = {
-                                localProxyUrl = it
-                                onProxyUrlChange(it.trim())
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            singleLine = true,
-                            label = { Text(stringResource(R.string.home_local_proxy_url_label)) },
-                            placeholder = { Text("http://127.0.0.1:8080") },
-                            visualTransformation = if (maskProxy) FullStringMaskTransformation else VisualTransformation.None,
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Uri),
-                            trailingIcon = {
-                                IconButton(onClick = { maskProxy = !maskProxy }) {
-                                    Icon(
-                                        imageVector = if (maskProxy) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        contentDescription = null,
-                                    )
-                                }
-                            },
-                            colors = fieldColors,
-                        )
-                        OutlinedTextField(
-                            value = localNoProxyList,
-                            onValueChange = {
-                                localNoProxyList = it
-                                onNoProxyListChange(it.trim())
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            minLines = 2,
-                            maxLines = 4,
-                            label = { Text(stringResource(R.string.home_local_proxy_no_proxy_label)) },
-                            placeholder = { Text(LocalServerManager.DEFAULT_NO_PROXY_LIST) },
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Text),
-                            colors = fieldColors,
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.home_local_proxy_no_proxy_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                    Text(
-                        text = stringResource(R.string.home_local_autostart_section),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp)
-                    )
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.home_local_run_background_label)) },
-                        supportingContent = { Text(stringResource(R.string.home_local_run_background_desc)) },
-                        trailingContent = {
-                            Switch(checked = runInBackground, onCheckedChange = onRunInBackgroundChange, colors = switchColors)
-                        },
-                        modifier = Modifier.clickable { onRunInBackgroundChange(!runInBackground) },
-                    )
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.home_local_auto_start_label)) },
-                        supportingContent = {
-                            Text(
-                                if (runInBackground) {
-                                    stringResource(R.string.home_local_auto_start_desc)
-                                } else {
-                                    stringResource(R.string.home_local_auto_start_requires_background)
-                                }
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = autoStart,
-                                onCheckedChange = onAutoStartChange,
-                                enabled = runInBackground,
-                                colors = switchColors,
-                            )
-                        },
-                        modifier = if (runInBackground) {
-                            Modifier.clickable { onAutoStartChange(!autoStart) }
-                        } else {
-                            Modifier
-                        },
-                    )
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.home_local_startup_timeout_label)) },
-                        supportingContent = { Text(stringResource(R.string.home_local_startup_timeout_value, startupTimeoutSec)) },
-                        trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
-                        modifier = Modifier.clickable { showTimeoutDialog = true },
-                    )
-                }
-            }
-        }
-    }
-
-    if (showTimeoutDialog) {
-        BasicAlertDialog(onDismissRequest = { showTimeoutDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
-                tonalElevation = if (isAmoled) 0.dp else 6.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 420.dp),
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = stringResource(R.string.home_local_startup_timeout_label),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 8.dp),
-                    )
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f, fill = false)
-                            .padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        items(timeoutOptions) { option ->
-                            val selected = option == startupTimeoutSec
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(
-                                        when {
-                                            selected && isAmoled -> Color.Black
-                                            selected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                                            else -> Color.Transparent
-                                        }
-                                    )
-                                    .then(
-                                        if (selected && isAmoled) {
-                                            Modifier.border(
-                                                width = 1.dp,
-                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
-                                                shape = RoundedCornerShape(12.dp),
-                                            )
-                                        } else Modifier
-                                    )
-                                    .clickable {
-                                        onStartupTimeoutSecChange(option)
-                                        showTimeoutDialog = false
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.home_local_startup_timeout_value, option),
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                )
-                                if (selected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp),
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.End,
-                    ) {
-                        TextButton(onClick = { showTimeoutDialog = false }) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private object FullStringMaskTransformation : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        val raw = text.text
-        if (raw.isEmpty()) return TransformedText(text, OffsetMapping.Identity)
-        return TransformedText(AnnotatedString("\u2022".repeat(raw.length)), OffsetMapping.Identity)
     }
 }
 
@@ -1198,7 +894,7 @@ private fun EmptyServersView(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center
             )
-            Button(onClick = onAddServer) {
+            AppPrimaryButton(onClick = onAddServer) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.home_add_server))
@@ -1223,7 +919,8 @@ private fun ServerCard(
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
-    val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    val isAmoled = isAmoledTheme()
     val cardContainerColor = if (isAmoled) {
         Color.Black
     } else {
@@ -1237,6 +934,7 @@ private fun ServerCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = AppCardShape,
         colors = CardDefaults.cardColors(
             containerColor = cardContainerColor
         ),
@@ -1295,8 +993,8 @@ private fun ServerCard(
                         DropdownMenu(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false },
-                            containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-                            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null
+                            modifier = Modifier.appPopupBorder(),
+                            containerColor = appPopupContainerColor(),
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.home_edit)) },
@@ -1309,13 +1007,22 @@ private fun ServerCard(
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.server_delete)) },
+                                text = {
+                                    Text(
+                                        stringResource(R.string.server_delete),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                },
                                 onClick = {
                                     showMenu = false
-                                    onDelete()
+                                    showDeleteConfirmation = true
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Delete, contentDescription = null)
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
                                 }
                             )
                         }
@@ -1338,22 +1045,9 @@ private fun ServerCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (isConnected) {
-                    Button(
+                    AppPrimaryButton(
                         onClick = onOpenSessions,
                         modifier = Modifier.weight(1f),
-                        colors = if (isAmoled) {
-                            ButtonDefaults.buttonColors(
-                                containerColor = Color.Black,
-                                contentColor = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            ButtonDefaults.buttonColors()
-                        },
-                        border = if (isAmoled) {
-                            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                        } else {
-                            null
-                        }
                     ) {
                         Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
@@ -1366,22 +1060,11 @@ private fun ServerCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(
+                    AppSecondaryButton(
                         onClick = onDisconnect,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = if (isAmoled) {
-                            ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color.Black,
-                                contentColor = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            ButtonDefaults.outlinedButtonColors()
-                        },
-                        border = if (isAmoled) {
-                            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                        } else {
-                            ButtonDefaults.outlinedButtonBorder
-                        }
+                        destructive = true,
+                        outlined = true,
                     ) {
                         Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
@@ -1390,25 +1073,10 @@ private fun ServerCard(
                 }
             }
             if (!isConnected) {
-                Button(
+                AppPrimaryButton(
                     onClick = onConnect,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isConnecting,
-                    colors = if (isAmoled) {
-                        ButtonDefaults.buttonColors(
-                            containerColor = Color.Black,
-                            contentColor = MaterialTheme.colorScheme.primary,
-                            disabledContainerColor = Color.Black,
-                            disabledContentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
-                        )
-                    } else {
-                        ButtonDefaults.buttonColors()
-                    },
-                    border = if (isAmoled) {
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                    } else {
-                        null
-                    }
                 ) {
                     if (isConnecting) {
                         CircularProgressIndicator(
@@ -1427,17 +1095,57 @@ private fun ServerCard(
             }
         }
     }
+
+    if (showDeleteConfirmation) {
+        AppDialog(onDismissRequest = { showDeleteConfirmation = false }) {
+            Text(
+                text = stringResource(R.string.server_delete_confirm_title),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp),
+            )
+            Text(
+                text = stringResource(R.string.server_delete_confirm_message, server.displayName),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                AppSecondaryButton(
+                    onClick = { showDeleteConfirmation = false },
+                    outlined = true,
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+                AppPrimaryButton(
+                    onClick = {
+                        showDeleteConfirmation = false
+                        onDelete()
+                    },
+                    destructive = true,
+                ) {
+                    Text(stringResource(R.string.server_delete))
+                }
+            }
+        }
+    }
 }
 
 @Composable
 private fun BatteryOptimizationBanner(
     onDisable: () -> Unit
 ) {
+    val isAmoled = isAmoledTheme()
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
+            containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.errorContainer,
         ),
-        modifier = Modifier.fillMaxWidth()
+        border = if (isAmoled) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
+        } else null,
+        shape = AppCardShape,
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
@@ -1449,22 +1157,26 @@ private fun BatteryOptimizationBanner(
             Icon(
                 imageVector = Icons.Default.BatteryAlert,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onErrorContainer,
+                tint = if (isAmoled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.size(24.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.home_battery_title),
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer
+                    color = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onErrorContainer,
                 )
                 Text(
                     text = stringResource(R.string.home_battery_message),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                    color = if (isAmoled) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                    },
                 )
             }
-            FilledTonalButton(onClick = onDisable) {
+            AppPrimaryButton(onClick = onDisable) {
                 Text(stringResource(R.string.home_fix))
             }
         }

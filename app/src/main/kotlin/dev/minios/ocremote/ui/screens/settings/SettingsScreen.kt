@@ -5,18 +5,28 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.HorizontalRule
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Palette
@@ -24,7 +34,6 @@ import androidx.compose.material.icons.filled.PhotoSizeSelectLarge
 import androidx.compose.material.icons.filled.ScreenLockPortrait
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.UnfoldMore
@@ -42,13 +51,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.minios.ocremote.R
 import dev.minios.ocremote.data.repository.LocalServerManager
+import dev.minios.ocremote.domain.model.SessionCategory
+import dev.minios.ocremote.ui.components.AppDialog
+import dev.minios.ocremote.ui.components.AppDialogActions
+import dev.minios.ocremote.ui.components.AppPrimaryButton
+import dev.minios.ocremote.ui.components.AppSecondaryButton
+import dev.minios.ocremote.ui.components.isAmoledTheme
+import dev.minios.ocremote.ui.components.AppPickerItemShape
+import dev.minios.ocremote.ui.components.appPopupBorder
+import dev.minios.ocremote.ui.components.appPopupContainerColor
+import dev.minios.ocremote.ui.components.appSelectedItemColor
+import dev.minios.ocremote.ui.components.SessionCategoryColorKeys
+import dev.minios.ocremote.ui.components.SessionCategoryIconKeys
+import dev.minios.ocremote.ui.components.sessionCategoryColor
+import dev.minios.ocremote.ui.components.sessionCategoryIcon
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -59,6 +81,7 @@ import kotlin.math.roundToInt
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToDiagnostics: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val currentLanguage by viewModel.appLanguage.collectAsState()
@@ -73,8 +96,11 @@ fun SettingsScreen(
     val amoledDark by viewModel.amoledDark.collectAsState()
     val compactMessages by viewModel.compactMessages.collectAsState()
     val collapseTools by viewModel.collapseTools.collectAsState()
+    val expandReasoning by viewModel.expandReasoning.collectAsState()
+    val showTurnDividers by viewModel.showTurnDividers.collectAsState()
     val hapticFeedback by viewModel.hapticFeedback.collectAsState()
     val reconnectMode by viewModel.reconnectMode.collectAsState()
+    val backgroundWakeLock by viewModel.backgroundWakeLock.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val silentNotifications by viewModel.silentNotifications.collectAsState()
     val compressImageAttachments by viewModel.compressImageAttachments.collectAsState()
@@ -82,15 +108,6 @@ fun SettingsScreen(
     val imageAttachmentWebpQuality by viewModel.imageAttachmentWebpQuality.collectAsState()
     val showLocalRuntime by viewModel.showLocalRuntime.collectAsState()
     val terminalFontSize by viewModel.terminalFontSize.collectAsState()
-    val localProxyEnabled by viewModel.localProxyEnabled.collectAsState()
-    val localProxyUrl by viewModel.localProxyUrl.collectAsState()
-    val localProxyNoProxy by viewModel.localProxyNoProxy.collectAsState()
-    val localServerAllowLan by viewModel.localServerAllowLan.collectAsState()
-    val localServerUsername by viewModel.localServerUsername.collectAsState()
-    val localServerPassword by viewModel.localServerPassword.collectAsState()
-    val localServerRunInBackground by viewModel.localServerRunInBackground.collectAsState()
-    val localServerAutoStart by viewModel.localServerAutoStart.collectAsState()
-    val localServerStartupTimeoutSec by viewModel.localServerStartupTimeoutSec.collectAsState()
 
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
@@ -100,11 +117,9 @@ fun SettingsScreen(
     var showTerminalFontSizeDialog by remember { mutableStateOf(false) }
     var showImageMaxSideDialog by remember { mutableStateOf(false) }
     var showImageQualityDialog by remember { mutableStateOf(false) }
-    var showLocalLaunchOptionsDialog by remember { mutableStateOf(false) }
 
-    val isAmoledTheme = MaterialTheme.colorScheme.background == Color.Black &&
-        MaterialTheme.colorScheme.surface == Color.Black
-    val switchColors = if (isAmoledTheme) {
+    val isAmoled = isAmoledTheme()
+    val switchColors = if (isAmoled) {
         SwitchDefaults.colors(
             checkedThumbColor = MaterialTheme.colorScheme.primary,
             checkedTrackColor = Color.Black,
@@ -166,6 +181,64 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { showReconnectModeDialog = true }
             )
 
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_background_wake_lock)) },
+                supportingContent = { Text(stringResource(R.string.settings_background_wake_lock_desc)) },
+                leadingContent = {
+                    Icon(Icons.Default.BatteryChargingFull, contentDescription = null)
+                },
+                trailingContent = {
+                    Switch(
+                        checked = backgroundWakeLock,
+                        onCheckedChange = { viewModel.setBackgroundWakeLock(it) },
+                        colors = switchColors,
+                    )
+                },
+                modifier = Modifier.clickable {
+                    viewModel.setBackgroundWakeLock(!backgroundWakeLock)
+                },
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
+
+            // ======== Notifications ========
+            SectionHeader(stringResource(R.string.settings_section_notifications))
+
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_notifications)) },
+                supportingContent = { Text(stringResource(R.string.settings_notifications_desc)) },
+                leadingContent = {
+                    Icon(Icons.Default.Notifications, contentDescription = null)
+                },
+                trailingContent = {
+                    Switch(
+                        checked = notificationsEnabled,
+                        onCheckedChange = { viewModel.setNotificationsEnabled(it) },
+                        colors = switchColors
+                    )
+                },
+                modifier = Modifier.clickable { viewModel.setNotificationsEnabled(!notificationsEnabled) }
+            )
+
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_silent_notifications)) },
+                supportingContent = { Text(stringResource(R.string.settings_silent_notifications_desc)) },
+                leadingContent = {
+                    Icon(Icons.Default.NotificationsOff, contentDescription = null)
+                },
+                trailingContent = {
+                    Switch(
+                        checked = silentNotifications,
+                        onCheckedChange = { viewModel.setSilentNotifications(it) },
+                        enabled = notificationsEnabled,
+                        colors = switchColors
+                    )
+                },
+                modifier = Modifier.clickable(enabled = notificationsEnabled) {
+                    viewModel.setSilentNotifications(!silentNotifications)
+                }
+            )
+
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
 
             // ======== Appearance ========
@@ -187,7 +260,7 @@ fun SettingsScreen(
                     headlineContent = { Text(stringResource(R.string.settings_dynamic_color)) },
                     supportingContent = { Text(stringResource(R.string.settings_dynamic_color_desc)) },
                     leadingContent = {
-                        Icon(Icons.Default.Palette, contentDescription = null)
+                        Icon(Icons.Default.ColorLens, contentDescription = null)
                     },
                     trailingContent = {
                         Switch(
@@ -230,6 +303,17 @@ fun SettingsScreen(
                     Icon(Icons.Default.FormatSize, contentDescription = null)
                 },
                 modifier = Modifier.clickable { showFontSizeDialog = true }
+            )
+
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_terminal_font_size)) },
+                supportingContent = {
+                    Text(stringResource(R.string.settings_terminal_font_size_value, terminalFontSize.roundToInt()))
+                },
+                leadingContent = {
+                    Icon(Icons.Default.Terminal, contentDescription = null)
+                },
+                modifier = Modifier.clickable { showTerminalFontSizeDialog = true }
             )
 
             // Compact messages
@@ -283,6 +367,34 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { viewModel.setCollapseTools(!collapseTools) }
             )
 
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_expand_reasoning)) },
+                supportingContent = { Text(stringResource(R.string.settings_expand_reasoning_desc)) },
+                leadingContent = { Icon(Icons.Default.UnfoldMore, contentDescription = null) },
+                trailingContent = {
+                    Switch(
+                        checked = expandReasoning,
+                        onCheckedChange = { viewModel.setExpandReasoning(it) },
+                        colors = switchColors,
+                    )
+                },
+                modifier = Modifier.clickable { viewModel.setExpandReasoning(!expandReasoning) },
+            )
+
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_turn_dividers)) },
+                supportingContent = { Text(stringResource(R.string.settings_turn_dividers_desc)) },
+                leadingContent = { Icon(Icons.Default.HorizontalRule, contentDescription = null) },
+                trailingContent = {
+                    Switch(
+                        checked = showTurnDividers,
+                        onCheckedChange = { viewModel.setShowTurnDividers(it) },
+                        colors = switchColors,
+                    )
+                },
+                modifier = Modifier.clickable { viewModel.setShowTurnDividers(!showTurnDividers) },
+            )
+
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
 
             // ======== Chat Behavior ========
@@ -293,7 +405,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_initial_messages)) },
                 supportingContent = { Text("$initialMessageCount") },
                 leadingContent = {
-                    Icon(Icons.Default.Storage, contentDescription = null)
+                    Icon(Icons.Default.History, contentDescription = null)
                 },
                 modifier = Modifier.clickable { showMessageCountDialog = true }
             )
@@ -368,36 +480,27 @@ fun SettingsScreen(
                 }
             )
 
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_compress_images_max_side)) },
-                supportingContent = { Text(getImageMaxSideDisplayName(imageAttachmentMaxLongSide)) },
-                leadingContent = {
-                    Icon(Icons.Default.PhotoSizeSelectLarge, contentDescription = null)
-                },
-                modifier = Modifier.clickable(enabled = compressImageAttachments) { showImageMaxSideDialog = true }
-            )
+            if (compressImageAttachments) {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_compress_images_max_side)) },
+                    supportingContent = { Text(getImageMaxSideDisplayName(imageAttachmentMaxLongSide)) },
+                    leadingContent = {
+                        Spacer(modifier = Modifier.width(24.dp))
+                    },
+                    modifier = Modifier.clickable { showImageMaxSideDialog = true }
+                )
 
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_compress_images_quality)) },
-                supportingContent = {
-                    Text(stringResource(R.string.settings_compress_images_quality_value, imageAttachmentWebpQuality))
-                },
-                leadingContent = {
-                    Icon(Icons.Default.PhotoSizeSelectLarge, contentDescription = null)
-                },
-                modifier = Modifier.clickable(enabled = compressImageAttachments) { showImageQualityDialog = true }
-            )
-
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_terminal_font_size)) },
-                supportingContent = {
-                    Text(stringResource(R.string.settings_terminal_font_size_value, terminalFontSize.roundToInt()))
-                },
-                leadingContent = {
-                    Icon(Icons.Default.Terminal, contentDescription = null)
-                },
-                modifier = Modifier.clickable { showTerminalFontSizeDialog = true }
-            )
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_compress_images_quality)) },
+                    supportingContent = {
+                        Text(stringResource(R.string.settings_compress_images_quality_value, imageAttachmentWebpQuality))
+                    },
+                    leadingContent = {
+                        Spacer(modifier = Modifier.width(24.dp))
+                    },
+                    modifier = Modifier.clickable { showImageQualityDialog = true }
+                )
+            }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
 
@@ -421,51 +524,10 @@ fun SettingsScreen(
             )
 
             ListItem(
-                headlineContent = { Text(stringResource(R.string.home_local_launch_options)) },
-                supportingContent = { Text(stringResource(R.string.home_local_launch_options_desc)) },
-                leadingContent = {
-                    Icon(Icons.Default.Settings, contentDescription = null)
-                },
-                modifier = Modifier.clickable { showLocalLaunchOptionsDialog = true },
-            )
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
-
-            // ======== Notifications ========
-            SectionHeader(stringResource(R.string.settings_section_notifications))
-
-            // Notifications
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_notifications)) },
-                supportingContent = { Text(stringResource(R.string.settings_notifications_desc)) },
-                leadingContent = {
-                    Icon(Icons.Default.Notifications, contentDescription = null)
-                },
-                trailingContent = {
-                    Switch(
-                        checked = notificationsEnabled,
-                        onCheckedChange = { viewModel.setNotificationsEnabled(it) },
-                        colors = switchColors
-                    )
-                },
-                modifier = Modifier.clickable { viewModel.setNotificationsEnabled(!notificationsEnabled) }
-            )
-
-            // Silent notifications
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_silent_notifications)) },
-                supportingContent = { Text(stringResource(R.string.settings_silent_notifications_desc)) },
-                leadingContent = {
-                    Icon(Icons.Default.NotificationsOff, contentDescription = null)
-                },
-                trailingContent = {
-                    Switch(
-                        checked = silentNotifications,
-                        onCheckedChange = { viewModel.setSilentNotifications(it) },
-                        colors = switchColors
-                    )
-                },
-                modifier = Modifier.clickable { viewModel.setSilentNotifications(!silentNotifications) }
+                headlineContent = { Text(stringResource(R.string.diagnostics_title)) },
+                supportingContent = { Text(stringResource(R.string.diagnostics_settings_desc)) },
+                leadingContent = { Icon(Icons.Default.BugReport, contentDescription = null) },
+                modifier = Modifier.clickable(onClick = onNavigateToDiagnostics),
             )
 
         }
@@ -558,31 +620,179 @@ fun SettingsScreen(
             )
         }
 
-        if (showLocalLaunchOptionsDialog) {
-            LocalServerLaunchOptionsDialog(
-                enabled = localProxyEnabled,
-                proxyUrl = localProxyUrl,
-                noProxyList = localProxyNoProxy,
-                allowLanAccess = localServerAllowLan,
-                serverUsername = localServerUsername,
-                serverPassword = localServerPassword,
-                runInBackground = localServerRunInBackground,
-                autoStart = localServerAutoStart,
-                startupTimeoutSec = localServerStartupTimeoutSec,
-                onDismiss = { showLocalLaunchOptionsDialog = false },
-                onSave = { enabled, proxyUrl, noProxyList, allowLanAccess, serverUsername, serverPassword, runInBackground, autoStart, startupTimeoutSec ->
-                    viewModel.setLocalProxyEnabled(enabled)
-                    viewModel.setLocalProxyUrl(proxyUrl)
-                    viewModel.setLocalProxyNoProxy(noProxyList)
-                    viewModel.setLocalServerAllowLan(allowLanAccess)
-                    viewModel.setLocalServerUsername(serverUsername)
-                    viewModel.setLocalServerPassword(serverPassword)
-                    viewModel.setLocalServerRunInBackground(runInBackground)
-                    viewModel.setLocalServerAutoStart(autoStart && runInBackground)
-                    viewModel.setLocalServerStartupTimeoutSec(startupTimeoutSec)
-                    showLocalLaunchOptionsDialog = false
-                },
+    }
+}
+
+@Composable
+internal fun SessionCategoriesDialog(
+    categories: List<SessionCategory>,
+    onSave: (String?, String, String, String) -> Unit,
+    onDelete: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var editingId by remember { mutableStateOf<String?>(null) }
+    var editing by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
+    var color by remember { mutableStateOf(SessionCategoryColorKeys.first()) }
+    var icon by remember { mutableStateOf(SessionCategoryIconKeys.first()) }
+
+    fun edit(category: SessionCategory?) {
+        editingId = category?.id
+        name = category?.name.orEmpty()
+        color = category?.color ?: SessionCategoryColorKeys.first()
+        icon = category?.icon ?: SessionCategoryIconKeys.first()
+        editing = true
+    }
+
+    AppDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                text = stringResource(
+                    if (editing) R.string.settings_category_edit else R.string.settings_session_categories
+                ),
+                style = MaterialTheme.typography.titleMedium,
             )
+
+            if (editing) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.settings_category_name)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                Text(stringResource(R.string.settings_category_color), style = MaterialTheme.typography.labelLarge)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    SessionCategoryColorKeys.forEach { key ->
+                        val selected = key == color
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(sessionCategoryColor(key))
+                                .then(
+                                    if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                    else Modifier
+                                )
+                                .clickable { color = key },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (selected) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Text(stringResource(R.string.settings_category_icon), style = MaterialTheme.typography.labelLarge)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SessionCategoryIconKeys.forEach { key ->
+                        val selected = key == icon
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = when {
+                                selected && !isAmoledTheme() -> sessionCategoryColor(color).copy(alpha = 0.18f)
+                                else -> Color.Transparent
+                            },
+                            border = if (selected) BorderStroke(1.dp, sessionCategoryColor(color)) else null,
+                            modifier = Modifier.clickable { icon = key },
+                        ) {
+                            Icon(
+                                imageVector = sessionCategoryIcon(key),
+                                contentDescription = null,
+                                tint = if (selected) sessionCategoryColor(color) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(10.dp).size(22.dp),
+                            )
+                        }
+                    }
+                }
+
+                AppDialogActions(
+                    dismissText = stringResource(R.string.cancel),
+                    confirmText = stringResource(R.string.settings_category_save),
+                    onDismiss = { editing = false },
+                    onConfirm = {
+                        onSave(editingId, name, color, icon)
+                        editing = false
+                    },
+                    confirmEnabled = name.isNotBlank(),
+                )
+            } else {
+                if (categories.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.settings_categories_empty),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 12.dp),
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 420.dp)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        categories.forEach { category ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { edit(category) }
+                                    .padding(start = 12.dp, top = 8.dp, bottom = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    imageVector = sessionCategoryIcon(category.icon),
+                                    contentDescription = null,
+                                    tint = sessionCategoryColor(category.color),
+                                )
+                                Text(
+                                    text = category.name,
+                                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                IconButton(onClick = { onDelete(category.id) }) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = stringResource(R.string.settings_category_delete),
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                AppDialogActions(
+                    dismissText = stringResource(R.string.close),
+                    confirmText = stringResource(R.string.settings_category_add),
+                    onDismiss = onDismiss,
+                    onConfirm = { edit(null) },
+                )
+            }
         }
     }
 }
@@ -605,7 +815,7 @@ private fun SectionHeader(title: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LocalServerLaunchOptionsDialog(
+internal fun LocalServerLaunchOptionsDialog(
     enabled: Boolean,
     proxyUrl: String,
     noProxyList: String,
@@ -628,7 +838,7 @@ private fun LocalServerLaunchOptionsDialog(
         startupTimeoutSec: Int,
     ) -> Unit,
 ) {
-    val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
+    val isAmoled = isAmoledTheme()
     var localEnabled by remember(enabled) { mutableStateOf(enabled) }
     var localProxyUrl by remember(proxyUrl) { mutableStateOf(proxyUrl) }
     var localNoProxyList by remember(noProxyList) { mutableStateOf(noProxyList) }
@@ -663,17 +873,21 @@ private fun LocalServerLaunchOptionsDialog(
         SwitchDefaults.colors()
     }
 
-    AlertDialog(
+    AppDialog(
         onDismissRequest = onDismiss,
-        modifier = amoledDialogModifier(),
-        shape = RoundedCornerShape(28.dp),
-        title = {
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             Text(
                 text = stringResource(R.string.home_local_launch_options),
                 style = MaterialTheme.typography.titleMedium,
             )
-        },
-        text = {
+
             Column(
                 modifier = Modifier
                     .heightIn(max = bodyMaxHeight)
@@ -844,7 +1058,12 @@ private fun LocalServerLaunchOptionsDialog(
                         label = { Text(stringResource(R.string.home_local_startup_timeout_label)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = timeoutExpanded) },
                     )
-                    ExposedDropdownMenu(expanded = timeoutExpanded, onDismissRequest = { timeoutExpanded = false }) {
+                    ExposedDropdownMenu(
+                        expanded = timeoutExpanded,
+                        onDismissRequest = { timeoutExpanded = false },
+                        modifier = Modifier.appPopupBorder(),
+                        containerColor = appPopupContainerColor(),
+                    ) {
                         timeoutOptions.forEach { value ->
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.home_local_startup_timeout_value, value)) },
@@ -857,10 +1076,12 @@ private fun LocalServerLaunchOptionsDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
+
+            AppDialogActions(
+                dismissText = stringResource(R.string.cancel),
+                confirmText = stringResource(R.string.server_save),
+                onDismiss = onDismiss,
+                onConfirm = {
                     onSave(
                         localEnabled,
                         trimmedProxyUrl,
@@ -873,18 +1094,10 @@ private fun LocalServerLaunchOptionsDialog(
                         localStartupTimeoutSec,
                     )
                 },
-                enabled = canSave,
-            ) {
-                Text(stringResource(R.string.server_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
-        containerColor = amoledDialogContainerColor(),
-    )
+                confirmEnabled = canSave,
+            )
+        }
+    }
 }
 
 private object FullStringMaskTransformation : VisualTransformation {
@@ -898,39 +1111,6 @@ private object FullStringMaskTransformation : VisualTransformation {
             androidx.compose.ui.text.AnnotatedString(masked),
             androidx.compose.ui.text.input.OffsetMapping.Identity,
         )
-    }
-}
-
-@Composable
-private fun amoledDialogModifier(): Modifier {
-    val isAmoledTheme = MaterialTheme.colorScheme.background == Color.Black &&
-        MaterialTheme.colorScheme.surface == Color.Black
-    return if (isAmoledTheme) {
-        Modifier.border(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-            shape = RoundedCornerShape(28.dp),
-        )
-    } else {
-        Modifier
-    }
-}
-
-@Composable
-private fun amoledDialogContainerColor(): Color {
-    val isAmoledTheme = MaterialTheme.colorScheme.background == Color.Black &&
-        MaterialTheme.colorScheme.surface == Color.Black
-    return if (isAmoledTheme) Color.Black else AlertDialogDefaults.containerColor
-}
-
-@Composable
-private fun amoledSelectedItemColor(): Color {
-    val isAmoledTheme = MaterialTheme.colorScheme.background == Color.Black &&
-        MaterialTheme.colorScheme.surface == Color.Black
-    return if (isAmoledTheme) {
-        Color.Black
-    } else {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
     }
 }
 
@@ -948,7 +1128,7 @@ private fun amoledSelectedItemColor(): Color {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun <K> SettingsPickerDialog(
+internal fun <K> SettingsPickerDialog(
     title: String,
     options: List<Pair<K, String>>,
     selectedKey: K,
@@ -956,8 +1136,7 @@ private fun <K> SettingsPickerDialog(
     onDismiss: () -> Unit,
     maxHeight: Int = 480
 ) {
-    val isAmoled = MaterialTheme.colorScheme.background == Color.Black &&
-        MaterialTheme.colorScheme.surface == Color.Black
+    val isAmoled = isAmoledTheme()
 
     val listState = rememberLazyListState()
 
@@ -969,19 +1148,12 @@ private fun <K> SettingsPickerDialog(
         listState.scrollToItem(selectedIndex)
     }
 
-    BasicAlertDialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = amoledDialogContainerColor(),
-            border = if (isAmoled) BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
-            ) else null,
-            tonalElevation = if (isAmoled) 0.dp else 6.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = maxHeight.dp)
-        ) {
+    AppDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = maxHeight.dp),
+    ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 // Title
                 Text(
@@ -1012,10 +1184,10 @@ private fun <K> SettingsPickerDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(AppPickerItemShape)
                                 .background(
                                     when {
-                                        isSelected -> amoledSelectedItemColor()
+                                        isSelected -> appSelectedItemColor()
                                         else -> Color.Transparent
                                     }
                                 )
@@ -1024,7 +1196,7 @@ private fun <K> SettingsPickerDialog(
                                         Modifier.border(
                                             width = 1.dp,
                                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
-                                            shape = RoundedCornerShape(12.dp),
+                                            shape = AppPickerItemShape,
                                         )
                                     } else {
                                         Modifier
@@ -1060,12 +1232,11 @@ private fun <K> SettingsPickerDialog(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = onDismiss) {
+                    AppSecondaryButton(onClick = onDismiss) {
                         Text(stringResource(R.string.cancel))
                     }
                 }
             }
-        }
     }
 }
 
@@ -1184,17 +1355,20 @@ private fun TerminalFontSizeDialog(
 ) {
     var selected by remember(currentSize) { mutableFloatStateOf(currentSize.coerceIn(6f, 20f)) }
 
-    AlertDialog(
-        modifier = amoledDialogModifier(),
+    AppDialog(
         onDismissRequest = onDismiss,
-        containerColor = amoledDialogContainerColor(),
-        title = {
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             Text(
                 text = stringResource(R.string.settings_terminal_font_size),
                 style = MaterialTheme.typography.titleMedium,
             )
-        },
-        text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = stringResource(R.string.settings_terminal_font_size_value, selected.roundToInt()),
@@ -1208,18 +1382,20 @@ private fun TerminalFontSizeDialog(
                     steps = 13
                 )
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSizeSelected(selected.roundToInt().toFloat()) }) {
-                Text(stringResource(R.string.ok))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                AppSecondaryButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.cancel))
+                }
+                AppPrimaryButton(onClick = { onSizeSelected(selected.roundToInt().toFloat()) }) {
+                    Text(stringResource(R.string.ok))
+                }
             }
         }
-    )
+    }
 }
 
 @Composable

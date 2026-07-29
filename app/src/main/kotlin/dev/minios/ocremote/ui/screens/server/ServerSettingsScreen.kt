@@ -1,6 +1,5 @@
 package dev.minios.ocremote.ui.screens.server
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -32,6 +30,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.minios.ocremote.R
+import dev.minios.ocremote.ui.components.AppCardShape
+import dev.minios.ocremote.ui.components.appAmoledBorder
+import dev.minios.ocremote.ui.components.isAmoledTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,7 +41,7 @@ fun ServerSettingsScreen(
     onOpenProviders: () -> Unit,
     onOpenModels: () -> Unit
 ) {
-    val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
+    val isAmoled = isAmoledTheme()
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
@@ -66,15 +67,11 @@ fun ServerSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Card(
-                shape = RoundedCornerShape(12.dp),
+                shape = AppCardShape,
                 colors = CardDefaults.cardColors(
                     containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer
                 ),
-                border = if (isAmoled) {
-                    BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
-                } else {
-                    null
-                },
+                border = appAmoledBorder(0.65f),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = onOpenProviders)
@@ -101,20 +98,20 @@ fun ServerSettingsScreen(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
                         )
                     }
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
             Card(
-                shape = RoundedCornerShape(12.dp),
+                shape = AppCardShape,
                 colors = CardDefaults.cardColors(
                     containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer
                 ),
-                border = if (isAmoled) {
-                    BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
-                } else {
-                    null
-                },
+                border = appAmoledBorder(0.65f),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = onOpenModels)
@@ -141,7 +138,11 @@ fun ServerSettingsScreen(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
                         )
                     }
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

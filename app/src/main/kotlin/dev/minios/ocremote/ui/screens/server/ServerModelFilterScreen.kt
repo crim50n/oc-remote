@@ -1,6 +1,5 @@
 package dev.minios.ocremote.ui.screens.server
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,9 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
@@ -30,7 +29,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -47,6 +45,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.minios.ocremote.R
+import dev.minios.ocremote.ui.components.AppCardShape
+import dev.minios.ocremote.ui.components.AppPrimaryButton
+import dev.minios.ocremote.ui.components.AppSearchShape
+import dev.minios.ocremote.ui.components.appAmoledBorder
+import dev.minios.ocremote.ui.components.isAmoledTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,7 +58,7 @@ fun ServerModelFilterScreen(
     viewModel: ServerSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val isAmoled = MaterialTheme.colorScheme.background == Color.Black && MaterialTheme.colorScheme.surface == Color.Black
+    val isAmoled = isAmoledTheme()
     var search by remember { mutableStateOf("") }
 
     val normalized = search.trim().lowercase()
@@ -96,9 +99,17 @@ fun ServerModelFilterScreen(
                 value = search,
                 onValueChange = { search = it },
                 modifier = Modifier.fillMaxWidth(),
+                shape = AppSearchShape,
                 leadingIcon = {
                     Icon(Icons.Default.Search, contentDescription = null)
                 },
+                trailingIcon = if (search.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { search = "" }) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                        }
+                    }
+                } else null,
                 placeholder = { Text(stringResource(R.string.server_settings_search_placeholder)) },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
@@ -123,7 +134,7 @@ fun ServerModelFilterScreen(
                             Spacer(Modifier.height(8.dp))
                             Text(uiState.error ?: stringResource(R.string.server_settings_load_error))
                             Spacer(Modifier.height(8.dp))
-                            TextButton(onClick = { viewModel.loadProviders() }) {
+                            AppPrimaryButton(onClick = { viewModel.loadProviders() }) {
                                 Text(stringResource(R.string.retry))
                             }
                         }
@@ -143,15 +154,11 @@ fun ServerModelFilterScreen(
                     ) {
                         items(filteredGroups, key = { it.providerId }) { group ->
                             Card(
-                                shape = RoundedCornerShape(12.dp),
+                                shape = AppCardShape,
                                 colors = CardDefaults.cardColors(
                                     containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer
                                 ),
-                                border = if (isAmoled) {
-                                    BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
-                                } else {
-                                    null
-                                }
+                                border = appAmoledBorder(0.65f),
                             ) {
                                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
                                     Text(

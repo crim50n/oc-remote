@@ -1,6 +1,6 @@
 package dev.minios.ocremote.data.repository
 
-import android.util.Log
+import dev.minios.ocremote.logging.AppLogger as Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -126,7 +126,7 @@ class ServerRepository @Inject constructor(
             
             Result.success(health)
         } catch (e: Exception) {
-            Log.e(TAG, "Health check failed for ${server.url}", e)
+            Log.e(TAG, "Server health check failed", e)
             
             // Mark as unhealthy
             val updatedServer = server.copy(isHealthy = false)
@@ -140,7 +140,7 @@ class ServerRepository @Inject constructor(
      * Check server health (alias returning boolean)
      */
     suspend fun checkServerHealth(server: ServerConfig): Boolean {
-        return checkHealth(server).isSuccess
+        return checkHealth(server).getOrNull()?.healthy == true
     }
     
     /**

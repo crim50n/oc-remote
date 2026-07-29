@@ -1,15 +1,20 @@
 package dev.minios.ocremote.ui.screens.chat
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -20,9 +25,13 @@ import androidx.compose.foundation.combinedClickable
 
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.WindowInsets
@@ -46,8 +55,10 @@ import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -78,9 +89,15 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.TextToolbar
 import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -100,6 +117,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -109,12 +129,19 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.coil2.Coil2ImageTransformerImpl
+import com.mikepenz.markdown.model.DefaultMarkdownAnnotator
+import org.intellij.markdown.flavours.gfm.GFMElementTypes
+import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
+import org.intellij.markdown.flavours.gfm.GFMTokenTypes
+import org.intellij.markdown.MarkdownTokenTypes
 import dev.minios.ocremote.domain.model.*
 import dev.minios.ocremote.data.api.AgentInfo
 import dev.minios.ocremote.data.api.CommandInfo
@@ -126,11 +153,16 @@ import dev.minios.ocremote.ui.theme.CodeTypography
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.jsonArray
+import java.util.Locale
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlin.math.roundToInt
+import kotlin.math.abs
 
 import android.net.Uri
 import android.content.Intent
@@ -138,10 +170,10 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.AudioManager
+import android.provider.OpenableColumns
 import android.os.Build
-import android.os.SystemClock
 import android.util.Base64
-import android.util.Log
+import dev.minios.ocremote.logging.AppLogger as Log
 import android.view.MotionEvent
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -150,6 +182,16 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
 import dev.minios.ocremote.R
 import dev.minios.ocremote.ui.components.ProviderIcon
+import dev.minios.ocremote.ui.components.AppDialog
+import dev.minios.ocremote.ui.components.AppLoadingEdge
+import dev.minios.ocremote.ui.components.AppPickerItemShape
+import dev.minios.ocremote.ui.components.AppPrimaryButton
+import dev.minios.ocremote.ui.components.AppSecondaryButton
+import dev.minios.ocremote.ui.components.appAmoledBorder
+import dev.minios.ocremote.ui.components.appSelectedItemColor
+import dev.minios.ocremote.ui.components.appPopupBorder
+import dev.minios.ocremote.ui.components.appPopupContainerColor
+import dev.minios.ocremote.ui.components.isAmoledTheme
 
 
 /**
@@ -171,17 +213,15 @@ val LocalCompactMessages = compositionLocalOf { false }
 /** Whether tool cards are collapsed by default. */
 val LocalCollapseTools = compositionLocalOf { false }
 
+val LocalExpandReasoning = compositionLocalOf { false }
+
+val LocalShowTurnDividers = compositionLocalOf { true }
+
 /** Whether haptic feedback is enabled. */
 val LocalHapticFeedbackEnabled = compositionLocalOf { true }
 
 /** Image save request callback available to image preview composables. */
 val LocalImageSaveRequest = compositionLocalOf<(ByteArray, String, String?) -> Unit> { { _, _, _ -> } }
-
-@Composable
-private fun isAmoledTheme(): Boolean {
-    val colors = MaterialTheme.colorScheme
-    return colors.background == Color.Black && colors.surface == Color.Black
-}
 
 @Composable
 private fun toolOutputContainerColor(isAmoled: Boolean): Color {
@@ -190,6 +230,16 @@ private fun toolOutputContainerColor(isAmoled: Boolean): Color {
         isSystemInDarkTheme() -> MaterialTheme.colorScheme.secondaryContainer
         else -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.82f)
     }
+}
+
+@Composable
+private fun Modifier.expandableToolHeader(
+    expanded: Boolean,
+    onClick: () -> Unit,
+): Modifier {
+    val state = stringResource(if (expanded) R.string.chat_collapse else R.string.chat_expand)
+    return semantics { stateDescription = state }
+        .clickable(role = Role.Button, onClick = onClick)
 }
 
 /**
@@ -646,8 +696,59 @@ private data class ImageAttachment(
     val uri: Uri,
     val mime: String,
     val filename: String,
-    val dataUrl: String // "data:<mime>;base64,..."
+    val dataUrl: String, // "data:<mime>;base64,..."
+    val sizeBytes: Int = 0,
+) {
+    val isImage: Boolean get() = mime.startsWith("image/")
+}
+
+internal enum class LocalAttachmentValidation { ACCEPTED, UNSUPPORTED, TOO_LARGE }
+
+private const val MAX_DOCUMENT_ATTACHMENT_BYTES = 10 * 1024 * 1024
+private const val MAX_TEXT_ATTACHMENT_BYTES = 2 * 1024 * 1024
+private val TEXT_FILE_EXTENSIONS = setOf(
+    "txt", "md", "markdown", "json", "jsonl", "xml", "yaml", "yml", "toml", "csv", "tsv",
+    "kt", "kts", "java", "js", "jsx", "ts", "tsx", "py", "rb", "go", "rs", "c", "h", "cpp", "hpp",
+    "cs", "swift", "sh", "bash", "zsh", "fish", "sql", "html", "css", "scss", "gradle", "properties",
+    "ini", "conf", "config", "log", "env", "gitignore",
 )
+
+internal fun validateLocalAttachment(mime: String, filename: String, sizeBytes: Long): LocalAttachmentValidation {
+    val extension = filename.substringAfterLast('.', "").lowercase()
+    val isText = mime.startsWith("text/") || extension in TEXT_FILE_EXTENSIONS || mime in setOf(
+        "application/json", "application/xml", "application/javascript", "application/x-yaml", "application/yaml",
+    )
+    val supported = mime.startsWith("image/") || mime == "application/pdf" || isText
+    if (!supported) return LocalAttachmentValidation.UNSUPPORTED
+    val limit = if (isText) MAX_TEXT_ATTACHMENT_BYTES else MAX_DOCUMENT_ATTACHMENT_BYTES
+    return if (sizeBytes > limit) LocalAttachmentValidation.TOO_LARGE else LocalAttachmentValidation.ACCEPTED
+}
+
+private fun attachmentMetadata(contentResolver: android.content.ContentResolver, uri: Uri): Pair<String, Long?> {
+    var name: String? = null
+    var size: Long? = null
+    contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+            if (nameIndex >= 0) name = cursor.getString(nameIndex)
+            if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) size = cursor.getLong(sizeIndex)
+        }
+    }
+    return (name ?: uri.lastPathSegment?.substringAfterLast('/') ?: "attachment") to size
+}
+
+private fun readBytesLimited(input: java.io.InputStream, limit: Int): ByteArray? {
+    val output = java.io.ByteArrayOutputStream()
+    val buffer = ByteArray(8192)
+    while (true) {
+        val count = input.read(buffer)
+        if (count < 0) break
+        if (output.size() + count > limit) return null
+        output.write(buffer, 0, count)
+    }
+    return output.toByteArray()
+}
 
 private data class ImageSaveRequest(
     val bytes: ByteArray,
@@ -733,12 +834,18 @@ private suspend fun buildAttachmentFromUri(
     maxLongSidePx: Int = 1440,
     webpQuality: Int = 60
 ): PreparedAttachment? = withContext(Dispatchers.IO) {
-    val mimeType = contentResolver.getType(uri) ?: "image/png"
-    val acceptedTypes = setOf("image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf")
-    if (mimeType !in acceptedTypes) return@withContext null
-
-    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@withContext null
-    val originalFilename = uri.lastPathSegment?.substringAfterLast('/') ?: "image.png"
+    val (originalFilename, declaredSize) = attachmentMetadata(contentResolver, uri)
+    var mimeType = contentResolver.getType(uri) ?: "application/octet-stream"
+    val extension = originalFilename.substringAfterLast('.', "").lowercase()
+    if (mimeType == "application/octet-stream" && extension in TEXT_FILE_EXTENSIONS) mimeType = "text/plain"
+    if (validateLocalAttachment(mimeType, originalFilename, declaredSize ?: 0) != LocalAttachmentValidation.ACCEPTED) {
+        return@withContext null
+    }
+    val isText = mimeType.startsWith("text/") || extension in TEXT_FILE_EXTENSIONS || mimeType in setOf(
+        "application/json", "application/xml", "application/javascript", "application/x-yaml", "application/yaml",
+    )
+    val byteLimit = if (isText) MAX_TEXT_ATTACHMENT_BYTES else MAX_DOCUMENT_ATTACHMENT_BYTES
+    val bytes = contentResolver.openInputStream(uri)?.use { readBytesLimited(it, byteLimit) } ?: return@withContext null
 
     val shouldOptimize = compressImages && (mimeType == "image/png" || mimeType == "image/jpeg")
     if (!shouldOptimize) {
@@ -748,7 +855,8 @@ private suspend fun buildAttachmentFromUri(
                 uri = uri,
                 mime = mimeType,
                 filename = originalFilename,
-                dataUrl = "data:$mimeType;base64,$base64"
+                dataUrl = "data:$mimeType;base64,$base64",
+                sizeBytes = bytes.size,
             )
         )
     }
@@ -761,7 +869,8 @@ private suspend fun buildAttachmentFromUri(
                 uri = uri,
                 mime = mimeType,
                 filename = originalFilename,
-                dataUrl = "data:$mimeType;base64,$base64"
+                dataUrl = "data:$mimeType;base64,$base64",
+                sizeBytes = bytes.size,
             )
         )
     }
@@ -799,7 +908,8 @@ private suspend fun buildAttachmentFromUri(
                 uri = uri,
                 mime = mimeType,
                 filename = originalFilename,
-                dataUrl = "data:$mimeType;base64,$base64"
+                dataUrl = "data:$mimeType;base64,$base64",
+                sizeBytes = bytes.size,
             )
         )
     }
@@ -812,7 +922,8 @@ private suspend fun buildAttachmentFromUri(
                 uri = uri,
                 mime = mimeType,
                 filename = originalFilename,
-                dataUrl = "data:$mimeType;base64,$base64"
+                dataUrl = "data:$mimeType;base64,$base64",
+                sizeBytes = bytes.size,
             )
         )
     }
@@ -823,7 +934,8 @@ private suspend fun buildAttachmentFromUri(
             uri = uri,
             mime = "image/webp",
             filename = optimizedFilename,
-            dataUrl = "data:image/webp;base64,$base64"
+            dataUrl = "data:image/webp;base64,$base64",
+            sizeBytes = webpBytes.size,
         ),
         comparison = AttachmentComparison(
             originalBytes = bytes.size,
@@ -839,9 +951,10 @@ private suspend fun buildAttachmentFromUri(
 fun ChatScreen(
     onNavigateBack: () -> Unit,
     onNavigateToSession: (sessionId: String) -> Unit = {},
+    onNavigateToChildSession: (sessionId: String) -> Unit = {},
     onOpenInWebView: () -> Unit = {},
-    initialSharedImages: List<Uri> = emptyList(),
-    onSharedImagesConsumed: () -> Unit = {},
+    initialSharedAttachments: List<Uri> = emptyList(),
+    onSharedAttachmentsConsumed: () -> Unit = {},
     startInTerminalMode: Boolean = false,
     viewModel: ChatViewModel = hiltViewModel()
 ) {
@@ -867,12 +980,13 @@ fun ChatScreen(
     var showModelPicker by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var showAttachmentOptions by remember { mutableStateOf(false) }
+    var showSubagentContextDetails by remember { mutableStateOf(false) }
     var isTerminalMode by rememberSaveable { mutableStateOf(startInTerminalMode) }
     var terminalCtrlLatched by rememberSaveable { mutableStateOf(false) }
     var terminalAltLatched by rememberSaveable { mutableStateOf(false) }
     var terminalVirtualCtrlDown by remember { mutableStateOf(false) }
     var terminalVirtualFnDown by remember { mutableStateOf(false) }
-    var suppressFnTildeUntil by remember { mutableStateOf(0L) }
     val terminalFocusRequester = remember { FocusRequester() }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -895,6 +1009,8 @@ fun ChatScreen(
     val confirmBeforeSend by viewModel.confirmBeforeSend.collectAsState()
     val compactMessages by viewModel.compactMessages.collectAsState()
     val collapseTools by viewModel.collapseTools.collectAsState()
+    val expandReasoning by viewModel.expandReasoning.collectAsState()
+    val showTurnDividers by viewModel.showTurnDividers.collectAsState()
     val hapticEnabled by viewModel.hapticFeedback.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val compressImageAttachments by viewModel.compressImageAttachments.collectAsState()
@@ -904,13 +1020,10 @@ fun ChatScreen(
     val terminalConnected by viewModel.terminalConnected.collectAsState()
     val terminalTabs by viewModel.terminalTabs.collectAsState()
     val activeTerminalTabId by viewModel.activeTerminalTabId.collectAsState()
+    val activeTerminalTab = terminalTabs.firstOrNull { it.id == activeTerminalTabId }
     val terminalFontSizeSp by viewModel.terminalFontSizeSp.collectAsState()
-    if (BuildConfig.DEBUG) {
-        LaunchedEffect(terminalFontSizeSp) {
-            Log.d("TerminalZoom", "ChatScreen: terminalFontSizeSp CHANGED to $terminalFontSizeSp (flow identity=${System.identityHashCode(viewModel.terminalFontSizeSp)})")
-        }
-    }
     val terminalDrawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val lifecycleOwner = LocalLifecycleOwner.current
     var showSendConfirmDialog by remember { mutableStateOf(false) }
     // Pending send action: stored so the confirm dialog can trigger it
     var pendingSendAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -947,6 +1060,19 @@ fun ChatScreen(
         }
     }
 
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                terminalCtrlLatched = false
+                terminalAltLatched = false
+                terminalVirtualCtrlDown = false
+                terminalVirtualFnDown = false
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     DisposableEffect(isTerminalMode) {
         val activity = context as? MainActivity
         if (isTerminalMode && activity != null) {
@@ -957,19 +1083,9 @@ fun ChatScreen(
                         true
                     }
                     android.view.KeyEvent.KEYCODE_VOLUME_UP -> {
-                        val wasDown = terminalVirtualFnDown
                         terminalVirtualFnDown = event.action == android.view.KeyEvent.ACTION_DOWN
                         if (BuildConfig.DEBUG) {
-                            Log.d("TerminalInput", "VOL_UP: action=${if (event.action == android.view.KeyEvent.ACTION_DOWN) "DOWN" else "UP"} wasDown=$wasDown nowDown=$terminalVirtualFnDown")
-                        }
-                        if (wasDown && !terminalVirtualFnDown) {
-                            // FN key released — some IMEs leak a delayed '~' character
-                            // from the underlying key (e.g., Shift+` or dead-key residue).
-                            // Suppress any standalone '~' arriving shortly after release.
-                            suppressFnTildeUntil = SystemClock.elapsedRealtime() + 3_000L
-                            if (BuildConfig.DEBUG) {
-                                Log.d("TerminalInput", "FN released -> suppressFnTildeUntil set for 3s")
-                            }
+                            Log.d("TerminalInput", "VOL_UP: action=${if (event.action == android.view.KeyEvent.ACTION_DOWN) "DOWN" else "UP"} nowDown=$terminalVirtualFnDown")
                         }
                         true
                     }
@@ -1027,37 +1143,7 @@ fun ChatScreen(
     fun sendTerminalChunk(chunk: String) {
         if (BuildConfig.DEBUG) {
             val codes = chunk.map { String.format("%04x", it.code) }
-            val remain = suppressFnTildeUntil - SystemClock.elapsedRealtime()
-            Log.d("TerminalInput", "sendTerminalChunk: chunk=$codes fnDown=$terminalVirtualFnDown suppressRemain=${remain}ms")
-        }
-        if (!terminalVirtualFnDown) {
-            val now = SystemClock.elapsedRealtime()
-            if (now < suppressFnTildeUntil && chunk.contains('~')) {
-                // Guard against a leaked '~' after an FN key combo (e.g., Fn+0/F10).
-                // The tilde may arrive alone ("~") or bundled with other characters.
-                if (BuildConfig.DEBUG) {
-                    Log.d("TerminalInput", "SUPPRESSING tilde from chunk='$chunk'")
-                }
-                val stripped = chunk.replace("~", "")
-                suppressFnTildeUntil = 0L
-                if (stripped.isEmpty()) return
-                // Forward the non-tilde remainder.
-                @Suppress("NAME_SHADOWING")
-                val chunk = stripped
-                // fall through with the cleaned chunk
-                val ctrlActive2 = terminalCtrlLatched || terminalVirtualCtrlDown
-                val altActive2 = terminalAltLatched
-                val processed = applyTerminalModifiers(input = chunk, ctrl = ctrlActive2, alt = altActive2)
-                if (processed.isEmpty()) return
-                viewModel.sendTerminalInput(processed)
-                if (terminalCtrlLatched) terminalCtrlLatched = false
-                if (terminalAltLatched) terminalAltLatched = false
-                return
-            }
-            if (chunk.isNotEmpty() && !chunk.contains('~')) {
-                // Any other explicit input clears the temporary suppression window.
-                suppressFnTildeUntil = 0L
-            }
+            Log.d("TerminalInput", "sendTerminalChunk: chunk=$codes fnDown=$terminalVirtualFnDown")
         }
 
         val ctrlActive = terminalCtrlLatched || terminalVirtualCtrlDown
@@ -1088,12 +1174,6 @@ fun ChatScreen(
                     terminalFocusRequester.requestFocus()
                     keyboardController?.show()
                 }
-            }
-            if (fnResult.output.contains("~")) {
-                // Any FN binding that produces '~' in its escape sequence (F5-F12, Insert,
-                // Delete, PageUp, PageDown) may cause the IME to leak a standalone '~' after
-                // the Volume-Up (FN) key is released.
-                suppressFnTildeUntil = SystemClock.elapsedRealtime() + 3_000L
             }
             fnResult.output
         } else {
@@ -1226,6 +1306,40 @@ fun ChatScreen(
         }
     }
 
+    val documentPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments(),
+    ) { uris: List<Uri> ->
+        coroutineScope.launch {
+            var rejected = 0
+            for (uri in uris) {
+                try {
+                    runCatching {
+                        context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    val prepared = buildAttachmentFromUri(
+                        contentResolver = context.contentResolver,
+                        uri = uri,
+                        compressImages = compressImageAttachments,
+                        maxLongSidePx = imageAttachmentMaxLongSide,
+                        webpQuality = imageAttachmentWebpQuality,
+                    )
+                    if (prepared == null) {
+                        rejected++
+                    } else {
+                        attachments.add(prepared.attachment)
+                        viewModel.addDraftAttachment(uri.toString())
+                    }
+                } catch (e: Exception) {
+                    Log.w("ChatScreen", "Failed to attach document $uri", e)
+                    rejected++
+                }
+            }
+            if (rejected > 0) {
+                snackbarHostState.showSnackbar(context.getString(R.string.chat_file_attachment_rejected, rejected))
+            }
+        }
+    }
+
     // Session export via SAF (Storage Access Framework)
     // Flow: menu click → SAF file picker → stream API responses directly to file
     val exportLauncher = rememberLauncherForActivityResult(
@@ -1275,11 +1389,12 @@ fun ChatScreen(
         saveImageLauncher.launch(fileName)
     }
 
-    // Consume images shared from other apps via ACTION_SEND (one-shot)
-    LaunchedEffect(initialSharedImages) {
-        if (initialSharedImages.isEmpty()) return@LaunchedEffect
+    // Consume attachments shared from other apps via ACTION_SEND (one-shot)
+    LaunchedEffect(initialSharedAttachments) {
+        if (initialSharedAttachments.isEmpty()) return@LaunchedEffect
         val optimizedComparisons = mutableListOf<AttachmentComparison>()
-        for (uri in initialSharedImages) {
+        var rejected = 0
+        for (uri in initialSharedAttachments) {
             try {
                 // Take persistable URI permission so the URI survives app restarts
                 try {
@@ -1296,14 +1411,22 @@ fun ChatScreen(
                     compressImages = compressImageAttachments,
                     maxLongSidePx = imageAttachmentMaxLongSide,
                     webpQuality = imageAttachmentWebpQuality
-                ) ?: continue
+                )
+                if (prepared == null) {
+                    rejected++
+                    continue
+                }
 
                 attachments.add(prepared.attachment)
                 prepared.comparison?.let { optimizedComparisons.add(it) }
                 viewModel.addDraftAttachment(uri.toString())
             } catch (e: Exception) {
-                Log.w("ChatScreen", "Failed to read shared image: ${e.message}")
+                Log.w("ChatScreen", "Failed to read shared attachment $uri", e)
+                rejected++
             }
+        }
+        if (rejected > 0) {
+            snackbarHostState.showSnackbar(context.getString(R.string.chat_file_attachment_rejected, rejected))
         }
         if (optimizedComparisons.isNotEmpty()) {
             val totalOriginal = optimizedComparisons.sumOf { it.originalBytes }
@@ -1321,7 +1444,7 @@ fun ChatScreen(
                 )
             )
         }
-        onSharedImagesConsumed()
+        onSharedAttachmentsConsumed()
     }
 
     // Show errors as snackbar when messages are already loaded
@@ -1382,23 +1505,13 @@ fun ChatScreen(
             else -> 0
         }
     } ?: 0
-    val pendingCount = uiState.pendingPermissions.size + uiState.pendingQuestions.size
+    val pendingInteractions = uiState.pendingInteractions
+    val pendingCount = pendingInteractions.size
     val isBusy = uiState.sessionStatus is SessionStatus.Busy
     LaunchedEffect(messageCount, lastPartCount, lastContentLength, pendingCount, isBusy) {
         if (messageCount > 0 && autoScrollEnabled) {
             val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
             listState.scrollToItem(lastIndex)
-            // scrollToItem goes to the TOP of the last item; when a message is
-            // taller than the viewport (e.g. streaming summarisation) we also
-            // need to scroll past it so the user sees the bottom of that message.
-            val lastItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-            if (lastItem != null) {
-                val viewport = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
-                val overflow = lastItem.size - viewport
-                if (overflow > 0) {
-                    listState.scrollBy(overflow.toFloat())
-                }
-            }
         }
     }
 
@@ -1407,14 +1520,6 @@ fun ChatScreen(
         if (!uiState.isLoading && messageCount > 0) {
             val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
             listState.scrollToItem(lastIndex)
-            val lastItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-            if (lastItem != null) {
-                val viewport = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
-                val overflow = lastItem.size - viewport
-                if (overflow > 0) {
-                    listState.scrollBy(overflow.toFloat())
-                }
-            }
             autoScrollEnabled = true
         }
     }
@@ -1424,6 +1529,8 @@ fun ChatScreen(
         LocalCodeWordWrap provides codeWordWrap,
         LocalCompactMessages provides compactMessages,
         LocalCollapseTools provides collapseTools,
+        LocalExpandReasoning provides expandReasoning,
+        LocalShowTurnDividers provides showTurnDividers,
         LocalHapticFeedbackEnabled provides hapticEnabled,
         LocalImageSaveRequest provides requestSaveImage,
     ) {
@@ -1431,7 +1538,8 @@ fun ChatScreen(
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            if (!isTerminalMode) {
+            if (!isTerminalMode && uiState.sessionLoaded) {
+            Box {
             TopAppBar(
                 title = {
                     Column {
@@ -1467,17 +1575,78 @@ fun ChatScreen(
                     }
                 },
                 actions = {
-                    Box {
+                    if (
+                        uiState.parentSessionId != null &&
+                        uiState.contextWindow > 0 &&
+                        uiState.lastContextTokens > 0
+                    ) {
+                        val percentage = Math.round(
+                            uiState.lastContextTokens.toDouble() / uiState.contextWindow * 100,
+                        ).toInt()
+                        val indicatorColor = when {
+                            percentage >= 90 -> MaterialTheme.colorScheme.error
+                            percentage >= 70 -> MaterialTheme.colorScheme.tertiary
+                            else -> MaterialTheme.colorScheme.primary
+                        }
+                        IconButton(onClick = { showSubagentContextDetails = true }) {
+                            Box(contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(
+                                    progress = {
+                                        (uiState.lastContextTokens.toFloat() / uiState.contextWindow)
+                                            .coerceIn(0f, 1f)
+                                    },
+                                    modifier = Modifier.size(30.dp),
+                                    color = indicatorColor,
+                                    trackColor = indicatorColor.copy(alpha = 0.16f),
+                                    strokeWidth = 2.dp,
+                                )
+                                Text(
+                                    text = "$percentage%",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                                    color = indicatorColor,
+                                )
+                            }
+                        }
+                    }
+                    if (uiState.parentSessionId == null) Box {
                         val isAmoled = isAmoledTheme()
                         IconButton(onClick = { showMenu = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                         }
+                        if (inputText.text.isNotEmpty()) {
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(start = 3.dp, top = 3.dp)
+                                    .size(15.dp),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.AttachFile,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(10.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    )
+                                }
+                            }
+                        }
                         DropdownMenu(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false },
-                            containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-                            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null
+                            modifier = Modifier.appPopupBorder(),
+                            containerColor = appPopupContainerColor(),
                         ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.chat_attach)) },
+                                leadingIcon = { Icon(Icons.Default.AttachFile, contentDescription = null) },
+                                onClick = {
+                                    showMenu = false
+                                    inputMode = ChatInputMode.NORMAL.name
+                                    showAttachmentOptions = true
+                                },
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.tool_terminal)) },
                                 leadingIcon = { Icon(Icons.Default.Terminal, contentDescription = null) },
@@ -1486,14 +1655,28 @@ fun ChatScreen(
                                     isTerminalMode = true
                                 },
                             )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+                            )
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.menu_open_in_web)) },
+                                text = { Text(stringResource(R.string.menu_reload_session)) },
                                 onClick = {
                                     showMenu = false
-                                    onOpenInWebView()
+                                    viewModel.reloadSession()
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Language, contentDescription = null)
+                                    Icon(Icons.Default.Refresh, contentDescription = null)
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_rename_session)) },
+                                onClick = {
+                                    showMenu = false
+                                    showRenameDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Edit, contentDescription = null)
                                 }
                             )
                             DropdownMenuItem(
@@ -1532,6 +1715,10 @@ fun ChatScreen(
                                     Icon(Icons.Default.CopyAll, contentDescription = null)
                                 }
                             )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.menu_compact_session)) },
                                 onClick = {
@@ -1563,6 +1750,20 @@ fun ChatScreen(
                                 leadingIcon = {
                                     Icon(Icons.Default.RateReview, contentDescription = null)
                                 },
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_open_in_web)) },
+                                onClick = {
+                                    showMenu = false
+                                    onOpenInWebView()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Language, contentDescription = null)
+                                }
                             )
                             // Show Share or Unshare depending on current share status
                             if (uiState.shareUrl != null) {
@@ -1604,16 +1805,6 @@ fun ChatScreen(
                                 )
                             }
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.menu_rename_session)) },
-                                onClick = {
-                                    showMenu = false
-                                    showRenameDialog = true
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Edit, contentDescription = null)
-                                }
-                            )
-                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.menu_export_session)) },
                                 onClick = {
                                     showMenu = false
@@ -1634,6 +1825,11 @@ fun ChatScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
+                AppLoadingEdge(
+                    active = uiState.isLoading && uiState.messages.isEmpty(),
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
             }
         },
         bottomBar = {
@@ -1642,8 +1838,11 @@ fun ChatScreen(
                 val model = provider?.models?.get(uiState.selectedModelId)
                 model?.name ?: uiState.selectedModelId ?: ""
             } else ""
+            val hasRunningTool = uiState.messages.any { message ->
+                message.parts.any { part -> part is Part.Tool && part.state is ToolState.Running }
+            }
 
-            if (!isTerminalMode) {
+            if (!isTerminalMode && uiState.sessionLoaded && uiState.parentSessionId == null) {
             ChatInputBar(
                 textFieldValue = inputText,
                 onTextFieldValueChange = { newValue ->
@@ -1738,12 +1937,13 @@ fun ChatScreen(
                                 filename = att.filename
                             )
                         }
-                        viewModel.sendMessage(allParts, attachmentParts)
-                        inputText = TextFieldValue("")
-                        attachments.clear()
-                        viewModel.clearConfirmedPaths()
-                        viewModel.clearFileSearch()
-                        viewModel.clearDraft()
+                        if (viewModel.sendMessage(allParts, attachmentParts)) {
+                            inputText = TextFieldValue("")
+                            attachments.clear()
+                            viewModel.clearConfirmedPaths()
+                            viewModel.clearFileSearch()
+                            viewModel.clearDraft()
+                        }
                     }
                     if (confirmBeforeSend) {
                         pendingSendAction = doSend
@@ -1761,10 +1961,10 @@ fun ChatScreen(
                 },
                 onStop = viewModel::abortSession,
                 isSending = uiState.isSending,
-                isBusy = uiState.sessionStatus is SessionStatus.Busy,
+                isBusy = uiState.sessionStatus is SessionStatus.Busy || hasRunningTool,
                 messages = uiState.messages,
                 attachments = attachments,
-                onAttach = { imagePickerLauncher.launch("image/*") },
+                onAttach = { showAttachmentOptions = true },
                 onRemoveAttachment = { index ->
                     if (index in attachments.indices) {
                         attachments.removeAt(index)
@@ -1906,7 +2106,8 @@ fun ChatScreen(
                     }
                 },
                 contextWindow = uiState.contextWindow,
-                lastContextTokens = uiState.lastContextTokens
+                lastContextTokens = uiState.lastContextTokens,
+                contextUsage = uiState.contextUsage,
             )
             }
         }
@@ -1990,6 +2191,7 @@ fun ChatScreen(
                                                                     fontWeight = FontWeight.SemiBold
                                                                 )
                                                                 if (!tab.connected) {
+                                                                    val statusText = stringResource(terminalTabStateLabel(tab.state))
                                                                     Surface(
                                                                         shape = RoundedCornerShape(999.dp),
                                                                         color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -2000,13 +2202,25 @@ fun ChatScreen(
                                                                             verticalAlignment = Alignment.CenterVertically,
                                                                             horizontalArrangement = Arrangement.spacedBy(5.dp)
                                                                         ) {
-                                                                            Box(
-                                                                                modifier = Modifier
-                                                                                    .size(6.dp)
-                                                                                    .background(MaterialTheme.colorScheme.error, CircleShape)
-                                                                            )
+                                                                            if (tab.state == TerminalTabState.Starting ||
+                                                                                tab.state == TerminalTabState.Reconnecting
+                                                                            ) {
+                                                                                CircularProgressIndicator(
+                                                                                    modifier = Modifier.size(8.dp),
+                                                                                    strokeWidth = 1.5.dp,
+                                                                                )
+                                                                            } else {
+                                                                                Box(
+                                                                                    modifier = Modifier
+                                                                                        .size(6.dp)
+                                                                                        .background(
+                                                                                            MaterialTheme.colorScheme.error,
+                                                                                            CircleShape,
+                                                                                        )
+                                                                                )
+                                                                            }
                                                                             Text(
-                                                                                text = "Offline",
+                                                                                text = statusText,
                                                                                 style = MaterialTheme.typography.labelSmall,
                                                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                                                             )
@@ -2014,10 +2228,13 @@ fun ChatScreen(
                                                                     }
                                                                 }
                                                             }
-                                                            if (!tab.connected) {
+                                                            if (tab.recoveryAction != TerminalRecoveryAction.None) {
+                                                                val recoveryDescription = stringResource(
+                                                                    terminalRecoveryLabel(tab.recoveryAction),
+                                                                )
                                                                 IconButton(
                                                                     onClick = {
-                                                                        viewModel.reconnectTerminalTab(tab.id) { ok ->
+                                                                        viewModel.recoverTerminalTab(tab.id) { ok ->
                                                                             if (!ok) {
                                                                                 coroutineScope.launch {
                                                                                     snackbarHostState.showSnackbar(context.getString(R.string.chat_terminal_connect_failed))
@@ -2025,7 +2242,7 @@ fun ChatScreen(
                                                                             }
                                                                         }
                                                                     },
-                                                                    modifier = Modifier.size(34.dp),
+                                                                    modifier = Modifier.size(48.dp),
                                                                     colors = IconButtonDefaults.iconButtonColors(
                                                                         containerColor = if (isAmoled) {
                                                                             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
@@ -2034,12 +2251,15 @@ fun ChatScreen(
                                                                         }
                                                                     )
                                                                 ) {
-                                                                    Icon(Icons.Default.Refresh, contentDescription = "Reconnect tab")
+                                                                    Icon(
+                                                                        Icons.Default.Refresh,
+                                                                        contentDescription = recoveryDescription,
+                                                                    )
                                                                 }
                                                             }
                                                             IconButton(
                                                                 onClick = { viewModel.closeTerminalTab(tab.id) },
-                                                                modifier = Modifier.size(34.dp),
+                                                                modifier = Modifier.size(48.dp),
                                                                 colors = IconButtonDefaults.iconButtonColors(
                                                                     containerColor = if (isAmoled) {
                                                                         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
@@ -2048,7 +2268,10 @@ fun ChatScreen(
                                                                     }
                                                                 )
                                                             ) {
-                                                                Icon(Icons.Default.Close, contentDescription = "Close tab")
+                                                                Icon(
+                                                                    Icons.Default.Close,
+                                                                    contentDescription = stringResource(R.string.chat_terminal_close_tab),
+                                                                )
                                                             }
                                                         }
                                                     },
@@ -2082,7 +2305,7 @@ fun ChatScreen(
                                             .padding(horizontal = 12.dp, vertical = 4.dp),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        OutlinedButton(
+                                        AppSecondaryButton(
                                             onClick = {
                                                 viewModel.createTerminalTab { ok ->
                                                     if (!ok) {
@@ -2094,36 +2317,24 @@ fun ChatScreen(
                                             },
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .height(40.dp),
-                                            shape = RoundedCornerShape(10.dp),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
-                                            colors = ButtonDefaults.outlinedButtonColors(
-                                                containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-                                                contentColor = MaterialTheme.colorScheme.onSurface
-                                            )
+                                                .heightIn(min = 48.dp),
                                         ) {
                                             Icon(Icons.Default.Add, contentDescription = null)
                                             Spacer(Modifier.width(6.dp))
-                                            Text("New")
+                                            Text(stringResource(R.string.chat_terminal_new_tab))
                                         }
-                                        OutlinedButton(
+                                        AppSecondaryButton(
                                             onClick = {
                                                 keyboardController?.show()
                                                 coroutineScope.launch { terminalDrawerState.close() }
                                             },
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .height(40.dp),
-                                            shape = RoundedCornerShape(10.dp),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
-                                            colors = ButtonDefaults.outlinedButtonColors(
-                                                containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-                                                contentColor = MaterialTheme.colorScheme.onSurface
-                                            )
+                                                .heightIn(min = 48.dp),
                                         ) {
                                             Icon(Icons.Default.Keyboard, contentDescription = null)
                                             Spacer(Modifier.width(6.dp))
-                                            Text("Keyboard")
+                                            Text(stringResource(R.string.chat_terminal_keyboard))
                                         }
                                     }
 
@@ -2158,6 +2369,77 @@ fun ChatScreen(
                                 contentBottomPadding = overlayHeightDp + imeBottomDp,
                                 modifier = Modifier.fillMaxSize()
                             )
+
+                            if (activeTerminalTab != null && !activeTerminalTab.connected) {
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .padding(12.dp)
+                                        .zIndex(2f),
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = if (isAmoled) {
+                                        Color.Black
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainerHigh
+                                    },
+                                    border = BorderStroke(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+                                    ),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 5.dp, bottom = 5.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        if (activeTerminalTab.state == TerminalTabState.Starting ||
+                                            activeTerminalTab.state == TerminalTabState.Reconnecting
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(14.dp),
+                                                strokeWidth = 2.dp,
+                                            )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(7.dp)
+                                                    .background(MaterialTheme.colorScheme.error, CircleShape),
+                                            )
+                                        }
+                                        Text(
+                                            text = stringResource(terminalTabStateLabel(activeTerminalTab.state)),
+                                            style = MaterialTheme.typography.labelLarge,
+                                        )
+                                        if (activeTerminalTab.recoveryAction != TerminalRecoveryAction.None) {
+                                            TextButton(
+                                                onClick = {
+                                                    viewModel.recoverTerminalTab(activeTerminalTab.id) { ok ->
+                                                        if (!ok) {
+                                                            coroutineScope.launch {
+                                                                snackbarHostState.showSnackbar(
+                                                                    context.getString(R.string.chat_terminal_connect_failed),
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Refresh,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                                Spacer(Modifier.width(5.dp))
+                                                Text(
+                                                    stringResource(
+                                                        terminalRecoveryLabel(activeTerminalTab.recoveryAction),
+                                                    ),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
 
                             Box(
                                 modifier = Modifier
@@ -2215,9 +2497,7 @@ fun ChatScreen(
                     }
                 }
                 uiState.isLoading && uiState.messages.isEmpty() -> {
-                    PulsingDotsIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    // Loading is shown consistently on the lower edge of the top app bar.
                 }
                 uiState.error != null && uiState.messages.isEmpty() -> {
                     Column(
@@ -2238,7 +2518,7 @@ fun ChatScreen(
                             textStyle = MaterialTheme.typography.bodyLarge,
                             textColor = MaterialTheme.colorScheme.error,
                         )
-                        Button(onClick = { viewModel.loadMessages() }) {
+                        AppPrimaryButton(onClick = { viewModel.loadMessages() }) {
                             Text(stringResource(R.string.retry))
                         }
                     }
@@ -2261,10 +2541,19 @@ fun ChatScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         )
+                        if (uiState.hasOlderMessages) {
+                            AppPrimaryButton(
+                                onClick = { viewModel.loadOlderMessages() },
+                                enabled = !uiState.isLoadingOlder,
+                            ) {
+                                Text(stringResource(R.string.chat_load_earlier))
+                            }
+                        }
                     }
                 }
                 else -> {
                     val messageSpacing = if (LocalCompactMessages.current) 4.dp else 12.dp
+                    val chatTurns = remember(uiState.messages) { groupChatTurns(uiState.messages) }
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
@@ -2306,55 +2595,37 @@ fun ChatScreen(
                         }
 
                         items(
-                            uiState.messages,
-                            key = { it.message.id }
-                        ) { chatMessage ->
+                            chatTurns,
+                            key = { it.key },
+                        ) { chatTurn ->
+                            val chatMessage = chatTurn.messages.first()
                             // Detect compaction trigger messages (user messages with Part.Compaction)
                             val isCompactionTrigger = chatMessage.isUser &&
                                 chatMessage.parts.any { it is Part.Compaction }
 
-                            // Show compact system-style divider for compaction triggers
-                            // Long-press to revert (undo compaction and subsequent messages)
+                            // Show compact system-style divider for compaction triggers.
                             if (isCompactionTrigger) {
                                 var showRevertDialog by remember { mutableStateOf(false) }
 
                                 if (showRevertDialog) {
-                                    AlertDialog(
-                                        onDismissRequest = { showRevertDialog = false },
-                                        title = { Text(stringResource(R.string.chat_revert_title)) },
-                                        text = { Text(stringResource(R.string.chat_revert_message)) },
-                                        confirmButton = {
-                                            TextButton(
-                                                onClick = {
-                                                    showRevertDialog = false
-                                                    viewModel.revertMessage(chatMessage.message.id) { ok ->
-                                                        coroutineScope.launch {
-                                                            snackbarHostState.showSnackbar(
-                                                                if (ok) context.getString(R.string.chat_message_reverted) else context.getString(R.string.chat_message_revert_failed)
-                                                            )
-                                                        }
-                                                    }
+                                    RevertConfirmationDialog(
+                                        onDismiss = { showRevertDialog = false },
+                                        onConfirm = {
+                                            showRevertDialog = false
+                                            viewModel.revertMessage(chatMessage.message.id) { ok ->
+                                                coroutineScope.launch {
+                                                    snackbarHostState.showSnackbar(
+                                                        if (ok) context.getString(R.string.chat_message_reverted) else context.getString(R.string.chat_message_revert_failed)
+                                                    )
                                                 }
-                                            ) {
-                                                Text(stringResource(R.string.chat_revert), color = MaterialTheme.colorScheme.error)
                                             }
                                         },
-                                        dismissButton = {
-                                            TextButton(onClick = { showRevertDialog = false }) {
-                                                Text(stringResource(R.string.cancel))
-                                            }
-                                        }
                                     )
                                 }
 
-                                @OptIn(ExperimentalFoundationApi::class)
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .combinedClickable(
-                                            onClick = { },
-                                            onLongClick = { showRevertDialog = true }
-                                        )
                                         .padding(vertical = 4.dp, horizontal = 32.dp),
                                     horizontalArrangement = Arrangement.Center,
                                     verticalAlignment = Alignment.CenterVertically
@@ -2369,6 +2640,19 @@ fun ChatScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                         modifier = Modifier.padding(horizontal = 12.dp)
                                     )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .clickable { showRevertDialog = true },
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.Undo,
+                                            contentDescription = stringResource(R.string.chat_revert),
+                                            modifier = Modifier.size(18.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                                        )
+                                    }
                                     HorizontalDivider(
                                         modifier = Modifier.weight(1f),
                                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
@@ -2378,7 +2662,8 @@ fun ChatScreen(
                             }
 
                             ChatMessageBubble(
-                                chatMessage = chatMessage,
+                                chatMessages = chatTurn.messages,
+                                onNavigateToChildSession = onNavigateToChildSession,
                                 onRevert = if (chatMessage.isUser) {
                                     {
                                         val revertText = chatMessage.parts
@@ -2394,7 +2679,7 @@ fun ChatScreen(
                                     }
                                 } else null,
                                 onCopyText = {
-                                    val text = chatMessage.parts
+                                    val text = chatTurn.messages.flatMap { it.parts }
                                         .filterIsInstance<Part.Text>()
                                         .joinToString("\n") { it.text }
                                     if (text.isNotBlank()) {
@@ -2424,33 +2709,64 @@ fun ChatScreen(
                             }
                         }
 
-                        // Pending permissions
-                        items(
-                            uiState.pendingPermissions,
-                            key = { "perm_${it.id}" }
-                        ) { permission ->
-                            PermissionCard(
-                                permission = permission,
-                                onOnce = { viewModel.replyToPermission(permission.id, "once") },
-                                onAlways = { viewModel.replyToPermission(permission.id, "always") },
-                                onReject = { viewModel.replyToPermission(permission.id, "reject") }
-                            )
+                        pendingInteractions.firstOrNull()?.let { interaction ->
+                            item(key = "pending_${interaction::class.simpleName}_${interaction.sessionId}_${interaction.id}") {
+                                val position = stringResource(R.string.pending_request_position, 1, pendingInteractions.size)
+                                when (interaction) {
+                                    is PendingInteraction.Permission -> PermissionCard(
+                                        permission = interaction.request,
+                                        position = position,
+                                        onReply = { reply, onResult ->
+                                            viewModel.replyToPermission(
+                                                interaction.sessionId,
+                                                interaction.id,
+                                                reply,
+                                            ) { success ->
+                                                onResult(success)
+                                                if (!success) coroutineScope.launch {
+                                                    snackbarHostState.showSnackbar(
+                                                        context.getString(R.string.pending_request_reply_failed),
+                                                    )
+                                                }
+                                            }
+                                        },
+                                    )
+                                    is PendingInteraction.Question -> QuestionCard(
+                                        question = interaction.request,
+                                        position = position,
+                                        onSubmit = { answers, onResult ->
+                                            viewModel.replyToQuestion(
+                                                interaction.sessionId,
+                                                interaction.id,
+                                                answers,
+                                            ) { success ->
+                                                onResult(success)
+                                                if (!success) coroutineScope.launch {
+                                                    snackbarHostState.showSnackbar(
+                                                        context.getString(R.string.pending_request_reply_failed),
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onReject = { onResult ->
+                                            viewModel.rejectQuestion(interaction.sessionId, interaction.id) { success ->
+                                                onResult(success)
+                                                if (!success) coroutineScope.launch {
+                                                    snackbarHostState.showSnackbar(
+                                                        context.getString(R.string.pending_request_reply_failed),
+                                                    )
+                                                }
+                                            }
+                                        },
+                                    )
+                                }
+                            }
                         }
 
-                        // Pending questions
-                        items(
-                            uiState.pendingQuestions,
-                            key = { "question_${it.id}" }
-                        ) { question ->
-                            QuestionCard(
-                                question = question,
-                                onSubmit = { answers ->
-                                    viewModel.replyToQuestion(question.id, answers)
-                                },
-                                onReject = {
-                                    viewModel.rejectQuestion(question.id)
-                                }
-                            )
+                        // A stable final item lets scrollToItem clamp to the true content bottom,
+                        // including spacing and padding below a tall or streaming message.
+                        item(key = "conversation_bottom") {
+                            Spacer(Modifier.height(4.dp))
                         }
                     }
 
@@ -2461,14 +2777,6 @@ fun ChatScreen(
                                 coroutineScope.launch {
                                     val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
                                     listState.scrollToItem(lastIndex)
-                                    val lastItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-                                    if (lastItem != null) {
-                                        val viewport = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
-                                        val overflow = lastItem.size - viewport
-                                        if (overflow > 0) {
-                                            listState.scrollBy(overflow.toFloat())
-                                        }
-                                    }
                                     autoScrollEnabled = true
                                 }
                             },
@@ -2505,22 +2813,142 @@ fun ChatScreen(
     }
 
     // Rename dialog
+    if (showAttachmentOptions) {
+        val sheetColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface
+        val sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        val sheetBorderColor = MaterialTheme.colorScheme.outlineVariant
+        ModalBottomSheet(
+            onDismissRequest = { showAttachmentOptions = false },
+            dragHandle = null,
+            shape = sheetShape,
+            containerColor = sheetColor,
+            tonalElevation = 0.dp,
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (isAmoled) {
+                            Modifier.drawBehind {
+                                val strokeWidth = 1.dp.toPx()
+                                val edge = strokeWidth / 2
+                                val radius = 28.dp.toPx()
+                                val outline = Path().apply {
+                                    moveTo(edge, size.height)
+                                    lineTo(edge, radius)
+                                    arcTo(
+                                        rect = Rect(edge, edge, radius * 2 - edge, radius * 2 - edge),
+                                        startAngleDegrees = 180f,
+                                        sweepAngleDegrees = 90f,
+                                        forceMoveTo = false,
+                                    )
+                                    lineTo(size.width - radius, edge)
+                                    arcTo(
+                                        rect = Rect(
+                                            size.width - radius * 2 + edge,
+                                            edge,
+                                            size.width - edge,
+                                            radius * 2 - edge,
+                                        ),
+                                        startAngleDegrees = 270f,
+                                        sweepAngleDegrees = 90f,
+                                        forceMoveTo = false,
+                                    )
+                                    lineTo(size.width - edge, size.height)
+                                }
+                                drawPath(
+                                    path = outline,
+                                    color = sheetBorderColor,
+                                    style = Stroke(strokeWidth),
+                                )
+                            }
+                        } else {
+                            Modifier
+                        },
+                    ),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        BottomSheetDefaults.DragHandle()
+                    }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.chat_attach_title),
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+                            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+                        )
+                        AttachmentSourceCard(
+                            icon = Icons.Default.Image,
+                            title = stringResource(R.string.chat_attach_photo),
+                            description = stringResource(R.string.chat_attach_photo_hint),
+                            onClick = {
+                                showAttachmentOptions = false
+                                imagePickerLauncher.launch("image/*")
+                            },
+                        )
+                        AttachmentSourceCard(
+                            icon = Icons.AutoMirrored.Filled.InsertDriveFile,
+                            title = stringResource(R.string.chat_attach_device_file),
+                            description = stringResource(R.string.chat_attach_device_file_hint),
+                            onClick = {
+                                showAttachmentOptions = false
+                                documentPickerLauncher.launch(arrayOf("*/*"))
+                            },
+                        )
+                        AttachmentSourceCard(
+                            icon = Icons.Default.FolderOpen,
+                            title = stringResource(R.string.chat_attach_project_file),
+                            description = stringResource(R.string.chat_attach_project_file_hint),
+                            onClick = {
+                                showAttachmentOptions = false
+                                inputMode = ChatInputMode.NORMAL.name
+                                val updated = if (inputText.text.isBlank()) "@" else inputText.text + " @"
+                                inputText = TextFieldValue(updated, TextRange(updated.length))
+                                viewModel.updateDraftText(updated)
+                                viewModel.searchFilesForMention("")
+                            },
+                        )
+                    }
+                    Spacer(Modifier.navigationBarsPadding().height(8.dp))
+                }
+            }
+        }
+    }
+
+    if (showSubagentContextDetails) {
+        ContextUsageDialog(
+            usage = uiState.contextUsage,
+            contextWindow = uiState.contextWindow,
+            onDismiss = { showSubagentContextDetails = false },
+        )
+    }
+
     if (showRenameDialog) {
         var renameText by remember { mutableStateOf(uiState.sessionTitle) }
-        AlertDialog(
-            onDismissRequest = { showRenameDialog = false },
-            title = { Text(stringResource(R.string.session_rename)) },
-            text = {
-                OutlinedTextField(
-                    value = renameText,
-                    onValueChange = { renameText = it },
-                    label = { Text(stringResource(R.string.session_rename_title)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(
+        ChatDialog(onDismiss = { showRenameDialog = false }) {
+            Text(stringResource(R.string.session_rename), style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(16.dp))
+            OutlinedTextField(
+                value = renameText,
+                onValueChange = { renameText = it },
+                label = { Text(stringResource(R.string.session_rename_title)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(20.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                AppSecondaryButton(onClick = { showRenameDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+                AppPrimaryButton(
                     onClick = {
                         viewModel.renameSession(renameText) { ok ->
                             coroutineScope.launch {
@@ -2535,44 +2963,146 @@ fun ChatScreen(
                 ) {
                     Text(stringResource(R.string.session_rename_button))
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRenameDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
             }
-        )
+        }
     }
 
     // Send confirmation dialog
     if (showSendConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = {
+        ChatDialog(onDismiss = {
                 showSendConfirmDialog = false
                 pendingSendAction = null
-            },
-            title = { Text(stringResource(R.string.settings_confirm_send_title)) },
-            text = { Text(stringResource(R.string.settings_confirm_send_body)) },
-            confirmButton = {
-                TextButton(onClick = {
+            }) {
+            Text(stringResource(R.string.settings_confirm_send_title), style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(16.dp))
+            Text(stringResource(R.string.settings_confirm_send_body))
+            Spacer(Modifier.height(20.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                AppSecondaryButton(onClick = {
+                    showSendConfirmDialog = false
+                    pendingSendAction = null
+                }) {
+                    Text(stringResource(R.string.cancel))
+                }
+                AppPrimaryButton(onClick = {
                     showSendConfirmDialog = false
                     pendingSendAction?.invoke()
                     pendingSendAction = null
                 }) {
                     Text(stringResource(R.string.settings_send))
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showSendConfirmDialog = false
-                    pendingSendAction = null
-                }) {
-                    Text(stringResource(R.string.cancel))
-                }
             }
-        )
+        }
     }
     } // CompositionLocalProvider
+}
+
+@Composable
+private fun AttachmentSourceCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+) {
+    val isAmoled = isAmoledTheme()
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
+        tonalElevation = 0.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = RoundedCornerShape(13.dp),
+                color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.primaryContainer,
+                border = if (isAmoled) {
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.72f))
+                } else null,
+                modifier = Modifier.size(46.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(23.dp),
+                        tint = if (isAmoled) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        },
+                    )
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChatDialog(
+    onDismiss: () -> Unit,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    AppDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun RevertConfirmationDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    ChatDialog(onDismiss = onDismiss) {
+        Text(
+            stringResource(R.string.chat_revert_title),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(stringResource(R.string.chat_revert_message))
+        Spacer(Modifier.height(12.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            AppSecondaryButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+            AppSecondaryButton(onClick = onConfirm, destructive = true) {
+                Text(stringResource(R.string.chat_revert))
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -2598,21 +3128,18 @@ private fun ModelPickerDialog(
             .sortedWith(compareBy<ProviderInfo> { it.id != "opencode" }.thenBy { it.name.lowercase() })
     }
 
-    BasicAlertDialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
-            border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
-            tonalElevation = if (isAmoled) 0.dp else 6.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 560.dp)
+    AppDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.chat_select_model),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 8.dp),
+        )
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth().weight(1f, fill = false).padding(horizontal = 12.dp),
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
                 for ((index, provider) in sortedProviders.withIndex()) {
                     val topPad = if (index == 0) 0.dp else 12.dp
 
@@ -2649,13 +3176,22 @@ private fun ModelPickerDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(AppPickerItemShape)
                                 .background(
-                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                    if (isSelected) appSelectedItemColor()
                                     else Color.Transparent
                                 )
+                                .then(
+                                    if (isSelected && isAmoled) {
+                                        Modifier.border(
+                                            1.dp,
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
+                                            AppPickerItemShape,
+                                        )
+                                    } else Modifier,
+                                )
                                 .clickable { onSelect(provider.id, model.id) }
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -2686,10 +3222,57 @@ private fun ModelPickerDialog(
                         }
                     }
                 }
-            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            AppSecondaryButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     }
 }
+
+internal fun terminalZoomFontSize(startFontSizeSp: Float, scale: Float): Float {
+    return (startFontSizeSp * scale).coerceIn(6f, 20f)
+}
+
+internal fun terminalGestureIsPinch(pressedPointerCount: Int): Boolean = pressedPointerCount >= 2
+
+@androidx.annotation.StringRes
+private fun terminalTabStateLabel(state: TerminalTabState): Int = when (state) {
+    TerminalTabState.Starting -> R.string.chat_terminal_starting
+    TerminalTabState.Connected -> R.string.chat_terminal_connected
+    TerminalTabState.Reconnecting -> R.string.chat_terminal_reconnecting
+    TerminalTabState.Disconnected -> R.string.chat_terminal_disconnected
+    TerminalTabState.Exited -> R.string.chat_terminal_exited
+}
+
+@androidx.annotation.StringRes
+private fun terminalRecoveryLabel(action: TerminalRecoveryAction): Int = when (action) {
+    TerminalRecoveryAction.Reconnect -> R.string.chat_terminal_reconnect_tab
+    TerminalRecoveryAction.Restart -> R.string.chat_terminal_restart_tab
+    TerminalRecoveryAction.None -> R.string.chat_terminal_connected
+}
+
+internal fun terminalFlingScrollVelocity(pointerVelocityY: Float, minimumFlingVelocity: Float): Float {
+    val scrollVelocity = -pointerVelocityY
+    return if (abs(scrollVelocity) >= minimumFlingVelocity) scrollVelocity else 0f
+}
+
+internal fun terminalInputDelta(previous: String, current: String): String {
+    val commonPrefixLength = previous.commonPrefixWith(current).length
+    val deleted = previous.length - commonPrefixLength
+    return "\u007F".repeat(deleted) + current.drop(commonPrefixLength)
+}
+
+private data class TerminalMetrics(
+    val fontSizePx: Float,
+    val charWidthPx: Float,
+    val rowHeightPx: Int,
+    val baselinePx: Float,
+    val columns: Int,
+    val rows: Int,
+)
 
 @Composable
 private fun SessionTerminalInline(
@@ -2706,15 +3289,34 @@ private fun SessionTerminalInline(
     modifier: Modifier = Modifier,
 ) {
     val isAmoled = isAmoledTheme()
+    val context = LocalContext.current
     val keyboard = LocalSoftwareKeyboardController.current
     val baseTextToolbar = LocalTextToolbar.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val minimumTerminalFlingVelocity = remember(context) {
+        android.view.ViewConfiguration.get(context).scaledMinimumFlingVelocity.toFloat()
+    }
+    val coroutineScope = rememberCoroutineScope()
     var inputCapture by remember { mutableStateOf(TextFieldValue("")) }
+    var sentInputCapture by remember { mutableStateOf("") }
     val terminalScrollState = rememberScrollState()
     var terminalFollowMode by rememberSaveable { mutableStateOf(true) }
-    // Dedup: some IMEs can fire onValueChange twice for a single keystroke.
-    // Track the last chunk + timestamp to suppress duplicates.
-    var lastSentChunk by remember { mutableStateOf("") }
-    var lastSentTime by remember { mutableStateOf(0L) }
+    var terminalFlingJob by remember { mutableStateOf<Job?>(null) }
+    var terminalLifecycleActive by remember {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { source, _ ->
+            terminalLifecycleActive = source.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+            if (!terminalLifecycleActive) {
+                terminalFlingJob?.cancel()
+                terminalFlingJob = null
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val terminalTextToolbar = remember(baseTextToolbar, onPaste) {
         object : TextToolbar {
@@ -2746,15 +3348,23 @@ private fun SessionTerminalInline(
         }
     }
 
-    val terminalStyle = remember(fontSizeSp) {
+    var pinchActive by remember { mutableStateOf(false) }
+    var pinchStartFontSizeSp by remember { mutableFloatStateOf(fontSizeSp) }
+    var pinchPreviewFontSizeSp by remember { mutableFloatStateOf(fontSizeSp) }
+    val latestFontSizeSp by rememberUpdatedState(fontSizeSp)
+
+    LaunchedEffect(fontSizeSp, pinchActive) {
+        if (!pinchActive) pinchPreviewFontSizeSp = fontSizeSp
+    }
+    val effectiveFontSizeSp = if (pinchActive) pinchPreviewFontSizeSp else fontSizeSp
+    val terminalStyle = remember(effectiveFontSizeSp) {
         CodeTypography.copy(
-            fontSize = fontSizeSp.sp,
+            fontSize = effectiveFontSizeSp.sp,
             // Tight line spacing is required for continuous box-drawing in TUIs (mc, htop).
-            lineHeight = fontSizeSp.sp,
+            lineHeight = effectiveFontSizeSp.sp,
             platformStyle = PlatformTextStyle(includeFontPadding = false)
         )
     }
-    val latestFontSizeSp by rememberUpdatedState(fontSizeSp)
 
     Column(
         modifier = modifier
@@ -2766,35 +3376,24 @@ private fun SessionTerminalInline(
             onValueChange = { next ->
                 if (!connected) {
                     inputCapture = TextFieldValue("")
+                    sentInputCapture = ""
                     return@BasicTextField
                 }
-                val old = inputCapture.text
-                val now = next.text
-                val delta = when {
-                    now.startsWith(old) -> now.drop(old.length)
-                    old.startsWith(now) -> "\u007F".repeat((old.length - now.length).coerceAtLeast(0))
-                    else -> now
-                }
+                val delta = terminalInputDelta(sentInputCapture, next.text)
                 if (delta.isNotEmpty()) {
                     if (BuildConfig.DEBUG && delta.contains('~')) {
-                        Log.d("TerminalInput", "onValueChange: delta='$delta' old='$old' now='$now'")
+                        Log.d(
+                            "TerminalInput",
+                            "IME delta='$delta' old='$sentInputCapture' now='${next.text}' " +
+                                "composition=${next.composition}",
+                        )
                     }
-                    // Dedup: suppress identical chunk within 100ms (IME double-fire).
-                    val ts = SystemClock.elapsedRealtime()
-                    if (delta == lastSentChunk && ts - lastSentTime < 100) {
-                        if (BuildConfig.DEBUG) {
-                            Log.d("TerminalInput", "DEDUP: suppressed duplicate delta='$delta'")
-                        }
-                        inputCapture = next.copy(selection = TextRange(next.text.length))
-                        return@BasicTextField
-                    }
-                    lastSentChunk = delta
-                    lastSentTime = ts
                     val mapped = delta
                         .replace("\r\n", "\r")
                         .replace('\n', '\r')
                     onSendInput(mapped)
                 }
+                sentInputCapture = next.text
                 // Keep IME context (caps/symbol lock, composing state) stable by
                 // preserving TextFieldValue instead of clearing it after each key.
                 inputCapture = next.copy(selection = TextRange(next.text.length))
@@ -2908,50 +3507,41 @@ private fun SessionTerminalInline(
                     )
                 }
         ) {
-            // Measure character dimensions using native Paint for consistency with
-            // Canvas rendering. This avoids mismatches between Compose textMeasurer
-            // line height and native Paint font metrics that cause vertical gaps.
             val density = LocalDensity.current
-            if (BuildConfig.DEBUG) {
-                Log.d("TerminalZoom", "BoxWithConstraints recompose: fontSizeSp=$fontSizeSp connected=$connected viewW=${constraints.maxWidth} viewH=${constraints.maxHeight}")
-            }
-            val charWidthPx = remember(fontSizeSp) {
-                val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-                    typeface = android.graphics.Typeface.MONOSPACE
-                    textSize = with(density) { fontSizeSp.sp.toPx() }
-                }
-                paint.measureText("X").also { w ->
-                    if (BuildConfig.DEBUG) {
-                        Log.d("TerminalZoom", "charWidthPx RECOMPUTED: fontSizeSp=$fontSizeSp -> charW=$w textSizePx=${paint.textSize}")
-                    }
-                }
-            }
-            // Row height: ceil(descent - ascent) snapped to int pixels.
-            // This excludes inter-line leading so rows are compact and fill
-            // the viewport correctly.  Anti-aliased seams are prevented by
-            // drawing with nativeCanvas + isAntiAlias=false.
-            val rowHeightPx = remember(fontSizeSp) {
-                val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-                    typeface = android.graphics.Typeface.MONOSPACE
-                    textSize = with(density) { fontSizeSp.sp.toPx() }
-                }
-                val fm = paint.fontMetrics
-                kotlin.math.ceil((fm.descent - fm.ascent).toDouble()).toInt().also { h ->
-                    if (BuildConfig.DEBUG) {
-                        Log.d("TerminalZoom", "rowHeightPx RECOMPUTED: fontSizeSp=$fontSizeSp -> rowH=$h textSizePx=${paint.textSize}")
-                    }
-                }
-            }
-            // Use inner constraints from BoxWithConstraints (already reflects bottom padding).
             val viewportWidthPx = constraints.maxWidth
             val viewportHeightPx = constraints.maxHeight
-            val termCols = if (viewportWidthPx > 0) {
-                (viewportWidthPx / charWidthPx).toInt().coerceAtLeast(20)
-            } else 80
-            // Simple integer division — our rows start at y=0 so no offset needed.
-            val termRows = if (viewportHeightPx > 0) {
-                (viewportHeightPx / rowHeightPx).coerceAtLeast(8)
-            } else 24
+            val terminalMetrics = remember(
+                effectiveFontSizeSp,
+                density.density,
+                density.fontScale,
+                viewportWidthPx,
+                viewportHeightPx,
+            ) {
+                // One native Paint supplies every grid and drawing metric so resize and Canvas stay aligned.
+                val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                    typeface = android.graphics.Typeface.MONOSPACE
+                    textSize = with(density) { effectiveFontSizeSp.sp.toPx() }
+                }
+                val fm = paint.fontMetrics
+                val charWidthPx = paint.measureText("X")
+                val rowHeightPx = kotlin.math.ceil((fm.descent - fm.ascent).toDouble()).toInt()
+                TerminalMetrics(
+                    fontSizePx = paint.textSize,
+                    charWidthPx = charWidthPx,
+                    rowHeightPx = rowHeightPx,
+                    baselinePx = -fm.ascent,
+                    columns = if (viewportWidthPx > 0) {
+                        (viewportWidthPx / charWidthPx).toInt().coerceAtLeast(20)
+                    } else 80,
+                    rows = if (viewportHeightPx > 0) {
+                        (viewportHeightPx / rowHeightPx).coerceAtLeast(8)
+                    } else 24,
+                )
+            }
+            val charWidthPx = terminalMetrics.charWidthPx
+            val rowHeightPx = terminalMetrics.rowHeightPx
+            val termCols = terminalMetrics.columns
+            val termRows = terminalMetrics.rows
             val maxScrollbackOffsetRows = remember(terminalVersion, termRows) {
                 emulator.maxScrollbackOffset(termRows)
             }
@@ -2994,21 +3584,9 @@ private fun SessionTerminalInline(
                 .coerceIn(0, maxScrollbackOffsetRows)
             val scrollbackOffsetRows = (maxScrollbackOffsetRows - firstVisibleRow).coerceAtLeast(0)
             val verticalOffsetPx = firstVisibleRow * rowHeightPx
-            if (BuildConfig.DEBUG) {
-                Log.d("TerminalZoom", "GRID CALC: fontSp=$fontSizeSp charW=$charWidthPx rowH=$rowHeightPx viewW=$viewportWidthPx viewH=$viewportHeightPx -> cols=$termCols rows=$termRows")
-            }
-            // Send resize immediately then retry after a short delay to handle
-            // race conditions around PTY startup and IME transitions.
-            LaunchedEffect(termCols, termRows, connected) {
-                if (BuildConfig.DEBUG) {
-                    Log.d("TerminalZoom", "LaunchedEffect FIRED: cols=$termCols rows=$termRows connected=$connected viewW=$viewportWidthPx viewH=$viewportHeightPx fontSp=$fontSizeSp")
-                }
-                if (connected && viewportWidthPx > 0 && viewportHeightPx > 0) {
-                    if (BuildConfig.DEBUG) {
-                        Log.d("TerminalInput", "resize: cols=$termCols rows=$termRows viewW=$viewportWidthPx viewH=$viewportHeightPx charW=$charWidthPx rowH=$rowHeightPx fontSp=$fontSizeSp")
-                    }
-                    onResize(termCols, termRows)
-                    delay(120)
+            LaunchedEffect(termCols, termRows, connected, pinchActive) {
+                if (!pinchActive && connected && viewportWidthPx > 0 && viewportHeightPx > 0) {
+                    delay(150)
                     onResize(termCols, termRows)
                 }
             }
@@ -3019,49 +3597,112 @@ private fun SessionTerminalInline(
                     windowRows = termRows,
                 )
             }
-            val cursorAnim = rememberInfiniteTransition(label = "terminal_cursor")
-            val cursorAlpha by cursorAnim.animateFloat(
-                initialValue = 1f,
-                targetValue = 0f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(durationMillis = 700),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "terminal_cursor_alpha"
-            )
+            val cursorAlpha = if (terminalLifecycleActive) {
+                val cursorAnim = rememberInfiniteTransition(label = "terminal_cursor")
+                val animatedAlpha by cursorAnim.animateFloat(
+                    initialValue = 1f,
+                    targetValue = 0f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(durationMillis = 700),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "terminal_cursor_alpha"
+                )
+                animatedAlpha
+            } else {
+                1f
+            }
+
+            val accessibilityOutput = remember(terminalVersion, scrollbackOffsetRows, termRows) {
+                AnnotatedString(
+                    emulator.renderSelectionText(
+                        scrollbackOffsetRows = scrollbackOffsetRows,
+                        windowRows = termRows,
+                    ),
+                )
+            }
 
             val terminalBgColor = Color.Black
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(rowHeightPx, maxScrollbackOffsetRows) {
-                        var accumulatedScale = 1f
-                        detectTransformGestures { _, pan, zoom, _ ->
-                            if (zoom != 1f) {
-                                accumulatedScale *= zoom
-                                if (BuildConfig.DEBUG) {
-                                    Log.d("TerminalZoom", "gesture: zoom=$zoom accumulated=$accumulatedScale")
-                                }
-                                if (accumulatedScale < 0.9f || accumulatedScale > 1.1f) {
-                                    val increase = accumulatedScale > 1f
-                                    val current = latestFontSizeSp
-                                    val next = (current + if (increase) 1f else -1f)
-                                        .coerceIn(6f, 20f)
-                                    if (BuildConfig.DEBUG) {
-                                        Log.d("TerminalZoom", "threshold hit: increase=$increase current=$current next=$next")
-                                    }
-                                    if (next != current) {
-                                        onFontSizeChange(next)
-                                    }
-                                    accumulatedScale = 1f
-                                }
+                    .semantics { text = accessibilityOutput }
+                    .pointerInput(Unit) {
+                        awaitEachGesture {
+                            val firstDown = awaitFirstDown(requireUnconsumed = false)
+                            terminalFlingJob?.cancel()
+                            terminalFlingJob = null
+                            val velocityTracker = VelocityTracker().apply {
+                                addPosition(firstDown.uptimeMillis, firstDown.position)
                             }
-
-                            if (maxScrollbackOffsetRows > 0 && pan.y != 0f) {
-                                terminalScrollState.dispatchRawDelta(-pan.y)
-                                val nearBottomAfterPan = terminalScrollState.value >=
-                                    (maxScrollPx - followThresholdPx).coerceAtLeast(0)
-                                terminalFollowMode = nearBottomAfterPan
+                            var gestureIsPinch = false
+                            var gestureScale = 1f
+                            var previewFontSizeSp = latestFontSizeSp
+                            var gestureContinues: Boolean
+                            do {
+                                val event = awaitPointerEvent()
+                                event.changes.firstOrNull { it.id == firstDown.id }?.let {
+                                    velocityTracker.addPosition(it.uptimeMillis, it.position)
+                                }
+                                val pressedPointers = event.changes.count { it.pressed }
+                                if (terminalGestureIsPinch(pressedPointers)) {
+                                    if (!gestureIsPinch) {
+                                        gestureIsPinch = true
+                                        pinchActive = true
+                                        pinchStartFontSizeSp = latestFontSizeSp
+                                        gestureScale = 1f
+                                        previewFontSizeSp = pinchStartFontSizeSp
+                                        keyboard?.hide()
+                                        if (BuildConfig.DEBUG) Log.d("TerminalGesture", "Pinch started")
+                                    }
+                                    val zoom = event.calculateZoom()
+                                    if (zoom.isFinite() && zoom > 0f) {
+                                        gestureScale *= zoom
+                                        previewFontSizeSp = terminalZoomFontSize(pinchStartFontSizeSp, gestureScale)
+                                        pinchPreviewFontSizeSp = previewFontSizeSp
+                                    }
+                                    event.changes.forEach { it.consume() }
+                                } else if (!gestureIsPinch && maxScrollbackOffsetRows > 0) {
+                                    val pan = event.calculatePan()
+                                    if (pan.y != 0f) {
+                                        terminalScrollState.dispatchRawDelta(-pan.y)
+                                        val nearBottomAfterPan = terminalScrollState.value >=
+                                            (maxScrollPx - followThresholdPx).coerceAtLeast(0)
+                                        terminalFollowMode = nearBottomAfterPan
+                                        event.changes.forEach { it.consume() }
+                                    }
+                                }
+                                gestureContinues = event.changes.any { it.pressed }
+                            } while (gestureContinues)
+                            if (gestureIsPinch) {
+                                onFontSizeChange(previewFontSizeSp)
+                                pinchActive = false
+                                if (BuildConfig.DEBUG) {
+                                    Log.d("TerminalGesture", "Pinch committed: ${previewFontSizeSp}sp")
+                                }
+                            } else if (maxScrollbackOffsetRows > 0) {
+                                val flingVelocity = terminalFlingScrollVelocity(
+                                    pointerVelocityY = velocityTracker.calculateVelocity().y,
+                                    minimumFlingVelocity = minimumTerminalFlingVelocity,
+                                )
+                                if (flingVelocity != 0f) {
+                                    terminalFlingJob = coroutineScope.launch {
+                                        var previousValue = 0f
+                                        AnimationState(
+                                            initialValue = 0f,
+                                            initialVelocity = flingVelocity,
+                                        ).animateDecay(exponentialDecay()) {
+                                            val requestedDelta = value - previousValue
+                                            val consumedDelta = terminalScrollState.dispatchRawDelta(requestedDelta)
+                                            previousValue = value
+                                            terminalFollowMode = terminalScrollState.value >=
+                                                (maxScrollPx - followThresholdPx).coerceAtLeast(0)
+                                            if (abs(consumedDelta - requestedDelta) > 0.5f) {
+                                                cancelAnimation()
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -3083,12 +3724,10 @@ private fun SessionTerminalInline(
                     nativeCanvas.drawRect(0f, 0f, size.width, size.height, bgPaint)
 
                     val textPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-                        textSize = terminalStyle.fontSize.toPx()
+                        textSize = terminalMetrics.fontSizePx
                         typeface = android.graphics.Typeface.MONOSPACE
                     }
-                    // Baseline offset: -ascent positions glyphs correctly within
-                    // each row (ascent is negative, so -ascent is positive).
-                    val baseline = -textPaint.fontMetrics.ascent
+                    val baseline = terminalMetrics.baselinePx
                     val rowH = rowHeightPx.toFloat()
 
                     for ((rowIdx, runs) in renderedRuns.withIndex()) {
@@ -3175,6 +3814,7 @@ private fun SessionTerminalInline(
                                 softWrap = false,
                                 maxLines = Int.MAX_VALUE,
                                 modifier = Modifier.fillMaxWidth()
+                                    .clearAndSetSemantics { }
                             )
                         }
                     }
@@ -3215,6 +3855,7 @@ private fun TerminalKeyboardOverlay(
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isAmoled = isAmoledTheme()
     // Arrow / Home / End sequences depend on DECCKM
     val arrowUp    = if (cursorApp) "\u001BOA" else "\u001B[A"
     val arrowDown  = if (cursorApp) "\u001BOB" else "\u001B[B"
@@ -3227,7 +3868,7 @@ private fun TerminalKeyboardOverlay(
         modifier = modifier,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
-        color = Color(0xFF1A1A1A)
+        color = if (isAmoled) Color.Black else Color(0xFF1A1A1A),
     ) {
         Column(
             modifier = Modifier
@@ -3236,6 +3877,7 @@ private fun TerminalKeyboardOverlay(
         ) {
             // Row 1: matches Termux default extra keys
             TerminalKeyRow(
+                isAmoled = isAmoled,
                 keys = listOf(
                     TerminalKey("ESC", popupLabel = "☰", popupAction = onToggleDrawer) { onSendInput("\u001B") },
                     TerminalKey("/") { onSendInput("/") },
@@ -3251,10 +3893,14 @@ private fun TerminalKeyboardOverlay(
                 Modifier
                     .fillMaxWidth()
                     .height(1.dp)
-                    .background(Color(0xFF333333))
+                    .background(
+                        if (isAmoled) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+                        else Color(0xFF333333)
+                    )
             )
             // Row 2: matches Termux default extra keys
             TerminalKeyRow(
+                isAmoled = isAmoled,
                 keys = listOf(
                     TerminalKey("\u21B9") { onSendInput("\t") },
                     TerminalKey("CTRL", active = ctrlLatched, action = onToggleCtrl),
@@ -3279,12 +3925,12 @@ private data class TerminalKey(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TerminalKeyRow(keys: List<TerminalKey>) {
+private fun TerminalKeyRow(keys: List<TerminalKey>, isAmoled: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth(),
     ) {
         keys.forEachIndexed { index, key ->
-            if (index > 0) {
+            if (index > 0 && !isAmoled) {
                 // Thin vertical divider between keys
                 Box(
                     Modifier
@@ -3299,8 +3945,18 @@ private fun TerminalKeyRow(keys: List<TerminalKey>) {
                     .weight(1f)
                     .height(34.dp)
                     .then(
-                        if (key.active) Modifier.background(Color(0xFF333333))
-                        else Modifier
+                        when {
+                            isAmoled -> Modifier.border(
+                                width = 0.5.dp,
+                                color = if (key.active) {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
+                                } else {
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                                },
+                            )
+                            key.active -> Modifier.background(Color(0xFF333333))
+                            else -> Modifier
+                        }
                     )
                     .combinedClickable(
                         onClick = key.action,
@@ -3314,7 +3970,12 @@ private fun TerminalKeyRow(keys: List<TerminalKey>) {
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontSize = 13.sp
                     ),
-                    color = if (key.active) Color(0xFF80CBC4) else Color(0xFFCCCCCC)
+                    color = when {
+                        isAmoled && key.active -> MaterialTheme.colorScheme.primary
+                        isAmoled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
+                        key.active -> Color(0xFF80CBC4)
+                        else -> Color(0xFFCCCCCC)
+                    }
                 )
             }
         }
@@ -3464,10 +4125,12 @@ private fun resolveStepsStatus(stepParts: List<Part>): String {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun ChatMessageBubble(
-    chatMessage: ChatMessage,
+    chatMessages: List<ChatMessage>,
     onRevert: (() -> Unit)? = null,
-    onCopyText: (() -> Unit)? = null
+    onCopyText: (() -> Unit)? = null,
+    onNavigateToChildSession: (String) -> Unit = {},
 ) {
+    val chatMessage = chatMessages.last()
     val isUser = chatMessage.isUser
     val isAmoled = isAmoledTheme()
     val alignment = if (isUser) Alignment.End else Alignment.Start
@@ -3476,7 +4139,7 @@ private fun ChatMessageBubble(
     } else if (isUser) {
         MaterialTheme.colorScheme.primaryContainer
     } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh
+        MaterialTheme.colorScheme.surfaceVariant
     }
     val textColor = if (isAmoled) {
         MaterialTheme.colorScheme.onSurface
@@ -3501,20 +4164,23 @@ private fun ChatMessageBubble(
     val hapticOn = LocalHapticFeedbackEnabled.current
 
     // Separate parts into text/reasoning (shown directly) and step parts (behind toggle)
+    val allParts = chatMessages.flatMap { it.parts }
     val visibleParts = if (isUser) {
-        chatMessage.parts.filter { part ->
+        allParts.filter { part ->
             when (part) {
                 is Part.Text -> part.synthetic != true && part.ignored != true && part.text.isNotBlank()
                 else -> true
             }
         }
     } else {
-        chatMessage.parts
+        allParts
     }
 
     val userMessage = chatMessage.message as? Message.User
-    val assistantMessage = chatMessage.message as? Message.Assistant
-    val assistantErrorText = formatAssistantErrorMessage(assistantMessage?.error)
+    val assistantMessage = chatMessages.mapNotNull { it.message as? Message.Assistant }.lastOrNull()
+    val assistantErrorText = chatMessages.firstNotNullOfOrNull {
+        formatAssistantErrorMessage((it.message as? Message.Assistant)?.error)
+    }
     val userFallbackText = userMessage?.summary?.body?.takeIf { it.isNotBlank() }
         ?: userMessage?.summary?.title?.takeIf { it.isNotBlank() }
     val userCommandLabel = if (isUser) {
@@ -3523,18 +4189,16 @@ private fun ChatMessageBubble(
         null
     }
 
-    // For assistant messages: split into "content" (text, reasoning, patch) and "steps" (tool calls, step markers)
+    // Tool cards belong in the response timeline. Each card owns its own collapse state.
     val contentParts: List<Part>
     val stepParts: List<Part>
     if (!isUser) {
         contentParts = visibleParts.filter { part ->
             part is Part.Text || part is Part.Reasoning || part is Part.Patch ||
                     part is Part.File || part is Part.Permission || part is Part.Question ||
-                    part is Part.Abort || part is Part.Retry
+                    part is Part.Abort || part is Part.Retry || part is Part.Tool
         }
-        stepParts = visibleParts.filter { part ->
-            part is Part.Tool || part is Part.StepStart || part is Part.StepFinish
-        }
+        stepParts = emptyList()
     } else {
         contentParts = visibleParts
         stepParts = emptyList()
@@ -3556,69 +4220,49 @@ private fun ChatMessageBubble(
 
     // Check if any tool is currently running (show spinner)
     val hasRunningTool = stepParts.any { it is Part.Tool && it.state is ToolState.Running }
+    var showRevertConfirmation by remember { mutableStateOf(false) }
 
-        val bubbleContent: @Composable (Modifier) -> Unit = { modifier ->
+    if (showRevertConfirmation && onRevert != null) {
+        RevertConfirmationDialog(
+            onDismiss = { showRevertConfirmation = false },
+            onConfirm = {
+                showRevertConfirmation = false
+                onRevert()
+            },
+        )
+    }
+
+    val bubbleContent: @Composable (Modifier) -> Unit = { modifier ->
         Surface(
-            shape = RoundedCornerShape(
-                topStart = if (isUser) 18.dp else 4.dp,
-                topEnd = if (isUser) 4.dp else 18.dp,
-                bottomStart = 18.dp,
-                bottomEnd = 18.dp
-            ),
+            shape = if (isUser) {
+                RoundedCornerShape(
+                    topStart = 12.dp,
+                    topEnd = 4.dp,
+                    bottomStart = 12.dp,
+                    bottomEnd = 12.dp,
+                )
+            } else {
+                RoundedCornerShape(12.dp)
+            },
             color = backgroundColor,
             border = bubbleBorder,
-            tonalElevation = if (isAmoled || isUser) 0.dp else 1.dp,
+            tonalElevation = 0.dp,
             modifier = modifier.fillMaxWidth()
         ) {
             val compact = LocalCompactMessages.current
-            Column(
-                    modifier = Modifier.padding(
-                        horizontal = if (compact) 10.dp else 16.dp,
-                        vertical = if (compact) 8.dp else 14.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 10.dp)
+            Box {
+                Column(
+                    modifier = Modifier
+                        .padding(
+                            PaddingValues(
+                                start = if (isUser) 8.dp else if (compact) 10.dp else 12.dp,
+                                end = if (isUser) 8.dp else if (compact) 10.dp else 12.dp,
+                                top = if (isUser) 4.dp else if (compact) 6.dp else 8.dp,
+                                bottom = if (isUser || compact) 2.dp else 4.dp,
+                            ),
+                        ),
+                    verticalArrangement = Arrangement.spacedBy(if (isUser) 1.dp else 2.dp),
                 ) {
-                    // "Response" header with provider icon and copy button — assistant messages only
-                    if (!isUser) {
-                        val assistantMsg = assistantMessage
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                if (assistantMsg?.providerId != null) {
-                                    ProviderIcon(
-                                        providerId = assistantMsg.providerId,
-                                        size = 12.dp,
-                                        tint = textColor.copy(alpha = 0.4f)
-                                    )
-                                }
-                                Text(
-                                    text = stringResource(R.string.chat_response),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        letterSpacing = 0.8.sp,
-                                        fontWeight = FontWeight.Medium
-                                    ),
-                                    color = textColor.copy(alpha = 0.4f)
-                                )
-                            }
-                            if (onCopyText != null) {
-                                Icon(
-                                    Icons.Default.ContentCopy,
-                                    contentDescription = stringResource(R.string.chat_copy),
-                                    modifier = Modifier
-                                        .size(15.dp)
-                                        .clickable { performHaptic(hapticView, hapticOn); onCopyText() },
-                                    tint = textColor.copy(alpha = 0.3f)
-                                )
-                            }
-                        }
-                    }
-
                     // Steps toggle (like WebUI "Show/Hide steps")
                     if (hasSteps) {
                         val stepsStatus = resolveStepsStatus(stepParts)
@@ -3661,37 +4305,54 @@ private fun ChatMessageBubble(
                                     PartContent(
                                         part = part,
                                         textColor = textColor,
-                                        isUser = isUser
+                                        isUser = isUser,
+                                        onNavigateToChildSession = onNavigateToChildSession,
                                     )
                                 }
                             }
                         }
                     }
 
-                    // Content parts (text, reasoning, patches, etc.)
-                    // Group image file parts into a compact thumbnail row
-                    val imageFiles = contentParts.filterIsInstance<Part.File>()
-                        .filter { it.mime.startsWith("image/") && !it.url.isNullOrBlank() }
-                    val otherParts = contentParts.filter { part ->
-                        !(part is Part.File && part.mime.startsWith("image/") && !part.url.isNullOrBlank())
+                    val contentGroups = if (isUser) {
+                        listOf(contentParts)
+                    } else {
+                        chatMessages.map { message ->
+                            message.parts.filter { part ->
+                                part is Part.Text || part is Part.Reasoning || part is Part.Patch ||
+                                    part is Part.File || part is Part.Permission || part is Part.Question ||
+                                    part is Part.Abort || part is Part.Retry || part is Part.Tool
+                            }
+                        }.filter { it.isNotEmpty() }
                     }
-                    val renderableOtherParts = otherParts.filter(::isBubbleRenderablePart)
-
-                    // Render image thumbnails as a horizontal row
-                    if (imageFiles.isNotEmpty()) {
-                        ImageThumbnailRow(imageFiles = imageFiles)
+                    var renderedContent = false
+                    contentGroups.forEachIndexed { groupIndex, groupParts ->
+                        val imageFiles = groupParts.filterIsInstance<Part.File>()
+                            .filter { it.mime.startsWith("image/") && !it.url.isNullOrBlank() }
+                        val renderableParts = groupParts.filter { part ->
+                            !(part is Part.File && part.mime.startsWith("image/") && !part.url.isNullOrBlank())
+                        }.filter(::isBubbleRenderablePart)
+                        if (imageFiles.isNotEmpty()) {
+                            ImageThumbnailRow(imageFiles = imageFiles)
+                            renderedContent = true
+                        }
+                        renderableParts.forEach { part ->
+                            PartContent(
+                                part = part,
+                                textColor = textColor,
+                                isUser = isUser,
+                                onNavigateToChildSession = onNavigateToChildSession,
+                            )
+                            renderedContent = true
+                        }
+                        if (!isUser && LocalShowTurnDividers.current && groupIndex < contentGroups.lastIndex) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                            )
+                        }
                     }
 
-                    // Render remaining parts
-                    for (part in renderableOtherParts) {
-                        PartContent(
-                            part = part,
-                            textColor = textColor,
-                            isUser = isUser
-                        )
-                    }
-
-                    if (isUser && imageFiles.isEmpty() && renderableOtherParts.isEmpty() && userCommandLabel != null) {
+                    if (isUser && !renderedContent && userCommandLabel != null) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -3734,7 +4395,18 @@ private fun ChatMessageBubble(
                             color = textColor.copy(alpha = 0.5f)
                         )
                     }
+
+                    MessageMetadataRow(
+                        message = chatMessage.message,
+                        textColor = textColor,
+                        delivery = chatMessage.delivery,
+                        onRevert = if (isUser && onRevert != null) {
+                            { showRevertConfirmation = true }
+                        } else null,
+                        onCopyText = onCopyText,
+                    )
                 }
+            }
         }
     }
 
@@ -3742,67 +4414,123 @@ private fun ChatMessageBubble(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = alignment
     ) {
-        if (isUser && onRevert != null) {
-            var showRevertConfirmation by remember { mutableStateOf(false) }
-            var showMessageActions by remember { mutableStateOf(false) }
+        bubbleContent(Modifier)
+    }
+}
 
-            if (showRevertConfirmation) {
-                AlertDialog(
-                    onDismissRequest = { showRevertConfirmation = false },
-                    title = { Text(stringResource(R.string.chat_revert_title)) },
-                    text = { Text(stringResource(R.string.chat_revert_message)) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                showRevertConfirmation = false
-                                onRevert()
-                            }
-                        ) {
-                            Text(stringResource(R.string.chat_revert), color = MaterialTheme.colorScheme.error)
-                        }
+@Composable
+private fun MessageMetadataRow(
+    message: Message,
+    textColor: Color,
+    delivery: MessageDelivery?,
+    onRevert: (() -> Unit)?,
+    onCopyText: (() -> Unit)?,
+) {
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
+    val timestamp = remember(message.time.created) {
+        val millis = if (message.time.created < 10_000_000_000L) message.time.created * 1000 else message.time.created
+        java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(millis))
+    }
+    val agent = when (message) {
+        is Message.User -> message.agent
+        is Message.Assistant -> message.agent
+    }
+    val model = when (message) {
+        is Message.User -> message.model?.modelId
+        is Message.Assistant -> message.modelId
+    }
+    val tokenSummary = when (message) {
+        is Message.User -> null
+        is Message.Assistant -> message.tokens?.let { tokens ->
+            val input = tokens.input + tokens.cache.read
+            "↑${formatTokenCount(input)} ↓${formatTokenCount(tokens.output)}"
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(timestamp, style = MaterialTheme.typography.labelSmall, color = textColor.copy(alpha = 0.42f))
+        if (delivery != null) {
+            Surface(
+                shape = RoundedCornerShape(5.dp),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+            ) {
+                Text(
+                    text = stringResource(
+                        if (delivery == MessageDelivery.PROMOTED) R.string.chat_message_sent
+                        else R.string.chat_message_queued,
+                    ),
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+            }
+        }
+        if (!agent.isNullOrBlank()) {
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = textColor.copy(alpha = 0.12f),
+            ) {
+                Text(
+                    agent.replaceFirstChar { it.uppercase() },
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = textColor.copy(alpha = 0.68f),
+                )
+            }
+        }
+        if (!model.isNullOrBlank()) {
+            Text(
+                model,
+                style = MaterialTheme.typography.labelSmall,
+                color = textColor.copy(alpha = 0.48f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        if (tokenSummary != null) {
+            Text(tokenSummary, style = MaterialTheme.typography.labelSmall, color = textColor.copy(alpha = 0.42f))
+        }
+        if (onRevert != null) {
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .semantics { role = Role.Button }
+                    .clickable {
+                        performHaptic(hapticView, hapticOn)
+                        onRevert()
                     },
-                    dismissButton = {
-                        TextButton(onClick = { showRevertConfirmation = false }) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                    }
-                )
-            }
-
-            Box {
-                bubbleContent(
-                    Modifier.combinedClickable(
-                        onClick = {},
-                        onLongClick = { showMessageActions = true },
-                    )
-                )
-                DropdownMenu(
-                    expanded = showMessageActions,
-                    onDismissRequest = { showMessageActions = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_revert)) },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null) },
-                        onClick = {
-                            showMessageActions = false
-                            showRevertConfirmation = true
-                        },
-                    )
-                }
-            }
-            IconButton(
-                onClick = { showRevertConfirmation = true },
-                modifier = Modifier.size(32.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.Undo,
                     contentDescription = stringResource(R.string.chat_revert),
-                    modifier = Modifier.size(17.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                    modifier = Modifier.size(13.dp),
+                    tint = textColor.copy(alpha = 0.58f),
                 )
             }
-        } else {
-            bubbleContent(Modifier)
+        }
+        if (onCopyText != null) {
+            Spacer(Modifier.width(3.dp))
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .semantics { role = Role.Button }
+                    .clickable { performHaptic(hapticView, hapticOn); onCopyText() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Default.ContentCopy,
+                    contentDescription = stringResource(R.string.chat_copy),
+                    modifier = Modifier.size(13.dp),
+                    tint = textColor.copy(alpha = 0.42f),
+                )
+            }
         }
     }
 }
@@ -3875,12 +4603,15 @@ private fun resolveUserCommandLabel(parts: List<Part>): String? {
 private fun RevertBanner(onRedo: () -> Unit) {
     val hapticView = LocalView.current
     val hapticOn = LocalHapticFeedbackEnabled.current
+    val isAmoled = isAmoledTheme()
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f),
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f),
+        border = if (isAmoled) appAmoledBorder() else null,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
+            .semantics { role = Role.Button }
             .clickable { performHaptic(hapticView, hapticOn); onRedo() }
     ) {
         Row(
@@ -3892,25 +4623,25 @@ private fun RevertBanner(onRedo: () -> Unit) {
                 Icons.AutoMirrored.Filled.Undo,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                tint = if (isAmoled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onTertiaryContainer
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.chat_messages_reverted),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                    color = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onTertiaryContainer
                 )
                 Text(
                     text = stringResource(R.string.chat_tap_restore),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                    color = if (isAmoled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
                 )
             }
             Icon(
                 Icons.Default.Restore,
                 contentDescription = stringResource(R.string.chat_restore),
                 modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                tint = if (isAmoled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onTertiaryContainer
             )
         }
     }
@@ -3920,7 +4651,8 @@ private fun RevertBanner(onRedo: () -> Unit) {
 private fun PartContent(
     part: Part,
     textColor: Color,
-    isUser: Boolean = false
+    isUser: Boolean = false,
+    onNavigateToChildSession: (String) -> Unit = {},
 ) {
     when (part) {
         is Part.Text -> {
@@ -3939,22 +4671,39 @@ private fun PartContent(
             }
         }
         is Part.Tool -> {
-            // todoread parts are filtered out entirely (WebUI convention)
-            if (part.tool == "todoread") {
-                // skip
-            } else if (part.tool == "todowrite") {
-                TodoListCard(tool = part)
-            } else {
-                // Dispatch to tool-specific renderers (like WebUI)
-                when (part.tool) {
-                    "edit", "multiedit" -> EditToolCard(tool = part)
-                    "write" -> WriteToolCard(tool = part)
-                    "bash" -> BashToolCard(tool = part)
-                    "read" -> ReadToolCard(tool = part)
-                    "glob", "grep" -> SearchToolCard(tool = part)
-                    "task" -> TaskToolCard(tool = part)
-                    else -> ToolCallCard(tool = part)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // todoread parts are filtered out entirely (WebUI convention)
+                if (part.tool == "todoread") {
+                    // skip
+                } else if (part.tool == "todowrite") {
+                    TodoListCard(tool = part)
+                } else {
+                    when (part.tool) {
+                        "edit", "multiedit" -> EditToolCard(tool = part)
+                        "write" -> WriteToolCard(tool = part)
+                        "apply_patch" -> ApplyPatchToolCard(tool = part)
+                        "bash" -> BashToolCard(tool = part)
+                        "read" -> ReadToolCard(tool = part)
+                        "glob", "grep" -> SearchToolCard(tool = part)
+                        "task" -> TaskToolCard(tool = part, onNavigateToChildSession = onNavigateToChildSession)
+                        else -> ToolCallCard(tool = part)
+                    }
                 }
+                val attachments = (part.state as? ToolState.Completed)?.attachments.orEmpty()
+                    .mapIndexed { index, attachment ->
+                        Part.File(
+                            id = attachment.id.ifBlank { "${part.id}-attachment-$index" },
+                            sessionId = attachment.sessionId.ifBlank { part.sessionId },
+                            messageId = attachment.messageId.ifBlank { part.messageId },
+                            mime = attachment.mime,
+                            filename = attachment.filename,
+                            url = attachment.url ?: attachment.data,
+                            source = attachment.source,
+                        )
+                    }
+                val images = attachments.filter { it.mime.startsWith("image/") && !it.url.isNullOrBlank() }
+                if (images.isNotEmpty()) ImageThumbnailRow(images)
+                attachments.filterNot { it in images }.forEach { FileCard(it) }
             }
         }
         is Part.StepStart -> {
@@ -4012,7 +4761,9 @@ private fun MarkdownContent(
     textColor: Color,
     isUser: Boolean
 ) {
-    val normalizedMarkdown = remember(markdown) { preserveRawHtmlPayload(markdown) }
+    val normalizedMarkdown = remember(markdown) {
+        normalizeTaskListMarkers(preserveRawHtmlPayload(markdown))
+    }
     val isAmoled = isAmoledTheme()
 
     // Inline code: keep text styling, but no opaque background so selection remains visible.
@@ -4064,7 +4815,7 @@ private fun MarkdownContent(
         },
         codeBackground = codeBlockBg,
         inlineCodeBackground = Color.Transparent,
-        dividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        dividerColor = textColor.copy(alpha = 0.32f)
     )
 
     val typography = markdownTypography(
@@ -4118,7 +4869,8 @@ private fun MarkdownContent(
 
     val components = markdownComponents(
         codeBlock = safeHighlightedCodeBlock,
-        codeFence = safeHighlightedCodeFence
+        codeFence = safeHighlightedCodeFence,
+        table = horizontallyScrollableMarkdownTable,
     )
 
     SelectionContainer {
@@ -4126,6 +4878,8 @@ private fun MarkdownContent(
             content = normalizedMarkdown,
             colors = colors,
             typography = typography,
+            flavour = ChatMarkdownFlavour,
+            annotator = ChatMarkdownAnnotator,
             components = components,
             imageTransformer = Coil2ImageTransformerImpl,
             modifier = Modifier.fillMaxWidth()
@@ -4135,6 +4889,59 @@ private fun MarkdownContent(
 
 private val HtmlDocumentHintRegex = Regex("(?is)<!doctype\\s+html\\b|<\\s*html\\b")
 private val HtmlTagRegex = Regex("(?is)<\\s*/?\\s*[a-z][^>]*>")
+private val MarkdownFenceStartRegex = Regex("^ {0,3}(`{3,}|~{3,})")
+private val TaskListMarkerRegex = Regex("^(\\s*[-+*]\\s+)\\[([ xX])]([ \\t]+)")
+internal val ChatMarkdownFlavour = GFMFlavourDescriptor()
+
+internal fun normalizeTaskListMarkers(markdown: String): String {
+    var fenceMarker: Char? = null
+    var minimumFenceLength = 0
+    return markdown.split('\n').joinToString("\n") { line ->
+        val marker = MarkdownFenceStartRegex.find(line)?.groupValues?.get(1)
+        if (fenceMarker != null) {
+            if (marker != null && marker.first() == fenceMarker && marker.length >= minimumFenceLength) {
+                fenceMarker = null
+                minimumFenceLength = 0
+            }
+            line
+        } else if (marker != null) {
+            fenceMarker = marker.first()
+            minimumFenceLength = marker.length
+            line
+        } else {
+            TaskListMarkerRegex.replace(line) { match ->
+                val checkbox = if (match.groupValues[2].equals("x", ignoreCase = true)) "\u2611" else "\u2610"
+                match.groupValues[1] + checkbox + match.groupValues[3]
+            }
+        }
+    }
+}
+internal val ChatMarkdownAnnotator = DefaultMarkdownAnnotator { content, node ->
+    markdownTokenReplacement(content, node)?.let { replacement ->
+        append(replacement)
+        true
+    } ?: false
+}
+
+private val EmailAutolinkRegex = Regex("<[^<>\\s@]+@[^<>\\s@]+>")
+
+internal fun markdownTokenReplacement(content: String, node: org.intellij.markdown.ast.ASTNode): String? {
+    val raw = content.substring(node.startOffset, node.endOffset)
+    return when {
+        node.type == GFMTokenTypes.TILDE && node.parent?.type != GFMElementTypes.STRIKETHROUGH -> raw
+        node.type == MarkdownTokenTypes.EMAIL_AUTOLINK -> raw
+        node.type == MarkdownTokenTypes.LT && EmailAutolinkRegex.matchAt(content, node.startOffset) != null -> ""
+        node.type == MarkdownTokenTypes.GT -> {
+            val openingOffset = content.lastIndexOf('<', node.startOffset)
+            val match = openingOffset.takeIf { it >= 0 }?.let { EmailAutolinkRegex.matchAt(content, it) }
+            if (match?.range?.last == node.startOffset) "" else null
+        }
+        node.type == GFMTokenTypes.CHECK_BOX -> {
+            if (raw.contains('x', ignoreCase = true)) "\u2611" else "\u2610"
+        }
+        else -> null
+    }
+}
 
 private fun looksLikeHtmlPayload(text: String): Boolean {
     if (text.isBlank()) return false
@@ -4192,58 +4999,64 @@ private fun preserveRawHtmlPayload(markdown: String): String {
 
 @Composable
 private fun ReasoningBlock(part: Part.Reasoning) {
-    val isAmoled = isAmoledTheme()
-    var expanded by rememberSaveable(part.id) { mutableStateOf(false) }
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
-        modifier = Modifier.fillMaxWidth()
+    val expandByDefault = LocalExpandReasoning.current
+    var expanded by rememberSaveable(part.id, expandByDefault) { mutableStateOf(expandByDefault) }
+    val extractedTitle = extractReasoningTitle(part.text)
+    val reasoningBody = if (extractedTitle != null) removeReasoningTitleLine(part.text) else part.text
+    val hasReasoningBody = reasoningBody.isNotBlank()
+    val reasoningTitle = extractedTitle ?: part.time?.let { time ->
+        time.end?.let { end ->
+            val durationMs = (end - time.start).coerceAtLeast(0)
+            val duration = if (durationMs < 1000) {
+                "${durationMs}ms"
+            } else {
+                String.format(Locale.getDefault(), "%.1fs", durationMs / 1000.0)
+            }
+            stringResource(R.string.chat_reasoning_complete, duration)
+        }
+    } ?: stringResource(R.string.chat_reasoning_active)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-            // Left accent border
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .let { modifier ->
+                    if (hasReasoningBody) {
+                        modifier.expandableToolHeader(expanded) { expanded = !expanded }
+                    } else modifier
+                }
+                .padding(vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Box(
                 modifier = Modifier
-                    .width(3.dp)
-                    .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.outlineVariant)
+                    .size(7.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
             )
-            
-            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { expanded = !expanded }
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(R.string.chat_status_thinking),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            letterSpacing = 0.6.sp,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.weight(1f),
-                    )
-                    Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = stringResource(if (expanded) R.string.chat_collapse else R.string.chat_expand),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                AnimatedVisibility(visible = expanded) {
-                    Text(
-                        text = part.text,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                            lineHeight = 20.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(bottom = 4.dp),
-                    )
-                }
+            Text(
+                text = reasoningTitle,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            if (hasReasoningBody) {
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = stringResource(if (expanded) R.string.chat_collapse else R.string.chat_expand),
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
+                )
             }
+        }
+        AnimatedVisibility(visible = expanded && hasReasoningBody) {
+            MarkdownContent(
+                markdown = reasoningBody,
+                textColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
+                isUser = false,
+            )
         }
     }
 }
@@ -4288,7 +5101,10 @@ private fun ToolCallCard(tool: Part.Tool) {
                     .fillMaxWidth()
                     .let { mod ->
                         if (tool.state is ToolState.Completed || tool.state is ToolState.Error) {
-                            mod.clickable { performHaptic(hapticView, hapticOn); expanded = !expanded }
+                            mod.expandableToolHeader(expanded) {
+                                performHaptic(hapticView, hapticOn)
+                                expanded = !expanded
+                            }
                         } else mod
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -4338,6 +5154,7 @@ private fun ToolCallCard(tool: Part.Tool) {
                     )
                 } else if (tool.state is ToolState.Running) {
                     PulsingDotsIndicator(
+                        modifier = Modifier.padding(end = 2.dp),
                         dotSize = 5.dp,
                         dotSpacing = 3.dp,
                         color = stateColor
@@ -4529,6 +5346,178 @@ private fun extractToolOutput(tool: Part.Tool): String {
     }
 }
 
+@Composable
+private fun ApplyPatchToolCard(tool: Part.Tool) {
+    val isAmoled = isAmoledTheme()
+    val input = extractToolInput(tool)
+    val metadata = when (val state = tool.state) {
+        is ToolState.Running -> state.metadata
+        is ToolState.Completed -> state.metadata
+        is ToolState.Error -> state.metadata
+        is ToolState.Pending -> null
+    }
+    val files = metadata?.get("files")?.let { element ->
+        runCatching { element.jsonArray.mapNotNull { it.jsonObject } }.getOrDefault(emptyList())
+    }.orEmpty()
+    val patch = metadata?.get("diff")?.jsonPrimitive?.contentOrNull
+        ?: input["patchText"]?.jsonPrimitive?.contentOrNull
+        ?: metadata?.get("patch")?.jsonPrimitive?.contentOrNull
+        ?: input["patch"]?.jsonPrimitive?.contentOrNull
+        ?: extractToolOutput(tool)
+    val filePath = input["filePath"]?.jsonPrimitive?.contentOrNull
+        ?: input["path"]?.jsonPrimitive?.contentOrNull
+        ?: files.firstOrNull()?.get("relativePath")?.jsonPrimitive?.contentOrNull
+        ?: files.firstOrNull()?.get("filePath")?.jsonPrimitive?.contentOrNull
+    val stats = remember(patch, files) {
+        if (files.isNotEmpty()) {
+            files.sumOf { it["additions"]?.jsonPrimitive?.intOrNull ?: 0 } to
+                files.sumOf { it["deletions"]?.jsonPrimitive?.intOrNull ?: 0 }
+        } else {
+            countUnifiedPatchChanges(patch)
+        }
+    }
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val context = LocalContext.current
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
+    val autoExpand = LocalCollapseTools.current
+    var expanded by rememberSaveable(tool.id, autoExpand) { mutableStateOf(autoExpand) }
+    val isRunning = tool.state is ToolState.Running
+    val hasContent = patch.isNotBlank()
+
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+        tonalElevation = if (isAmoled) 0.dp else 1.dp,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(4.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .let {
+                        if (hasContent) it.expandableToolHeader(expanded) {
+                            performHaptic(hapticView, hapticOn)
+                            expanded = !expanded
+                        } else it
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(3.dp))
+                Text(
+                    text = buildString {
+                        append(stringResource(R.string.tool_apply_patch))
+                        filePath?.substringAfterLast('/')?.takeIf { it.isNotBlank() }?.let { append(" · ").append(it) }
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (stats.first > 0 || stats.second > 0) DiffChangesInline(stats.first, stats.second)
+                if (isRunning) {
+                    Spacer(Modifier.width(4.dp))
+                    PulsingDotsIndicator(
+                        modifier = Modifier.padding(end = 2.dp),
+                        dotSize = 5.dp,
+                        dotSpacing = 3.dp,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                } else if (hasContent) {
+                    IconButton(
+                        onClick = {
+                            clipboard.setText(AnnotatedString(patch))
+                            android.widget.Toast.makeText(context, R.string.chat_copied_clipboard, android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.size(22.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.ContentCopy,
+                            contentDescription = stringResource(R.string.chat_copy),
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
+                        )
+                    }
+                    Icon(
+                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
+                    )
+                }
+            }
+            AnimatedVisibility(
+                visible = expanded && hasContent,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
+                UnifiedPatchView(patch)
+            }
+        }
+    }
+}
+
+internal fun countUnifiedPatchChanges(patch: String): Pair<Int, Int> {
+    var additions = 0
+    var deletions = 0
+    patch.lineSequence().forEach { line ->
+        if (line.startsWith("+") && !line.startsWith("+++")) additions++
+        if (line.startsWith("-") && !line.startsWith("---")) deletions++
+    }
+    return additions to deletions
+}
+
+@Composable
+private fun UnifiedPatchView(patch: String) {
+    val isAmoled = isAmoledTheme()
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = toolOutputContainerColor(isAmoled),
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 3.dp)
+            .heightIn(max = (LocalConfiguration.current.screenHeightDp.dp / 2).coerceAtLeast(200.dp)),
+    ) {
+        SelectionContainer {
+            Column(
+                modifier = Modifier
+                    .codeHorizontalScroll()
+                    .verticalScroll(rememberScrollState())
+                    .padding(4.dp),
+            ) {
+                patch.lineSequence().forEach { line ->
+                    val added = line.startsWith("+") && !line.startsWith("+++")
+                    val removed = line.startsWith("-") && !line.startsWith("---")
+                    val header = line.startsWith("@@") || line.startsWith("***") || line.startsWith("---") || line.startsWith("+++")
+                    Text(
+                        text = line,
+                        style = CodeTypography.copy(
+                            color = when {
+                                added -> Color(0xFF2E7D32)
+                                removed -> Color(0xFFC62828)
+                                header -> MaterialTheme.colorScheme.primary
+                                else -> MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f)
+                            },
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                when {
+                                    added -> Color(0xFF4CAF50).copy(alpha = 0.10f)
+                                    removed -> Color(0xFFE53935).copy(alpha = 0.10f)
+                                    else -> Color.Transparent
+                                },
+                            ),
+                    )
+                }
+            }
+        }
+    }
+}
+
 /**
  * Edit tool card — shows file path + diff with red/green colored lines.
  * Like WebUI: trigger = "Edit" + filename + DiffChanges, content = diff view.
@@ -4536,6 +5525,8 @@ private fun extractToolOutput(tool: Part.Tool): String {
 @Composable
 private fun EditToolCard(tool: Part.Tool) {
     val isAmoled = isAmoledTheme()
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val context = LocalContext.current
     val input = extractToolInput(tool)
     val filePath = input["filePath"]?.jsonPrimitive?.contentOrNull ?: ""
     val shortPath = filePath.substringAfterLast('/')
@@ -4549,16 +5540,28 @@ private fun EditToolCard(tool: Part.Tool) {
         is ToolState.Running -> s.metadata
         else -> null
     }
-    val filediffBefore = metadata?.get("filediff")?.jsonObject?.get("before")?.jsonPrimitive?.contentOrNull
-    val filediffAfter = metadata?.get("filediff")?.jsonObject?.get("after")?.jsonPrimitive?.contentOrNull
+    val fileDiff = metadata?.get("filediff")?.jsonObject
+    val authoritativePatch = fileDiff?.get("patch")?.jsonPrimitive?.contentOrNull
+        ?: metadata?.get("diff")?.jsonPrimitive?.contentOrNull
+    val filediffBefore = fileDiff?.get("before")?.jsonPrimitive?.contentOrNull
+    val filediffAfter = fileDiff?.get("after")?.jsonPrimitive?.contentOrNull
 
     val diffBefore = filediffBefore ?: oldString
     val diffAfter = filediffAfter ?: newString
 
     // Compute additions/deletions
-    val addCount = diffAfter.lines().size - diffBefore.lines().let { if (diffBefore.isBlank()) 0 else it.size }
-    val additions = if (addCount > 0) addCount else 0
-    val deletions = if (addCount < 0) -addCount else 0
+    val diffLines = remember(diffBefore, diffAfter) {
+        computeSimpleDiff(
+            if (diffBefore.isBlank()) emptyList() else diffBefore.lines(),
+            if (diffAfter.isBlank()) emptyList() else diffAfter.lines(),
+        )
+    }
+    val additions = fileDiff?.get("additions")?.jsonPrimitive?.intOrNull
+        ?: authoritativePatch?.let(::countUnifiedPatchChanges)?.first
+        ?: diffLines.count { it.type == DiffLineType.ADDED }
+    val deletions = fileDiff?.get("deletions")?.jsonPrimitive?.intOrNull
+        ?: authoritativePatch?.let(::countUnifiedPatchChanges)?.second
+        ?: diffLines.count { it.type == DiffLineType.REMOVED }
 
     val autoExpand = LocalCollapseTools.current
     val hapticView = LocalView.current
@@ -4566,22 +5569,25 @@ private fun EditToolCard(tool: Part.Tool) {
     var expanded by remember(autoExpand) { mutableStateOf(autoExpand) }
     val isRunning = tool.state is ToolState.Running
     val isError = tool.state is ToolState.Error
-    val hasContent = oldString.isNotBlank() || newString.isNotBlank()
+    val hasContent = !authoritativePatch.isNullOrBlank() || diffBefore.isNotBlank() || diffAfter.isNotBlank()
 
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
         border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
         tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(8.dp)) {
+        Column(modifier = Modifier.padding(4.dp)) {
             // Header row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .let { mod ->
-                        if (hasContent && !isRunning) mod.clickable { performHaptic(hapticView, hapticOn); expanded = !expanded } else mod
+                        if (hasContent && !isRunning) mod.expandableToolHeader(expanded) {
+                            performHaptic(hapticView, hapticOn)
+                            expanded = !expanded
+                        } else mod
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -4624,16 +5630,31 @@ private fun EditToolCard(tool: Part.Tool) {
                     }
                     if (isRunning) {
                         PulsingDotsIndicator(
+                            modifier = Modifier.padding(end = 2.dp),
                             dotSize = 5.dp,
                             dotSpacing = 3.dp,
                             color = MaterialTheme.colorScheme.tertiary
                         )
                     } else if (hasContent) {
+                        IconButton(
+                            onClick = {
+                                clipboard.setText(AnnotatedString("Edit: $filePath\n\n${authoritativePatch ?: diffAfter}"))
+                                android.widget.Toast.makeText(context, R.string.chat_copied_clipboard, android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.size(22.dp),
+                        ) {
+                            Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = stringResource(R.string.chat_copy),
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
+                            )
+                        }
                         Icon(
                             imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
                         )
                     }
                 }
@@ -4661,7 +5682,11 @@ private fun EditToolCard(tool: Part.Tool) {
                             )
                         }
                     } else {
-                        DiffView(before = diffBefore, after = diffAfter)
+                        if (!authoritativePatch.isNullOrBlank()) {
+                            UnifiedPatchView(authoritativePatch)
+                        } else {
+                            DiffView(before = diffBefore, after = diffAfter)
+                        }
                     }
                 }
             }
@@ -4831,7 +5856,7 @@ private fun WriteToolCard(tool: Part.Tool) {
     val hasContent = content.isNotBlank()
 
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
         border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
         tonalElevation = if (isAmoled) 0.dp else 1.dp,
@@ -4842,7 +5867,10 @@ private fun WriteToolCard(tool: Part.Tool) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .let { mod ->
-                        if (hasContent && !isRunning) mod.clickable { performHaptic(hapticView, hapticOn); expanded = !expanded } else mod
+                        if (hasContent && !isRunning) mod.expandableToolHeader(expanded) {
+                            performHaptic(hapticView, hapticOn)
+                            expanded = !expanded
+                        } else mod
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -4875,7 +5903,12 @@ private fun WriteToolCard(tool: Part.Tool) {
                     }
                 }
                 if (isRunning) {
-                    PulsingDotsIndicator(dotSize = 5.dp, dotSpacing = 3.dp, color = MaterialTheme.colorScheme.tertiary)
+                    PulsingDotsIndicator(
+                        modifier = Modifier.padding(end = 2.dp),
+                        dotSize = 5.dp,
+                        dotSpacing = 3.dp,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
                 } else if (hasContent) {
                     Icon(
                         imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -4918,10 +5951,15 @@ private fun WriteToolCard(tool: Part.Tool) {
 private fun BashToolCard(tool: Part.Tool) {
     val isAmoled = isAmoledTheme()
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val context = LocalContext.current
     val input = extractToolInput(tool)
     val command = input["command"]?.jsonPrimitive?.contentOrNull ?: ""
-    val description = input["description"]?.jsonPrimitive?.contentOrNull
-    val output = extractToolOutput(tool)
+    val output = (tool.state as? ToolState.Running)
+        ?.metadata
+        ?.get("output")
+        ?.jsonPrimitive
+        ?.contentOrNull
+        ?: extractToolOutput(tool)
     val cleanedOutput = output.replace(Regex("\u001B\\[[0-9;]*[a-zA-Z]"), "")
     val displayText = buildString {
         if (command.isNotBlank()) {
@@ -4942,30 +5980,33 @@ private fun BashToolCard(tool: Part.Tool) {
     val autoExpand = LocalCollapseTools.current
     val hapticView = LocalView.current
     val hapticOn = LocalHapticFeedbackEnabled.current
-    var expanded by remember(autoExpand) { mutableStateOf(autoExpand) }
+    var expanded by rememberSaveable(tool.id, autoExpand) { mutableStateOf(autoExpand) }
     val isRunning = tool.state is ToolState.Running
     val isError = tool.state is ToolState.Error
     val hasContent = command.isNotBlank() || output.isNotBlank()
 
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
         border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
         tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(8.dp)) {
+        Column(modifier = Modifier.padding(4.dp)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .let { mod ->
-                        if (hasContent && !isRunning) mod.clickable { performHaptic(hapticView, hapticOn); expanded = !expanded } else mod
+                        if (hasContent) mod.expandableToolHeader(expanded) {
+                            performHaptic(hapticView, hapticOn)
+                            expanded = !expanded
+                        } else mod
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -4975,35 +6016,35 @@ private fun BashToolCard(tool: Part.Tool) {
                         modifier = Modifier.size(16.dp),
                         tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                     )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = serverTitle ?: stringResource(R.string.tool_shell),
-                            style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        if (description != null) {
-                            Text(
-                                text = description,
-                                style = CodeTypography.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
+                    Text(
+                        text = serverTitle ?: stringResource(R.string.tool_shell),
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
                 if (isRunning) {
-                    PulsingDotsIndicator(dotSize = 5.dp, dotSpacing = 3.dp, color = MaterialTheme.colorScheme.tertiary)
+                    PulsingDotsIndicator(
+                        modifier = Modifier.padding(end = 2.dp),
+                        dotSize = 5.dp,
+                        dotSpacing = 3.dp,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
                 } else if (hasContent) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        if (cleanedOutput.isNotBlank()) {
+                        if (displayText.isNotBlank()) {
                             IconButton(
                                 onClick = {
                                     clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(displayText))
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        context.getString(R.string.chat_copied_clipboard),
+                                        android.widget.Toast.LENGTH_SHORT,
+                                    ).show()
                                 },
                                 modifier = Modifier.size(22.dp)
                             ) {
@@ -5011,7 +6052,7 @@ private fun BashToolCard(tool: Part.Tool) {
                                     imageVector = Icons.Default.ContentCopy,
                                     contentDescription = stringResource(R.string.chat_copy),
                                     modifier = Modifier.size(14.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
                                 )
                             }
                         }
@@ -5019,30 +6060,34 @@ private fun BashToolCard(tool: Part.Tool) {
                             imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
                         )
                     }
                 }
             }
 
-            AnimatedVisibility(visible = expanded && hasContent) {
+            AnimatedVisibility(
+                visible = expanded && hasContent,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
                     color = toolOutputContainerColor(isAmoled),
                     border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 6.dp)
-                        .heightIn(max = 400.dp)
+                        .padding(top = 3.dp)
+                        .heightIn(max = (LocalConfiguration.current.screenHeightDp.dp / 2).coerceAtLeast(200.dp))
+                        .verticalScroll(rememberScrollState())
                 ) {
                     SelectionContainer {
                         Text(
                             text = displayText,
-                            style = CodeTypography.copy(fontSize = 12.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f) else MaterialTheme.colorScheme.onSecondaryContainer),
+                            style = CodeTypography.copy(color = if (isAmoled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f) else MaterialTheme.colorScheme.onSecondaryContainer),
                             modifier = Modifier
-                                .padding(8.dp)
+                                .padding(4.dp)
                                 .codeHorizontalScroll()
-                                .verticalScroll(rememberScrollState())
                         )
                     }
                 }
@@ -5072,6 +6117,12 @@ private fun ReadToolCard(tool: Part.Tool) {
 
     val isRunning = tool.state is ToolState.Running
     val isError = tool.state is ToolState.Error
+    val output = extractToolOutput(tool)
+    val autoExpand = LocalCollapseTools.current
+    val hapticView = LocalView.current
+    val hapticOn = LocalHapticFeedbackEnabled.current
+    var expanded by rememberSaveable(tool.id, autoExpand) { mutableStateOf(autoExpand) }
+    val hasContent = output.isNotBlank()
 
     // Build args string like WebUI: [offset=N, limit=N]
     val args = buildList {
@@ -5080,23 +6131,24 @@ private fun ReadToolCard(tool: Part.Tool) {
     }.takeIf { it.isNotEmpty() }?.joinToString(", ", "[", "]")
 
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
         border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
         tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Column(modifier = Modifier.padding(4.dp)) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .let {
+                        if (hasContent) it.expandableToolHeader(expanded) {
+                            performHaptic(hapticView, hapticOn)
+                            expanded = !expanded
+                        } else it
+                    },
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
             ) {
                 Icon(
                     imageVector = if (isError) Icons.Default.Error else Icons.Default.Description,
@@ -5133,9 +6185,44 @@ private fun ReadToolCard(tool: Part.Tool) {
                         }
                     }
                 }
+                if (isRunning) {
+                    PulsingDotsIndicator(
+                        modifier = Modifier.padding(end = 2.dp),
+                        dotSize = 5.dp,
+                        dotSpacing = 3.dp,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                } else if (hasContent) {
+                    Icon(
+                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
+                    )
+                }
             }
-            if (isRunning) {
-                PulsingDotsIndicator(dotSize = 5.dp, dotSpacing = 3.dp, color = MaterialTheme.colorScheme.tertiary)
+            AnimatedVisibility(
+                visible = expanded && hasContent,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = toolOutputContainerColor(isAmoled),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 3.dp)
+                        .heightIn(max = (LocalConfiguration.current.screenHeightDp.dp / 2).coerceAtLeast(200.dp))
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    SelectionContainer {
+                        Text(
+                            text = output,
+                            style = CodeTypography.copy(fontSize = 11.sp),
+                            modifier = Modifier.padding(4.dp).codeHorizontalScroll(),
+                        )
+                    }
+                }
             }
         }
     }
@@ -5148,6 +6235,8 @@ private fun ReadToolCard(tool: Part.Tool) {
 @Composable
 private fun SearchToolCard(tool: Part.Tool) {
     val isAmoled = isAmoledTheme()
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val context = LocalContext.current
     val input = extractToolInput(tool)
     val pattern = input["pattern"]?.jsonPrimitive?.contentOrNull
     val include = input["include"]?.jsonPrimitive?.contentOrNull
@@ -5160,44 +6249,45 @@ private fun SearchToolCard(tool: Part.Tool) {
         else -> null
     }
 
-    val title = when (tool.tool) {
+    val label = when (tool.tool) {
         "glob" -> serverTitle ?: stringResource(R.string.tool_find_files)
         "grep" -> serverTitle ?: stringResource(R.string.tool_search_code)
         else -> serverTitle ?: tool.tool
     }
-
-    // Build args display
-    val argsText = buildList {
-        pattern?.let { add("pattern=$it") }
-        include?.let { add("include=$it") }
-    }.takeIf { it.isNotEmpty() }?.joinToString(", ", "[", "]")
+    val title = pattern?.takeIf { it.isNotBlank() }?.let {
+        "$label · ${if (it.length > 40) it.take(37) + "..." else it}"
+    } ?: label
 
     val autoExpand = LocalCollapseTools.current
     val hapticView = LocalView.current
     val hapticOn = LocalHapticFeedbackEnabled.current
-    var expanded by remember(autoExpand) { mutableStateOf(autoExpand) }
+    var expanded by rememberSaveable(tool.id, autoExpand) { mutableStateOf(autoExpand) }
     val isRunning = tool.state is ToolState.Running
     val hasOutput = output.isNotBlank()
+    val hasContent = hasOutput || pattern != null || !dirPath.isNullOrBlank() || include != null
 
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
         border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
         tonalElevation = if (isAmoled) 0.dp else 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(8.dp)) {
+        Column(modifier = Modifier.padding(4.dp)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .let { mod ->
-                        if (hasOutput && !isRunning) mod.clickable { performHaptic(hapticView, hapticOn); expanded = !expanded } else mod
+                        if (hasContent) mod.expandableToolHeader(expanded) {
+                            performHaptic(hapticView, hapticOn)
+                            expanded = !expanded
+                        } else mod
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -5207,67 +6297,90 @@ private fun SearchToolCard(tool: Part.Tool) {
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1
-                        )
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (dirPath != null) {
-                                Text(
-                                    text = dirPath.substringAfterLast('/').ifEmpty { dirPath },
-                                    style = CodeTypography.copy(fontSize = 11.sp),
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            if (argsText != null) {
-                                Text(
-                                    text = argsText,
-                                    style = CodeTypography.copy(fontSize = 10.sp),
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
                 if (isRunning) {
-                    PulsingDotsIndicator(dotSize = 5.dp, dotSpacing = 3.dp, color = MaterialTheme.colorScheme.tertiary)
-                } else if (hasOutput) {
-                    Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    PulsingDotsIndicator(
+                        modifier = Modifier.padding(end = 2.dp),
+                        dotSize = 5.dp,
+                        dotSpacing = 3.dp,
+                        color = MaterialTheme.colorScheme.tertiary,
                     )
+                } else if (hasContent) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = {
+                                clipboard.setText(AnnotatedString(if (hasOutput) output else title))
+                                android.widget.Toast.makeText(context, R.string.chat_copied_clipboard, android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.size(22.dp),
+                        ) {
+                            Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = stringResource(R.string.chat_copy),
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
+                            )
+                        }
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
+                        )
+                    }
                 }
             }
 
-            AnimatedVisibility(visible = expanded && hasOutput) {
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = toolOutputContainerColor(isAmoled),
-                    border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 6.dp)
-                        .heightIn(max = 300.dp)
-                ) {
-                    Text(
-                        text = output.take(5000),
-                        style = CodeTypography.copy(fontSize = 12.sp, color = if (isAmoled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f) else MaterialTheme.colorScheme.onSecondaryContainer),
-                        modifier = Modifier
-                            .padding(8.dp)
-                            .codeHorizontalScroll()
-                            .verticalScroll(rememberScrollState())
-                    )
+            AnimatedVisibility(
+                visible = expanded && hasContent,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
+                Column(modifier = Modifier.padding(top = 3.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    if (pattern != null || !dirPath.isNullOrBlank() || include != null) {
+                        Surface(shape = RoundedCornerShape(4.dp), color = toolOutputContainerColor(isAmoled)) {
+                            Text(
+                                text = buildList {
+                                    pattern?.let { add("pattern: $it") }
+                                    dirPath?.takeIf { it.isNotBlank() }?.let { add("path: $it") }
+                                    include?.let { add("include: $it") }
+                                }.joinToString("\n"),
+                                style = CodeTypography.copy(fontSize = 11.sp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+                    if (hasOutput) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = toolOutputContainerColor(isAmoled),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = (LocalConfiguration.current.screenHeightDp.dp / 2).coerceAtLeast(200.dp))
+                                .verticalScroll(rememberScrollState()),
+                        ) {
+                            SelectionContainer {
+                                if (tool.tool == "grep") {
+                                    Box(Modifier.padding(4.dp)) {
+                                        MarkdownContent(output, MaterialTheme.colorScheme.onSecondaryContainer, false)
+                                    }
+                                } else {
+                                    Text(
+                                        text = output,
+                                        style = CodeTypography.copy(fontSize = 11.sp),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -5279,7 +6392,10 @@ private fun SearchToolCard(tool: Part.Tool) {
  * Like WebUI: trigger = "Agent (task)" + description, content = child tool list.
  */
 @Composable
-private fun TaskToolCard(tool: Part.Tool) {
+private fun TaskToolCard(
+    tool: Part.Tool,
+    onNavigateToChildSession: (String) -> Unit,
+) {
     val isAmoled = isAmoledTheme()
     val input = extractToolInput(tool)
     val description = input["description"]?.jsonPrimitive?.contentOrNull
@@ -5297,6 +6413,12 @@ private fun TaskToolCard(tool: Part.Tool) {
     var expanded by remember(autoExpand) { mutableStateOf(autoExpand) }
     val isRunning = tool.state is ToolState.Running
     val hasOutput = output.isNotBlank()
+    val childSessionId = when (val state = tool.state) {
+        is ToolState.Running -> state.metadata?.get("sessionId")?.jsonPrimitive?.contentOrNull
+        is ToolState.Completed -> state.metadata?.get("sessionId")?.jsonPrimitive?.contentOrNull
+        is ToolState.Error -> state.metadata?.get("sessionId")?.jsonPrimitive?.contentOrNull
+        is ToolState.Pending -> null
+    }?.takeIf { it.isNotBlank() }
 
     Surface(
         shape = RoundedCornerShape(8.dp),
@@ -5310,7 +6432,17 @@ private fun TaskToolCard(tool: Part.Tool) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .let { mod ->
-                        if (hasOutput && !isRunning) mod.clickable { performHaptic(hapticView, hapticOn); expanded = !expanded } else mod
+                        when {
+                            childSessionId != null -> mod.clickable {
+                                performHaptic(hapticView, hapticOn)
+                                onNavigateToChildSession(childSessionId)
+                            }
+                            hasOutput && !isRunning -> mod.clickable {
+                                performHaptic(hapticView, hapticOn)
+                                expanded = !expanded
+                            }
+                            else -> mod
+                        }
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -5344,7 +6476,19 @@ private fun TaskToolCard(tool: Part.Tool) {
                     }
                 }
                 if (isRunning) {
-                    PulsingDotsIndicator(dotSize = 5.dp, dotSpacing = 3.dp, color = MaterialTheme.colorScheme.tertiary)
+                    PulsingDotsIndicator(
+                        modifier = Modifier.padding(end = 2.dp),
+                        dotSize = 5.dp,
+                        dotSpacing = 3.dp,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                } else if (childSessionId != null) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
+                    )
                 } else if (hasOutput) {
                     Icon(
                         imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -5430,7 +6574,10 @@ private fun TodoListCard(tool: Part.Tool) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { performHaptic(hapticView, hapticOn); expanded = !expanded },
+                    .expandableToolHeader(expanded) {
+                        performHaptic(hapticView, hapticOn)
+                        expanded = !expanded
+                    },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -5576,7 +6723,10 @@ private fun PatchCard(patch: Part.Patch) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { performHaptic(hapticView, hapticOn); expanded = !expanded },
+                    .expandableToolHeader(expanded) {
+                        performHaptic(hapticView, hapticOn)
+                        expanded = !expanded
+                    },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -5720,20 +6870,10 @@ private fun ImagePreviewDialog(
     onSave: () -> Unit,
 ) {
     val isAmoled = isAmoledTheme()
-    BasicAlertDialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerHigh,
-            border = if (isAmoled) {
-                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f))
-            } else {
-                null
-            },
-            tonalElevation = if (isAmoled) 0.dp else 6.dp,
-        ) {
+    AppDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+    ) {
             Box(modifier = Modifier.padding(14.dp)) {
                 androidx.compose.foundation.Image(
                     bitmap = bitmap,
@@ -5761,7 +6901,7 @@ private fun ImagePreviewDialog(
                         color = actionContainerColor,
                         border = BorderStroke(1.dp, actionBorderColor),
                     ) {
-                        IconButton(onClick = onSave, modifier = Modifier.size(36.dp)) {
+                        IconButton(onClick = onSave, modifier = Modifier.size(48.dp)) {
                             Icon(
                                 Icons.Default.Download,
                                 contentDescription = stringResource(R.string.chat_save_image),
@@ -5775,7 +6915,7 @@ private fun ImagePreviewDialog(
                         color = actionContainerColor,
                         border = BorderStroke(1.dp, actionBorderColor),
                     ) {
-                        IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
+                        IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = stringResource(R.string.close),
@@ -5785,7 +6925,6 @@ private fun ImagePreviewDialog(
                     }
                 }
             }
-        }
     }
 }
 
@@ -5848,15 +6987,43 @@ private fun FileCardFallback(file: Part.File) {
 @Composable
 private fun PermissionCard(
     permission: SseEvent.PermissionAsked,
-    onOnce: () -> Unit,
-    onAlways: () -> Unit,
-    onReject: () -> Unit
+    position: String,
+    onReply: (reply: String, onResult: (Boolean) -> Unit) -> Unit,
 ) {
     val isAmoled = isAmoledTheme()
     val hapticView = LocalView.current
     val hapticOn = LocalHapticFeedbackEnabled.current
     val containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.tertiaryContainer
     val contentColor = if (isAmoled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onTertiaryContainer
+    var submitting by remember(permission.sessionId, permission.id) { mutableStateOf(false) }
+    var confirmAlways by remember(permission.sessionId, permission.id) { mutableStateOf(false) }
+
+    if (confirmAlways) {
+        ChatDialog(onDismiss = { confirmAlways = false }) {
+            Text(stringResource(R.string.permission_always_confirm_title), style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(16.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.permission_always_confirm_message))
+                if (permission.always.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.permission_always_scope, permission.always.joinToString(", ")),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                AppSecondaryButton(onClick = { confirmAlways = false }) { Text(stringResource(R.string.cancel)) }
+                AppPrimaryButton(onClick = {
+                    confirmAlways = false
+                    submitting = true
+                    onReply("always") { success -> submitting = false }
+                }) {
+                    Text(stringResource(R.string.permission_allow_always))
+                }
+            }
+        }
+    }
     Card(
         colors = CardDefaults.cardColors(
             containerColor = containerColor
@@ -5883,6 +7050,8 @@ private fun PermissionCard(
                     style = MaterialTheme.typography.titleSmall,
                     color = contentColor
                 )
+                Spacer(Modifier.weight(1f))
+                Text(position, style = MaterialTheme.typography.labelSmall, color = contentColor.copy(alpha = 0.7f))
             }
             Text(
                 text = permission.permission,
@@ -5904,24 +7073,33 @@ private fun PermissionCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedButton(
-                    onClick = { performHaptic(hapticView, hapticOn); onReject() },
+                AppSecondaryButton(
+                    onClick = {
+                        performHaptic(hapticView, hapticOn)
+                        submitting = true
+                        onReply("reject") { submitting = false }
+                    },
+                    enabled = !submitting,
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                    destructive = true,
                 ) {
                     Text(stringResource(R.string.permission_deny), maxLines = 1)
                 }
-                OutlinedButton(
-                    onClick = { performHaptic(hapticView, hapticOn); onOnce() },
+                AppSecondaryButton(
+                    onClick = {
+                        performHaptic(hapticView, hapticOn)
+                        submitting = true
+                        onReply("once") { submitting = false }
+                    },
+                    enabled = !submitting,
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                 ) {
                     Text(stringResource(R.string.permission_allow_once), maxLines = 1)
                 }
-                Button(
-                    onClick = { performHaptic(hapticView, hapticOn); onAlways() },
+                AppPrimaryButton(
+                    onClick = { performHaptic(hapticView, hapticOn); confirmAlways = true },
+                    enabled = !submitting,
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                 ) {
                     Text(stringResource(R.string.permission_allow_always), maxLines = 1)
                 }
@@ -5971,7 +7149,8 @@ private fun ChatInputBar(
     inputMode: ChatInputMode = ChatInputMode.NORMAL,
     onInputModeChange: (ChatInputMode) -> Unit = {},
     contextWindow: Int = 0,
-    lastContextTokens: Int = 0
+    lastContextTokens: Int = 0,
+    contextUsage: ContextUsageDetails = ContextUsageDetails(),
 ) {
     val isAmoled = isAmoledTheme()
     val isShellMode = inputMode == ChatInputMode.SHELL
@@ -5990,9 +7169,11 @@ private fun ChatInputBar(
     }
 
     val text = textFieldValue.text
+    val showInlineAttach = text.isEmpty() && !isShellMode
     val hasDraft = text.isNotBlank() || attachments.isNotEmpty()
     val action = composerAction(isBusy, isSending, hasDraft, isShellMode)
     val canSend = action == ComposerAction.SEND
+    var showContextDetails by remember { mutableStateOf(false) }
     var previewAttachmentIndex by remember { mutableStateOf(-1) }
 
     // Build merged slash commands: client commands + server commands (deduplicated)
@@ -6138,20 +7319,34 @@ private fun ChatInputBar(
                             style = MaterialTheme.typography.bodyMedium,
                             fontFamily = FontFamily.Monospace,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            softWrap = false,
+                            overflow = TextOverflow.Clip,
+                            modifier = Modifier
+                                .weight(1f)
+                                .horizontalScroll(rememberScrollState()),
                         )
                     }
                 }
             }
         }
 
-        // Status row: working status (left) + context usage (right)
+        // Working status row; context usage lives with the model controls below.
         val showContext = contextWindow > 0 && lastContextTokens > 0
-        if (isBusy || showContext) {
+        val contextPercentage = if (showContext) {
+            Math.round(lastContextTokens.toDouble() / contextWindow * 100).toInt()
+        } else {
+            0
+        }
+        val contextColor = when {
+            contextPercentage >= 90 -> MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+            contextPercentage >= 70 -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f)
+            else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
+        }
+        if (isBusy) {
             val lastRunningTool = if (isBusy) {
-                messages.lastOrNull()?.parts
-                    ?.filterIsInstance<Part.Tool>()
-                    ?.lastOrNull { it.state is ToolState.Running }
+                messages.asReversed().firstNotNullOfOrNull { message ->
+                    message.parts.filterIsInstance<Part.Tool>().lastOrNull { it.state is ToolState.Running }
+                }
             } else null
 
             val statusText = if (isBusy) {
@@ -6202,25 +7397,6 @@ private fun ChatInputBar(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                } else {
-                    Spacer(modifier = Modifier.width(0.dp))
-                }
-                // Right: context usage (percentage)
-                if (showContext) {
-                    val percentage = Math.round(lastContextTokens.toDouble() / contextWindow * 100).toInt()
-                    val contextColor = when {
-                        percentage >= 90 -> MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
-                        percentage >= 70 -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f)
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    }
-                    Text(
-                        text = stringResource(
-                            R.string.chat_context_format,
-                            percentage
-                        ),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = contextColor
-                    )
                 }
             }
         }
@@ -6231,12 +7407,12 @@ private fun ChatInputBar(
                 .padding(start = 16.dp, end = 4.dp, top = 2.dp, bottom = 6.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            // Agent + Model + Variant + Attach selector row — small, subtle
-            if ((modelLabel.isNotEmpty() || agents.size > 1)) {
+            // Agent + model + variant selectors followed by context usage.
+            if (modelLabel.isNotEmpty() || agents.size > 1 || showContext) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Scrollable area for agent/model/variant so paperclip always stays visible
+                    // Keep the full selector sequence horizontally scrollable on narrow screens.
                     Row(
                         modifier = Modifier
                             .weight(1f)
@@ -6325,23 +7501,28 @@ private fun ChatInputBar(
                             )
                         }
 
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(0.dp)
-                    ) {
-                        // Attach button (paperclip) — always visible, pinned right, aligned with Send button
-                        IconButton(
-                            onClick = onAttach,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.AttachFile,
-                                contentDescription = stringResource(R.string.chat_attach),
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
+                        if (showContext) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .clickable { showContextDetails = true },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    progress = { (lastContextTokens.toFloat() / contextWindow).coerceIn(0f, 1f) },
+                                    modifier = Modifier.size(27.dp),
+                                    color = contextColor,
+                                    trackColor = contextColor.copy(alpha = 0.16f),
+                                    strokeWidth = 2.dp,
+                                )
+                                Text(
+                                    text = "$contextPercentage%",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                                    color = contextColor,
+                                    maxLines = 1,
+                                )
+                            }
                         }
                     }
                 }
@@ -6357,17 +7538,57 @@ private fun ChatInputBar(
                         val attachment = attachments[index]
                         Box(
                             modifier = Modifier
-                                .size(56.dp)
+                                .width(if (attachment.isImage) 56.dp else 180.dp)
+                                .height(56.dp)
                                 .clip(RoundedCornerShape(10.dp))
                         ) {
-                            AsyncImage(
-                                model = imageThumbnailModel(attachment),
-                                contentDescription = attachment.filename,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clickable { previewAttachmentIndex = index },
-                                contentScale = ContentScale.Crop
-                            )
+                            if (attachment.isImage) {
+                                AsyncImage(
+                                    model = imageThumbnailModel(attachment),
+                                    contentDescription = attachment.filename,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clickable { previewAttachmentIndex = index },
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Surface(
+                                    modifier = Modifier.fillMaxSize(),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    shape = RoundedCornerShape(10.dp),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(start = 10.dp, end = 26.dp, top = 8.dp, bottom = 8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Icon(
+                                            imageVector = if (attachment.mime == "application/pdf") {
+                                                Icons.Default.PictureAsPdf
+                                            } else {
+                                                Icons.Default.Description
+                                            },
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = attachment.filename,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                            if (attachment.sizeBytes > 0) {
+                                                Text(
+                                                    text = formatFileSize(attachment.sizeBytes),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             Surface(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
@@ -6504,13 +7725,18 @@ private fun ChatInputBar(
                                 else -> Modifier
                             }
                         )
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
                     BasicTextField(
                         value = textFieldValue,
                         onValueChange = onTextFieldValueChange,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(
+                                start = 16.dp,
+                                end = if (showInlineAttach) 48.dp else 16.dp,
+                                top = 10.dp,
+                                bottom = 10.dp,
+                            )
                             .heightIn(min = 24.dp),
                         textStyle = MaterialTheme.typography.bodyLarge.copy(
                             color = MaterialTheme.colorScheme.onSurface,
@@ -6531,16 +7757,34 @@ private fun ChatInputBar(
                             innerTextField()
                         }
                     )
+                    if (showInlineAttach) {
+                        Box(
+                            modifier = Modifier.matchParentSize(),
+                            contentAlignment = Alignment.CenterEnd,
+                        ) {
+                            IconButton(
+                                onClick = onAttach,
+                                modifier = Modifier.size(48.dp),
+                            ) {
+                                Icon(
+                                    Icons.Default.AttachFile,
+                                    contentDescription = stringResource(R.string.chat_attach),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // Send button — tap to send, long-press toggles shell mode
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(22.dp))
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(24.dp))
                         .background(
                             if (action == ComposerAction.STOP) {
-                                MaterialTheme.colorScheme.errorContainer
+                                if (isAmoled) Color.Transparent else MaterialTheme.colorScheme.errorContainer
                             } else if (isShellMode && !isSending) {
                                 if (isAmoled) {
                                     Color.Black
@@ -6552,11 +7796,17 @@ private fun ChatInputBar(
                             }
                         )
                         .then(
-                            if (isShellMode && !isSending) {
+                            if (action == ComposerAction.STOP && isAmoled) {
+                                Modifier.border(
+                                    width = 1.2.dp,
+                                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.88f),
+                                    shape = RoundedCornerShape(24.dp),
+                                )
+                            } else if (isShellMode && !isSending) {
                                 Modifier.border(
                                     width = if (isAmoled) 1.2.dp else 1.dp,
                                     color = MaterialTheme.colorScheme.primary.copy(alpha = if (isAmoled) 0.88f else 0.75f),
-                                    shape = RoundedCornerShape(22.dp),
+                                    shape = RoundedCornerShape(24.dp),
                                 )
                             } else {
                                 Modifier
@@ -6588,7 +7838,11 @@ private fun ChatInputBar(
                             Icons.Default.Stop,
                             contentDescription = stringResource(R.string.chat_stop),
                             modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            tint = if (isAmoled) {
+                                MaterialTheme.colorScheme.error.copy(alpha = 0.88f)
+                            } else {
+                                MaterialTheme.colorScheme.onErrorContainer
+                            },
                         )
                     } else {
                         Icon(
@@ -6613,6 +7867,106 @@ private fun ChatInputBar(
             }
         }
     }
+    if (showContextDetails) {
+        ContextUsageDialog(
+            usage = contextUsage,
+            contextWindow = contextWindow,
+            onDismiss = { showContextDetails = false },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ContextUsageDialog(
+    usage: ContextUsageDetails,
+    contextWindow: Int,
+    onDismiss: () -> Unit,
+) {
+    val isAmoled = isAmoledTheme()
+    val used = usage.currentTotal
+    val percentage = if (contextWindow > 0) (used.toDouble() / contextWindow * 100).roundToInt() else 0
+    val remaining = (contextWindow - used).coerceAtLeast(0)
+    val progressColor = when {
+        percentage >= 90 -> MaterialTheme.colorScheme.error
+        percentage >= 70 -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.primary
+    }
+    AppDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp),
+    ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(stringResource(R.string.chat_context_details), style = MaterialTheme.typography.titleMedium)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Text(
+                        text = "$percentage%",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = progressColor,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.chat_context_used,
+                            formatTokenCount(used),
+                            formatTokenCount(contextWindow),
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                LinearProgressIndicator(
+                    progress = { if (contextWindow > 0) (used.toFloat() / contextWindow).coerceIn(0f, 1f) else 0f },
+                    modifier = Modifier.fillMaxWidth().height(6.dp),
+                    color = progressColor,
+                    trackColor = progressColor.copy(alpha = 0.16f),
+                )
+                Text(
+                    text = stringResource(R.string.chat_context_remaining, formatTokenCount(remaining)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                HorizontalDivider()
+                Text(stringResource(R.string.chat_context_current_turn), style = MaterialTheme.typography.labelLarge)
+                ContextTokenRow(stringResource(R.string.chat_context_input), usage.input)
+                ContextTokenRow(stringResource(R.string.chat_context_output), usage.output)
+                if (usage.reasoning > 0) ContextTokenRow(stringResource(R.string.chat_context_reasoning), usage.reasoning)
+                if (usage.cacheRead > 0) ContextTokenRow(stringResource(R.string.chat_context_cache_read), usage.cacheRead)
+                if (usage.cacheWrite > 0) ContextTokenRow(stringResource(R.string.chat_context_cache_write), usage.cacheWrite)
+                HorizontalDivider()
+                Text(stringResource(R.string.chat_context_session_totals), style = MaterialTheme.typography.labelLarge)
+                ContextTokenRow(stringResource(R.string.chat_context_tokens_processed), usage.sessionTotal)
+                ContextTokenRow(
+                    stringResource(R.string.chat_context_messages),
+                    usage.userMessages + usage.assistantMessages,
+                    raw = true,
+                )
+                if (usage.totalCost > 0) {
+                    ContextTokenRow(
+                        stringResource(R.string.chat_context_cost),
+                        0,
+                        value = String.format(Locale.US, "$%.4f", usage.totalCost),
+                    )
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    AppSecondaryButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+                }
+            }
+    }
+}
+
+@Composable
+private fun ContextTokenRow(label: String, tokens: Int, raw: Boolean = false, value: String? = null) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value ?: if (raw) tokens.toString() else formatTokenCount(tokens), style = MaterialTheme.typography.bodySmall)
+    }
 }
 
 /**
@@ -6625,8 +7979,9 @@ private fun ChatInputBar(
 @Composable
 private fun QuestionCard(
     question: SseEvent.QuestionAsked,
-    onSubmit: (answers: List<List<String>>) -> Unit,
-    onReject: () -> Unit
+    position: String,
+    onSubmit: (answers: List<List<String>>, onResult: (Boolean) -> Unit) -> Unit,
+    onReject: (onResult: (Boolean) -> Unit) -> Unit,
 ) {
     val isAmoled = isAmoledTheme()
     val isSingle = question.questions.size == 1 && question.questions[0].multiple != true
@@ -6635,7 +7990,7 @@ private fun QuestionCard(
     val hapticOn = LocalHapticFeedbackEnabled.current
 
     // Prevent multiple submissions
-    var submitted by remember { mutableStateOf(false) }
+    var submitted by remember(question.sessionId, question.id) { mutableStateOf(false) }
 
     // Track answers per question
     val answersPerQuestion = remember {
@@ -6675,6 +8030,8 @@ private fun QuestionCard(
                     style = MaterialTheme.typography.titleSmall,
                     color = contentColor
                 )
+                Spacer(Modifier.weight(1f))
+                Text(position, style = MaterialTheme.typography.labelSmall, color = contentColor.copy(alpha = 0.7f))
             }
 
             // Question sections
@@ -6757,7 +8114,7 @@ private fun QuestionCard(
                                     performHaptic(hapticView, hapticOn)
                                     if (isSingle) {
                                         submitted = true
-                                        onSubmit(listOf(listOf(option.label)))
+                                        onSubmit(listOf(listOf(option.label))) { submitted = false }
                                     } else {
                                         if (index < answersPerQuestion.size) {
                                             answersPerQuestion[index] = listOf(option.label)
@@ -6905,7 +8262,7 @@ private fun QuestionCard(
                                                     performHaptic(hapticView, hapticOn)
                                                     if (isSingle) {
                                                         submitted = true
-                                                        onSubmit(listOf(listOf(trimmed)))
+                                                        onSubmit(listOf(listOf(trimmed))) { submitted = false }
                                                     } else {
                                                         if (index < answersPerQuestion.size) {
                                                             answersPerQuestion[index] = listOf(trimmed)
@@ -6947,21 +8304,20 @@ private fun QuestionCard(
                     onClick = {
                         performHaptic(hapticView, hapticOn)
                         submitted = true
-                        onReject()
+                        onReject { submitted = false }
                     },
                     enabled = !submitted
                 ) {
                     Text(stringResource(R.string.chat_dismiss), style = MaterialTheme.typography.labelMedium)
                 }
                 if (!isSingle) {
-                    Button(
+                    AppPrimaryButton(
                         onClick = {
                             performHaptic(hapticView, hapticOn)
                             submitted = true
-                            onSubmit(answersPerQuestion.map { it.toList() })
+                            onSubmit(answersPerQuestion.map { it.toList() }) { submitted = false }
                         },
                         enabled = answersPerQuestion.any { it.isNotEmpty() } && !submitted,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
                     ) {
                         Text(stringResource(R.string.question_submit), style = MaterialTheme.typography.labelMedium)
                     }

@@ -9,8 +9,12 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
+import dev.minios.ocremote.domain.model.SessionCategory
+import dev.minios.ocremote.domain.model.FavoriteSessionSnapshot
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,6 +24,7 @@ import javax.inject.Singleton
 @Singleton
 class SettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>,
+    private val json: Json,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context
 ) {
     companion object {
@@ -35,8 +40,12 @@ class SettingsRepository @Inject constructor(
         private val AMOLED_DARK_KEY = booleanPreferencesKey("amoled_dark")
         private val COMPACT_MESSAGES_KEY = booleanPreferencesKey("compact_messages")
         private val COLLAPSE_TOOLS_KEY = booleanPreferencesKey("collapse_tools")
+        private val EXPAND_REASONING_KEY = booleanPreferencesKey("expand_reasoning")
+        private val SHOW_TURN_DIVIDERS_KEY = booleanPreferencesKey("show_turn_dividers")
+        private val GROUP_SESSIONS_BY_PROJECT_KEY = booleanPreferencesKey("group_sessions_by_project")
         private val HAPTIC_FEEDBACK_KEY = booleanPreferencesKey("haptic_feedback")
         private val RECONNECT_MODE_KEY = stringPreferencesKey("reconnect_mode")
+        private val BACKGROUND_WAKE_LOCK_KEY = booleanPreferencesKey("background_wake_lock")
         private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
         private val SILENT_NOTIFICATIONS_KEY = booleanPreferencesKey("silent_notifications")
         private val COMPRESS_IMAGE_ATTACHMENTS_KEY = booleanPreferencesKey("compress_image_attachments")
@@ -54,12 +63,18 @@ class SettingsRepository @Inject constructor(
         private val LOCAL_SERVER_RUN_IN_BACKGROUND_KEY = booleanPreferencesKey("local_server_run_in_background")
         private val LOCAL_SERVER_AUTO_START_KEY = booleanPreferencesKey("local_server_auto_start")
         private val LOCAL_SERVER_STARTUP_TIMEOUT_SEC_KEY = intPreferencesKey("local_server_startup_timeout_sec")
+        private val SESSION_CATEGORIES_KEY = stringPreferencesKey("session_categories")
+        private val CROSS_SERVER_FAVORITE_ORDER_KEY = stringPreferencesKey("cross_server_favorite_order")
+        private val FAVORITE_SESSION_SNAPSHOTS_KEY = stringPreferencesKey("favorite_session_snapshots")
 
         /** SharedPreferences name used for synchronous locale reads in attachBaseContext. */
         private const val LOCALE_PREFS = "locale_prefs"
         private const val LOCALE_PREFS_KEY = "app_language"
 
         private const val SERVER_MODEL_HIDDEN_PREFIX = "server_model_hidden_"
+        private const val SERVER_PINNED_SESSIONS_PREFIX = "server_pinned_sessions_"
+        private const val SERVER_FAVORITE_SESSIONS_PREFIX = "server_favorite_sessions_"
+        private const val SERVER_SESSION_CATEGORY_PREFIX = "server_session_category_"
 
         /** Read stored language synchronously — safe to call before Hilt init. */
         fun getStoredLanguage(context: Context): String {
@@ -70,6 +85,177 @@ class SettingsRepository @Inject constructor(
 
     private fun serverModelHiddenKey(serverId: String) =
         stringSetPreferencesKey(SERVER_MODEL_HIDDEN_PREFIX + serverId)
+
+    private fun serverPinnedSessionsKey(serverId: String) =
+        stringPreferencesKey(SERVER_PINNED_SESSIONS_PREFIX + serverId)
+
+    private fun serverFavoriteSessionsKey(serverId: String) =
+        stringPreferencesKey(SERVER_FAVORITE_SESSIONS_PREFIX + serverId)
+
+    private fun serverSessionCategoryKey(serverId: String) =
+        stringPreferencesKey(SERVER_SESSION_CATEGORY_PREFIX + serverId)
+
+    val sessionCategories: Flow<List<SessionCategory>> = dataStore.data.map { preferences ->
+        preferences[SESSION_CATEGORIES_KEY]?.let { encoded ->
+            runCatching { json.decodeFromString<List<SessionCategory>>(encoded) }.getOrDefault(emptyList())
+        }.orEmpty()
+    }
+
+    val crossServerFavoriteOrder: Flow<List<String>> = dataStore.data.map { preferences ->
+        preferences[CROSS_SERVER_FAVORITE_ORDER_KEY]
+            ?.lineSequence()
+            ?.filter(String::isNotBlank)
+            ?.distinct()
+            ?.toList()
+            .orEmpty()
+    }
+
+    val favoriteSessionSnapshots: Flow<Map<String, FavoriteSessionSnapshot>> = dataStore.data.map { preferences ->
+        preferences[FAVORITE_SESSION_SNAPSHOTS_KEY]?.let { encoded ->
+            runCatching { json.decodeFromString<Map<String, FavoriteSessionSnapshot>>(encoded) }.getOrDefault(emptyMap())
+        }.orEmpty()
+    }
+
+    fun sessionCategoryAssignments(serverId: String): Flow<Map<String, String>> = dataStore.data.map { preferences ->
+        preferences[serverSessionCategoryKey(serverId)]?.let { encoded ->
+            runCatching { json.decodeFromString<Map<String, String>>(encoded) }.getOrDefault(emptyMap())
+        }.orEmpty()
+    }
+
+    suspend fun saveSessionCategory(category: SessionCategory) {
+        dataStore.edit { preferences ->
+            val categories = preferences[SESSION_CATEGORIES_KEY]?.let { encoded ->
+                runCatching { json.decodeFromString<List<SessionCategory>>(encoded) }.getOrDefault(emptyList())
+            }.orEmpty().toMutableList()
+            val index = categories.indexOfFirst { it.id == category.id }
+            if (index >= 0) categories[index] = category else categories += category
+            preferences[SESSION_CATEGORIES_KEY] = json.encodeToString(categories)
+        }
+    }
+
+    suspend fun deleteSessionCategory(categoryId: String) {
+        dataStore.edit { preferences ->
+            val categories = preferences[SESSION_CATEGORIES_KEY]?.let { encoded ->
+                runCatching { json.decodeFromString<List<SessionCategory>>(encoded) }.getOrDefault(emptyList())
+            }.orEmpty().filterNot { it.id == categoryId }
+            preferences[SESSION_CATEGORIES_KEY] = json.encodeToString(categories)
+        }
+    }
+
+    suspend fun setSessionCategory(serverId: String, sessionId: String, categoryId: String?) {
+        dataStore.edit { preferences ->
+            val key = serverSessionCategoryKey(serverId)
+            val assignments = preferences[key]?.let { encoded ->
+                runCatching { json.decodeFromString<Map<String, String>>(encoded) }.getOrDefault(emptyMap())
+            }.orEmpty().toMutableMap()
+            if (categoryId == null) assignments.remove(sessionId) else assignments[sessionId] = categoryId
+            preferences[key] = json.encodeToString(assignments)
+        }
+    }
+
+    fun favoriteSessionIds(serverId: String): Flow<List<String>> = dataStore.data.map { preferences ->
+        (preferences[serverFavoriteSessionsKey(serverId)] ?: preferences[serverPinnedSessionsKey(serverId)])
+            ?.lineSequence()
+            ?.filter(String::isNotBlank)
+            ?.distinct()
+            ?.toList()
+            .orEmpty()
+    }
+
+    suspend fun setSessionFavorite(
+        serverId: String,
+        sessionId: String,
+        favorite: Boolean,
+        snapshot: FavoriteSessionSnapshot? = null,
+    ) {
+        dataStore.edit { preferences ->
+            val key = serverFavoriteSessionsKey(serverId)
+            val legacyKey = serverPinnedSessionsKey(serverId)
+            val current = (preferences[key] ?: preferences[legacyKey])
+                ?.lineSequence()
+                ?.filter(String::isNotBlank)
+                ?.distinct()
+                ?.toList()
+                .orEmpty()
+            val updated = if (favorite) {
+                listOf(sessionId) + current.filterNot { it == sessionId }
+            } else {
+                current.filterNot { it == sessionId }
+            }
+            preferences[key] = updated.joinToString("\n")
+            preferences.remove(legacyKey)
+            val snapshotKey = favoriteSessionSnapshotKey(serverId, sessionId)
+            val snapshots = preferences[FAVORITE_SESSION_SNAPSHOTS_KEY]?.let { encoded ->
+                runCatching {
+                    json.decodeFromString<Map<String, FavoriteSessionSnapshot>>(encoded)
+                }.getOrDefault(emptyMap())
+            }.orEmpty().toMutableMap()
+            if (!favorite) snapshots.remove(snapshotKey) else if (snapshot != null) snapshots[snapshotKey] = snapshot
+            preferences[FAVORITE_SESSION_SNAPSHOTS_KEY] = json.encodeToString(snapshots)
+        }
+    }
+
+    suspend fun cacheFavoriteSessionSnapshots(snapshots: Map<String, FavoriteSessionSnapshot>) {
+        if (snapshots.isEmpty()) return
+        dataStore.edit { preferences ->
+            val current = preferences[FAVORITE_SESSION_SNAPSHOTS_KEY]?.let { encoded ->
+                runCatching {
+                    json.decodeFromString<Map<String, FavoriteSessionSnapshot>>(encoded)
+                }.getOrDefault(emptyMap())
+            }.orEmpty()
+            val updated = current + snapshots
+            if (updated != current) {
+                preferences[FAVORITE_SESSION_SNAPSHOTS_KEY] = json.encodeToString(updated)
+            }
+        }
+    }
+
+    fun favoriteSessionSnapshotKey(serverId: String, sessionId: String): String = "$serverId:$sessionId"
+
+    suspend fun moveFavoriteSession(serverId: String, sessionId: String, offset: Int) {
+        if (offset == 0) return
+        dataStore.edit { preferences ->
+            val key = serverFavoriteSessionsKey(serverId)
+            val legacyKey = serverPinnedSessionsKey(serverId)
+            val current = (preferences[key] ?: preferences[legacyKey])
+                ?.lineSequence()
+                ?.filter(String::isNotBlank)
+                ?.distinct()
+                ?.toMutableList()
+                ?: mutableListOf()
+            val from = current.indexOf(sessionId)
+            if (from < 0) return@edit
+            val to = (from + offset).coerceIn(0, current.lastIndex)
+            if (from == to) return@edit
+            current[from] = current[to]
+            current[to] = sessionId
+            preferences[key] = current.joinToString("\n")
+            preferences.remove(legacyKey)
+        }
+    }
+
+    suspend fun setCrossServerFavoriteOrderItem(itemKey: String, favorite: Boolean) {
+        dataStore.edit { preferences ->
+            val current = preferences[CROSS_SERVER_FAVORITE_ORDER_KEY]
+                ?.lineSequence()
+                ?.filter(String::isNotBlank)
+                ?.distinct()
+                ?.toList()
+                .orEmpty()
+            val updated = if (favorite) {
+                if (itemKey in current) current else current + itemKey
+            } else {
+                current.filterNot { it == itemKey }
+            }
+            preferences[CROSS_SERVER_FAVORITE_ORDER_KEY] = updated.joinToString("\n")
+        }
+    }
+
+    suspend fun setCrossServerFavoriteOrder(itemKeys: List<String>) {
+        dataStore.edit { preferences ->
+            preferences[CROSS_SERVER_FAVORITE_ORDER_KEY] = itemKeys.distinct().joinToString("\n")
+        }
+    }
 
     /**
      * Selected language code (e.g. "en", "ru", "de") or empty string for system default.
@@ -225,6 +411,30 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    val expandReasoning: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[EXPAND_REASONING_KEY] ?: false
+    }
+
+    suspend fun setExpandReasoning(enabled: Boolean) {
+        dataStore.edit { preferences -> preferences[EXPAND_REASONING_KEY] = enabled }
+    }
+
+    val showTurnDividers: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[SHOW_TURN_DIVIDERS_KEY] ?: true
+    }
+
+    suspend fun setShowTurnDividers(enabled: Boolean) {
+        dataStore.edit { preferences -> preferences[SHOW_TURN_DIVIDERS_KEY] = enabled }
+    }
+
+    val groupSessionsByProject: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[GROUP_SESSIONS_BY_PROJECT_KEY] ?: false
+    }
+
+    suspend fun setGroupSessionsByProject(enabled: Boolean) {
+        dataStore.edit { preferences -> preferences[GROUP_SESSIONS_BY_PROJECT_KEY] = enabled }
+    }
+
     /**
      * Whether haptic feedback is enabled. Default: true.
      */
@@ -249,6 +459,19 @@ class SettingsRepository @Inject constructor(
     suspend fun setReconnectMode(mode: String) {
         dataStore.edit { preferences ->
             preferences[RECONNECT_MODE_KEY] = mode
+        }
+    }
+
+    /**
+     * Whether background SSE connections keep the CPU awake. Default: false.
+     */
+    val backgroundWakeLock: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[BACKGROUND_WAKE_LOCK_KEY] ?: false
+    }
+
+    suspend fun setBackgroundWakeLock(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[BACKGROUND_WAKE_LOCK_KEY] = enabled
         }
     }
 
