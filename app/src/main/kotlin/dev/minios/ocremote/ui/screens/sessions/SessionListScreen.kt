@@ -17,6 +17,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -83,6 +84,17 @@ import dev.minios.ocremote.ui.screens.settings.SessionCategoriesDialog
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.SwipeRefreshState
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+
+internal fun shouldRevealPromotedSession(
+    previousTopSessionId: String?,
+    currentTopSessionId: String?,
+    firstVisibleItemIndex: Int,
+    searchActive: Boolean,
+): Boolean = previousTopSessionId != null &&
+    currentTopSessionId != null &&
+    previousTopSessionId != currentTopSessionId &&
+    firstVisibleItemIndex <= 2 &&
+    !searchActive
 
 /** Pulsing dots loading indicator — 3 dots that scale up/down in sequence. */
 @Composable
@@ -182,6 +194,9 @@ fun SessionListScreen(
     var showQuickNewSession by remember { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var collapsedProjects by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    val sessionListState = rememberLazyListState()
+    val topSessionId = uiState.sessionGroups.firstOrNull()?.sessions?.firstOrNull()?.session?.id
+    var previousTopSessionId by remember { mutableStateOf<String?>(null) }
     val visibleGroups = remember(uiState.sessionGroups, searchQuery) {
         val query = searchQuery.trim()
         if (query.isEmpty()) {
@@ -199,6 +214,19 @@ fun SessionListScreen(
                 group.copy(sessions = sessions).takeIf { sessions.isNotEmpty() }
             }
         }
+    }
+
+    LaunchedEffect(topSessionId, searchQuery.isNotBlank()) {
+        if (shouldRevealPromotedSession(
+                previousTopSessionId = previousTopSessionId,
+                currentTopSessionId = topSessionId,
+                firstVisibleItemIndex = sessionListState.firstVisibleItemIndex,
+                searchActive = searchQuery.isNotBlank(),
+            )
+        ) {
+            sessionListState.animateScrollToItem(0)
+        }
+        previousTopSessionId = topSessionId
     }
 
     BackHandler(enabled = uiState.isSelectionMode) {
@@ -394,6 +422,7 @@ fun SessionListScreen(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
+                        state = sessionListState,
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {

@@ -22,6 +22,7 @@ Feature release focused on cross-server session organization, reliable chat and 
 - Added secure in-app GitHub Release updates with automatic discovery, manual checks from About, verified downloads, progress, and handoff to Android's system installer.
 - Improved reconnect recovery, notification navigation, Busy/Idle accuracy, and Stop behavior while reducing background preload work, battery use, and memory pressure on large multi-server installations.
 - Dismissed stale task, permission, question, and session-error notifications when their chat is opened, while preserving alerts for other sessions (#25).
+- Revealed newly promoted active sessions when the session list is near the top, without disrupting deeper scroll positions or active searches (#26).
 - Fixed a navigation crash when server credentials or identifiers contain literal percent sequences such as `%NR` or `%25` (#28).
 - Made child and subagent sessions safely read-only while preserving history, context visibility, and tool-driven navigation.
 - Improved provider OAuth errors and local runtime setup with clearer server details, localhost-first defaults, LAN/auth and proxy controls, background launch, auto-start, and timeout handling.

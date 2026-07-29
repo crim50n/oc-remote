@@ -40,6 +40,23 @@ class EventReducerTest {
     }
 
     @Test
+    fun sessionUpdated_promotesMostRecentlyActiveSession() {
+        val reducer = EventReducer()
+        val older = session("older", updated = 1)
+        val newer = session("newer", updated = 2)
+        reducer.processEvent(SseEvent.SessionCreated(older), "server")
+        reducer.processEvent(SseEvent.SessionCreated(newer), "server")
+
+        reducer.processEvent(
+            SseEvent.SessionUpdated(older.copy(time = older.time.copy(updated = 3))),
+            "server",
+        )
+
+        assertEquals(listOf("older", "newer"), reducer.sessions.value.map(Session::id))
+        assertEquals(setOf("older", "newer"), reducer.serverSessions.value["server"])
+    }
+
+    @Test
     fun statusAndIdleEvents_establishOwnershipForServerCleanup() {
         val reducer = EventReducer()
 
