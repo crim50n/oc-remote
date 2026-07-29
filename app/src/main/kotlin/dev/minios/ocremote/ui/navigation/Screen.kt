@@ -1,6 +1,10 @@
 package dev.minios.ocremote.ui.navigation
 
 import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
+internal fun encodeNavigationArgument(value: String): String =
+    URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20")
 
 /**
  * Navigation routes for the app
@@ -17,11 +21,11 @@ sealed class Screen(val route: String) {
             serverName: String,
             initialPath: String = ""
         ): String {
-            val encodedUrl = URLEncoder.encode(serverUrl, "UTF-8")
-            val encodedUsername = URLEncoder.encode(username, "UTF-8")
-            val encodedPassword = URLEncoder.encode(password, "UTF-8")
-            val encodedName = URLEncoder.encode(serverName, "UTF-8")
-            val encodedPath = URLEncoder.encode(initialPath, "UTF-8")
+            val encodedUrl = encodeNavigationArgument(serverUrl)
+            val encodedUsername = encodeNavigationArgument(username)
+            val encodedPassword = encodeNavigationArgument(password)
+            val encodedName = encodeNavigationArgument(serverName)
+            val encodedPath = encodeNavigationArgument(initialPath)
             return "webview?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&initialPath=$encodedPath"
         }
     }
@@ -34,11 +38,11 @@ sealed class Screen(val route: String) {
             serverName: String,
             serverId: String
         ): String {
-            val encodedUrl = URLEncoder.encode(serverUrl, "UTF-8")
-            val encodedUsername = URLEncoder.encode(username, "UTF-8")
-            val encodedPassword = URLEncoder.encode(password, "UTF-8")
-            val encodedName = URLEncoder.encode(serverName, "UTF-8")
-            val encodedServerId = URLEncoder.encode(serverId, "UTF-8")
+            val encodedUrl = encodeNavigationArgument(serverUrl)
+            val encodedUsername = encodeNavigationArgument(username)
+            val encodedPassword = encodeNavigationArgument(password)
+            val encodedName = encodeNavigationArgument(serverName)
+            val encodedServerId = encodeNavigationArgument(serverId)
             return "sessions?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
         }
     }
@@ -53,12 +57,12 @@ sealed class Screen(val route: String) {
             sessionId: String,
             openTerminal: Boolean = false,
         ): String {
-            val encodedUrl = URLEncoder.encode(serverUrl, "UTF-8")
-            val encodedUsername = URLEncoder.encode(username, "UTF-8")
-            val encodedPassword = URLEncoder.encode(password, "UTF-8")
-            val encodedName = URLEncoder.encode(serverName, "UTF-8")
-            val encodedServerId = URLEncoder.encode(serverId, "UTF-8")
-            val encodedSessionId = URLEncoder.encode(sessionId, "UTF-8")
+            val encodedUrl = encodeNavigationArgument(serverUrl)
+            val encodedUsername = encodeNavigationArgument(username)
+            val encodedPassword = encodeNavigationArgument(password)
+            val encodedName = encodeNavigationArgument(serverName)
+            val encodedServerId = encodeNavigationArgument(serverId)
+            val encodedSessionId = encodeNavigationArgument(sessionId)
             return "chat?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId&sessionId=$encodedSessionId&openTerminal=$openTerminal"
         }
     }
@@ -71,11 +75,11 @@ sealed class Screen(val route: String) {
             serverName: String,
             serverId: String
         ): String {
-            val encodedUrl = URLEncoder.encode(serverUrl, "UTF-8")
-            val encodedUsername = URLEncoder.encode(username, "UTF-8")
-            val encodedPassword = URLEncoder.encode(password, "UTF-8")
-            val encodedName = URLEncoder.encode(serverName, "UTF-8")
-            val encodedServerId = URLEncoder.encode(serverId, "UTF-8")
+            val encodedUrl = encodeNavigationArgument(serverUrl)
+            val encodedUsername = encodeNavigationArgument(username)
+            val encodedPassword = encodeNavigationArgument(password)
+            val encodedName = encodeNavigationArgument(serverName)
+            val encodedServerId = encodeNavigationArgument(serverId)
             return "server_settings?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
         }
     }
@@ -88,11 +92,11 @@ sealed class Screen(val route: String) {
             serverName: String,
             serverId: String
         ): String {
-            val encodedUrl = URLEncoder.encode(serverUrl, "UTF-8")
-            val encodedUsername = URLEncoder.encode(username, "UTF-8")
-            val encodedPassword = URLEncoder.encode(password, "UTF-8")
-            val encodedName = URLEncoder.encode(serverName, "UTF-8")
-            val encodedServerId = URLEncoder.encode(serverId, "UTF-8")
+            val encodedUrl = encodeNavigationArgument(serverUrl)
+            val encodedUsername = encodeNavigationArgument(username)
+            val encodedPassword = encodeNavigationArgument(password)
+            val encodedName = encodeNavigationArgument(serverName)
+            val encodedServerId = encodeNavigationArgument(serverId)
             return "server_providers?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
         }
     }
@@ -105,11 +109,11 @@ sealed class Screen(val route: String) {
             serverName: String,
             serverId: String
         ): String {
-            val encodedUrl = URLEncoder.encode(serverUrl, "UTF-8")
-            val encodedUsername = URLEncoder.encode(username, "UTF-8")
-            val encodedPassword = URLEncoder.encode(password, "UTF-8")
-            val encodedName = URLEncoder.encode(serverName, "UTF-8")
-            val encodedServerId = URLEncoder.encode(serverId, "UTF-8")
+            val encodedUrl = encodeNavigationArgument(serverUrl)
+            val encodedUsername = encodeNavigationArgument(username)
+            val encodedPassword = encodeNavigationArgument(password)
+            val encodedName = encodeNavigationArgument(serverName)
+            val encodedServerId = encodeNavigationArgument(serverId)
             return "server_model_filter?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
         }
     }

@@ -60,7 +60,6 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.combine
-import java.net.URLDecoder
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -204,10 +203,8 @@ fun NavGraph(
             if (currentRoute?.startsWith("chat") == true) {
                 val currentSessionId = navController.currentBackStackEntry
                     ?.arguments?.getString("sessionId")
-                    ?.let { URLDecoder.decode(it, "UTF-8") }
                 val currentServerId = navController.currentBackStackEntry
                     ?.arguments?.getString("serverId")
-                    ?.let { URLDecoder.decode(it, "UTF-8") }
                 if (currentSessionId != null && currentServerId in currentConnectedServerIds) {
                     Log.i(TAG, "Already in ChatScreen for session $currentSessionId, targeting it directly")
                     pendingShareSessionId = currentSessionId
@@ -312,7 +309,6 @@ fun NavGraph(
                     val currentSessionId = navController.currentBackStackEntry
                         ?.arguments
                         ?.getString("sessionId")
-                        ?.let { URLDecoder.decode(it, "UTF-8") }
 
                     Log.i(
                         TAG,
@@ -438,11 +434,11 @@ fun NavGraph(
                 navArgument("serverId") { type = NavType.StringType },
             )
         ) {
-            val serverUrl = URLDecoder.decode(it.arguments?.getString("serverUrl") ?: "", "UTF-8")
-            val username = URLDecoder.decode(it.arguments?.getString("username") ?: "", "UTF-8")
-            val password = URLDecoder.decode(it.arguments?.getString("password") ?: "", "UTF-8")
-            val serverName = URLDecoder.decode(it.arguments?.getString("serverName") ?: "", "UTF-8")
-            val serverId = URLDecoder.decode(it.arguments?.getString("serverId") ?: "", "UTF-8")
+            val serverUrl = it.arguments?.getString("serverUrl").orEmpty()
+            val username = it.arguments?.getString("username").orEmpty()
+            val password = it.arguments?.getString("password").orEmpty()
+            val serverName = it.arguments?.getString("serverName").orEmpty()
+            val serverId = it.arguments?.getString("serverId").orEmpty()
             ServerSettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onOpenProviders = {
@@ -535,21 +531,11 @@ fun NavGraph(
                 }
             )
         ) { backStackEntry ->
-            val serverUrl = URLDecoder.decode(
-                backStackEntry.arguments?.getString("serverUrl") ?: "", "UTF-8"
-            )
-            val username = URLDecoder.decode(
-                backStackEntry.arguments?.getString("username") ?: "", "UTF-8"
-            )
-            val password = URLDecoder.decode(
-                backStackEntry.arguments?.getString("password") ?: "", "UTF-8"
-            )
-            val serverName = URLDecoder.decode(
-                backStackEntry.arguments?.getString("serverName") ?: "", "UTF-8"
-            )
-            val initialPath = URLDecoder.decode(
-                backStackEntry.arguments?.getString("initialPath") ?: "", "UTF-8"
-            )
+            val serverUrl = backStackEntry.arguments?.getString("serverUrl").orEmpty()
+            val username = backStackEntry.arguments?.getString("username").orEmpty()
+            val password = backStackEntry.arguments?.getString("password").orEmpty()
+            val serverName = backStackEntry.arguments?.getString("serverName").orEmpty()
+            val initialPath = backStackEntry.arguments?.getString("initialPath").orEmpty()
             
             WebViewScreen(
                 serverUrl = serverUrl,
@@ -575,21 +561,11 @@ fun NavGraph(
                 navArgument("serverId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val serverUrl = URLDecoder.decode(
-                backStackEntry.arguments?.getString("serverUrl") ?: "", "UTF-8"
-            )
-            val username = URLDecoder.decode(
-                backStackEntry.arguments?.getString("username") ?: "", "UTF-8"
-            )
-            val password = URLDecoder.decode(
-                backStackEntry.arguments?.getString("password") ?: "", "UTF-8"
-            )
-            val serverName = URLDecoder.decode(
-                backStackEntry.arguments?.getString("serverName") ?: "", "UTF-8"
-            )
-            val serverId = URLDecoder.decode(
-                backStackEntry.arguments?.getString("serverId") ?: "", "UTF-8"
-            )
+            val serverUrl = backStackEntry.arguments?.getString("serverUrl").orEmpty()
+            val username = backStackEntry.arguments?.getString("username").orEmpty()
+            val password = backStackEntry.arguments?.getString("password").orEmpty()
+            val serverName = backStackEntry.arguments?.getString("serverName").orEmpty()
+            val serverId = backStackEntry.arguments?.getString("serverId").orEmpty()
 
             SessionListScreen(
                 onNavigateToChat = { sessionId, openTerminal ->
@@ -624,24 +600,12 @@ fun NavGraph(
                 navArgument("openTerminal") { type = NavType.BoolType; defaultValue = false }
             )
         ) { backStackEntry ->
-            val serverUrl = URLDecoder.decode(
-                backStackEntry.arguments?.getString("serverUrl") ?: "", "UTF-8"
-            )
-            val username = URLDecoder.decode(
-                backStackEntry.arguments?.getString("username") ?: "", "UTF-8"
-            )
-            val password = URLDecoder.decode(
-                backStackEntry.arguments?.getString("password") ?: "", "UTF-8"
-            )
-            val serverName = URLDecoder.decode(
-                backStackEntry.arguments?.getString("serverName") ?: "", "UTF-8"
-            )
-            val serverId = URLDecoder.decode(
-                backStackEntry.arguments?.getString("serverId") ?: "", "UTF-8"
-            )
-            val sessionId = URLDecoder.decode(
-                backStackEntry.arguments?.getString("sessionId") ?: "", "UTF-8"
-            )
+            val serverUrl = backStackEntry.arguments?.getString("serverUrl").orEmpty()
+            val username = backStackEntry.arguments?.getString("username").orEmpty()
+            val password = backStackEntry.arguments?.getString("password").orEmpty()
+            val serverName = backStackEntry.arguments?.getString("serverName").orEmpty()
+            val serverId = backStackEntry.arguments?.getString("serverId").orEmpty()
+            val sessionId = backStackEntry.arguments?.getString("sessionId").orEmpty()
             val openTerminal = backStackEntry.arguments?.getBoolean("openTerminal") ?: false
 
             // Only pass shared attachments to the targeted session, then clear them

@@ -37,7 +37,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.net.URLDecoder
 import javax.inject.Inject
 
 private const val TAG = "ChatViewModel"
@@ -229,24 +228,12 @@ class ChatViewModel @Inject constructor(
     @Volatile
     private var sessionPromptable = false
 
-    private val serverUrl: String = URLDecoder.decode(
-        savedStateHandle.get<String>("serverUrl") ?: "", "UTF-8"
-    )
-    private val username: String = URLDecoder.decode(
-        savedStateHandle.get<String>("username") ?: "", "UTF-8"
-    )
-    private val password: String = URLDecoder.decode(
-        savedStateHandle.get<String>("password") ?: "", "UTF-8"
-    )
-    val serverName: String = URLDecoder.decode(
-        savedStateHandle.get<String>("serverName") ?: "", "UTF-8"
-    )
-    private val serverId: String = URLDecoder.decode(
-        savedStateHandle.get<String>("serverId") ?: "", "UTF-8"
-    )
-    val sessionId: String = URLDecoder.decode(
-        savedStateHandle.get<String>("sessionId") ?: "", "UTF-8"
-    )
+    private val serverUrl: String = savedStateHandle.get<String>("serverUrl").orEmpty()
+    private val username: String = savedStateHandle.get<String>("username").orEmpty()
+    private val password: String = savedStateHandle.get<String>("password").orEmpty()
+    val serverName: String = savedStateHandle.get<String>("serverName").orEmpty()
+    private val serverId: String = savedStateHandle.get<String>("serverId").orEmpty()
+    val sessionId: String = savedStateHandle.get<String>("sessionId").orEmpty()
 
     private val conn = ServerConnection.from(serverUrl, username, password.ifEmpty { null })
 

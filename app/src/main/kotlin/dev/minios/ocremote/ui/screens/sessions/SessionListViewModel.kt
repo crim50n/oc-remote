@@ -33,7 +33,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.net.URLDecoder
 import javax.inject.Inject
 
 private const val TAG = "SessionListViewModel"
@@ -163,21 +162,11 @@ class SessionListViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
-    val serverUrl: String = URLDecoder.decode(
-        savedStateHandle.get<String>("serverUrl") ?: "", "UTF-8"
-    )
-    private val username: String = URLDecoder.decode(
-        savedStateHandle.get<String>("username") ?: "", "UTF-8"
-    )
-    private val password: String = URLDecoder.decode(
-        savedStateHandle.get<String>("password") ?: "", "UTF-8"
-    )
-    val serverName: String = URLDecoder.decode(
-        savedStateHandle.get<String>("serverName") ?: "", "UTF-8"
-    )
-    val serverId: String = URLDecoder.decode(
-        savedStateHandle.get<String>("serverId") ?: "", "UTF-8"
-    )
+    val serverUrl: String = savedStateHandle.get<String>("serverUrl").orEmpty()
+    private val username: String = savedStateHandle.get<String>("username").orEmpty()
+    private val password: String = savedStateHandle.get<String>("password").orEmpty()
+    val serverName: String = savedStateHandle.get<String>("serverName").orEmpty()
+    val serverId: String = savedStateHandle.get<String>("serverId").orEmpty()
 
     private val conn = ServerConnection.from(serverUrl, username, password.ifEmpty { null })
 
