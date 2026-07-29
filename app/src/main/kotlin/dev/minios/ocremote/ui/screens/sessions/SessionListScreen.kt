@@ -96,6 +96,29 @@ internal fun shouldRevealPromotedSession(
     firstVisibleItemIndex <= 2 &&
     !searchActive
 
+internal data class RecentSessionDirectory(
+    val directory: String,
+    val name: String,
+    val count: Int,
+    val lastUsed: Long,
+)
+
+internal fun recentSessionDirectories(
+    sessions: List<SessionItem>,
+    limit: Int = 20,
+): List<RecentSessionDirectory> = sessions
+    .groupBy { it.session.directory.trimEnd('/') }
+    .map { (directory, items) ->
+        RecentSessionDirectory(
+            directory = items.first().session.directory,
+            name = directory.substringAfterLast('/').ifEmpty { directory },
+            count = items.size,
+            lastUsed = items.maxOf { it.session.time.updated },
+        )
+    }
+    .sortedByDescending(RecentSessionDirectory::lastUsed)
+    .take(limit)
+
 /** Pulsing dots loading indicator — 3 dots that scale up/down in sequence. */
 @Composable
 private fun PulsingDotsIndicator(
@@ -1276,22 +1299,8 @@ private fun NewSessionQuickDialog(
     onBrowse: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    // Group sessions by directory, keep most recently updated first
-    data class DirEntry(val directory: String, val name: String, val count: Int, val lastUsed: Long)
     val dirEntries = remember(sessions) {
-        sessions
-            .groupBy { it.session.directory.trimEnd('/') }
-            .map { (dir, items) ->
-                val name = dir.substringAfterLast('/').ifEmpty { dir }
-                DirEntry(
-                    directory = items.first().session.directory,
-                    name = name,
-                    count = items.size,
-                    lastUsed = items.maxOf { it.session.time.updated }
-                )
-            }
-            .sortedByDescending { it.lastUsed }
-            .take(8)
+        recentSessionDirectories(sessions)
     }
 
     Dialog(

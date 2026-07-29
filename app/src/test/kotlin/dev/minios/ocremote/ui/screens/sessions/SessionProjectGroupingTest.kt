@@ -86,6 +86,34 @@ class SessionProjectGroupingTest {
         assertEquals(listOf("/older", "/recent"), groups.map { it.directory })
     }
 
+    @Test
+    fun recentDirectoriesKeepTwentyNewestUniqueLocations() {
+        val sessions = (1L..21L).map { updated ->
+            item("session-$updated", "/repo-$updated", updated = updated)
+        }
+
+        val directories = recentSessionDirectories(sessions)
+
+        assertEquals(20, directories.size)
+        assertEquals("/repo-21", directories.first().directory)
+        assertEquals("/repo-2", directories.last().directory)
+    }
+
+    @Test
+    fun recentDirectoriesGroupTrailingSlashesAndUseLatestActivity() {
+        val directories = recentSessionDirectories(
+            listOf(
+                item("first", "/repo", updated = 1),
+                item("second", "/repo/", updated = 3),
+                item("other", "/other", updated = 2),
+            )
+        )
+
+        assertEquals(listOf("/repo", "/other"), directories.map { it.directory.trimEnd('/') })
+        assertEquals(2, directories.first().count)
+        assertEquals(3, directories.first().lastUsed)
+    }
+
     private fun item(
         id: String,
         directory: String,
