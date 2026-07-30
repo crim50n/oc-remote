@@ -603,4 +603,6 @@
     <string name="chat_terminal_keyboard">Клавиатура</string>
     <string name="settings_recent_directories">Недавние каталоги</string>
     <string name="settings_recent_directories_desc">%1$d каталогов в быстром диалоге новой сессии</string>
+    <string name="chat_retry_waiting">Повтор через %1$d с · попытка №%2$d</string>
+    <string name="chat_retry_now">Повтор сейчас · попытка №%1$d</string>
 </resources>

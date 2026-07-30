@@ -602,4 +602,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="chat_terminal_keyboard">Klavye</string>
     <string name="settings_recent_directories">Son dizinler</string>
     <string name="settings_recent_directories_desc">Hızlı yeni oturum penceresinde %1$d dizin</string>
+    <string name="chat_retry_waiting">%1$d sn sonra tekrar deneniyor · %2$d. deneme</string>
+    <string name="chat_retry_now">Şimdi tekrar deneniyor · %1$d. deneme</string>
 </resources>

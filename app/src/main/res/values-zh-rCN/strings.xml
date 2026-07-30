@@ -602,4 +602,6 @@
     <string name="chat_terminal_keyboard">键盘</string>
     <string name="settings_recent_directories">最近的目录</string>
     <string name="settings_recent_directories_desc">快速新建会话对话框中有 %1$d 个目录</string>
+    <string name="chat_retry_waiting">%1$d 秒后重试 · 第 %2$d 次尝试</string>
+    <string name="chat_retry_now">正在重试 · 第 %1$d 次尝试</string>
 </resources>

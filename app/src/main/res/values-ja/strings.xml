@@ -602,4 +602,6 @@
     <string name="chat_terminal_keyboard">キーボード</string>
     <string name="settings_recent_directories">最近使用したディレクトリ</string>
     <string name="settings_recent_directories_desc">クイック新規セッションダイアログに%1$d個のディレクトリ</string>
+    <string name="chat_retry_waiting">%1$d 秒後に再試行します · %2$d回目</string>
+    <string name="chat_retry_now">ただいま再試行中 · %1$d回目</string>
 </resources>

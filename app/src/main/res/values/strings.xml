@@ -304,6 +304,8 @@
     <string name="chat_question_inline">Question: %1$s</string>
     <string name="chat_aborted">Aborted: %1$s</string>
     <string name="chat_retry">Retry #%1$d: %2$s</string>
+    <string name="chat_retry_waiting">Retrying in %1$d s · attempt #%2$d</string>
+    <string name="chat_retry_now">Retrying now · attempt #%1$d</string>
     <string name="chat_error_view_page">Page</string>
     <string name="chat_error_view_code">Code</string>
     <string name="chat_save_image">Save image</string>

@@ -4,17 +4,31 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 
 **This is an unofficial community project, not affiliated with the OpenCode team.**
 
+## Why OC Remote
+
+- **Work from anywhere** — use OpenCode through a mobile-first native chat or a full interactive terminal
+- **Stay connected** — manage multiple remote servers or run OpenCode directly on-device through Termux
+- **Keep projects organized** — search, favorite, categorize, reorder, share, export, and revisit sessions across servers
+- **Use the complete workflow** — stream responses, inspect tool output and context usage, attach files, answer questions, approve permissions, and run session actions without falling back to a desktop
+- **Make it yours** — choose from 15 locales, flexible themes including AMOLED, and detailed chat, connection, notification, and image controls
+- **Operate reliably** — background connections, configurable recovery, diagnostics, completion notifications, large-session safeguards, and cryptographically verified in-app updates
+
 ## Screenshots
 
 <p align="center">
-  <img src="screenshots/01_home.jpg" width="200" alt="Home screen" />
-  <img src="screenshots/02_chat_light.jpg" width="200" alt="Chat — light theme" />
-  <img src="screenshots/03_chat_dark.jpg" width="200" alt="Chat — dark theme" />
+  <img src="screenshots/01_home_and_servers.jpg" width="200" alt="Home screen with local and remote OpenCode servers" />
+  <img src="screenshots/02_favorites.jpg" width="200" alt="Cross-server Favorites with category filters" />
+  <img src="screenshots/03_chat.jpg" width="200" alt="Native OpenCode chat with model, agent, and context controls" />
 </p>
 <p align="center">
-  <img src="screenshots/04_session_menu.jpg" width="200" alt="Session menu" />
-  <img src="screenshots/05_settings.jpg" width="200" alt="Settings" />
-  <img src="screenshots/06_notifications.jpg" width="200" alt="Notifications" />
+  <img src="screenshots/04_attachments.jpg" width="200" alt="Image, device file, and project file attachment options" />
+  <img src="screenshots/05_session_actions.jpg" width="200" alt="Session actions including terminal, review, sharing, and export" />
+  <img src="screenshots/06_context_usage.jpg" width="200" alt="Detailed context window and session token usage" />
+</p>
+<p align="center">
+  <img src="screenshots/07_category_editor.jpg" width="200" alt="Custom Favorites category editor" />
+  <img src="screenshots/08_settings.jpg" width="200" alt="Connection, notification, and appearance settings" />
+  <img src="screenshots/09_about_updates.jpg" width="200" alt="About screen with secure in-app update check" />
 </p>
 
 ## Features

@@ -1523,7 +1523,7 @@ fun ChatScreen(
     } ?: 0
     val pendingInteractions = uiState.pendingInteractions
     val pendingCount = pendingInteractions.size
-    val isBusy = uiState.sessionStatus is SessionStatus.Busy
+    val isBusy = isWorkingSessionStatus(uiState.sessionStatus)
     LaunchedEffect(messageCount, lastPartCount, lastContentLength, pendingCount, isBusy) {
         if (messageCount > 0 && autoScrollEnabled) {
             val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
@@ -1977,7 +1977,8 @@ fun ChatScreen(
                 },
                 onStop = viewModel::abortSession,
                 isSending = uiState.isSending,
-                isBusy = uiState.sessionStatus is SessionStatus.Busy || hasRunningTool,
+                isBusy = isWorkingSessionStatus(uiState.sessionStatus) || hasRunningTool,
+                sessionStatus = uiState.sessionStatus,
                 messages = uiState.messages,
                 attachments = attachments,
                 onAttach = { showAttachmentOptions = true },
@@ -7134,6 +7135,70 @@ private val placeholderHintResIds = listOf(
     R.string.chat_hint_help,
 )
 
+internal fun isWorkingSessionStatus(status: SessionStatus): Boolean =
+    status is SessionStatus.Busy || status is SessionStatus.Retry
+
+internal fun retryDelaySeconds(nextAtMillis: Long, nowMillis: Long): Long =
+    ((nextAtMillis - nowMillis).coerceAtLeast(0) + 999) / 1_000
+
+@Composable
+private fun RetryStatusBanner(retry: SessionStatus.Retry) {
+    var nowMillis by remember(retry.next) { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(retry.next) {
+        while (true) {
+            nowMillis = System.currentTimeMillis()
+            val delayMillis = retry.next - nowMillis
+            if (delayMillis <= 0) break
+            kotlinx.coroutines.delay(minOf(1_000L, delayMillis))
+        }
+    }
+    val remainingSeconds = retryDelaySeconds(retry.next, nowMillis)
+    val isAmoled = isAmoledTheme()
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = stringResource(R.string.sessions_retrying),
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(18.dp),
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = retry.message.ifBlank { stringResource(R.string.error_unknown) },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = if (remainingSeconds > 0) {
+                        stringResource(R.string.chat_retry_waiting, remainingSeconds, retry.attempt)
+                    } else {
+                        stringResource(R.string.chat_retry_now, retry.attempt)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChatInputBar(
@@ -7143,6 +7208,7 @@ private fun ChatInputBar(
     onStop: () -> Unit,
     isSending: Boolean,
     isBusy: Boolean = false,
+    sessionStatus: SessionStatus = SessionStatus.Idle,
     messages: List<ChatMessage> = emptyList(),
     attachments: List<ImageAttachment> = emptyList(),
     onAttach: () -> Unit = {},
@@ -7189,6 +7255,7 @@ private fun ChatInputBar(
     val hasDraft = text.isNotBlank() || attachments.isNotEmpty()
     val action = composerAction(isBusy, isSending, hasDraft, isShellMode)
     val canSend = action == ComposerAction.SEND
+    val retryStatus = sessionStatus as? SessionStatus.Retry
     var showContextDetails by remember { mutableStateOf(false) }
     var previewAttachmentIndex by remember { mutableStateOf(-1) }
 
@@ -7222,6 +7289,10 @@ private fun ChatInputBar(
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
             thickness = 0.5.dp
         )
+
+        retryStatus?.let { retry ->
+            RetryStatusBanner(retry)
+        }
 
         // Slash command suggestions popup (scrollable, max 40% screen height)
         AnimatedVisibility(
@@ -7358,7 +7429,7 @@ private fun ChatInputBar(
             contextPercentage >= 70 -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f)
             else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
         }
-        if (isBusy) {
+        if (isBusy && retryStatus == null) {
             val lastRunningTool = if (isBusy) {
                 messages.asReversed().firstNotNullOfOrNull { message ->
                     message.parts.filterIsInstance<Part.Tool>().lastOrNull { it.state is ToolState.Running }

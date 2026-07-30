@@ -602,4 +602,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="chat_terminal_keyboard">Tastatur</string>
     <string name="settings_recent_directories">Zuletzt verwendete Verzeichnisse</string>
     <string name="settings_recent_directories_desc">%1$d Verzeichnisse im Schnellstart-Dialog für neue Sitzungen</string>
+    <string name="chat_retry_waiting">Neuer Versuch in %1$d s · Versuch #%2$d</string>
+    <string name="chat_retry_now">Neuer Versuch jetzt · Versuch #%1$d</string>
 </resources>

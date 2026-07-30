@@ -602,4 +602,6 @@
     <string name="chat_terminal_keyboard">키보드</string>
     <string name="settings_recent_directories">최근 디렉터리</string>
     <string name="settings_recent_directories_desc">빠른 새 세션 대화상자에 디렉터리 %1$d개</string>
+    <string name="chat_retry_waiting">%1$d초 후 다시 시도합니다 · %2$d번째 시도</string>
+    <string name="chat_retry_now">지금 다시 시도합니다 · %1$d번째 시도</string>
 </resources>

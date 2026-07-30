@@ -602,4 +602,6 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="chat_terminal_keyboard">Teclado</string>
     <string name="settings_recent_directories">Diretórios recentes</string>
     <string name="settings_recent_directories_desc">%1$d diretórios no menu rápido de nova sessão</string>
+    <string name="chat_retry_waiting">Tentando novamente em %1$d s · tentativa nº %2$d</string>
+    <string name="chat_retry_now">Tentando novamente agora · tentativa nº %1$d</string>
 </resources>

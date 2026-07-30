@@ -100,6 +100,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
@@ -691,6 +693,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
@@ -1282,6 +1286,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
@@ -1873,6 +1879,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
@@ -2464,6 +2472,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
@@ -3055,6 +3065,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
@@ -3646,6 +3658,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
@@ -4237,6 +4251,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
@@ -4828,6 +4844,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
@@ -5419,6 +5437,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
@@ -6010,6 +6030,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
@@ -6601,6 +6623,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
@@ -7192,6 +7216,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
@@ -7783,6 +7809,8 @@ checksums:
         chat_response: 54d4d2899f98c563c142b6c29d079145
         chat_restore: 91314c067f80685f48d6d42498a52844
         chat_retry: d318af2eca32374d3ac446e3b6d34c8f
+        chat_retry_now: 5f1b92f2166f821e07e6ec3809d67a75
+        chat_retry_waiting: d07de1938ba682858141568e1c43fe23
         chat_revert: 62f7c08ecfb2dfbea2b16e14a7352df5
         chat_revert_message: a63bd4d92f06599ffeacc49951678e19
         chat_revert_title: 5225773e9de522918cda4bc77379fc56
