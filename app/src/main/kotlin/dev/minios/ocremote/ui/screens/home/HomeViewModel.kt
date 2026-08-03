@@ -19,6 +19,7 @@ import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.api.ServerHealthHttpException
 import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.data.repository.ServerRepository
+import dev.minios.ocremote.data.repository.normalizeServerUrl
 import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.data.repository.DiagnosticLogRepository
 import dev.minios.ocremote.data.update.UpdateRepository
@@ -80,7 +81,7 @@ data class HomeUiState(
     val localServerAutoStart: Boolean = false,
     val localServerStartupTimeoutSec: Int = 30,
     val updateState: UpdateState = UpdateState.Idle,
-    val hasFavoriteSessions: Boolean = false,
+    val hasFavoriteSessions: Boolean? = null,
 )
 
 private data class LocalRuntimeErrorInfo(
@@ -401,8 +402,11 @@ class HomeViewModel @Inject constructor(
         val server = _uiState.value.servers.find { it.id == serverId } ?: return
 
         // Already connected or connecting? No-op.
-        if (_uiState.value.connectedServerIds.contains(serverId) ||
-            _uiState.value.connectingServerIds.contains(serverId)) return
+        val equivalentServerIds = _uiState.value.servers
+            .filter { normalizeServerUrl(it.url) == normalizeServerUrl(server.url) }
+            .mapTo(mutableSetOf()) { it.id }
+        if (_uiState.value.connectedServerIds.any(equivalentServerIds::contains) ||
+            _uiState.value.connectingServerIds.any(equivalentServerIds::contains)) return
 
         _uiState.update {
             it.copy(
@@ -821,29 +825,16 @@ class HomeViewModel @Inject constructor(
     private suspend fun ensureLocalServerExists(): ServerConfig {
         val desiredUsername = _uiState.value.localServerUsername.trim().ifBlank { "opencode" }
         val desiredPassword = _uiState.value.localServerPassword.trim().takeIf { it.isNotBlank() }
-
-        val existing = _uiState.value.servers.firstOrNull {
-            it.url == LocalServerManager.LOCAL_SERVER_URL
-        }
-        if (existing != null) {
-            if (existing.username != desiredUsername || existing.password != desiredPassword) {
-                val updated = existing.copy(
-                    username = desiredUsername,
-                    password = desiredPassword,
-                )
-                serverRepository.updateServer(updated)
-                return updated
-            }
-            return existing
-        }
-
-        return serverRepository.addServer(
+        val result = serverRepository.upsertLocalServer(
             url = LocalServerManager.LOCAL_SERVER_URL,
             username = desiredUsername,
             password = desiredPassword,
-            name = LOCAL_SERVER_NAME,
-            autoConnect = false,
+            defaultName = LOCAL_SERVER_NAME,
         )
+        result.removedServerIds.forEach { duplicateId ->
+            serviceBinder?.getService()?.disconnect(duplicateId)
+        }
+        return result.server
     }
 
     private fun mapLocalRuntimeError(rawMessage: String?): LocalRuntimeErrorInfo {

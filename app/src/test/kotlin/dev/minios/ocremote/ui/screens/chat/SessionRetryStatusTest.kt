@@ -9,9 +9,20 @@ import org.junit.Test
 class SessionRetryStatusTest {
     @Test
     fun `retry remains an active stoppable session state`() {
+        val retry = SessionStatus.Retry(1, "rate limited", 10_000)
+
         assertTrue(isWorkingSessionStatus(SessionStatus.Busy))
-        assertTrue(isWorkingSessionStatus(SessionStatus.Retry(1, "rate limited", 10_000)))
+        assertTrue(isWorkingSessionStatus(retry))
         assertFalse(isWorkingSessionStatus(SessionStatus.Idle))
+        assertEquals(
+            ComposerAction.STOP,
+            composerAction(
+                isBusy = isWorkingSessionStatus(retry),
+                isSending = false,
+                hasDraft = false,
+                isShellMode = false,
+            ),
+        )
     }
 
     @Test

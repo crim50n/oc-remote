@@ -239,7 +239,7 @@ fun HomeScreen(
                 .padding(padding)
         ) {
             when {
-                uiState.isLoading -> {
+                uiState.isLoading || uiState.hasFavoriteSessions == null -> {
                     PulsingDotsIndicator(
                         modifier = Modifier.align(Alignment.Center),
                         dotSize = 12.dp,
@@ -286,7 +286,7 @@ fun HomeScreen(
                             }
                         }
 
-                        if (uiState.hasFavoriteSessions) {
+                        if (uiState.hasFavoriteSessions == true) {
                             item(key = "__favorite_sessions") {
                                 FavoritesCard(onClick = onNavigateToCrossServerSessions)
                             }
@@ -459,9 +459,9 @@ private fun FavoritesCard(onClick: () -> Unit) {
             .clickable(onClick = onClick),
         shape = AppCardShape,
         colors = CardDefaults.cardColors(
-            containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
         ),
-        border = appAmoledBorder(),
+        border = appAmoledBorder(alpha = 0.65f),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),

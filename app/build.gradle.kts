@@ -18,8 +18,8 @@ android {
         applicationId = "dev.minios.ocremote"
         minSdk = 26
         targetSdk = 34
-        versionCode = 23
-        versionName = "1.7.0"
+        versionCode = 24
+        versionName = "1.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -138,6 +138,9 @@ dependencies {
 
     // DataStore for preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Periodic settings synchronization
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.6.0")

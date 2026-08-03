@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.DeviceHub
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -39,7 +40,8 @@ import dev.minios.ocremote.ui.components.isAmoledTheme
 fun ServerSettingsScreen(
     onNavigateBack: () -> Unit,
     onOpenProviders: () -> Unit,
-    onOpenModels: () -> Unit
+    onOpenModels: () -> Unit,
+    onOpenMcp: () -> Unit,
 ) {
     val isAmoled = isAmoledTheme()
     Scaffold(
@@ -134,6 +136,46 @@ fun ServerSettingsScreen(
                         )
                         Text(
                             text = stringResource(R.string.server_settings_models_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+                        )
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Card(
+                shape = AppCardShape,
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+                ),
+                border = appAmoledBorder(0.65f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenMcp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.DeviceHub, contentDescription = null)
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.server_settings_mcp),
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Text(
+                            text = stringResource(R.string.server_settings_mcp_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
                         )

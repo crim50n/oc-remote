@@ -22,6 +22,7 @@ import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.api.SseClient
 import dev.minios.ocremote.data.repository.EventReducer
 import dev.minios.ocremote.data.repository.ServerRepository
+import dev.minios.ocremote.data.repository.normalizeServerUrl
 import dev.minios.ocremote.data.repository.ServerConnectionStateRepository
 import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.domain.model.Message
@@ -59,6 +60,10 @@ internal const val FAILED_CONNECTION_TIMEOUT_MS = 15 * 60 * 1000L
 
 internal fun hasFailedConnectionTimedOut(failureStartedAt: Long, now: Long): Boolean {
     return now - failureStartedAt >= FAILED_CONNECTION_TIMEOUT_MS
+}
+
+internal fun sameServerEndpoint(firstUrl: String, secondUrl: String): Boolean {
+    return normalizeServerUrl(firstUrl) == normalizeServerUrl(secondUrl)
 }
 
 internal fun sessionsNeedingMessageReconciliation(
@@ -313,6 +318,15 @@ class OpenCodeConnectionService : Service() {
 
     @Synchronized
     private fun connectInternal(server: ServerConfig) {
+        val activeEndpointConnection = connections.values.firstOrNull { state ->
+            sameServerEndpoint(state.config.url, server.url) && !state.sseJob.isCompleted
+        }
+        if (activeEndpointConnection != null) {
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Already connected to endpoint for server ${activeEndpointConnection.config.id}, skipping ${server.id}")
+            }
+            return
+        }
         var replacement: ServerConnectionState? = null
         var replaced: ServerConnectionState? = null
         connections.compute(server.id) { _, existing ->

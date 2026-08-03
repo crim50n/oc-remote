@@ -12,4 +12,10 @@ class ConnectionRetryPolicyTest {
         assertFalse(hasFailedConnectionTimedOut(startedAt, startedAt + FAILED_CONNECTION_TIMEOUT_MS - 1))
         assertTrue(hasFailedConnectionTimedOut(startedAt, startedAt + FAILED_CONNECTION_TIMEOUT_MS))
     }
+
+    @Test
+    fun `connection endpoint comparison ignores whitespace and trailing slash`() {
+        assertTrue(sameServerEndpoint("https://example.com/", " https://example.com "))
+        assertFalse(sameServerEndpoint("https://example.com", "https://other.example"))
+    }
 }

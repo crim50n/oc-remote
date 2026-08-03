@@ -313,6 +313,12 @@ class ChatViewModel @Inject constructor(
     val hapticFeedback = settingsRepository.hapticFeedback.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), true
     )
+    val hapticDurationMillis = settingsRepository.hapticDurationMillis.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), 30
+    )
+    val hapticAmplitude = settingsRepository.hapticAmplitude.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), 160
+    )
     val keepScreenOn = settingsRepository.keepScreenOn.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), false
     )
@@ -495,7 +501,8 @@ class ChatViewModel @Inject constructor(
                 currentModel = firstModel
             }
         }
-        val availableVariants = currentModel?.variants?.keys?.toList()?.sorted() ?: emptyList()
+        // Match the Web UI by preserving the variant order supplied by the server.
+        val availableVariants = currentModel?.variants?.keys?.toList() ?: emptyList()
 
         ChatUiState(
             sessionTitle = session?.title ?: "Chat",
@@ -926,26 +933,14 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Cycle through available thinking effort variants for the current model.
-     * Cycles: none -> first -> second -> ... -> last -> none (default).
-     */
-    fun cycleVariant() {
-        val state = uiState.value
-        val variants = state.variantNames
-        if (variants.isEmpty()) return
-        val current = _selectedVariant.value
-        if (current == null || current !in variants) {
-            _selectedVariant.value = variants.first()
-        } else {
-            val idx = variants.indexOf(current)
-            _selectedVariant.value = if (idx == variants.lastIndex) null else variants[idx + 1]
-        }
+    fun selectVariant(name: String?) {
+        _selectedVariant.value = name?.takeIf { it in uiState.value.variantNames }
     }
 
     fun selectModel(providerId: String, modelId: String) {
         _selectedProviderId.value = providerId
         _selectedModelId.value = modelId
+        _selectedVariant.value = null
         isModelExplicitlySelected = true
     }
 

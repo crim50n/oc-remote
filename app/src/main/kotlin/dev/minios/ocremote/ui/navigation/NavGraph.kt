@@ -52,6 +52,7 @@ import dev.minios.ocremote.ui.components.sessionCategoryColor
 import dev.minios.ocremote.ui.components.sessionCategoryIcon
 import dev.minios.ocremote.ui.screens.settings.DiagnosticsScreen
 import dev.minios.ocremote.ui.screens.server.ServerModelFilterScreen
+import dev.minios.ocremote.ui.screens.server.ServerMcpScreen
 import dev.minios.ocremote.ui.screens.server.ServerProvidersScreen
 import dev.minios.ocremote.ui.screens.server.ServerSettingsScreen
 import dev.minios.ocremote.ui.screens.webview.WebViewScreen
@@ -417,6 +418,13 @@ fun NavGraph(
                     navController.popBackStack()
                 },
                 onNavigateToDiagnostics = { navController.navigate(Screen.Diagnostics.route) },
+                onNavigateToSync = { navController.navigate(Screen.SyncSettings.route) },
+            )
+        }
+
+        composable(Screen.SyncSettings.route) {
+            dev.minios.ocremote.ui.screens.settings.SyncSettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
             )
         }
 
@@ -462,6 +470,17 @@ fun NavGraph(
                             serverId = serverId
                         )
                     )
+                },
+                onOpenMcp = {
+                    navController.navigate(
+                        Screen.ServerMcp.createRoute(
+                            serverUrl = serverUrl,
+                            username = username,
+                            password = password,
+                            serverName = serverName,
+                            serverId = serverId,
+                        )
+                    )
                 }
             )
         }
@@ -494,6 +513,19 @@ fun NavGraph(
             ServerModelFilterScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
+        }
+
+        composable(
+            route = "server_mcp?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}",
+            arguments = listOf(
+                navArgument("serverUrl") { type = NavType.StringType },
+                navArgument("username") { type = NavType.StringType },
+                navArgument("password") { type = NavType.StringType },
+                navArgument("serverName") { type = NavType.StringType },
+                navArgument("serverId") { type = NavType.StringType },
+            )
+        ) {
+            ServerMcpScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         // ============ About Screen ============
@@ -664,6 +696,17 @@ fun NavGraph(
                         initialPath = sessionPath
                     )
                     navController.navigate(route) { launchSingleTop = true }
+                },
+                onManageModels = {
+                    navController.navigate(
+                        Screen.ServerModelFilter.createRoute(
+                            serverUrl = serverUrl,
+                            username = username,
+                            password = password,
+                            serverName = serverName,
+                            serverId = serverId,
+                        ),
+                    )
                 },
                 initialSharedAttachments = attachmentsForThisSession,
                 onSharedAttachmentsConsumed = {

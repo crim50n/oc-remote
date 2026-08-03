@@ -3,6 +3,7 @@ package dev.minios.ocremote.data.repository
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
@@ -11,7 +12,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import dev.minios.ocremote.domain.model.SessionCategory
 import dev.minios.ocremote.domain.model.FavoriteSessionSnapshot
+import dev.minios.ocremote.data.sync.SyncSettings
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -28,6 +31,8 @@ class SettingsRepository @Inject constructor(
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context
 ) {
     companion object {
+        const val DEFAULT_DYNAMIC_COLOR = false
+
         private val LANGUAGE_KEY = stringPreferencesKey("app_language")
         private val THEME_KEY = stringPreferencesKey("app_theme")
         private val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
@@ -45,6 +50,9 @@ class SettingsRepository @Inject constructor(
         private val SHOW_TURN_DIVIDERS_KEY = booleanPreferencesKey("show_turn_dividers")
         private val GROUP_SESSIONS_BY_PROJECT_KEY = booleanPreferencesKey("group_sessions_by_project")
         private val HAPTIC_FEEDBACK_KEY = booleanPreferencesKey("haptic_feedback")
+        private val HAPTIC_STRENGTH_KEY = stringPreferencesKey("haptic_strength")
+        private val HAPTIC_DURATION_KEY = intPreferencesKey("haptic_duration_ms")
+        private val HAPTIC_AMPLITUDE_KEY = intPreferencesKey("haptic_amplitude")
         private val RECONNECT_MODE_KEY = stringPreferencesKey("reconnect_mode")
         private val BACKGROUND_WAKE_LOCK_KEY = booleanPreferencesKey("background_wake_lock")
         private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
@@ -76,6 +84,15 @@ class SettingsRepository @Inject constructor(
         private const val SERVER_PINNED_SESSIONS_PREFIX = "server_pinned_sessions_"
         private const val SERVER_FAVORITE_SESSIONS_PREFIX = "server_favorite_sessions_"
         private const val SERVER_SESSION_CATEGORY_PREFIX = "server_session_category_"
+
+        internal fun dynamicColorEnabled(preferences: Preferences): Boolean =
+            preferences[DYNAMIC_COLOR_KEY] ?: DEFAULT_DYNAMIC_COLOR
+
+        private fun hapticPatternForStrength(strength: String): Pair<Int, Int> = when (strength) {
+            "light" -> 18 to 80
+            "strong" -> 48 to 255
+            else -> 30 to 160
+        }
 
         /** Read stored language synchronously — safe to call before Hilt init. */
         fun getStoredLanguage(context: Context): String {
@@ -296,10 +313,10 @@ class SettingsRepository @Inject constructor(
     }
 
     /**
-     * Whether dynamic colors (Material You) are enabled. Default: true.
+     * Whether dynamic colors (Material You) are enabled. Default: false.
      */
     val dynamicColor: Flow<Boolean> = dataStore.data.map { preferences ->
-        preferences[DYNAMIC_COLOR_KEY] ?: true
+        dynamicColorEnabled(preferences)
     }
 
     suspend fun setDynamicColor(enabled: Boolean) {
@@ -457,6 +474,32 @@ class SettingsRepository @Inject constructor(
     suspend fun setHapticFeedback(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[HAPTIC_FEEDBACK_KEY] = enabled
+        }
+    }
+
+    val hapticStrength: Flow<String> = dataStore.data.map { preferences ->
+        preferences[HAPTIC_STRENGTH_KEY]?.takeIf { it in setOf("light", "medium", "strong") } ?: "medium"
+    }
+
+    suspend fun setHapticStrength(strength: String) {
+        require(strength in setOf("light", "medium", "strong"))
+        dataStore.edit { preferences -> preferences[HAPTIC_STRENGTH_KEY] = strength }
+    }
+
+    val hapticDurationMillis: Flow<Int> = dataStore.data.map { preferences ->
+        val fallback = hapticPatternForStrength(preferences[HAPTIC_STRENGTH_KEY] ?: "medium")
+        (preferences[HAPTIC_DURATION_KEY] ?: fallback.first).coerceIn(5, 100)
+    }
+
+    val hapticAmplitude: Flow<Int> = dataStore.data.map { preferences ->
+        val fallback = hapticPatternForStrength(preferences[HAPTIC_STRENGTH_KEY] ?: "medium")
+        (preferences[HAPTIC_AMPLITUDE_KEY] ?: fallback.second).coerceIn(1, 255)
+    }
+
+    suspend fun setHapticPattern(durationMillis: Int, amplitude: Int) {
+        dataStore.edit { preferences ->
+            preferences[HAPTIC_DURATION_KEY] = durationMillis.coerceIn(5, 100)
+            preferences[HAPTIC_AMPLITUDE_KEY] = amplitude.coerceIn(1, 255)
         }
     }
 
@@ -744,5 +787,140 @@ class SettingsRepository @Inject constructor(
                 current + key
             }
         }
+    }
+
+    suspend fun syncSettingsSnapshot(): SyncSettings = syncSettingsSnapshotFrom(dataStore.data.first())
+
+    internal fun syncSettingsSnapshotFrom(preferences: Preferences): SyncSettings {
+        val fallbackHaptic = hapticPatternForStrength(preferences[HAPTIC_STRENGTH_KEY] ?: "medium")
+        val hapticDuration = (preferences[HAPTIC_DURATION_KEY] ?: fallbackHaptic.first).coerceIn(5, 100)
+        val hapticAmplitude = (preferences[HAPTIC_AMPLITUDE_KEY] ?: fallbackHaptic.second).coerceIn(1, 255)
+        return SyncSettings(
+            appLanguage = preferences[LANGUAGE_KEY] ?: "",
+            appTheme = preferences[THEME_KEY] ?: "system",
+            dynamicColor = dynamicColorEnabled(preferences),
+            chatFontSize = preferences[FONT_SIZE_KEY] ?: "medium",
+            notificationsEnabled = preferences[NOTIFICATIONS_KEY] ?: true,
+            initialMessageCount = preferences[INITIAL_MESSAGE_COUNT_KEY] ?: 50,
+            recentDirectoryCount = (preferences[RECENT_DIRECTORY_COUNT_KEY] ?: 20).coerceIn(5, 50),
+            codeWordWrap = preferences[CODE_WORD_WRAP_KEY] ?: false,
+            confirmBeforeSend = preferences[CONFIRM_BEFORE_SEND_KEY] ?: false,
+            amoledDark = preferences[AMOLED_DARK_KEY] ?: false,
+            compactMessages = preferences[COMPACT_MESSAGES_KEY] ?: false,
+            collapseTools = preferences[COLLAPSE_TOOLS_KEY] ?: false,
+            expandReasoning = preferences[EXPAND_REASONING_KEY] ?: false,
+            showTurnDividers = preferences[SHOW_TURN_DIVIDERS_KEY] ?: true,
+            groupSessionsByProject = preferences[GROUP_SESSIONS_BY_PROJECT_KEY] ?: false,
+            hapticFeedback = preferences[HAPTIC_FEEDBACK_KEY] ?: true,
+            hapticStrength = when {
+                hapticAmplitude < 96 -> "light"
+                hapticAmplitude < 208 -> "medium"
+                else -> "strong"
+            },
+            hapticDurationMillis = hapticDuration,
+            hapticAmplitude = hapticAmplitude,
+            reconnectMode = preferences[RECONNECT_MODE_KEY] ?: "normal",
+            backgroundWakeLock = preferences[BACKGROUND_WAKE_LOCK_KEY] ?: true,
+            keepScreenOn = preferences[KEEP_SCREEN_ON_KEY] ?: false,
+            silentNotifications = preferences[SILENT_NOTIFICATIONS_KEY] ?: false,
+            compressImageAttachments = preferences[COMPRESS_IMAGE_ATTACHMENTS_KEY] ?: true,
+            imageAttachmentMaxLongSide = preferences[IMAGE_ATTACHMENT_MAX_LONG_SIDE_KEY] ?: 1440,
+            imageAttachmentWebpQuality = preferences[IMAGE_ATTACHMENT_WEBP_QUALITY_KEY] ?: 60,
+            terminalFontSize = preferences[TERMINAL_FONT_SIZE_KEY] ?: 13f,
+        )
+    }
+
+    suspend fun applySyncSettings(settings: SyncSettings, categories: List<SessionCategory>) {
+        dataStore.edit { preferences ->
+            applySyncSettingsTo(preferences, settings, categories)
+        }
+        updateSynchronousLocale(settings.appLanguage)
+    }
+
+    suspend fun syncSessionCategoryAssignmentsSnapshot(
+        serverIds: Collection<String>,
+    ): Map<String, Map<String, String>> {
+        return syncSessionCategoryAssignmentsSnapshotFrom(dataStore.data.first(), serverIds)
+    }
+
+    internal fun syncSessionCategoriesFrom(preferences: Preferences): List<SessionCategory> {
+        return preferences[SESSION_CATEGORIES_KEY]?.let { encoded ->
+            runCatching { json.decodeFromString<List<SessionCategory>>(encoded) }.getOrDefault(emptyList())
+        }.orEmpty()
+    }
+
+    internal fun syncSessionCategoryAssignmentsSnapshotFrom(
+        preferences: Preferences,
+        serverIds: Collection<String>,
+    ): Map<String, Map<String, String>> {
+        return serverIds.associateWith { serverId ->
+            preferences[serverSessionCategoryKey(serverId)]?.let { encoded ->
+                runCatching { json.decodeFromString<Map<String, String>>(encoded) }.getOrDefault(emptyMap())
+            }.orEmpty()
+        }
+    }
+
+    suspend fun applySyncSessionCategoryAssignments(
+        assignments: Map<String, Map<String, String>>,
+        serverIdMapping: Map<String, String>,
+    ) {
+        dataStore.edit { preferences ->
+            applySyncSessionCategoryAssignmentsTo(preferences, assignments, serverIdMapping)
+        }
+    }
+
+    internal fun applySyncSettingsTo(
+        preferences: MutablePreferences,
+        settings: SyncSettings,
+        categories: List<SessionCategory>,
+    ) {
+        preferences[LANGUAGE_KEY] = settings.appLanguage
+        preferences[THEME_KEY] = settings.appTheme
+        preferences[DYNAMIC_COLOR_KEY] = settings.dynamicColor
+        preferences[FONT_SIZE_KEY] = settings.chatFontSize
+        preferences[NOTIFICATIONS_KEY] = settings.notificationsEnabled
+        preferences[INITIAL_MESSAGE_COUNT_KEY] = settings.initialMessageCount
+        preferences[RECENT_DIRECTORY_COUNT_KEY] = settings.recentDirectoryCount.coerceIn(5, 50)
+        preferences[CODE_WORD_WRAP_KEY] = settings.codeWordWrap
+        preferences[CONFIRM_BEFORE_SEND_KEY] = settings.confirmBeforeSend
+        preferences[AMOLED_DARK_KEY] = settings.amoledDark
+        preferences[COMPACT_MESSAGES_KEY] = settings.compactMessages
+        preferences[COLLAPSE_TOOLS_KEY] = settings.collapseTools
+        preferences[EXPAND_REASONING_KEY] = settings.expandReasoning
+        preferences[SHOW_TURN_DIVIDERS_KEY] = settings.showTurnDividers
+        preferences[GROUP_SESSIONS_BY_PROJECT_KEY] = settings.groupSessionsByProject
+        preferences[HAPTIC_FEEDBACK_KEY] = settings.hapticFeedback
+        preferences[HAPTIC_STRENGTH_KEY] = settings.hapticStrength
+        val fallbackHaptic = hapticPatternForStrength(settings.hapticStrength)
+        preferences[HAPTIC_DURATION_KEY] =
+            (settings.hapticDurationMillis ?: fallbackHaptic.first).coerceIn(5, 100)
+        preferences[HAPTIC_AMPLITUDE_KEY] =
+            (settings.hapticAmplitude ?: fallbackHaptic.second).coerceIn(1, 255)
+        preferences[RECONNECT_MODE_KEY] = settings.reconnectMode
+        preferences[BACKGROUND_WAKE_LOCK_KEY] = settings.backgroundWakeLock
+        preferences[KEEP_SCREEN_ON_KEY] = settings.keepScreenOn
+        preferences[SILENT_NOTIFICATIONS_KEY] = settings.silentNotifications
+        preferences[COMPRESS_IMAGE_ATTACHMENTS_KEY] = settings.compressImageAttachments
+        preferences[IMAGE_ATTACHMENT_MAX_LONG_SIDE_KEY] = settings.imageAttachmentMaxLongSide.coerceIn(0, 4096)
+        preferences[IMAGE_ATTACHMENT_WEBP_QUALITY_KEY] = settings.imageAttachmentWebpQuality.coerceIn(1, 100)
+        preferences[TERMINAL_FONT_SIZE_KEY] = settings.terminalFontSize.coerceIn(6f, 20f)
+        preferences[SESSION_CATEGORIES_KEY] = json.encodeToString(categories)
+    }
+
+    internal fun applySyncSessionCategoryAssignmentsTo(
+        preferences: MutablePreferences,
+        assignments: Map<String, Map<String, String>>,
+        serverIdMapping: Map<String, String>,
+    ) {
+        assignments.forEach { (remoteServerId, values) ->
+            val localServerId = serverIdMapping[remoteServerId] ?: return@forEach
+            preferences[serverSessionCategoryKey(localServerId)] = json.encodeToString(values)
+        }
+    }
+
+    internal fun updateSynchronousLocale(language: String) {
+        context.getSharedPreferences(LOCALE_PREFS, Context.MODE_PRIVATE).edit()
+            .putString(LOCALE_PREFS_KEY, language)
+            .apply()
     }
 }

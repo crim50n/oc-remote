@@ -172,7 +172,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             // Collect theme preference
             val appTheme by settingsRepository.appTheme.collectAsState(initial = "system")
-            val dynamicColor by settingsRepository.dynamicColor.collectAsState(initial = true)
+            val dynamicColor by settingsRepository.dynamicColor.collectAsState(
+                initial = SettingsRepository.DEFAULT_DYNAMIC_COLOR,
+            )
             val amoledDark by settingsRepository.amoledDark.collectAsState(initial = false)
             val connectedServerIds by serverConnectionStateRepository.connectedServerIds.collectAsState()
             

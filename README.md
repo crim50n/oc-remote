@@ -11,7 +11,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Keep projects organized** — search, favorite, categorize, reorder, share, export, and revisit sessions across servers
 - **Use the complete workflow** — stream responses, inspect tool output and context usage, attach files, answer questions, approve permissions, and run session actions without falling back to a desktop
 - **Make it yours** — choose from 15 locales, flexible themes including AMOLED, and detailed chat, connection, notification, and image controls
-- **Operate reliably** — background connections, configurable recovery, diagnostics, completion notifications, large-session safeguards, and cryptographically verified in-app updates
+- **Operate reliably** — atomic settings import, deduplicated connections, configurable recovery, diagnostics, completion notifications, large-session safeguards, and cryptographically verified in-app updates
 
 ## Screenshots
 
@@ -41,13 +41,14 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Attachment support** — send images, PDFs, text, source code, and configuration files from device storage
 - **Android sharing** — share one or multiple supported files into an existing or new chat on a connected server
 - **Tool outputs** — expandable tool-call cards with selectable monospace output
-- **Image preview & save** — open sent and draft images in fullscreen preview and save to device storage
+- **Image preview & save** — open sent, draft, and Markdown images in a fullscreen viewer with pinch zoom, pan, double-tap zoom, and device saving
 - **Shell output copy** — bash output blocks support text selection and one-tap copy (command + output)
 - **HTML error fallback modes** — switch long HTML error payloads between rendered page view and raw code view
 - **Collapsible reasoning** — reasoning expands on demand, with optional auto-expand and turn dividers for multi-message responses
 - **Slash commands** — `/new`, `/fork`, `/compact`, `/share`, `/rename`, `/undo`, `/redo`, `/shell`
 - **Message actions** — long-press user messages to revert with confirmation
 - **Reliable delivery** — outgoing prompts stay visible with queued state while delayed server events and history are reconciled
+- **Retry control** — connection retry errors and countdowns stay visible while Stop remains available to abort the pending run
 - **Interaction queue** — simultaneous permissions and questions stay ordered with position, retry, parent-chat routing, and permanent-approval confirmation
 
 ### Terminal Mode
@@ -74,7 +75,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Read-only subagents** — child-agent sessions expose their history and context without unsafe prompt or shell controls
 
 ### Model & Agent Selection
-- **Model picker** — select provider and model with variant support; provider icons shown in headers
+- **Model picker** — search providers and models, follow server ordering, select model variants, and manage model visibility without leaving chat
 - **Agent selector** — tap to cycle through agents; each agent colored with its TUI theme color (blue, purple, green…)
 - **Reliable agent mode persistence** — explicit Plan/Build choice is preserved correctly between UI state and sent commands
 - **Provider icons** — 74 vector icons for AI providers shown in model picker and next to assistant responses
@@ -102,12 +103,13 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Recent directories** — choose how many projects appear in the quick new-session dialog (5–50, default 20)
 - **Reasoning display** — optionally auto-expand reasoning and show dividers between messages in one response
 - **Confirm before send** — optional confirmation dialog before sending messages
-- **Haptic feedback** — optional send confirmation haptics (API 30+ `CONFIRM`, older `CONTEXT_CLICK`)
+- **Haptic feedback** — optional direct vibration with configurable duration, amplitude, and an immediate test action
 - **Keep screen on** — prevents sleep while the chat screen is open
 - **Notifications** — toggle task completion notifications
 - **Silent notifications** — suppress sound and vibration for task notifications
 - **Image optimization controls** — tune max image side (keep original or 720–2560 px) and WebP quality for attachments
 - **Diagnostics** — inspect privacy-sanitized application logs by severity, then copy, share, or clear them without ADB
+- **Settings sync** — synchronize preferences, servers, categories, and assignments through either GitHub Gist or WebDAV, with separately retained connection settings, encrypted local credentials, optional encrypted server passwords, conflict handling, and periodic background sync
 - **Secure in-app updates** — automatic daily discovery plus manual checks from About; GitHub Release APKs are downloaded in-app, verified by SHA-256, package/version, and signing certificate, then handed to Android's system installer
 
 ### Connection
@@ -115,6 +117,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Local runtime via Termux** — set up and run OpenCode directly on-device from the Home screen (setup/start/stop/sessions)
 - **Local runtime launch options** — configure LAN binding (`0.0.0.0`), optional server username/password auth, background launch mode, auto-start (background-only), startup timeout, and proxy/`NO_PROXY` from the app
 - **Provider OAuth flow** — browser OAuth, headless fallback handling, and provider-state refresh on resume
+- **MCP management** — inspect configured MCP server status, connect or disconnect servers, retry failures, and launch OAuth authentication from per-server settings
 - **SSE event stream** — real-time session status, permissions, questions
 - **WebSocket transport** — used for terminal PTY streams
 - **Auto-reconnect** — exponential backoff starting at 1s, with max delay based on reconnect mode (5s/30s/60s)

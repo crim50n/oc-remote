@@ -29,6 +29,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
@@ -67,6 +68,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.SolidColor
@@ -126,6 +129,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
@@ -137,8 +142,13 @@ import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.mikepenz.markdown.compose.components.markdownComponents
+import com.mikepenz.markdown.compose.elements.MarkdownImage
 import com.mikepenz.markdown.coil2.Coil2ImageTransformerImpl
 import com.mikepenz.markdown.model.DefaultMarkdownAnnotator
+import com.mikepenz.markdown.model.ImageData
+import com.mikepenz.markdown.model.ImageTransformer
+import com.mikepenz.markdown.utils.getUnescapedTextInNode
+import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
 import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
@@ -184,6 +194,8 @@ import androidx.compose.ui.res.stringResource
 import dev.minios.ocremote.R
 import dev.minios.ocremote.ui.components.ProviderIcon
 import dev.minios.ocremote.ui.components.AppDialog
+import dev.minios.ocremote.ui.components.AppHaptics
+import dev.minios.ocremote.ui.components.AppHapticConfig
 import dev.minios.ocremote.ui.components.AppLoadingEdge
 import dev.minios.ocremote.ui.components.AppPickerItemShape
 import dev.minios.ocremote.ui.components.AppPrimaryButton
@@ -219,7 +231,7 @@ val LocalExpandReasoning = compositionLocalOf { false }
 val LocalShowTurnDividers = compositionLocalOf { true }
 
 /** Whether haptic feedback is enabled. */
-val LocalHapticFeedbackEnabled = compositionLocalOf { true }
+val LocalHapticFeedbackEnabled = compositionLocalOf { AppHapticConfig() }
 
 /** Image save request callback available to image preview composables. */
 val LocalImageSaveRequest = compositionLocalOf<(ByteArray, String, String?) -> Unit> { { _, _, _ -> } }
@@ -247,15 +259,8 @@ private fun Modifier.expandableToolHeader(
  * Perform a light haptic tick if haptic feedback is enabled.
  * Call from composable context or from a click lambda that has access to a View.
  */
-@Suppress("DEPRECATION")
-private fun performHaptic(view: android.view.View, enabled: Boolean) {
-    if (enabled) {
-        view.performHapticFeedback(
-            android.view.HapticFeedbackConstants.CLOCK_TICK,
-            android.view.HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
-                    android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-        )
-    }
+private fun performHaptic(view: android.view.View, config: AppHapticConfig) {
+    AppHaptics.perform(view, config)
 }
 
 /**
@@ -757,6 +762,12 @@ private data class ImageSaveRequest(
     val filename: String,
 )
 
+private data class DownloadedMarkdownImage(
+    val bytes: ByteArray,
+    val mime: String,
+    val filename: String,
+)
+
 private fun decodeDataUrlBytes(dataUrl: String): ByteArray? {
     val encoded = dataUrl.substringAfter(',', missingDelimiterValue = "")
     if (encoded.isBlank()) return null
@@ -785,6 +796,47 @@ private fun extensionForMime(mime: String): String {
         "image/webp" -> "webp"
         "image/gif" -> "gif"
         else -> "img"
+    }
+}
+
+private suspend fun downloadMarkdownImage(url: String): DownloadedMarkdownImage? = withContext(Dispatchers.IO) {
+    if (url.startsWith("data:", ignoreCase = true)) {
+        val mime = url.substringAfter("data:").substringBefore(';').takeIf { it.startsWith("image/") }
+            ?: "image/png"
+        val bytes = decodeDataUrlBytes(url) ?: return@withContext null
+        return@withContext DownloadedMarkdownImage(bytes, mime, "image.${extensionForMime(mime)}")
+    }
+
+    val connection = try {
+        (java.net.URL(url).openConnection() as? java.net.HttpURLConnection)?.apply {
+            connectTimeout = 15_000
+            readTimeout = 30_000
+            instanceFollowRedirects = true
+            setRequestProperty("Accept", "image/*")
+        }
+    } catch (e: Exception) {
+        Log.e("MarkdownImage", "Failed to open image URL", e)
+        null
+    } ?: return@withContext null
+
+    try {
+        val bytes = connection.inputStream.use {
+            readBytesLimited(it, MAX_DOCUMENT_ATTACHMENT_BYTES)
+        } ?: return@withContext null
+        val mime = connection.contentType
+            ?.substringBefore(';')
+            ?.takeIf { it.startsWith("image/") }
+            ?: java.net.URLConnection.guessContentTypeFromName(url)
+            ?: "image/png"
+        val pathFilename = runCatching { java.net.URL(url).path.substringAfterLast('/') }.getOrNull()
+            ?.takeIf(String::isNotBlank)
+        val filename = pathFilename ?: "image.${extensionForMime(mime)}"
+        DownloadedMarkdownImage(bytes, mime, filename)
+    } catch (e: Exception) {
+        Log.e("MarkdownImage", "Failed to download image", e)
+        null
+    } finally {
+        connection.disconnect()
     }
 }
 
@@ -954,6 +1006,7 @@ fun ChatScreen(
     onNavigateToSession: (sessionId: String) -> Unit = {},
     onNavigateToChildSession: (sessionId: String) -> Unit = {},
     onOpenInWebView: () -> Unit = {},
+    onManageModels: () -> Unit = {},
     initialSharedAttachments: List<Uri> = emptyList(),
     onSharedAttachmentsConsumed: () -> Unit = {},
     startInTerminalMode: Boolean = false,
@@ -1013,6 +1066,8 @@ fun ChatScreen(
     val expandReasoning by viewModel.expandReasoning.collectAsState()
     val showTurnDividers by viewModel.showTurnDividers.collectAsState()
     val hapticEnabled by viewModel.hapticFeedback.collectAsState()
+    val hapticDurationMillis by viewModel.hapticDurationMillis.collectAsState()
+    val hapticAmplitude by viewModel.hapticAmplitude.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val compressImageAttachments by viewModel.compressImageAttachments.collectAsState()
     val imageAttachmentMaxLongSide by viewModel.imageAttachmentMaxLongSide.collectAsState()
@@ -1547,7 +1602,11 @@ fun ChatScreen(
         LocalCollapseTools provides collapseTools,
         LocalExpandReasoning provides expandReasoning,
         LocalShowTurnDividers provides showTurnDividers,
-        LocalHapticFeedbackEnabled provides hapticEnabled,
+        LocalHapticFeedbackEnabled provides AppHapticConfig(
+            enabled = hapticEnabled,
+            durationMillis = hapticDurationMillis,
+            amplitude = hapticAmplitude,
+        ),
         LocalImageSaveRequest provides requestSaveImage,
     ) {
     Scaffold(
@@ -1897,16 +1956,10 @@ fun ChatScreen(
                 },
                 onSend = {
                     val doSend = doSend@{
-                        if (hapticEnabled) {
-                            @Suppress("DEPRECATION")
-                            val flags = android.view.HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
-                                    android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                                view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM, flags)
-                            } else {
-                                view.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK, flags)
-                            }
-                        }
+                        AppHaptics.perform(
+                            view,
+                            AppHapticConfig(hapticEnabled, hapticDurationMillis, hapticAmplitude),
+                        )
                         val rawText = inputText.text
                         val shellCommand = when {
                             isShellMode -> rawText.trim()
@@ -1999,7 +2052,7 @@ fun ChatScreen(
                 onAgentSelect = { viewModel.selectAgent(it) },
                 variantNames = uiState.variantNames,
                 selectedVariant = uiState.selectedVariant,
-                onCycleVariant = { viewModel.cycleVariant() },
+                onVariantSelect = { viewModel.selectVariant(it) },
                 commands = uiState.commands,
                 fileSearchResults = fileSearchResults,
                 confirmedFilePaths = confirmedFilePaths,
@@ -2426,9 +2479,14 @@ fun ChatScreen(
                                         Text(
                                             text = stringResource(terminalTabStateLabel(activeTerminalTab.state)),
                                             style = MaterialTheme.typography.labelLarge,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
                                         )
                                         if (activeTerminalTab.recoveryAction != TerminalRecoveryAction.None) {
-                                            TextButton(
+                                            val recoveryDescription = stringResource(
+                                                terminalRecoveryLabel(activeTerminalTab.recoveryAction),
+                                            )
+                                            IconButton(
                                                 onClick = {
                                                     viewModel.recoverTerminalTab(activeTerminalTab.id) { ok ->
                                                         if (!ok) {
@@ -2440,17 +2498,19 @@ fun ChatScreen(
                                                         }
                                                     }
                                                 },
+                                                modifier = Modifier.size(40.dp),
+                                                colors = IconButtonDefaults.iconButtonColors(
+                                                    containerColor = if (isAmoled) {
+                                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
+                                                    } else {
+                                                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
+                                                    },
+                                                ),
                                             ) {
                                                 Icon(
                                                     Icons.Default.Refresh,
-                                                    contentDescription = null,
+                                                    contentDescription = recoveryDescription,
                                                     modifier = Modifier.size(18.dp),
-                                                )
-                                                Spacer(Modifier.width(5.dp))
-                                                Text(
-                                                    stringResource(
-                                                        terminalRecoveryLabel(activeTerminalTab.recoveryAction),
-                                                    ),
                                                 )
                                             }
                                         }
@@ -2825,6 +2885,10 @@ fun ChatScreen(
                 viewModel.selectModel(providerId, modelId)
                 showModelPicker = false
             },
+            onManageModels = {
+                showModelPicker = false
+                onManageModels()
+            },
             onDismiss = { showModelPicker = false }
         )
     }
@@ -3129,39 +3193,130 @@ private fun ModelPickerDialog(
     selectedProviderId: String?,
     selectedModelId: String?,
     onSelect: (providerId: String, modelId: String) -> Unit,
+    onManageModels: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val isAmoled = isAmoledTheme()
+    var search by rememberSaveable { mutableStateOf("") }
+    val listState = rememberLazyListState()
     fun isModelFree(providerId: String, model: ProviderModel): Boolean {
         if (providerId != "opencode") return false
         val cost = model.cost ?: return true
         return cost.input == 0.0
     }
 
-    // Sort providers: "opencode" first, then by name
-    val sortedProviders = remember(providers) {
+    val popularProviders = remember {
+        listOf("opencode", "anthropic", "github-copilot", "openai", "google", "openrouter", "vercel")
+    }
+    val modelGroups = remember(providers, search) {
+        val query = search.trim().lowercase()
         providers
             .filter { it.models.isNotEmpty() }
-            .sortedWith(compareBy<ProviderInfo> { it.id != "opencode" }.thenBy { it.name.lowercase() })
+            .sortedWith(
+                compareBy<ProviderInfo> {
+                    popularProviders.indexOf(it.id).takeIf { index -> index >= 0 } ?: Int.MAX_VALUE
+                }.thenBy { it.name.lowercase() },
+            )
+            .mapNotNull { provider ->
+                val providerMatches = provider.name.lowercase().contains(query) || provider.id.lowercase().contains(query)
+                val models = provider.models.values
+                    .filter { model ->
+                        query.isEmpty() || providerMatches ||
+                            model.name.lowercase().contains(query) || model.id.lowercase().contains(query)
+                    }
+                    .sortedBy { it.name.lowercase() }
+                if (models.isEmpty()) null else provider to models
+            }
+    }
+    LaunchedEffect(modelGroups, selectedProviderId, selectedModelId) {
+        if (search.isNotBlank()) return@LaunchedEffect
+        var listIndex = 0
+        for ((provider, models) in modelGroups) {
+            val modelIndex = models.indexOfFirst { provider.id == selectedProviderId && it.id == selectedModelId }
+            if (modelIndex >= 0) {
+                listState.scrollToItem(listIndex + modelIndex + 1)
+                return@LaunchedEffect
+            }
+            listIndex += models.size + 1
+        }
     }
 
     AppDialog(
         onDismissRequest = onDismiss,
-        modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(max = 620.dp),
     ) {
-        Text(
-            text = stringResource(R.string.chat_select_model),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 8.dp),
-        )
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().weight(1f, fill = false).padding(horizontal = 12.dp),
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .height(44.dp),
+            shape = AppPickerItemShape,
+            color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerLow,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
-                for ((index, provider) in sortedProviders.withIndex()) {
+            Row(
+                modifier = Modifier.padding(start = 12.dp, end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
+            ) {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                BasicTextField(
+                    value = search,
+                    onValueChange = { search = it },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    decorationBox = { innerTextField ->
+                        Box(contentAlignment = Alignment.CenterStart) {
+                            if (search.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.server_settings_search_placeholder),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                )
+                            }
+                            innerTextField()
+                        }
+                    },
+                )
+                if (search.isNotEmpty()) {
+                    IconButton(
+                        onClick = { search = "" },
+                        modifier = Modifier.size(34.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.close),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
+        }
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp),
+        ) {
+            if (modelGroups.isEmpty()) {
+                item(key = "empty") {
+                    Text(
+                        text = stringResource(R.string.server_settings_empty),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp),
+                    )
+                }
+            } else {
+                for ((index, group) in modelGroups.withIndex()) {
+                    val (provider, models) = group
                     val topPad = if (index == 0) 0.dp else 12.dp
-
-                    val sortedModels = provider.models.values
-                        .sortedWith(compareBy<ProviderModel> { !isModelFree(provider.id, it) }.thenBy { it.name.lowercase() })
 
                     item(key = "provider_header_${provider.id}") {
                         Row(
@@ -3186,7 +3341,7 @@ private fun ModelPickerDialog(
                     }
 
                     items(
-                        sortedModels,
+                        models,
                         key = { "model_${provider.id}_${it.id}" }
                     ) { model ->
                         val isSelected = provider.id == selectedProviderId && model.id == selectedModelId
@@ -3239,12 +3394,27 @@ private fun ModelPickerDialog(
                         }
                     }
                 }
+            }
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.End,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onManageModels() }
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            AppSecondaryButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            Icon(
+                Icons.Default.Tune,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.server_settings_models),
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }
@@ -4778,6 +4948,9 @@ private fun MarkdownContent(
     textColor: Color,
     isUser: Boolean
 ) {
+    var previewImageUrl by remember { mutableStateOf<String?>(null) }
+    val requestSaveImage = LocalImageSaveRequest.current
+    val coroutineScope = rememberCoroutineScope()
     val normalizedMarkdown = remember(markdown) {
         normalizeTaskListMarkers(preserveRawHtmlPayload(markdown))
     }
@@ -4887,8 +5060,53 @@ private fun MarkdownContent(
     val components = markdownComponents(
         codeBlock = safeHighlightedCodeBlock,
         codeFence = safeHighlightedCodeFence,
+        image = { model ->
+            val imageUrl = remember(model.content, model.node) {
+                markdownImageUrl(model.content, model.node)
+            }
+            Box(
+                modifier = Modifier.clickable(enabled = imageUrl != null) {
+                    previewImageUrl = imageUrl
+                },
+            ) {
+                MarkdownImage(model.content, model.node)
+                if (imageUrl != null) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color.Black.copy(alpha = 0.58f),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.32f)),
+                    ) {
+                        IconButton(
+                            onClick = { previewImageUrl = imageUrl },
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(
+                                Icons.Default.Fullscreen,
+                                contentDescription = stringResource(R.string.chat_image),
+                                modifier = Modifier.size(21.dp),
+                                tint = Color.White,
+                            )
+                        }
+                    }
+                }
+            }
+        },
         table = horizontallyScrollableMarkdownTable,
     )
+    val clickableImageTransformer = remember {
+        object : ImageTransformer by Coil2ImageTransformerImpl {
+            @Composable
+            override fun transform(link: String): ImageData? {
+                val image = Coil2ImageTransformerImpl.transform(link) ?: return null
+                return image.copy(
+                    modifier = image.modifier.clickable { previewImageUrl = link },
+                )
+            }
+        }
+    }
 
     SelectionContainer {
         Markdown(
@@ -4898,10 +5116,52 @@ private fun MarkdownContent(
             flavour = ChatMarkdownFlavour,
             annotator = ChatMarkdownAnnotator,
             components = components,
-            imageTransformer = Coil2ImageTransformerImpl,
+            imageTransformer = clickableImageTransformer,
             modifier = Modifier.fillMaxWidth()
         )
     }
+
+    previewImageUrl?.let { imageUrl ->
+        ImagePreviewDialog(
+            imageModel = imageUrl,
+            contentDescription = null,
+            onDismiss = { previewImageUrl = null },
+            onSave = {
+                coroutineScope.launch {
+                    downloadMarkdownImage(imageUrl)?.let { image ->
+                        requestSaveImage(image.bytes, image.mime, image.filename)
+                    }
+                }
+            },
+        )
+    }
+}
+
+private val MarkdownImageUrlRegex = Regex("""!\[[^]]*]\(\s*(?:<([^>]+)>|([^\s)]+))""")
+
+private fun org.intellij.markdown.ast.ASTNode.findMarkdownDescendant(
+    type: org.intellij.markdown.IElementType,
+): org.intellij.markdown.ast.ASTNode? {
+    if (this.type == type) return this
+    return children.firstNotNullOfOrNull { it.findMarkdownDescendant(type) }
+}
+
+internal fun markdownImageUrl(
+    content: String,
+    node: org.intellij.markdown.ast.ASTNode,
+): String? = node
+    .findMarkdownDescendant(MarkdownElementTypes.LINK_DESTINATION)
+    ?.getUnescapedTextInNode(content)
+    ?.removeSurrounding("<", ">")
+    ?.takeIf(String::isNotBlank)
+
+internal fun markdownImageUrl(content: String, startOffset: Int, endOffset: Int): String? {
+    val markdownImage = content.substring(
+        startIndex = startOffset.coerceIn(0, content.length),
+        endIndex = endOffset.coerceIn(startOffset.coerceIn(0, content.length), content.length),
+    )
+    val match = MarkdownImageUrlRegex.find(markdownImage) ?: return null
+    return (match.groupValues[1].ifBlank { match.groupValues[2] }).takeIf(String::isNotBlank)
 }
 
 private val HtmlDocumentHintRegex = Regex("(?is)<!doctype\\s+html\\b|<\\s*html\\b")
@@ -6865,7 +7125,7 @@ private fun ImageThumbnailRow(
 
         if (bitmap != null) {
             ImagePreviewDialog(
-                bitmap = bitmap.asImageBitmap(),
+                imageModel = bitmap,
                 contentDescription = file.filename ?: stringResource(R.string.chat_image),
                 onDismiss = { previewIndex = -1 },
                 onSave = {
@@ -6881,67 +7141,128 @@ private fun ImageThumbnailRow(
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun ImagePreviewDialog(
-    bitmap: androidx.compose.ui.graphics.ImageBitmap,
+    imageModel: Any,
     contentDescription: String?,
     onDismiss: () -> Unit,
-    onSave: () -> Unit,
+    onSave: (() -> Unit)? = null,
 ) {
-    val isAmoled = isAmoledTheme()
-    AppDialog(
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    Dialog(
         onDismissRequest = onDismiss,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-            Box(modifier = Modifier.padding(14.dp)) {
-                androidx.compose.foundation.Image(
-                    bitmap = bitmap,
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .clipToBounds(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(imageModel) {
+                        detectTapGestures(
+                            onDoubleTap = { tapPosition ->
+                                if (scale > 1f) {
+                                    scale = 1f
+                                    offset = Offset.Zero
+                                } else {
+                                    scale = 2f
+                                    offset = Offset(
+                                        x = size.width / 2f - tapPosition.x,
+                                        y = size.height / 2f - tapPosition.y,
+                                    )
+                                }
+                            },
+                        )
+                    }
+                    .pointerInput(imageModel) {
+                        detectTransformGestures { centroid, pan, zoom, _ ->
+                            val previousScale = scale
+                            val newScale = (previousScale * zoom).coerceIn(1f, 5f)
+                            if (newScale == 1f) {
+                                scale = 1f
+                                offset = Offset.Zero
+                                return@detectTransformGestures
+                            }
+
+                            val appliedZoom = newScale / previousScale
+                            val center = Offset(size.width / 2f, size.height / 2f)
+                            val requestedOffset = offset * appliedZoom +
+                                (center - centroid) * (appliedZoom - 1f) + pan
+                            val maxOffsetX = size.width * (newScale - 1f) / 2f
+                            val maxOffsetY = size.height * (newScale - 1f) / 2f
+                            offset = Offset(
+                                x = requestedOffset.x.coerceIn(-maxOffsetX, maxOffsetX),
+                                y = requestedOffset.y.coerceIn(-maxOffsetY, maxOffsetY),
+                            )
+                            scale = newScale
+                        }
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                AsyncImage(
+                    model = imageModel,
                     contentDescription = contentDescription,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 520.dp)
-                        .clip(RoundedCornerShape(14.dp)),
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            translationX = offset.x
+                            translationY = offset.y
+                        },
                     contentScale = ContentScale.Fit,
                 )
+            }
 
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    val actionContainerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-                    val actionBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isAmoled) 0.85f else 0.8f)
-                    val actionTintColor = MaterialTheme.colorScheme.onSurface
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val actionContainerColor = Color.Black.copy(alpha = 0.58f)
+                val actionBorderColor = Color.White.copy(alpha = 0.32f)
+                val actionTintColor = Color.White
 
+                if (onSave != null) {
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(8.dp),
                         color = actionContainerColor,
                         border = BorderStroke(1.dp, actionBorderColor),
                     ) {
-                        IconButton(onClick = onSave, modifier = Modifier.size(48.dp)) {
+                        IconButton(onClick = onSave, modifier = Modifier.size(40.dp)) {
                             Icon(
                                 Icons.Default.Download,
                                 contentDescription = stringResource(R.string.chat_save_image),
                                 tint = actionTintColor,
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = actionContainerColor,
-                        border = BorderStroke(1.dp, actionBorderColor),
-                    ) {
-                        IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = stringResource(R.string.close),
-                                tint = actionTintColor,
+                                modifier = Modifier.size(22.dp),
                             )
                         }
                     }
                 }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = actionContainerColor,
+                    border = BorderStroke(1.dp, actionBorderColor),
+                ) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.close),
+                            tint = actionTintColor,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
             }
+        }
     }
 }
 
@@ -7222,7 +7543,7 @@ private fun ChatInputBar(
     onAgentSelect: (String) -> Unit = {},
     variantNames: List<String> = emptyList(),
     selectedVariant: String? = null,
-    onCycleVariant: () -> Unit = {},
+    onVariantSelect: (String?) -> Unit = {},
     commands: List<CommandInfo> = emptyList(),
     fileSearchResults: List<String> = emptyList(),
     confirmedFilePaths: Set<String> = emptySet(),
@@ -7258,6 +7579,7 @@ private fun ChatInputBar(
     val retryStatus = sessionStatus as? SessionStatus.Retry
     var showContextDetails by remember { mutableStateOf(false) }
     var previewAttachmentIndex by remember { mutableStateOf(-1) }
+    var showVariantMenu by remember { mutableStateOf(false) }
 
     // Build merged slash commands: client commands + server commands (deduplicated)
     val clientCmds = clientCommands()
@@ -7571,21 +7893,70 @@ private fun ChatInputBar(
                             }
                         }
 
-                        // Variant cycle button (thinking effort) — THIRD
+                        // Variant selector (thinking effort) — THIRD
                         if (variantNames.isNotEmpty()) {
-                            Text(
-                                text = selectedVariant?.replaceFirstChar { it.uppercase() } ?: stringResource(R.string.chat_default_variant),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (selectedVariant != null) {
-                                    MaterialTheme.colorScheme.tertiary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                },
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .clickable { onCycleVariant() }
-                                    .padding(horizontal = 3.dp, vertical = 3.dp)
-                            )
+                            Box {
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .clickable { showVariantMenu = true }
+                                        .padding(horizontal = 3.dp, vertical = 3.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = selectedVariant?.replaceFirstChar { it.uppercase() }
+                                            ?: stringResource(R.string.chat_default_variant),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (selectedVariant != null) {
+                                            MaterialTheme.colorScheme.tertiary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                        },
+                                    )
+                                    Icon(
+                                        Icons.Default.ArrowDropDown,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showVariantMenu,
+                                    onDismissRequest = { showVariantMenu = false },
+                                    modifier = Modifier
+                                        .widthIn(min = 150.dp)
+                                        .appPopupBorder(),
+                                    containerColor = appPopupContainerColor(),
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.chat_default_variant)) },
+                                        leadingIcon = {
+                                            if (selectedVariant == null) {
+                                                Icon(Icons.Default.Check, contentDescription = null)
+                                            }
+                                        },
+                                        onClick = {
+                                            onVariantSelect(null)
+                                            showVariantMenu = false
+                                        },
+                                    )
+                                    variantNames.forEach { variant ->
+                                        DropdownMenuItem(
+                                            text = { Text(variant.replaceFirstChar { it.uppercase() }) },
+                                            leadingIcon = {
+                                                if (selectedVariant == variant) {
+                                                    Icon(Icons.Default.Check, contentDescription = null)
+                                                }
+                                            },
+                                            onClick = {
+                                                onVariantSelect(variant)
+                                                showVariantMenu = false
+                                            },
+                                        )
+                                    }
+                                }
+                            }
                         }
 
                         if (showContext) {
@@ -7708,7 +8079,7 @@ private fun ChatInputBar(
 
                 if (bitmap != null) {
                     ImagePreviewDialog(
-                        bitmap = bitmap.asImageBitmap(),
+                        imageModel = bitmap,
                         contentDescription = attachment.filename,
                         onDismiss = { previewAttachmentIndex = -1 },
                         onSave = {

@@ -721,6 +721,43 @@ class OpenCodeApi @Inject constructor(
         }.body()
     }
 
+    // ============ MCP ============
+
+    suspend fun getMcpStatus(conn: ServerConnection): Map<String, McpStatus> {
+        val response = httpClient.get("${conn.baseUrl}/mcp") {
+            conn.authHeader?.let { header("Authorization", it) }
+        }
+        if (!response.status.isSuccess()) throw RuntimeException("MCP status failed: ${response.status}")
+        return response.body()
+    }
+
+    suspend fun connectMcp(conn: ServerConnection, name: String): Boolean =
+        updateMcpConnection(conn, name, connect = true)
+
+    suspend fun disconnectMcp(conn: ServerConnection, name: String): Boolean =
+        updateMcpConnection(conn, name, connect = false)
+
+    private suspend fun updateMcpConnection(
+        conn: ServerConnection,
+        name: String,
+        connect: Boolean,
+    ): Boolean {
+        val action = if (connect) "connect" else "disconnect"
+        val response = httpClient.post("${conn.baseUrl}/mcp/${name.encodeURLPathPart()}/$action") {
+            conn.authHeader?.let { header("Authorization", it) }
+        }
+        if (!response.status.isSuccess()) throw RuntimeException("MCP $action failed: ${response.status}")
+        return response.body()
+    }
+
+    suspend fun startMcpAuth(conn: ServerConnection, name: String): McpAuthStart {
+        val response = httpClient.post("${conn.baseUrl}/mcp/${name.encodeURLPathPart()}/auth") {
+            conn.authHeader?.let { header("Authorization", it) }
+        }
+        if (!response.status.isSuccess()) throw RuntimeException("MCP authentication failed: ${response.status}")
+        return response.body()
+    }
+
     // ============ Questions ============
 
     /**
@@ -1219,6 +1256,17 @@ data class PermissionRequest(
     val metadata: Map<String, JsonElement>? = null,
     val always: List<String> = emptyList(),
     val tool: ToolRef? = null
+)
+
+@Serializable
+data class McpStatus(
+    val status: String,
+    val error: String? = null,
+)
+
+@Serializable
+data class McpAuthStart(
+    val authorizationUrl: String,
 )
 
 @Serializable

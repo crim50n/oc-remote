@@ -4,6 +4,8 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextDecoration
 import com.mikepenz.markdown.utils.buildMarkdownAnnotatedString
+import org.intellij.markdown.MarkdownElementTypes
+import org.intellij.markdown.parser.MarkdownParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -84,6 +86,40 @@ class MarkdownTildeTest {
         assertEquals(content, normalizeTaskListMarkers(content))
     }
 
+    @Test
+    fun `markdown image url is extracted from image node range`() {
+        val content = "Before ![Preview](https://example.com/image.png) after"
+        val start = content.indexOf("![Preview]")
+        val end = content.indexOf(")", start) + 1
+
+        assertEquals(
+            "https://example.com/image.png",
+            markdownImageUrl(content, start, end),
+        )
+    }
+
+    @Test
+    fun `markdown image url supports angle brackets`() {
+        val content = "![Preview](<https://example.com/image file.png>)"
+
+        assertEquals(
+            "https://example.com/image file.png",
+            markdownImageUrl(content, 0, content.length),
+        )
+    }
+
+    @Test
+    fun `markdown image url is extracted from parsed image node`() {
+        val content = "![Preview](https://example.com/image.png)"
+        val tree = MarkdownParser(ChatMarkdownFlavour).buildMarkdownTreeFromString(content)
+        val imageNode = tree.findDescendant(MarkdownElementTypes.IMAGE)
+
+        assertEquals(
+            "https://example.com/image.png",
+            markdownImageUrl(content, requireNotNull(imageNode)),
+        )
+    }
+
     private fun render(markdown: String) = markdown.buildMarkdownAnnotatedString(
         style = TextStyle.Default,
         linkTextSpanStyle = SpanStyle(),
@@ -91,5 +127,12 @@ class MarkdownTildeTest {
         flavour = ChatMarkdownFlavour,
         annotator = ChatMarkdownAnnotator,
     )
+
+    private fun org.intellij.markdown.ast.ASTNode.findDescendant(
+        type: org.intellij.markdown.IElementType,
+    ): org.intellij.markdown.ast.ASTNode? {
+        if (this.type == type) return this
+        return children.firstNotNullOfOrNull { it.findDescendant(type) }
+    }
 
 }

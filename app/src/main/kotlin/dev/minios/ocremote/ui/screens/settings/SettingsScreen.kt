@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
@@ -50,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.input.VisualTransformation
@@ -60,6 +62,8 @@ import dev.minios.ocremote.R
 import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.domain.model.SessionCategory
 import dev.minios.ocremote.ui.components.AppDialog
+import dev.minios.ocremote.ui.components.AppHaptics
+import dev.minios.ocremote.ui.components.AppHapticConfig
 import dev.minios.ocremote.ui.components.AppDialogActions
 import dev.minios.ocremote.ui.components.AppPrimaryButton
 import dev.minios.ocremote.ui.components.AppSecondaryButton
@@ -83,6 +87,7 @@ import kotlin.math.roundToInt
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToDiagnostics: () -> Unit = {},
+    onNavigateToSync: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val currentLanguage by viewModel.appLanguage.collectAsState()
@@ -101,6 +106,8 @@ fun SettingsScreen(
     val expandReasoning by viewModel.expandReasoning.collectAsState()
     val showTurnDividers by viewModel.showTurnDividers.collectAsState()
     val hapticFeedback by viewModel.hapticFeedback.collectAsState()
+    val hapticDurationMillis by viewModel.hapticDurationMillis.collectAsState()
+    val hapticAmplitude by viewModel.hapticAmplitude.collectAsState()
     val reconnectMode by viewModel.reconnectMode.collectAsState()
     val backgroundWakeLock by viewModel.backgroundWakeLock.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
@@ -117,11 +124,13 @@ fun SettingsScreen(
     var showMessageCountDialog by remember { mutableStateOf(false) }
     var showRecentDirectoryCountDialog by remember { mutableStateOf(false) }
     var showReconnectModeDialog by remember { mutableStateOf(false) }
+    var showHapticPatternDialog by remember { mutableStateOf(false) }
     var showTerminalFontSizeDialog by remember { mutableStateOf(false) }
     var showImageMaxSideDialog by remember { mutableStateOf(false) }
     var showImageQualityDialog by remember { mutableStateOf(false) }
 
     val isAmoled = isAmoledTheme()
+    val settingsView = LocalView.current
     val switchColors = if (isAmoled) {
         SwitchDefaults.colors(
             checkedThumbColor = MaterialTheme.colorScheme.primary,
@@ -172,6 +181,13 @@ fun SettingsScreen(
                     Icon(Icons.Default.Language, contentDescription = null)
                 },
                 modifier = Modifier.clickable { showLanguageDialog = true }
+            )
+
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.sync_title)) },
+                supportingContent = { Text(stringResource(R.string.sync_settings_desc)) },
+                leadingContent = { Icon(Icons.Default.CloudSync, contentDescription = null) },
+                modifier = Modifier.clickable { onNavigateToSync() },
             )
 
             // Reconnect mode
@@ -449,12 +465,36 @@ fun SettingsScreen(
                 trailingContent = {
                     Switch(
                         checked = hapticFeedback,
-                        onCheckedChange = { viewModel.setHapticFeedback(it) },
+                        onCheckedChange = {
+                            viewModel.setHapticFeedback(it)
+                            AppHaptics.perform(
+                                settingsView,
+                                AppHapticConfig(it, hapticDurationMillis, hapticAmplitude),
+                            )
+                        },
                         colors = switchColors
                     )
                 },
-                modifier = Modifier.clickable { viewModel.setHapticFeedback(!hapticFeedback) }
+                modifier = Modifier.clickable {
+                    val enabled = !hapticFeedback
+                    viewModel.setHapticFeedback(enabled)
+                    AppHaptics.perform(
+                        settingsView,
+                        AppHapticConfig(enabled, hapticDurationMillis, hapticAmplitude),
+                    )
+                }
             )
+
+            if (hapticFeedback) {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_haptic_pattern)) },
+                    supportingContent = {
+                        Text(stringResource(R.string.settings_haptic_pattern_value, hapticDurationMillis, hapticAmplitude))
+                    },
+                    leadingContent = { Icon(Icons.Default.Vibration, contentDescription = null) },
+                    modifier = Modifier.clickable { showHapticPatternDialog = true },
+                )
+            }
 
             // Keep screen on
             ListItem(
@@ -607,6 +647,18 @@ fun SettingsScreen(
                     showReconnectModeDialog = false
                 },
                 onDismiss = { showReconnectModeDialog = false }
+            )
+        }
+
+        if (showHapticPatternDialog) {
+            HapticPatternDialog(
+                currentDurationMillis = hapticDurationMillis,
+                currentAmplitude = hapticAmplitude,
+                onSave = { durationMillis, amplitude ->
+                    viewModel.setHapticPattern(durationMillis, amplitude)
+                    showHapticPatternDialog = false
+                },
+                onDismiss = { showHapticPatternDialog = false },
             )
         }
 
@@ -1383,6 +1435,73 @@ private fun ReconnectModePickerDialog(
         onSelect = onModeSelected,
         onDismiss = onDismiss
     )
+}
+
+@Composable
+private fun HapticPatternDialog(
+    currentDurationMillis: Int,
+    currentAmplitude: Int,
+    onSave: (durationMillis: Int, amplitude: Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var durationMillis by remember(currentDurationMillis) {
+        mutableFloatStateOf(currentDurationMillis.coerceIn(5, 100).toFloat())
+    }
+    var amplitude by remember(currentAmplitude) {
+        mutableFloatStateOf(currentAmplitude.coerceIn(1, 255).toFloat())
+    }
+    val view = LocalView.current
+
+    AppDialog(onDismissRequest = onDismiss, modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(stringResource(R.string.settings_haptic_pattern), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.settings_haptic_duration_value, durationMillis.roundToInt()),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Slider(
+                value = durationMillis,
+                onValueChange = { durationMillis = it },
+                valueRange = 5f..100f,
+            )
+            Text(
+                stringResource(R.string.settings_haptic_amplitude_value, amplitude.roundToInt()),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Slider(
+                value = amplitude,
+                onValueChange = { amplitude = it },
+                valueRange = 1f..255f,
+            )
+            AppSecondaryButton(
+                onClick = {
+                    AppHaptics.perform(
+                        view,
+                        AppHapticConfig(
+                            enabled = true,
+                            durationMillis = durationMillis.roundToInt(),
+                            amplitude = amplitude.roundToInt(),
+                        ),
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                outlined = true,
+            ) {
+                Text(stringResource(R.string.settings_haptic_test))
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                AppSecondaryButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+                AppPrimaryButton(
+                    onClick = { onSave(durationMillis.roundToInt(), amplitude.roundToInt()) },
+                ) {
+                    Text(stringResource(R.string.server_save))
+                }
+            }
+        }
+    }
 }
 
 @Composable

@@ -30,7 +30,7 @@ class SettingsViewModel @Inject constructor(
     val dynamicColor = settingsRepository.dynamicColor.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = true
+        initialValue = SettingsRepository.DEFAULT_DYNAMIC_COLOR,
     )
 
     val chatFontSize = settingsRepository.chatFontSize.stateIn(
@@ -103,6 +103,18 @@ class SettingsViewModel @Inject constructor(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = true
+    )
+
+    val hapticDurationMillis = settingsRepository.hapticDurationMillis.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 30,
+    )
+
+    val hapticAmplitude = settingsRepository.hapticAmplitude.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 160,
     )
 
     val reconnectMode = settingsRepository.reconnectMode.stateIn(
@@ -296,6 +308,12 @@ class SettingsViewModel @Inject constructor(
     fun setHapticFeedback(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setHapticFeedback(enabled)
+        }
+    }
+
+    fun setHapticPattern(durationMillis: Int, amplitude: Int) {
+        viewModelScope.launch {
+            settingsRepository.setHapticPattern(durationMillis, amplitude)
         }
     }
 

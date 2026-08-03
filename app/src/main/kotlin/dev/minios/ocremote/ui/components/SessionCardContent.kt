@@ -5,6 +5,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Refresh
@@ -74,7 +76,40 @@ fun SessionCardContent(
     } else {
         1f
     }
-    Column(modifier = Modifier.fillMaxWidth()) {
+    val accent = category?.let { sessionCategoryColor(it.color) }
+        ?: MaterialTheme.colorScheme.primary
+    Column(
+        modifier = Modifier
+            .fillMaxWidth(),
+    ) {
+        if (isBusy) {
+            val topGlowAlpha = 0.08f + 0.2f * pulse
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .requiredHeight(3.dp)
+                        .graphicsLayer {
+                            scaleY = 0.33f + 0.67f * pulse
+                            transformOrigin = TransformOrigin(0.5f, 0f)
+                        }
+                        .background(
+                            Brush.horizontalGradient(
+                                0f to Color.Transparent,
+                                0.18f to accent.copy(alpha = topGlowAlpha * 0.45f),
+                                0.5f to accent.copy(alpha = topGlowAlpha),
+                                0.82f to accent.copy(alpha = topGlowAlpha * 0.45f),
+                                1f to Color.Transparent,
+                            ),
+                        ),
+                )
+            }
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -154,6 +189,12 @@ fun SessionCardContent(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (isBusy) {
+                    SessionWorkingDots(
+                        color = category?.let { sessionCategoryColor(it.color) }
+                            ?: MaterialTheme.colorScheme.tertiary,
+                    )
+                }
             }
             Spacer(Modifier.height(2.dp))
             Row(
@@ -203,8 +244,6 @@ fun SessionCardContent(
             trailingContent()
         }
         if (category != null || isBusy) {
-            val accent = category?.let { sessionCategoryColor(it.color) }
-                ?: MaterialTheme.colorScheme.primary
             val accentAlpha = if (category != null) {
                 if (isBusy) 0.4f + 0.6f * pulse else 1f
             } else {
@@ -236,6 +275,47 @@ fun SessionCardContent(
                         ),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun SessionWorkingDots(color: Color) {
+    val transition = rememberInfiniteTransition(label = "session_working_dots")
+    val scales = (0..2).map { index ->
+        transition.animateFloat(
+            initialValue = 0.4f,
+            targetValue = 0.4f,
+            animationSpec = infiniteRepeatable(
+                animation = keyframes {
+                    durationMillis = 1_200
+                    val offset = index * 150
+                    0.4f at offset
+                    1f at 300 + offset
+                    0.4f at 600 + offset
+                    0.4f at 1_200
+                },
+                repeatMode = RepeatMode.Restart,
+            ),
+            label = "session_working_dot_$index",
+        )
+    }
+    Row(
+        modifier = Modifier.padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        scales.forEach { scale ->
+            Box(
+                modifier = Modifier
+                    .size(4.dp)
+                    .graphicsLayer {
+                        scaleX = scale.value
+                        scaleY = scale.value
+                        alpha = 0.35f + 0.65f * ((scale.value - 0.4f) / 0.6f)
+                    }
+                    .background(color, RoundedCornerShape(4.dp)),
+            )
         }
     }
 }

@@ -117,8 +117,26 @@ sealed class Screen(val route: String) {
             return "server_model_filter?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
         }
     }
+
+    data object ServerMcp : Screen("server_mcp") {
+        fun createRoute(
+            serverUrl: String,
+            username: String,
+            password: String,
+            serverName: String,
+            serverId: String,
+        ): String {
+            val encodedUrl = encodeNavigationArgument(serverUrl)
+            val encodedUsername = encodeNavigationArgument(username)
+            val encodedPassword = encodeNavigationArgument(password)
+            val encodedName = encodeNavigationArgument(serverName)
+            val encodedServerId = encodeNavigationArgument(serverId)
+            return "server_mcp?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
+        }
+    }
     
     data object Settings : Screen("settings")
+    data object SyncSettings : Screen("sync_settings")
     data object Diagnostics : Screen("diagnostics")
     data object About : Screen("about")
 }
