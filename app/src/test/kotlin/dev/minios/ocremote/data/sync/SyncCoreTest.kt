@@ -5,6 +5,8 @@ import dev.minios.ocremote.data.repository.SyncConfig
 import dev.minios.ocremote.data.repository.SyncTargetConfig
 import dev.minios.ocremote.data.repository.migrateSingleBackendSyncConfig
 import dev.minios.ocremote.data.repository.requireSingleSyncStorage
+import dev.minios.ocremote.data.repository.remapServerScopedKey
+import dev.minios.ocremote.domain.model.FavoriteSessionSnapshot
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -52,6 +54,17 @@ class SyncCoreTest {
     }
 
     @Test
+    fun gistRevisionPreflightRejectsConcurrentChange() {
+        requireExpectedGistRevision("expected", "expected")
+        assertThrows(SyncHttpException::class.java) {
+            requireExpectedGistRevision("expected", "changed")
+        }
+        assertThrows(SyncHttpException::class.java) {
+            requireExpectedGistRevision("expected", null)
+        }
+    }
+
+    @Test
     fun syncDecisionDetectsConflictAndSingleSidedChanges() {
         assertEquals(SyncDecision.CONFLICT, decideSync(true, "one", "two", "local-one", "local-two"))
         assertEquals(SyncDecision.PULL_REMOTE, decideSync(true, "one", "two", "local", "local"))
@@ -93,6 +106,20 @@ class SyncCoreTest {
             sessionCategoryAssignments = mapOf(
                 "server-1" to mapOf("session-1" to "category-1"),
             ),
+            favoriteSessionIds = mapOf("server-1" to listOf("session-1")),
+            crossServerFavoriteOrder = listOf("server-1:session-1"),
+            favoriteSessionSnapshots = mapOf(
+                "server-1:session-1" to FavoriteSessionSnapshot(
+                    id = "session-1",
+                    projectId = "project-1",
+                    directory = "/project",
+                    title = "Favorite",
+                    createdAt = 1,
+                    updatedAt = 2,
+                ),
+            ),
+            hiddenModels = mapOf("server-1" to setOf("provider:model")),
+            settings = SyncSettings(showLocalRuntime = false, diagnosticLogLevel = "DEBUG"),
         )
 
         val restored = Json.decodeFromString<SyncPayload>(Json.encodeToString(payload))
@@ -102,7 +129,37 @@ class SyncCoreTest {
         assertEquals(3, restored.generation)
         assertEquals(2L, restored.parentGeneration)
         assertEquals("device-1", restored.writerDeviceId)
+        assertEquals(listOf("session-1"), restored.favoriteSessionIds?.get("server-1"))
+        assertEquals(listOf("server-1:session-1"), restored.crossServerFavoriteOrder)
+        assertEquals("Favorite", restored.favoriteSessionSnapshots?.get("server-1:session-1")?.title)
+        assertEquals(setOf("provider:model"), restored.hiddenModels?.get("server-1"))
+        assertEquals(false, restored.settings.showLocalRuntime)
+        assertEquals("DEBUG", restored.settings.diagnosticLogLevel)
         assertTrue(restored.sessionCategories.isEmpty())
+    }
+
+    @Test
+    fun legacyPayloadLeavesNewCollectionsAbsent() {
+        val payload = Json.decodeSyncPayload("{\"version\":1}")
+
+        assertEquals(null, payload.favoriteSessionIds)
+        assertEquals(null, payload.crossServerFavoriteOrder)
+        assertEquals(null, payload.favoriteSessionSnapshots)
+        assertEquals(null, payload.hiddenModels)
+        assertEquals(null, payload.settings.showLocalRuntime)
+        assertEquals(null, payload.settings.diagnosticLogLevel)
+    }
+
+    @Test
+    fun serverScopedFavoriteKeysAreRemapped() {
+        val mapping = mapOf("remote-server" to "local-server")
+
+        assertEquals(
+            "local-server:session-1",
+            remapServerScopedKey("remote-server:session-1", mapping),
+        )
+        assertEquals(null, remapServerScopedKey("missing:session-1", mapping))
+        assertEquals(null, remapServerScopedKey("malformed", mapping))
     }
 
     @Test

@@ -55,9 +55,11 @@ class GistSyncTransport(
                 setBody(TextContent("{\"public\":false,\"description\":\"OC Remote sync\",$files}", ContentType.Application.Json))
             }
         } else {
+            if (expectedRevision != null) {
+                requireExpectedGistRevision(expectedRevision, read()?.revision)
+            }
             client.patch("https://api.github.com/gists/$gistId") {
                 bearer()
-                expectedRevision?.let { header(HttpHeaders.IfMatch, it) }
                 setBody(TextContent("{$files}", ContentType.Application.Json))
             }
         }
@@ -82,6 +84,10 @@ class GistSyncTransport(
             return candidate.takeIf { it.matches(Regex("[0-9a-fA-F]{5,}")) }
         }
     }
+}
+
+internal fun requireExpectedGistRevision(expected: String, actual: String?) {
+    if (actual != expected) throw SyncHttpException("Remote Gist changed during synchronization")
 }
 
 private fun requireSuccess(status: Int, operation: String) {

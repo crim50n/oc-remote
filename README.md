@@ -109,7 +109,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Silent notifications** — suppress sound and vibration for task notifications
 - **Image optimization controls** — tune max image side (keep original or 720–2560 px) and WebP quality for attachments
 - **Diagnostics** — inspect privacy-sanitized application logs by severity, then copy, share, or clear them without ADB
-- **Settings sync** — synchronize preferences, servers, categories, and assignments through either GitHub Gist or WebDAV, with separately retained connection settings, encrypted local credentials, optional encrypted server passwords, conflict handling, and periodic background sync
+- **Settings sync** — synchronize preferences, remote servers, categories, assignments, Favorites, and hidden models through either GitHub Gist or WebDAV, with separately retained connection settings, encrypted local credentials, optional encrypted server passwords, conflict handling, and periodic background sync; local runtime configuration remains device-specific
 - **Secure in-app updates** — automatic daily discovery plus manual checks from About; GitHub Release APKs are downloaded in-app, verified by SHA-256, package/version, and signing certificate, then handed to Android's system installer
 
 ### Connection

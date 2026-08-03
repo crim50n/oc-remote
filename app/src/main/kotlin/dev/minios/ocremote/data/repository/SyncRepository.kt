@@ -124,6 +124,7 @@ class SyncRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>,
     private val settingsRepository: SettingsRepository,
     private val serverRepository: ServerRepository,
+    private val diagnosticLogRepository: DiagnosticLogRepository,
     private val secretStore: LocalSyncSecretStore,
     private val client: HttpClient,
     private val json: Json,
@@ -368,6 +369,15 @@ class SyncRepository @Inject constructor(
                 payload.sessionCategoryAssignments,
                 serverIdMapping,
             )
+            settingsRepository.applySyncSessionCollectionsTo(
+                preferences = preferences,
+                favoriteSessionIds = payload.favoriteSessionIds,
+                crossServerFavoriteOrder = payload.crossServerFavoriteOrder,
+                favoriteSessionSnapshots = payload.favoriteSessionSnapshots,
+                hiddenModels = payload.hiddenModels,
+                serverIdMapping = serverIdMapping,
+            )
+            diagnosticLogRepository.applyLogLevelTo(preferences, payload.settings.diagnosticLogLevel)
         }
         settingsRepository.updateSynchronousLocale(payload.settings.appLanguage)
         return CanonicalSync(
@@ -444,8 +454,9 @@ class SyncRepository @Inject constructor(
     private suspend fun snapshot(includePasswords: Boolean): SyncPayload {
         val preferences = dataStore.data.first()
         val servers = serverRepository.syncServersSnapshotFrom(preferences)
+        val serverIds = servers.map { it.id }
         val passwords = if (includePasswords) {
-            serverRepository.serverConfigsFrom(preferences).mapNotNull { server ->
+            serverRepository.serverConfigsFrom(preferences).filter { it.id in serverIds }.mapNotNull { server ->
                 server.password?.let { server.id to it }
             }.toMap()
         } else {
@@ -462,12 +473,18 @@ class SyncRepository @Inject constructor(
             }
         }
         return SyncPayload(
-            settings = settingsRepository.syncSettingsSnapshotFrom(preferences),
+            settings = settingsRepository.syncSettingsSnapshotFrom(preferences).copy(
+                diagnosticLogLevel = diagnosticLogRepository.logLevelFrom(preferences),
+            ),
             sessionCategories = settingsRepository.syncSessionCategoriesFrom(preferences),
             sessionCategoryAssignments = settingsRepository.syncSessionCategoryAssignmentsSnapshotFrom(
                 preferences,
-                servers.map { it.id },
+                serverIds,
             ),
+            favoriteSessionIds = settingsRepository.syncFavoriteSessionIdsFrom(preferences, serverIds),
+            crossServerFavoriteOrder = settingsRepository.syncCrossServerFavoriteOrderFrom(preferences, serverIds),
+            favoriteSessionSnapshots = settingsRepository.syncFavoriteSessionSnapshotsFrom(preferences, serverIds),
+            hiddenModels = settingsRepository.syncHiddenModelsFrom(preferences, serverIds),
             servers = servers,
             encryptedSecrets = encrypted,
         )

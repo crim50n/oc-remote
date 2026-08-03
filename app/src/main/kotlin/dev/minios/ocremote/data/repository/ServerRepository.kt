@@ -25,6 +25,13 @@ private const val SERVERS_KEY = "servers"
 
 internal fun normalizeServerUrl(url: String): String = url.trim().trimEnd('/')
 
+internal fun isPortableSyncServerUrl(url: String): Boolean =
+    normalizeServerUrl(url) != normalizeServerUrl(LocalServerManager.LOCAL_SERVER_URL)
+
+internal fun portableSyncServers(servers: List<ServerConfig>): List<SyncServer> = servers
+    .filter { isPortableSyncServerUrl(it.url) }
+    .map { SyncServer(it.id, normalizeServerUrl(it.url), it.name, it.username, it.autoConnect) }
+
 internal data class ServerMergeResult(
     val servers: List<ServerConfig>,
     val idMapping: Map<String, String>,
@@ -39,7 +46,7 @@ internal fun mergeSyncServers(
     val mergedServers = current.toMutableList()
     val usedIds = current.mapTo(mutableSetOf()) { it.id }
     val idMapping = mutableMapOf<String, String>()
-    remote.forEach { source ->
+    remote.filter { isPortableSyncServerUrl(it.url) }.forEach { source ->
         val normalized = normalizeServerUrl(source.url)
         val existingIndex = mergedServers.indexOfFirst { normalizeServerUrl(it.url) == normalized }
         val existing = mergedServers.getOrNull(existingIndex)
@@ -239,14 +246,10 @@ class ServerRepository @Inject constructor(
         return servers.firstOrNull()?.find { it.id == serverId }
     }
 
-    suspend fun syncServersSnapshot(): List<SyncServer> = (servers.firstOrNull() ?: emptyList()).map {
-        SyncServer(it.id, it.url.trimEnd('/'), it.name, it.username, it.autoConnect)
-    }
+    suspend fun syncServersSnapshot(): List<SyncServer> = portableSyncServers(servers.firstOrNull() ?: emptyList())
 
     internal fun syncServersSnapshotFrom(preferences: Preferences): List<SyncServer> =
-        readServers(preferences).map {
-            SyncServer(it.id, normalizeServerUrl(it.url), it.name, it.username, it.autoConnect)
-        }
+        portableSyncServers(readServers(preferences))
 
     internal fun serverConfigsFrom(preferences: Preferences): List<ServerConfig> = readServers(preferences)
 

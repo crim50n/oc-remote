@@ -1,5 +1,6 @@
 package dev.minios.ocremote.data.sync
 
+import dev.minios.ocremote.domain.model.FavoriteSessionSnapshot
 import dev.minios.ocremote.domain.model.SessionCategory
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -17,6 +18,10 @@ data class SyncPayload(
     val settings: SyncSettings = SyncSettings(),
     val sessionCategories: List<SessionCategory> = emptyList(),
     val sessionCategoryAssignments: Map<String, Map<String, String>> = emptyMap(),
+    val favoriteSessionIds: Map<String, List<String>>? = null,
+    val crossServerFavoriteOrder: List<String>? = null,
+    val favoriteSessionSnapshots: Map<String, FavoriteSessionSnapshot>? = null,
+    val hiddenModels: Map<String, Set<String>>? = null,
     val servers: List<SyncServer> = emptyList(),
     val encryptedSecrets: EncryptedSecrets? = null,
 ) {
@@ -55,6 +60,8 @@ data class SyncSettings(
     val imageAttachmentMaxLongSide: Int = 1440,
     val imageAttachmentWebpQuality: Int = 60,
     val terminalFontSize: Float = 13f,
+    val showLocalRuntime: Boolean? = null,
+    val diagnosticLogLevel: String? = null,
 )
 
 @Serializable

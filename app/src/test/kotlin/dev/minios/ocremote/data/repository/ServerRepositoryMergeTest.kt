@@ -116,4 +116,49 @@ class ServerRepositoryMergeTest {
 
         assertEquals(listOf("first", "second", "remote"), result.servers.map(ServerConfig::id))
     }
+
+    @Test
+    fun `sync snapshot excludes local runtime server`() {
+        val servers = portableSyncServers(
+            listOf(
+                ServerConfig(
+                    id = "local",
+                    url = " http://127.0.0.1:4096/ ",
+                    username = "device-user",
+                    password = "device-secret",
+                ),
+                ServerConfig(id = "remote", url = "https://example.com/", username = "remote-user"),
+            ),
+        )
+
+        assertEquals(listOf("remote"), servers.map(SyncServer::id))
+        assertEquals("https://example.com", servers.single().url)
+    }
+
+    @Test
+    fun `sync import ignores local runtime server from older payload`() {
+        val currentLocal = ServerConfig(
+            id = "local-device",
+            url = LocalServerManager.LOCAL_SERVER_URL,
+            username = "device-user",
+            password = "device-secret",
+            autoConnect = false,
+        )
+
+        val result = mergeSyncServers(
+            current = listOf(currentLocal),
+            remote = listOf(
+                SyncServer(
+                    id = "remote-local",
+                    url = "http://127.0.0.1:4096/",
+                    username = "other-device-user",
+                    autoConnect = true,
+                ),
+            ),
+            passwords = mapOf("remote-local" to "other-device-secret"),
+        )
+
+        assertEquals(listOf(currentLocal), result.servers)
+        assertTrue(result.idMapping.isEmpty())
+    }
 }

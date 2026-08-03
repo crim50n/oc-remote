@@ -10,9 +10,9 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
-import dev.minios.ocremote.domain.model.SessionCategory
-import dev.minios.ocremote.domain.model.FavoriteSessionSnapshot
 import dev.minios.ocremote.data.sync.SyncSettings
+import dev.minios.ocremote.domain.model.FavoriteSessionSnapshot
+import dev.minios.ocremote.domain.model.SessionCategory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -20,6 +20,13 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
+
+internal fun remapServerScopedKey(key: String, serverIdMapping: Map<String, String>): String? {
+    val separator = key.indexOf(':')
+    if (separator <= 0 || separator == key.lastIndex) return null
+    val localServerId = serverIdMapping[key.substring(0, separator)] ?: return null
+    return "$localServerId:${key.substring(separator + 1)}"
+}
 
 /**
  * App-wide settings stored in DataStore.
@@ -827,6 +834,7 @@ class SettingsRepository @Inject constructor(
             imageAttachmentMaxLongSide = preferences[IMAGE_ATTACHMENT_MAX_LONG_SIDE_KEY] ?: 1440,
             imageAttachmentWebpQuality = preferences[IMAGE_ATTACHMENT_WEBP_QUALITY_KEY] ?: 60,
             terminalFontSize = preferences[TERMINAL_FONT_SIZE_KEY] ?: 13f,
+            showLocalRuntime = preferences[SHOW_LOCAL_RUNTIME_KEY] ?: true,
         )
     }
 
@@ -858,6 +866,50 @@ class SettingsRepository @Inject constructor(
                 runCatching { json.decodeFromString<Map<String, String>>(encoded) }.getOrDefault(emptyMap())
             }.orEmpty()
         }
+    }
+
+    internal fun syncFavoriteSessionIdsFrom(
+        preferences: Preferences,
+        serverIds: Collection<String>,
+    ): Map<String, List<String>> = serverIds.associateWith { serverId ->
+        (preferences[serverFavoriteSessionsKey(serverId)] ?: preferences[serverPinnedSessionsKey(serverId)])
+            ?.lineSequence()
+            ?.filter(String::isNotBlank)
+            ?.distinct()
+            ?.toList()
+            .orEmpty()
+    }
+
+    internal fun syncCrossServerFavoriteOrderFrom(
+        preferences: Preferences,
+        serverIds: Collection<String>,
+    ): List<String> {
+        val includedServerIds = serverIds.toSet()
+        return preferences[CROSS_SERVER_FAVORITE_ORDER_KEY]
+            ?.lineSequence()
+            ?.filter(String::isNotBlank)
+            ?.filter { it.substringBefore(':') in includedServerIds }
+            ?.distinct()
+            ?.toList()
+            .orEmpty()
+    }
+
+    internal fun syncFavoriteSessionSnapshotsFrom(
+        preferences: Preferences,
+        serverIds: Collection<String>,
+    ): Map<String, FavoriteSessionSnapshot> {
+        val includedServerIds = serverIds.toSet()
+        return preferences[FAVORITE_SESSION_SNAPSHOTS_KEY]?.let { encoded ->
+            runCatching { json.decodeFromString<Map<String, FavoriteSessionSnapshot>>(encoded) }
+                .getOrDefault(emptyMap())
+        }.orEmpty().filterKeys { it.substringBefore(':') in includedServerIds }
+    }
+
+    internal fun syncHiddenModelsFrom(
+        preferences: Preferences,
+        serverIds: Collection<String>,
+    ): Map<String, Set<String>> = serverIds.associateWith { serverId ->
+        preferences[serverModelHiddenKey(serverId)] ?: emptySet()
     }
 
     suspend fun applySyncSessionCategoryAssignments(
@@ -904,6 +956,7 @@ class SettingsRepository @Inject constructor(
         preferences[IMAGE_ATTACHMENT_MAX_LONG_SIDE_KEY] = settings.imageAttachmentMaxLongSide.coerceIn(0, 4096)
         preferences[IMAGE_ATTACHMENT_WEBP_QUALITY_KEY] = settings.imageAttachmentWebpQuality.coerceIn(1, 100)
         preferences[TERMINAL_FONT_SIZE_KEY] = settings.terminalFontSize.coerceIn(6f, 20f)
+        settings.showLocalRuntime?.let { preferences[SHOW_LOCAL_RUNTIME_KEY] = it }
         preferences[SESSION_CATEGORIES_KEY] = json.encodeToString(categories)
     }
 
@@ -915,6 +968,53 @@ class SettingsRepository @Inject constructor(
         assignments.forEach { (remoteServerId, values) ->
             val localServerId = serverIdMapping[remoteServerId] ?: return@forEach
             preferences[serverSessionCategoryKey(localServerId)] = json.encodeToString(values)
+        }
+    }
+
+    internal fun applySyncSessionCollectionsTo(
+        preferences: MutablePreferences,
+        favoriteSessionIds: Map<String, List<String>>?,
+        crossServerFavoriteOrder: List<String>?,
+        favoriteSessionSnapshots: Map<String, FavoriteSessionSnapshot>?,
+        hiddenModels: Map<String, Set<String>>?,
+        serverIdMapping: Map<String, String>,
+    ) {
+        favoriteSessionIds?.let { favorites ->
+            serverIdMapping.forEach { (remoteServerId, localServerId) ->
+                preferences[serverFavoriteSessionsKey(localServerId)] = favorites[remoteServerId]
+                    .orEmpty()
+                    .filter(String::isNotBlank)
+                    .distinct()
+                    .joinToString("\n")
+                preferences.remove(serverPinnedSessionsKey(localServerId))
+            }
+        }
+        hiddenModels?.let { models ->
+            serverIdMapping.forEach { (remoteServerId, localServerId) ->
+                preferences[serverModelHiddenKey(localServerId)] = models[remoteServerId].orEmpty()
+            }
+        }
+        crossServerFavoriteOrder?.let { order ->
+            val mappedLocalIds = serverIdMapping.values.toSet()
+            val preservedLocalOnly = preferences[CROSS_SERVER_FAVORITE_ORDER_KEY]
+                ?.lineSequence()
+                ?.filter(String::isNotBlank)
+                ?.filterNot { it.substringBefore(':') in mappedLocalIds }
+                .orEmpty()
+            val mapped = order.mapNotNull { remapServerScopedKey(it, serverIdMapping) }
+            preferences[CROSS_SERVER_FAVORITE_ORDER_KEY] = (mapped + preservedLocalOnly).distinct().joinToString("\n")
+        }
+        favoriteSessionSnapshots?.let { snapshots ->
+            val mappedLocalIds = serverIdMapping.values.toSet()
+            val current = preferences[FAVORITE_SESSION_SNAPSHOTS_KEY]?.let { encoded ->
+                runCatching { json.decodeFromString<Map<String, FavoriteSessionSnapshot>>(encoded) }
+                    .getOrDefault(emptyMap())
+            }.orEmpty()
+            val preservedLocalOnly = current.filterKeys { it.substringBefore(':') !in mappedLocalIds }
+            val mapped = snapshots.mapNotNull { (key, snapshot) ->
+                remapServerScopedKey(key, serverIdMapping)?.let { it to snapshot }
+            }.toMap()
+            preferences[FAVORITE_SESSION_SNAPSHOTS_KEY] = json.encodeToString(preservedLocalOnly + mapped)
         }
     }
 

@@ -2,6 +2,7 @@ package dev.minios.ocremote.data.repository
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import android.content.Context
@@ -89,6 +90,14 @@ class DiagnosticLogRepository @Inject constructor(
 
     suspend fun setLogLevel(level: String) {
         dataStore.edit { it[logLevelKey] = level.takeIf { value -> value in LOG_LEVELS } ?: "INFO" }
+    }
+
+    internal fun logLevelFrom(preferences: Preferences): String = preferences[logLevelKey] ?: "INFO"
+
+    internal fun applyLogLevelTo(preferences: MutablePreferences, level: String?) {
+        if (level != null) {
+            preferences[logLevelKey] = level.takeIf(LOG_LEVELS::contains) ?: "INFO"
+        }
     }
 
     companion object {
