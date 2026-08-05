@@ -124,6 +124,8 @@
     <string name="server_invalid_url">Invalid URL format</string>
     <string name="server_auto_connect">Auto-connect on app launch</string>
     <string name="server_auto_connect_desc">Automatically connect when the app starts</string>
+    <string name="server_allow_self_signed">Allow self-signed certificates</string>
+    <string name="server_allow_self_signed_desc">Skip certificate validation. Only for trusted servers without a valid SSL certificate.</string>
     
     <!-- Session Screen -->
     <string name="sessions_title">Sessions</string>

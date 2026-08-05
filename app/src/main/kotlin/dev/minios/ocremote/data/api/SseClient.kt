@@ -15,6 +15,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.*
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 
 private const val TAG = "SseClient"
@@ -53,9 +54,17 @@ internal fun isHighFrequencySseEvent(event: SseEvent): Boolean = when (event) {
  */
 @Singleton
 class SseClient @Inject constructor(
-    private val httpClient: HttpClient,
+    @Named("secure") private val httpClient: HttpClient,
+    @Named("insecure") private val insecureHttpClient: HttpClient,
     private val json: Json
 ) {
+
+    /**
+     * Pick the HTTP client matching the server's TLS preference.
+     * [ServerConnection.allowSelfSigned] selects the trust-all client.
+     */
+    private fun clientFor(conn: ServerConnection): HttpClient =
+        if (conn.allowSelfSigned) insecureHttpClient else httpClient
 
     /**
      * Connect to the global event stream.
@@ -71,7 +80,7 @@ class SseClient @Inject constructor(
         val sseUrl = "${conn.baseUrl}/global/event"
         Log.i(TAG, "Connecting to global SSE (auth=${conn.authHeader != null})")
 
-        val statement = httpClient.prepareGet(sseUrl) {
+        val statement = clientFor(conn).prepareGet(sseUrl) {
             conn.authHeader?.let { header("Authorization", it) }
             header("Accept", "text/event-stream")
             directory?.let { header("x-opencode-directory", it) }

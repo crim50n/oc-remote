@@ -13,6 +13,7 @@ data class ServerConfig(
     val password: String? = null,
     val name: String? = null, // User-friendly name
     val autoConnect: Boolean = false,
+    val allowSelfSigned: Boolean = false,
     val lastConnected: Long? = null,
     val isHealthy: Boolean = false
 ) {

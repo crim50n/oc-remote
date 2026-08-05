@@ -36,14 +36,15 @@ sealed class Screen(val route: String) {
             username: String,
             password: String,
             serverName: String,
-            serverId: String
+            serverId: String,
+            allowSelfSigned: Boolean = false,
         ): String {
             val encodedUrl = encodeNavigationArgument(serverUrl)
             val encodedUsername = encodeNavigationArgument(username)
             val encodedPassword = encodeNavigationArgument(password)
             val encodedName = encodeNavigationArgument(serverName)
             val encodedServerId = encodeNavigationArgument(serverId)
-            return "sessions?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
+            return "sessions?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId&allowSelfSigned=$allowSelfSigned"
         }
     }
     
@@ -56,6 +57,7 @@ sealed class Screen(val route: String) {
             serverId: String,
             sessionId: String,
             openTerminal: Boolean = false,
+            allowSelfSigned: Boolean = false,
         ): String {
             val encodedUrl = encodeNavigationArgument(serverUrl)
             val encodedUsername = encodeNavigationArgument(username)
@@ -63,7 +65,7 @@ sealed class Screen(val route: String) {
             val encodedName = encodeNavigationArgument(serverName)
             val encodedServerId = encodeNavigationArgument(serverId)
             val encodedSessionId = encodeNavigationArgument(sessionId)
-            return "chat?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId&sessionId=$encodedSessionId&openTerminal=$openTerminal"
+            return "chat?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId&sessionId=$encodedSessionId&openTerminal=$openTerminal&allowSelfSigned=$allowSelfSigned"
         }
     }
 
@@ -73,14 +75,15 @@ sealed class Screen(val route: String) {
             username: String,
             password: String,
             serverName: String,
-            serverId: String
+            serverId: String,
+            allowSelfSigned: Boolean = false,
         ): String {
             val encodedUrl = encodeNavigationArgument(serverUrl)
             val encodedUsername = encodeNavigationArgument(username)
             val encodedPassword = encodeNavigationArgument(password)
             val encodedName = encodeNavigationArgument(serverName)
             val encodedServerId = encodeNavigationArgument(serverId)
-            return "server_settings?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
+            return "server_settings?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId&allowSelfSigned=$allowSelfSigned"
         }
     }
 
@@ -90,14 +93,15 @@ sealed class Screen(val route: String) {
             username: String,
             password: String,
             serverName: String,
-            serverId: String
+            serverId: String,
+            allowSelfSigned: Boolean = false,
         ): String {
             val encodedUrl = encodeNavigationArgument(serverUrl)
             val encodedUsername = encodeNavigationArgument(username)
             val encodedPassword = encodeNavigationArgument(password)
             val encodedName = encodeNavigationArgument(serverName)
             val encodedServerId = encodeNavigationArgument(serverId)
-            return "server_providers?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
+            return "server_providers?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId&allowSelfSigned=$allowSelfSigned"
         }
     }
 
@@ -107,14 +111,15 @@ sealed class Screen(val route: String) {
             username: String,
             password: String,
             serverName: String,
-            serverId: String
+            serverId: String,
+            allowSelfSigned: Boolean = false,
         ): String {
             val encodedUrl = encodeNavigationArgument(serverUrl)
             val encodedUsername = encodeNavigationArgument(username)
             val encodedPassword = encodeNavigationArgument(password)
             val encodedName = encodeNavigationArgument(serverName)
             val encodedServerId = encodeNavigationArgument(serverId)
-            return "server_model_filter?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
+            return "server_model_filter?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId&allowSelfSigned=$allowSelfSigned"
         }
     }
 
@@ -125,13 +130,14 @@ sealed class Screen(val route: String) {
             password: String,
             serverName: String,
             serverId: String,
+            allowSelfSigned: Boolean = false,
         ): String {
             val encodedUrl = encodeNavigationArgument(serverUrl)
             val encodedUsername = encodeNavigationArgument(username)
             val encodedPassword = encodeNavigationArgument(password)
             val encodedName = encodeNavigationArgument(serverName)
             val encodedServerId = encodeNavigationArgument(serverId)
-            return "server_mcp?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId"
+            return "server_mcp?serverUrl=$encodedUrl&username=$encodedUsername&password=$encodedPassword&serverName=$encodedName&serverId=$encodedServerId&allowSelfSigned=$allowSelfSigned"
         }
     }
     

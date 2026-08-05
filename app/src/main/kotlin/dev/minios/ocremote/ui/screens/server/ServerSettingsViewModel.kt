@@ -106,7 +106,12 @@ class ServerSettingsViewModel @Inject constructor(
     private val serverId: String = savedStateHandle.get<String>("serverId").orEmpty()
     private val serverName: String = savedStateHandle.get<String>("serverName").orEmpty()
 
-    private val conn = ServerConnection.from(serverUrl, username, password.ifEmpty { null })
+    private val conn = ServerConnection.from(
+        serverUrl,
+        username,
+        password.ifEmpty { null },
+        allowSelfSigned = savedStateHandle.get<Boolean>("allowSelfSigned") ?: false,
+    )
 
     private val _allProviders = MutableStateFlow<List<ProviderInfo>>(emptyList())
     private val _providerCatalog = MutableStateFlow<List<ProviderInfo>>(emptyList())

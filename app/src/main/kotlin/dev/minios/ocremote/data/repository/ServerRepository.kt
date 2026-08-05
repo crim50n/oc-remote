@@ -157,7 +157,8 @@ class ServerRepository @Inject constructor(
         username: String = "opencode",
         password: String? = null,
         name: String? = null,
-        autoConnect: Boolean = false
+        autoConnect: Boolean = false,
+        allowSelfSigned: Boolean = false
     ): ServerConfig {
         val server = ServerConfig(
             id = UUID.randomUUID().toString(),
@@ -166,6 +167,7 @@ class ServerRepository @Inject constructor(
             password = password,
             name = name,
             autoConnect = autoConnect,
+            allowSelfSigned = allowSelfSigned,
             lastConnected = null,
             isHealthy = false
         )
@@ -210,7 +212,12 @@ class ServerRepository @Inject constructor(
      */
     suspend fun checkHealth(server: ServerConfig): Result<ServerHealth> {
         return try {
-            val conn = ServerConnection.from(server.url, server.username, server.password)
+            val conn = ServerConnection.from(
+                server.url,
+                server.username,
+                server.password,
+                allowSelfSigned = server.allowSelfSigned,
+            )
             val health = api.getHealth(conn)
             
             // Update server health status

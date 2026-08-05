@@ -31,6 +31,7 @@ import kotlinx.serialization.json.Json
 import java.security.MessageDigest
 import java.util.UUID
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 
 enum class SyncBackend { NONE, GIST, WEBDAV }
@@ -126,7 +127,7 @@ class SyncRepository @Inject constructor(
     private val serverRepository: ServerRepository,
     private val diagnosticLogRepository: DiagnosticLogRepository,
     private val secretStore: LocalSyncSecretStore,
-    private val client: HttpClient,
+    @Named("secure") private val client: HttpClient,
     private val json: Json,
 ) {
     private val syncMutex = Mutex()

@@ -81,13 +81,14 @@ private fun deriveServerNameFromUrl(normalizedUrl: String): String {
 fun ServerDialog(
     server: ServerConfig?,
     onDismiss: () -> Unit,
-    onSave: (name: String, url: String, username: String, password: String, autoConnect: Boolean) -> Unit
+    onSave: (name: String, url: String, username: String, password: String, autoConnect: Boolean, allowSelfSigned: Boolean) -> Unit
 ) {
     var name by remember { mutableStateOf(server?.name ?: "") }
     var url by remember { mutableStateOf(server?.url ?: "http://") }
     var username by remember { mutableStateOf(server?.username ?: "opencode") }
     var password by remember { mutableStateOf(server?.password ?: "") }
     var autoConnect by remember { mutableStateOf(server?.autoConnect ?: false) }
+    var allowSelfSigned by remember { mutableStateOf(server?.allowSelfSigned ?: false) }
 
     var urlError by remember { mutableStateOf<String?>(null) }
 
@@ -211,6 +212,40 @@ fun ServerDialog(
                             )
                         }
                     }
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.server_allow_self_signed),
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    text = stringResource(R.string.server_allow_self_signed_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Switch(
+                                checked = allowSelfSigned,
+                                onCheckedChange = { allowSelfSigned = it },
+                                colors = switchColors
+                            )
+                        }
+                    }
                 }
 
                 AppDialogActions(
@@ -235,6 +270,7 @@ fun ServerDialog(
                                 username.ifBlank { "opencode" },
                                 password,
                                 autoConnect,
+                                allowSelfSigned,
                             )
                         }
                     },

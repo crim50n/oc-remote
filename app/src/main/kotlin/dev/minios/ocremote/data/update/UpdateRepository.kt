@@ -36,6 +36,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 
 private const val RICH_UPDATE_MANIFEST_URL = "https://github.com/crim50n/oc-remote/releases/latest/download/update.json"
@@ -53,7 +54,7 @@ private const val TAG = "UpdateRepository"
 @Singleton
 class UpdateRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val client: HttpClient,
+    @Named("secure") private val client: HttpClient,
     private val json: Json,
     private val dataStore: DataStore<Preferences>,
 ) {

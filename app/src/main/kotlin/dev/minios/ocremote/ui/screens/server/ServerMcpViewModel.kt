@@ -46,6 +46,7 @@ class ServerMcpViewModel @Inject constructor(
         savedStateHandle.get<String>("serverUrl").orEmpty(),
         savedStateHandle.get<String>("username").orEmpty(),
         savedStateHandle.get<String>("password").orEmpty().ifEmpty { null },
+        allowSelfSigned = savedStateHandle.get<Boolean>("allowSelfSigned") ?: false,
     )
 
     private val _uiState = MutableStateFlow(ServerMcpUiState())

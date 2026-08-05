@@ -245,7 +245,8 @@ fun NavGraph(
                     password = server.password ?: "",
                     serverName = server.displayName,
                     serverId = server.id,
-                    sessionId = session.id
+                    sessionId = session.id,
+                    allowSelfSigned = server.allowSelfSigned,
                 )
                 Log.i(TAG, "Share → navigating to session ${session.id} on ${server.displayName}")
                 navController.navigate(route) { launchSingleTop = true }
@@ -259,7 +260,8 @@ fun NavGraph(
                     username = server.username,
                     password = server.password ?: "",
                     serverName = server.displayName,
-                    serverId = server.id
+                    serverId = server.id,
+                    allowSelfSigned = server.allowSelfSigned,
                 )
                 Log.i(TAG, "Share → navigating to session list on ${server.displayName}")
                 navController.navigate(route) { launchSingleTop = true }
@@ -305,7 +307,8 @@ fun NavGraph(
                         password = deepLink.password,
                         serverName = deepLink.serverName,
                         serverId = deepLink.serverId,
-                        sessionId = sessionId
+                        sessionId = sessionId,
+                        allowSelfSigned = deepLink.allowSelfSigned,
                     )
                     val currentSessionId = navController.currentBackStackEntry
                         ?.arguments
@@ -361,17 +364,17 @@ fun NavGraph(
         composable(Screen.Home.route) {
             HomeScreen(
                 addServerRequest = addServerRequest,
-                onNavigateToSessions = { serverUrl, username, password, serverName, serverId ->
+                onNavigateToSessions = { serverUrl, username, password, serverName, serverId, allowSelfSigned ->
                     navController.navigate(
-                        Screen.SessionList.createRoute(serverUrl, username, password, serverName, serverId)
+                        Screen.SessionList.createRoute(serverUrl, username, password, serverName, serverId, allowSelfSigned)
                     )
                 },
                 onNavigateToCrossServerSessions = {
                     navController.navigate(Screen.CrossServerSessions.route)
                 },
-                onNavigateToServerSettings = { serverUrl, username, password, serverName, serverId ->
+                onNavigateToServerSettings = { serverUrl, username, password, serverName, serverId, allowSelfSigned ->
                     navController.navigate(
-                        Screen.ServerSettings.createRoute(serverUrl, username, password, serverName, serverId)
+                        Screen.ServerSettings.createRoute(serverUrl, username, password, serverName, serverId, allowSelfSigned)
                     )
                 },
                 onNavigateToSettings = {
@@ -395,6 +398,7 @@ fun NavGraph(
                             serverName = item.server.displayName,
                             serverId = item.server.id,
                             sessionId = item.session.id,
+                            allowSelfSigned = item.server.allowSelfSigned,
                         ),
                     )
                 },
@@ -405,6 +409,7 @@ fun NavGraph(
                         putExtra("server_url", server.url)
                         putExtra("server_username", server.username)
                         putExtra("server_password", server.password)
+                        putExtra("server_allow_self_signed", server.allowSelfSigned)
                     }
                     ContextCompat.startForegroundService(context, intent)
                 },
@@ -433,13 +438,14 @@ fun NavGraph(
         }
 
         composable(
-            route = "server_settings?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}",
+            route = "server_settings?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}&allowSelfSigned={allowSelfSigned}",
             arguments = listOf(
                 navArgument("serverUrl") { type = NavType.StringType },
                 navArgument("username") { type = NavType.StringType },
                 navArgument("password") { type = NavType.StringType },
                 navArgument("serverName") { type = NavType.StringType },
                 navArgument("serverId") { type = NavType.StringType },
+                navArgument("allowSelfSigned") { type = NavType.BoolType; defaultValue = false },
             )
         ) {
             val serverUrl = it.arguments?.getString("serverUrl").orEmpty()
@@ -447,6 +453,7 @@ fun NavGraph(
             val password = it.arguments?.getString("password").orEmpty()
             val serverName = it.arguments?.getString("serverName").orEmpty()
             val serverId = it.arguments?.getString("serverId").orEmpty()
+            val allowSelfSigned = it.arguments?.getBoolean("allowSelfSigned") ?: false
             ServerSettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onOpenProviders = {
@@ -456,7 +463,8 @@ fun NavGraph(
                             username = username,
                             password = password,
                             serverName = serverName,
-                            serverId = serverId
+                            serverId = serverId,
+                            allowSelfSigned = allowSelfSigned,
                         )
                     )
                 },
@@ -467,7 +475,8 @@ fun NavGraph(
                             username = username,
                             password = password,
                             serverName = serverName,
-                            serverId = serverId
+                            serverId = serverId,
+                            allowSelfSigned = allowSelfSigned,
                         )
                     )
                 },
@@ -479,6 +488,7 @@ fun NavGraph(
                             password = password,
                             serverName = serverName,
                             serverId = serverId,
+                            allowSelfSigned = allowSelfSigned,
                         )
                     )
                 }
@@ -486,13 +496,14 @@ fun NavGraph(
         }
 
         composable(
-            route = "server_providers?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}",
+            route = "server_providers?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}&allowSelfSigned={allowSelfSigned}",
             arguments = listOf(
                 navArgument("serverUrl") { type = NavType.StringType },
                 navArgument("username") { type = NavType.StringType },
                 navArgument("password") { type = NavType.StringType },
                 navArgument("serverName") { type = NavType.StringType },
                 navArgument("serverId") { type = NavType.StringType },
+                navArgument("allowSelfSigned") { type = NavType.BoolType; defaultValue = false },
             )
         ) {
             ServerProvidersScreen(
@@ -501,13 +512,14 @@ fun NavGraph(
         }
 
         composable(
-            route = "server_model_filter?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}",
+            route = "server_model_filter?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}&allowSelfSigned={allowSelfSigned}",
             arguments = listOf(
                 navArgument("serverUrl") { type = NavType.StringType },
                 navArgument("username") { type = NavType.StringType },
                 navArgument("password") { type = NavType.StringType },
                 navArgument("serverName") { type = NavType.StringType },
                 navArgument("serverId") { type = NavType.StringType },
+                navArgument("allowSelfSigned") { type = NavType.BoolType; defaultValue = false },
             )
         ) {
             ServerModelFilterScreen(
@@ -516,13 +528,14 @@ fun NavGraph(
         }
 
         composable(
-            route = "server_mcp?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}",
+            route = "server_mcp?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}&allowSelfSigned={allowSelfSigned}",
             arguments = listOf(
                 navArgument("serverUrl") { type = NavType.StringType },
                 navArgument("username") { type = NavType.StringType },
                 navArgument("password") { type = NavType.StringType },
                 navArgument("serverName") { type = NavType.StringType },
                 navArgument("serverId") { type = NavType.StringType },
+                navArgument("allowSelfSigned") { type = NavType.BoolType; defaultValue = false },
             )
         ) {
             ServerMcpScreen(onNavigateBack = { navController.popBackStack() })
@@ -584,13 +597,14 @@ fun NavGraph(
         
         // ============ Session List Screen (native) ============
         composable(
-            route = "sessions?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}",
+            route = "sessions?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}&allowSelfSigned={allowSelfSigned}",
             arguments = listOf(
                 navArgument("serverUrl") { type = NavType.StringType },
                 navArgument("username") { type = NavType.StringType },
                 navArgument("password") { type = NavType.StringType },
                 navArgument("serverName") { type = NavType.StringType },
-                navArgument("serverId") { type = NavType.StringType }
+                navArgument("serverId") { type = NavType.StringType },
+                navArgument("allowSelfSigned") { type = NavType.BoolType; defaultValue = false },
             )
         ) { backStackEntry ->
             val serverUrl = backStackEntry.arguments?.getString("serverUrl").orEmpty()
@@ -598,6 +612,7 @@ fun NavGraph(
             val password = backStackEntry.arguments?.getString("password").orEmpty()
             val serverName = backStackEntry.arguments?.getString("serverName").orEmpty()
             val serverId = backStackEntry.arguments?.getString("serverId").orEmpty()
+            val allowSelfSigned = backStackEntry.arguments?.getBoolean("allowSelfSigned") ?: false
 
             SessionListScreen(
                 onNavigateToChat = { sessionId, openTerminal ->
@@ -609,7 +624,8 @@ fun NavGraph(
                             serverName = serverName,
                             serverId = serverId,
                             sessionId = sessionId,
-                            openTerminal = openTerminal
+                            openTerminal = openTerminal,
+                            allowSelfSigned = allowSelfSigned,
                         )
                     )
                 },
@@ -621,7 +637,7 @@ fun NavGraph(
         
         // ============ Chat Screen (native) ============
         composable(
-            route = "chat?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}&sessionId={sessionId}&openTerminal={openTerminal}",
+            route = "chat?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}&sessionId={sessionId}&openTerminal={openTerminal}&allowSelfSigned={allowSelfSigned}",
             arguments = listOf(
                 navArgument("serverUrl") { type = NavType.StringType },
                 navArgument("username") { type = NavType.StringType },
@@ -629,7 +645,8 @@ fun NavGraph(
                 navArgument("serverName") { type = NavType.StringType },
                 navArgument("serverId") { type = NavType.StringType },
                 navArgument("sessionId") { type = NavType.StringType },
-                navArgument("openTerminal") { type = NavType.BoolType; defaultValue = false }
+                navArgument("openTerminal") { type = NavType.BoolType; defaultValue = false },
+                navArgument("allowSelfSigned") { type = NavType.BoolType; defaultValue = false },
             )
         ) { backStackEntry ->
             val serverUrl = backStackEntry.arguments?.getString("serverUrl").orEmpty()
@@ -639,6 +656,7 @@ fun NavGraph(
             val serverId = backStackEntry.arguments?.getString("serverId").orEmpty()
             val sessionId = backStackEntry.arguments?.getString("sessionId").orEmpty()
             val openTerminal = backStackEntry.arguments?.getBoolean("openTerminal") ?: false
+            val allowSelfSigned = backStackEntry.arguments?.getBoolean("allowSelfSigned") ?: false
 
             // Only pass shared attachments to the targeted session, then clear them
             val attachmentsForThisSession = if (pendingShareSessionId == sessionId && pendingShareUris.isNotEmpty()) {
@@ -658,11 +676,12 @@ fun NavGraph(
                         password = password,
                         serverName = serverName,
                         serverId = serverId,
-                        sessionId = newSessionId
+                        sessionId = newSessionId,
+                        allowSelfSigned = allowSelfSigned,
                     )
                     navController.navigate(route) {
                         // Pop current chat so back goes to session list, not old session
-                        popUpTo("sessions?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}") {
+                        popUpTo("sessions?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}&allowSelfSigned={allowSelfSigned}") {
                             inclusive = false
                         }
                     }
@@ -676,6 +695,7 @@ fun NavGraph(
                             serverName = serverName,
                             serverId = serverId,
                             sessionId = childSessionId,
+                            allowSelfSigned = allowSelfSigned,
                         ),
                     )
                 },

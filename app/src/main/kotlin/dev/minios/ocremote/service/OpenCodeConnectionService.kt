@@ -264,15 +264,16 @@ class OpenCodeConnectionService : Service() {
         val serverId = intent?.getStringExtra("server_id")
         val serverUrl = intent?.getStringExtra("server_url")
         if (serverId != null && serverUrl != null) {
-            connect(
-                ServerConfig(
-                    id = serverId,
-                    url = serverUrl,
-                    username = intent.getStringExtra("server_username") ?: "opencode",
-                    password = intent.getStringExtra("server_password"),
-                    name = intent.getStringExtra("server_name"),
+                connect(
+                    ServerConfig(
+                        id = serverId,
+                        url = serverUrl,
+                        username = intent.getStringExtra("server_username") ?: "opencode",
+                        password = intent.getStringExtra("server_password"),
+                        name = intent.getStringExtra("server_name"),
+                        allowSelfSigned = intent.getBooleanExtra("server_allow_self_signed", false),
+                    )
                 )
-            )
             return START_NOT_STICKY
         }
 
@@ -332,7 +333,12 @@ class OpenCodeConnectionService : Service() {
         connections.compute(server.id) { _, existing ->
             if (existing != null && !existing.sseJob.isCompleted) return@compute existing
             replaced = existing
-            val conn = ServerConnection.from(server.url, server.username, server.password)
+            val conn = ServerConnection.from(
+                server.url,
+                server.username,
+                server.password,
+                allowSelfSigned = server.allowSelfSigned,
+            )
             ServerConnectionState(
                 config = server,
                 conn = conn,

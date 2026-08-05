@@ -65,7 +65,8 @@ data class SessionDeepLink(
     val password: String,
     val serverName: String,
     val sessionPath: String,  // e.g. /L2hvbWUv.../session/abc123
-    val sessionId: String = "" // raw session ID (fallback when sessionPath is empty)
+    val sessionId: String = "", // raw session ID (fallback when sessionPath is empty)
+    val allowSelfSigned: Boolean = false,
 )
 
 /**
@@ -250,6 +251,7 @@ class MainActivity : ComponentActivity() {
                     putExtra("server_url", savedServer.url)
                     putExtra("server_username", savedServer.username)
                     putExtra("server_password", savedServer.password)
+                    putExtra("server_allow_self_signed", savedServer.allowSelfSigned)
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     startForegroundService(serviceIntent)
@@ -270,6 +272,7 @@ class MainActivity : ComponentActivity() {
                     serverName = savedServer?.displayName ?: serverName,
                     sessionPath = sessionPath,
                     sessionId = sessionId,
+                    allowSelfSigned = savedServer?.allowSelfSigned ?: false,
                 )
             )
         }

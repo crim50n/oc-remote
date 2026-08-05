@@ -126,9 +126,9 @@ private fun PulsingDotsIndicator(
 @Composable
 fun HomeScreen(
     addServerRequest: Int = 0,
-    onNavigateToSessions: (serverUrl: String, username: String, password: String, serverName: String, serverId: String) -> Unit = { _, _, _, _, _ -> },
+    onNavigateToSessions: (serverUrl: String, username: String, password: String, serverName: String, serverId: String, allowSelfSigned: Boolean) -> Unit = { _, _, _, _, _, _ -> },
     onNavigateToCrossServerSessions: () -> Unit = {},
-    onNavigateToServerSettings: (serverUrl: String, username: String, password: String, serverName: String, serverId: String) -> Unit = { _, _, _, _, _ -> },
+    onNavigateToServerSettings: (serverUrl: String, username: String, password: String, serverName: String, serverId: String, allowSelfSigned: Boolean) -> Unit = { _, _, _, _, _, _ -> },
     onNavigateToSettings: () -> Unit = {},
     onNavigateToAbout: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
@@ -331,6 +331,7 @@ fun HomeScreen(
                                                 server.password ?: "",
                                                 server.displayName,
                                                 server.id,
+                                                server.allowSelfSigned,
                                             )
                                         }
                                     },
@@ -342,6 +343,7 @@ fun HomeScreen(
                                                 server.password ?: "",
                                                 server.displayName,
                                                 server.id,
+                                                server.allowSelfSigned,
                                             )
                                         }
                                     },
@@ -388,7 +390,8 @@ fun HomeScreen(
                                         server.username,
                                         server.password ?: "",
                                         server.displayName,
-                                        server.id
+                                        server.id,
+                                        server.allowSelfSigned,
                                     )
                                 },
                                 onServerSettings = {
@@ -397,7 +400,8 @@ fun HomeScreen(
                                         server.username,
                                         server.password ?: "",
                                         server.displayName,
-                                        server.id
+                                        server.id,
+                                        server.allowSelfSigned,
                                     )
                                 },
                                 onEdit = { viewModel.showEditServerDialog(server) },
@@ -414,8 +418,8 @@ fun HomeScreen(
             ServerDialog(
                 server = uiState.editingServer,
                 onDismiss = { viewModel.hideServerDialog() },
-                onSave = { name, url, username, password, autoConnect ->
-                    viewModel.saveServer(name, url, username, password, autoConnect)
+                onSave = { name, url, username, password, autoConnect, allowSelfSigned ->
+                    viewModel.saveServer(name, url, username, password, autoConnect, allowSelfSigned)
                 }
             )
         }

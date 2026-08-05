@@ -235,7 +235,12 @@ class ChatViewModel @Inject constructor(
     val serverId: String = savedStateHandle.get<String>("serverId").orEmpty()
     val sessionId: String = savedStateHandle.get<String>("sessionId").orEmpty()
 
-    private val conn = ServerConnection.from(serverUrl, username, password.ifEmpty { null })
+    private val conn = ServerConnection.from(
+        serverUrl,
+        username,
+        password.ifEmpty { null },
+        allowSelfSigned = savedStateHandle.get<Boolean>("allowSelfSigned") ?: false,
+    )
 
     private val _isLoading = MutableStateFlow(true)
     private val _error = MutableStateFlow<String?>(null)

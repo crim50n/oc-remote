@@ -299,7 +299,12 @@ class HomeViewModel @Inject constructor(
                 }
 
                 try {
-                    val conn = ServerConnection.from(server.url, server.username, server.password)
+                    val conn = ServerConnection.from(
+                        server.url,
+                        server.username,
+                        server.password,
+                        allowSelfSigned = server.allowSelfSigned,
+                    )
                     api.getProviders(conn)
                     _uiState.update {
                         it.copy(
@@ -356,7 +361,8 @@ class HomeViewModel @Inject constructor(
         url: String,
         username: String,
         password: String,
-        autoConnect: Boolean
+        autoConnect: Boolean,
+        allowSelfSigned: Boolean
     ) {
         viewModelScope.launch {
             val editingServer = _uiState.value.editingServer
@@ -367,7 +373,8 @@ class HomeViewModel @Inject constructor(
                     url = url,
                     username = username,
                     password = password,
-                    autoConnect = autoConnect
+                    autoConnect = autoConnect,
+                    allowSelfSigned = allowSelfSigned,
                 )
                 serverRepository.updateServer(updatedServer)
             } else {
@@ -376,7 +383,8 @@ class HomeViewModel @Inject constructor(
                     username = username,
                     password = password,
                     name = name,
-                    autoConnect = autoConnect
+                    autoConnect = autoConnect,
+                    allowSelfSigned = allowSelfSigned,
                 )
             }
             

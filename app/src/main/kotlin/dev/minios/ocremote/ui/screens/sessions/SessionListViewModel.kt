@@ -168,7 +168,12 @@ class SessionListViewModel @Inject constructor(
     val serverName: String = savedStateHandle.get<String>("serverName").orEmpty()
     val serverId: String = savedStateHandle.get<String>("serverId").orEmpty()
 
-    private val conn = ServerConnection.from(serverUrl, username, password.ifEmpty { null })
+    private val conn = ServerConnection.from(
+        serverUrl,
+        username,
+        password.ifEmpty { null },
+        allowSelfSigned = savedStateHandle.get<Boolean>("allowSelfSigned") ?: false,
+    )
 
     val groupSessionsByProject: StateFlow<Boolean> = settingsRepository.groupSessionsByProject.stateIn(
         viewModelScope,
