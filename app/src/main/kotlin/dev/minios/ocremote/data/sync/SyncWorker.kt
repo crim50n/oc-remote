@@ -13,6 +13,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import dev.minios.ocremote.data.repository.SyncRepository
+import dev.minios.ocremote.data.repository.SyncBackend
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 
@@ -30,7 +31,10 @@ class SyncWorker(
             return Result.success()
         }
         return runCatching { repository.syncNow() }
-            .fold(onSuccess = { Result.success() }, onFailure = { Result.retry() })
+            .fold(
+                onSuccess = { Result.success() },
+                onFailure = { if (it is SyncPermissionException) Result.success() else Result.retry() },
+            )
     }
 }
 
@@ -43,15 +47,18 @@ interface SyncWorkerEntryPoint {
 object SyncWorkScheduler {
     private const val WORK_NAME = "settings_sync"
 
-    fun update(context: Context, enabled: Boolean) {
+    fun update(context: Context, enabled: Boolean, backend: SyncBackend = SyncBackend.NONE) {
         val manager = WorkManager.getInstance(context)
         if (!enabled) {
             manager.cancelUniqueWork(WORK_NAME)
             return
         }
         val request = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(requiredNetworkType(backend)).build())
             .build()
         manager.enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 }
+
+internal fun requiredNetworkType(backend: SyncBackend): NetworkType =
+    if (backend == SyncBackend.DOCUMENT) NetworkType.NOT_REQUIRED else NetworkType.CONNECTED

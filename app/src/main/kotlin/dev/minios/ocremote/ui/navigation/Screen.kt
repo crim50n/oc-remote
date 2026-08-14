@@ -67,6 +67,20 @@ sealed class Screen(val route: String) {
         }
     }
 
+    data object WorkspaceFiles : Screen("workspace_files") {
+        fun createRoute(
+            serverUrl: String,
+            username: String,
+            password: String,
+            directory: String,
+        ): String {
+            return "workspace_files?serverUrl=${encodeNavigationArgument(serverUrl)}" +
+                "&username=${encodeNavigationArgument(username)}" +
+                "&password=${encodeNavigationArgument(password)}" +
+                "&directory=${encodeNavigationArgument(directory)}"
+        }
+    }
+
     data object ServerSettings : Screen("server_settings") {
         fun createRoute(
             serverUrl: String,

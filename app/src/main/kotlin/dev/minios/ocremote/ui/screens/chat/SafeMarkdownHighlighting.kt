@@ -170,11 +170,11 @@ internal fun buildSafeHighlightedAnnotatedString(
             codeHighlights.getHighlights()
                 .filterIsInstance<ColorHighlight>()
                 .forEach { highlight ->
-                    addSafeStyle(
+                    addSafeColorStyle(
                         style = SpanStyle(color = Color(highlight.rgb).copy(alpha = 1f)),
                         start = highlight.location.start,
                         end = highlight.location.end,
-                        textLength = highlightedCode.length,
+                        text = highlightedCode,
                     )
                 }
 
@@ -193,6 +193,38 @@ internal fun buildSafeHighlightedAnnotatedString(
         Log.w(TAG, "Syntax highlighting failed; rendering plain code", e)
         AnnotatedString(code)
     }
+}
+
+private fun AnnotatedString.Builder.addSafeColorStyle(
+    style: SpanStyle,
+    start: Int,
+    end: Int,
+    text: String,
+) {
+    if (start < 0 || end > text.length || start >= end) return
+    var segmentStart = start
+    for (index in start until end) {
+        if (text[index].shouldInheritCodeColor()) {
+            addSafeStyle(style, segmentStart, index, text.length)
+            segmentStart = index + 1
+        }
+    }
+    addSafeStyle(style, segmentStart, end, text.length)
+}
+
+private fun Char.shouldInheritCodeColor(): Boolean = when (Character.getType(this).toInt()) {
+    Character.CONNECTOR_PUNCTUATION.toInt(),
+    Character.DASH_PUNCTUATION.toInt(),
+    Character.START_PUNCTUATION.toInt(),
+    Character.END_PUNCTUATION.toInt(),
+    Character.INITIAL_QUOTE_PUNCTUATION.toInt(),
+    Character.FINAL_QUOTE_PUNCTUATION.toInt(),
+    Character.OTHER_PUNCTUATION.toInt(),
+    Character.MATH_SYMBOL.toInt(),
+    Character.CURRENCY_SYMBOL.toInt(),
+    Character.MODIFIER_SYMBOL.toInt(),
+    -> true
+    else -> false
 }
 
 private fun AnnotatedString.Builder.addSafeStyle(

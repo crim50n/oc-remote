@@ -57,6 +57,8 @@ class EventReducer @Inject constructor() {
     private var pendingRevision = 0L
     private val deltaLock = Any()
     private val pendingDeltas = LinkedHashMap<PendingDeltaKey, StringBuilder>()
+    private val removedMessageLock = Any()
+    private val removedMessageSessions = mutableMapOf<String, String>()
     
     // ============ State ============
     
@@ -190,14 +192,7 @@ class EventReducer @Inject constructor() {
             is SseEvent.NextReasoningEnded -> handleMessagePartUpdated(SseEvent.MessagePartUpdated(
                 Part.Reasoning(event.reasoningId, event.sessionId, event.messageId, event.text, time = Part.Reasoning.Time(event.timestamp, event.timestamp)),
             ))
-            is SseEvent.NextToolInputStarted -> handleMessagePartUpdated(SseEvent.MessagePartUpdated(Part.Tool(
-                id = event.callId,
-                sessionId = event.sessionId,
-                messageId = event.messageId,
-                callId = event.callId,
-                tool = event.name,
-                state = ToolState.Pending(),
-            )))
+            is SseEvent.NextToolInputStarted -> handleNextToolInputStarted(event)
             is SseEvent.NextToolInputDelta -> handleNextToolInputDelta(event)
             is SseEvent.NextToolInputEnded -> handleNextToolInputEnded(event)
             is SseEvent.NextToolCalled -> handleNextToolCalled(event)
@@ -384,6 +379,18 @@ class EventReducer @Inject constructor() {
     private fun findToolPart(messageId: String, callId: String): Part.Tool? =
         _parts.value[messageId]?.filterIsInstance<Part.Tool>()?.firstOrNull { it.callId == callId }
 
+    private fun handleNextToolInputStarted(event: SseEvent.NextToolInputStarted) {
+        if (findToolPart(event.messageId, event.callId) != null) return
+        handleMessagePartUpdated(SseEvent.MessagePartUpdated(Part.Tool(
+            id = event.callId,
+            sessionId = event.sessionId,
+            messageId = event.messageId,
+            callId = event.callId,
+            tool = event.name,
+            state = ToolState.Pending(),
+        )))
+    }
+
     private fun handleNextToolInputDelta(event: SseEvent.NextToolInputDelta) {
         val existing = findToolPart(event.messageId, event.callId) ?: return
         val pending = existing.state as? ToolState.Pending ?: return
@@ -396,12 +403,19 @@ class EventReducer @Inject constructor() {
         val existing = findToolPart(event.messageId, event.callId) ?: return
         val input = runCatching { Json.parseToJsonElement(event.text).jsonObject }.getOrDefault(emptyMap())
         handleMessagePartUpdated(SseEvent.MessagePartUpdated(existing.copy(
-            state = ToolState.Pending(input = input, raw = event.text),
+            state = when (val state = existing.state) {
+                is ToolState.Pending -> ToolState.Pending(input = input, raw = event.text)
+                is ToolState.Running -> state.copy(input = input)
+                is ToolState.Completed -> state.copy(input = input)
+                is ToolState.Error -> state.copy(input = input)
+            },
         )))
     }
 
     private fun handleNextToolCalled(event: SseEvent.NextToolCalled) {
         val existing = findToolPart(event.messageId, event.callId)
+        if (existing?.state is ToolState.Completed || existing?.state is ToolState.Error) return
+        val running = existing?.state as? ToolState.Running
         handleMessagePartUpdated(SseEvent.MessagePartUpdated(Part.Tool(
             id = existing?.id ?: event.callId,
             sessionId = event.sessionId,
@@ -410,6 +424,8 @@ class EventReducer @Inject constructor() {
             tool = event.tool,
             state = ToolState.Running(
                 input = event.input.jsonObject,
+                title = running?.title,
+                metadata = running?.metadata,
                 time = ToolState.Running.Time(event.timestamp),
             ),
         )))
@@ -426,6 +442,7 @@ class EventReducer @Inject constructor() {
 
     private fun handleNextToolProgress(event: SseEvent.NextToolProgress) {
         val existing = findToolPart(event.messageId, event.callId) ?: return
+        if (existing.state is ToolState.Completed || existing.state is ToolState.Error) return
         val input = when (val state = existing.state) {
             is ToolState.Pending -> state.input
             is ToolState.Running -> state.input
@@ -434,8 +451,10 @@ class EventReducer @Inject constructor() {
         }
         val output = toolContentText(event.content)
         val start = (existing.state as? ToolState.Running)?.time?.start ?: event.timestamp
+        val title = (existing.state as? ToolState.Running)?.title
+        val metadata = (existing.state as? ToolState.Running)?.metadata.orEmpty() + toolMetadata(event.structured, output)
         handleMessagePartUpdated(SseEvent.MessagePartUpdated(existing.copy(
-            state = ToolState.Running(input, metadata = toolMetadata(event.structured, output), time = ToolState.Running.Time(start)),
+            state = ToolState.Running(input, title = title, metadata = metadata, time = ToolState.Running.Time(start)),
         )))
     }
 
@@ -459,7 +478,8 @@ class EventReducer @Inject constructor() {
             state = ToolState.Completed(
                 input = input,
                 output = output,
-                metadata = event.structured.jsonObject,
+                title = running?.title,
+                metadata = running?.metadata.orEmpty() + event.structured.jsonObject,
                 time = ToolState.Completed.Time(running?.time?.start ?: event.timestamp, event.timestamp),
                 attachments = attachments,
             ),
@@ -478,22 +498,28 @@ class EventReducer @Inject constructor() {
             state = ToolState.Error(
                 input = input,
                 error = error,
+                metadata = running?.metadata,
                 time = ToolState.Error.Time(running?.time?.start ?: event.timestamp, event.timestamp),
             ),
         )))
     }
     
     private fun handleSessionUpdated(event: SseEvent.SessionUpdated, serverId: String) {
-        trackSession(serverId, event.info.id)
+        upsertSession(serverId, event.info)
+    }
+
+    fun upsertSession(serverId: String, session: Session) {
+        val compacted = compactSessionForCache(session)
+        trackSession(serverId, compacted.id)
         _sessions.update { current ->
-            val existingIndex = current.indexOfFirst { it.id == event.info.id }
+            val existingIndex = current.indexOfFirst { it.id == compacted.id }
             val updated = if (existingIndex >= 0) {
-                // Update existing
-                current.toMutableList().apply { set(existingIndex, event.info) }
+                val existing = current[existingIndex]
+                if (existing.time.updated > compacted.time.updated) return@update current
+                current.toMutableList().apply { set(existingIndex, compacted) }
             } else {
-                // Upsert: session wasn't in list (no session.created received), add it
-                if (BuildConfig.DEBUG) Log.d(TAG, "Session ${event.info.id} not found, upserting (title=${event.info.title})")
-                current + event.info
+                if (BuildConfig.DEBUG) Log.d(TAG, "Session ${compacted.id} not found, upserting (title=${compacted.title})")
+                current + compacted
             }
             updated.sortedByDescending { it.time.updated }
         }
@@ -525,6 +551,9 @@ class EventReducer @Inject constructor() {
         synchronized(deltaLock) {
             pendingDeltas.keys.removeAll { it.sessionId == sessionId }
         }
+        synchronized(removedMessageLock) {
+            removedMessageSessions.entries.removeAll { it.value == sessionId }
+        }
     }
     
     private fun handleSessionStatus(event: SseEvent.SessionStatus, serverId: String) {
@@ -555,6 +584,7 @@ class EventReducer @Inject constructor() {
     // ============ Message Events ============
     
     private fun handleMessageUpdated(event: SseEvent.MessageUpdated) {
+        if (isMessageRemoved(event.info.id)) return
         val sessionId = event.info.sessionId
         _messages.update { current ->
             val sessionMessages = current[sessionId]?.toMutableList() ?: mutableListOf()
@@ -572,6 +602,7 @@ class EventReducer @Inject constructor() {
     }
     
     private fun handleMessageRemoved(event: SseEvent.MessageRemoved) {
+        synchronized(removedMessageLock) { removedMessageSessions[event.messageId] = event.sessionId }
         _messages.update { current ->
             val sessionMessages = current[event.sessionId]?.filter { it.id != event.messageId }
             if (sessionMessages != null) {
@@ -585,11 +616,15 @@ class EventReducer @Inject constructor() {
             pendingDeltas.keys.removeAll { it.messageId == event.messageId }
         }
     }
+
+    private fun isMessageRemoved(messageId: String): Boolean =
+        synchronized(removedMessageLock) { messageId in removedMessageSessions }
     
     // ============ Part Events ============
     
     private fun handleMessagePartUpdated(event: SseEvent.MessagePartUpdated) {
         val messageId = event.part.messageId
+        if (isMessageRemoved(messageId)) return
         val key = PendingDeltaKey(event.part.sessionId, messageId, event.part.id)
         val buffered = synchronized(deltaLock) { pendingDeltas.remove(key)?.toString().orEmpty() }
         val updatedPart = if (buffered.isNotEmpty()) {
@@ -612,6 +647,7 @@ class EventReducer @Inject constructor() {
     }
     
     private fun handleMessagePartDelta(event: SseEvent.MessagePartDelta) {
+        if (isMessageRemoved(event.messageId)) return
         if (event.field != "text") {
             if (BuildConfig.DEBUG) Log.d(TAG, "Ignoring unsupported delta field=${event.field} part=${event.partId}")
             return
@@ -685,12 +721,22 @@ class EventReducer @Inject constructor() {
     private fun handleQuestionAsked(event: SseEvent.QuestionAsked, serverId: String) {
         trackSession(serverId, event.sessionId)
         upsertPending(PendingInteraction.Question(event))
+        Log.i(
+            TAG,
+            "Question pending: session=${event.sessionId} request=${event.id} " +
+                "questions=${event.questions.size} pending=${_pendingInteractions.value.size}",
+        )
     }
     
     private fun handleQuestionReplied(event: SseEvent.QuestionReplied) {
         synchronized(pendingLock) {
             removePending(PendingInteraction.Question::class.java, event.sessionId, event.requestId)
             pendingRevision++
+            Log.i(
+                TAG,
+                "Question replied: session=${event.sessionId} request=${event.requestId} " +
+                    "pending=${_pendingInteractions.value.size}",
+            )
         }
     }
     
@@ -698,6 +744,11 @@ class EventReducer @Inject constructor() {
         synchronized(pendingLock) {
             removePending(PendingInteraction.Question::class.java, event.sessionId, event.requestId)
             pendingRevision++
+            Log.i(
+                TAG,
+                "Question rejected: session=${event.sessionId} request=${event.requestId} " +
+                    "pending=${_pendingInteractions.value.size}",
+            )
         }
     }
 
@@ -709,6 +760,11 @@ class EventReducer @Inject constructor() {
         synchronized(pendingLock) {
             removePending(PendingInteraction.Question::class.java, sessionId, questionId)
             pendingRevision++
+            Log.i(
+                TAG,
+                "Question removed after REST success: session=$sessionId request=$questionId " +
+                    "pending=${_pendingInteractions.value.size}",
+            )
         }
     }
 
@@ -832,7 +888,7 @@ class EventReducer @Inject constructor() {
             for (session in compactedSessions) {
                 val idx = updated.indexOfFirst { it.id == session.id }
                 if (idx >= 0) {
-                    updated[idx] = session
+                    if (updated[idx].time.updated <= session.time.updated) updated[idx] = session
                 } else {
                     updated.add(session)
                 }
@@ -854,15 +910,16 @@ class EventReducer @Inject constructor() {
      * Load messages for a session
      */
     fun mergeMessages(sessionId: String, messages: List<MessageWithParts>) {
+        val visibleMessages = messages.filterNot { isMessageRemoved(it.info.id) }
         _messages.update { current ->
-            val merged = (current[sessionId].orEmpty() + messages.map { it.info })
+            val merged = (current[sessionId].orEmpty() + visibleMessages.map { it.info })
                 .associateBy { it.id }
                 .values
                 .sortedBy { it.time.created }
-            current + (sessionId to merged)
+            if (merged.isEmpty()) current - sessionId else current + (sessionId to merged)
         }
 
-        val partsMap = messages.associate { msg ->
+        val partsMap = visibleMessages.associate { msg ->
             msg.info.id to msg.parts
         }
         _parts.update { current ->
@@ -878,6 +935,9 @@ class EventReducer @Inject constructor() {
         _messages.update { it - sessionId }
         if (messageIds.isNotEmpty()) {
             _parts.update { current -> current - messageIds }
+        }
+        synchronized(removedMessageLock) {
+            removedMessageSessions.entries.removeAll { it.value == sessionId }
         }
     }
 
@@ -910,6 +970,7 @@ class EventReducer @Inject constructor() {
             pendingRevision++
         }
         synchronized(deltaLock) { pendingDeltas.clear() }
+        synchronized(removedMessageLock) { removedMessageSessions.clear() }
         _todos.value = emptyMap()
         _vcsBranches.value = emptyMap()
         _projectInfo.value = emptyMap()
@@ -954,6 +1015,9 @@ class EventReducer @Inject constructor() {
         _parts.update { it - messageIds }
         synchronized(deltaLock) {
             pendingDeltas.keys.removeAll { it.sessionId in sessionIds }
+        }
+        synchronized(removedMessageLock) {
+            removedMessageSessions.entries.removeAll { it.value in sessionIds }
         }
     }
 

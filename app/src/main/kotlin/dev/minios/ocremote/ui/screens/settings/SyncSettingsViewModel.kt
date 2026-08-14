@@ -1,6 +1,8 @@
 package dev.minios.ocremote.ui.screens.settings
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,30 +48,53 @@ class SyncSettingsViewModel @Inject constructor(
         webDavEndpoint: String,
         webDavUsername: String,
         webDavPassword: String,
+        documentEnabled: Boolean,
+        documentUri: String,
+        documentGrantFlags: Int,
         includePasswords: Boolean,
         passphrase: String,
         autoSync: Boolean,
     ) = runOperation(SyncUiOperation.SAVING) {
-        repository.configure(
-            config = SyncConfig(
-                primaryBackend = primaryBackend,
-                gist = SyncTargetConfig(
-                    enabled = gistEnabled,
-                    endpoint = gistEndpoint,
+        val uri = documentUri.takeIf { documentEnabled && documentGrantFlags != 0 }?.let(Uri::parse)
+        if (uri != null) {
+            context.contentResolver.takePersistableUriPermission(uri, documentGrantFlags)
+        }
+        try {
+            repository.configure(
+                config = SyncConfig(
+                    primaryBackend = primaryBackend,
+                    gist = SyncTargetConfig(
+                        enabled = gistEnabled,
+                        endpoint = gistEndpoint,
+                    ),
+                    webDav = SyncTargetConfig(
+                        enabled = webDavEnabled,
+                        endpoint = webDavEndpoint,
+                        username = webDavUsername,
+                    ),
+                    document = SyncTargetConfig(
+                        enabled = documentEnabled,
+                        endpoint = documentUri,
+                    ),
+                    autoSync = autoSync,
+                    includeEncryptedPasswords = includePasswords,
                 ),
-                webDav = SyncTargetConfig(
-                    enabled = webDavEnabled,
-                    endpoint = webDavEndpoint,
-                    username = webDavUsername,
-                ),
-                autoSync = autoSync,
-                includeEncryptedPasswords = includePasswords,
-            ),
-            githubToken = token.takeIf(String::isNotBlank),
-            webDavPassword = webDavPassword.takeIf(String::isNotBlank),
-            syncPassphrase = passphrase.takeIf(String::isNotBlank),
-        )
-        SyncWorkScheduler.update(context, autoSync)
+                githubToken = token.takeIf(String::isNotBlank),
+                webDavPassword = webDavPassword.takeIf(String::isNotBlank),
+                syncPassphrase = passphrase.takeIf(String::isNotBlank),
+            )
+        } catch (e: Exception) {
+            if (uri != null) {
+                runCatching {
+                    context.contentResolver.releasePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                    )
+                }
+            }
+            throw e
+        }
+        SyncWorkScheduler.update(context, autoSync, primaryBackend)
     }
 
     fun synchronize() = runOperation(SyncUiOperation.SYNCING) { repository.syncNow() }

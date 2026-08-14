@@ -14,6 +14,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import androidx.work.NetworkType
 
 class SyncCoreTest {
     @Test
@@ -119,7 +120,12 @@ class SyncCoreTest {
                 ),
             ),
             hiddenModels = mapOf("server-1" to setOf("provider:model")),
-            settings = SyncSettings(showLocalRuntime = false, diagnosticLogLevel = "DEBUG"),
+            settings = SyncSettings(
+                messageHistoryResponseLimitMb = 64,
+                showLocalRuntime = false,
+                diagnosticLogLevel = "DEBUG",
+                showTerminalPanelHint = false,
+            ),
         )
 
         val restored = Json.decodeFromString<SyncPayload>(Json.encodeToString(payload))
@@ -133,8 +139,10 @@ class SyncCoreTest {
         assertEquals(listOf("server-1:session-1"), restored.crossServerFavoriteOrder)
         assertEquals("Favorite", restored.favoriteSessionSnapshots?.get("server-1:session-1")?.title)
         assertEquals(setOf("provider:model"), restored.hiddenModels?.get("server-1"))
+        assertEquals(64, restored.settings.messageHistoryResponseLimitMb)
         assertEquals(false, restored.settings.showLocalRuntime)
         assertEquals("DEBUG", restored.settings.diagnosticLogLevel)
+        assertEquals(false, restored.settings.showTerminalPanelHint)
         assertTrue(restored.sessionCategories.isEmpty())
     }
 
@@ -148,6 +156,7 @@ class SyncCoreTest {
         assertEquals(null, payload.hiddenModels)
         assertEquals(null, payload.settings.showLocalRuntime)
         assertEquals(null, payload.settings.diagnosticLogLevel)
+        assertEquals(null, payload.settings.showTerminalPanelHint)
     }
 
     @Test
@@ -215,5 +224,38 @@ class SyncCoreTest {
         assertThrows(IllegalArgumentException::class.java) {
             requireSingleSyncStorage(both)
         }
+    }
+
+    @Test
+    fun documentStorageCanBeSelectedExclusively() {
+        val config = SyncConfig(
+            primaryBackend = SyncBackend.DOCUMENT,
+            document = SyncTargetConfig(enabled = true, endpoint = "content://provider/document/sync"),
+        )
+
+        requireSingleSyncStorage(config)
+        assertEquals(listOf(SyncBackend.DOCUMENT), config.enabledBackends)
+        assertEquals("content://provider/document/sync", config.target(SyncBackend.DOCUMENT).endpoint)
+    }
+
+    @Test
+    fun documentRevisionUsesContentHashAndRejectsStaleWrites() {
+        val revision = documentRevision("hello")
+
+        assertEquals(
+            "sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+            revision,
+        )
+        requireExpectedDocumentRevision(revision, revision)
+        assertThrows(SyncHttpException::class.java) {
+            requireExpectedDocumentRevision(revision, documentRevision("changed"))
+        }
+    }
+
+    @Test
+    fun documentPeriodicSyncDoesNotRequireNetwork() {
+        assertEquals(NetworkType.NOT_REQUIRED, requiredNetworkType(SyncBackend.DOCUMENT))
+        assertEquals(NetworkType.CONNECTED, requiredNetworkType(SyncBackend.GIST))
+        assertEquals(NetworkType.CONNECTED, requiredNetworkType(SyncBackend.WEBDAV))
     }
 }

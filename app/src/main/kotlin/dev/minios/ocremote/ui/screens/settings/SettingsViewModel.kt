@@ -51,6 +51,12 @@ class SettingsViewModel @Inject constructor(
         initialValue = 50
     )
 
+    val messageHistoryResponseLimitMb = settingsRepository.messageHistoryResponseLimitMb.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 24,
+    )
+
     val recentDirectoryCount = settingsRepository.recentDirectoryCount.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -171,6 +177,12 @@ class SettingsViewModel @Inject constructor(
         initialValue = 13f
     )
 
+    val showTerminalPanelHint = settingsRepository.showTerminalPanelHint.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = true,
+    )
+
     val localProxyEnabled = settingsRepository.localProxyEnabled.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -258,6 +270,12 @@ class SettingsViewModel @Inject constructor(
     fun setInitialMessageCount(count: Int) {
         viewModelScope.launch {
             settingsRepository.setInitialMessageCount(count)
+        }
+    }
+
+    fun setMessageHistoryResponseLimitMb(limitMb: Int) {
+        viewModelScope.launch {
+            settingsRepository.setMessageHistoryResponseLimitMb(limitMb)
         }
     }
 
@@ -368,6 +386,12 @@ class SettingsViewModel @Inject constructor(
     fun setTerminalFontSize(size: Float) {
         viewModelScope.launch {
             settingsRepository.setTerminalFontSize(size)
+        }
+    }
+
+    fun setShowTerminalPanelHint(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setShowTerminalPanelHint(enabled)
         }
     }
 

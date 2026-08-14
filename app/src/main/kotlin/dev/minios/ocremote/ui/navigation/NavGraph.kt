@@ -41,6 +41,7 @@ import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.domain.model.Session
 import dev.minios.ocremote.domain.model.SessionCategory
 import dev.minios.ocremote.ui.screens.chat.ChatScreen
+import dev.minios.ocremote.ui.screens.files.WorkspaceFilesScreen
 import dev.minios.ocremote.ui.screens.home.HomeScreen
 import dev.minios.ocremote.ui.screens.about.AboutScreen
 import dev.minios.ocremote.ui.screens.sessions.SessionListScreen
@@ -83,6 +84,15 @@ internal data class SharePickerServerPreferences(
     val favoriteIds: List<String>,
     val categoryAssignments: Map<String, String>,
 )
+
+internal fun shouldReopenSharePicker(
+    waitingForConnection: Boolean,
+    pickerVisible: Boolean,
+    hasPendingAttachments: Boolean,
+    targetSessionId: String?,
+    hasConnectedServers: Boolean,
+): Boolean = waitingForConnection && !pickerVisible && hasPendingAttachments &&
+    targetSessionId == null && hasConnectedServers
 
 internal fun buildSharePickerItems(
     servers: List<ServerConfig>,
@@ -162,6 +172,7 @@ fun NavGraph(
     var pendingShareUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     // Target session that should receive the shared attachments (null = not yet chosen)
     var pendingShareSessionId by remember { mutableStateOf<String?>(null) }
+    var reopenSharePickerAfterConnect by remember { mutableStateOf(false) }
     var addServerRequest by remember { mutableIntStateOf(0) }
     val sharePickerServers by serverRepository.servers.collectAsState(initial = emptyList())
     val sharePickerSessions by eventReducer.sessions.collectAsState()
@@ -198,6 +209,7 @@ fun NavGraph(
             // Store pending URIs (will be consumed by the target ChatScreen)
             pendingShareUris = uris
             pendingShareSessionId = null
+            reopenSharePickerAfterConnect = false
 
             // If we're already in a ChatScreen, target the current session directly
             val currentRoute = navController.currentDestination?.route
@@ -219,8 +231,22 @@ fun NavGraph(
     }
 
     // Keep a shared attachment pending while the user connects a server from Home.
-    LaunchedEffect(showSharePicker, pendingShareUris, connectedServerIds) {
-        if (!showSharePicker && pendingShareUris.isNotEmpty() && connectedServerIds.isNotEmpty()) {
+    LaunchedEffect(
+        reopenSharePickerAfterConnect,
+        showSharePicker,
+        pendingShareUris,
+        pendingShareSessionId,
+        connectedServerIds,
+    ) {
+        if (shouldReopenSharePicker(
+                waitingForConnection = reopenSharePickerAfterConnect,
+                pickerVisible = showSharePicker,
+                hasPendingAttachments = pendingShareUris.isNotEmpty(),
+                targetSessionId = pendingShareSessionId,
+                hasConnectedServers = connectedServerIds.isNotEmpty(),
+            )
+        ) {
+            reopenSharePickerAfterConnect = false
             showSharePicker = true
         }
     }
@@ -238,6 +264,7 @@ fun NavGraph(
             attachmentCount = pendingShareUris.size,
             onSelectSession = { server, session ->
                 showSharePicker = false
+                reopenSharePickerAfterConnect = false
                 pendingShareSessionId = session.id
                 val route = Screen.Chat.createRoute(
                     serverUrl = server.url,
@@ -252,6 +279,7 @@ fun NavGraph(
             },
             onNewSession = { server ->
                 showSharePicker = false
+                reopenSharePickerAfterConnect = false
                 // Navigate to session list — user can create a new session there.
                 // Attachments remain pending and will be consumed when ChatScreen opens.
                 val route = Screen.SessionList.createRoute(
@@ -266,6 +294,7 @@ fun NavGraph(
             },
             onManageServers = {
                 showSharePicker = false
+                reopenSharePickerAfterConnect = connectedServerIds.isEmpty()
                 navController.navigate(Screen.Home.route) {
                     launchSingleTop = true
                     popUpTo(Screen.Home.route)
@@ -274,6 +303,7 @@ fun NavGraph(
             },
             onDismiss = {
                 showSharePicker = false
+                reopenSharePickerAfterConnect = false
                 pendingShareUris = emptyList()
             }
         )
@@ -697,6 +727,16 @@ fun NavGraph(
                     )
                     navController.navigate(route) { launchSingleTop = true }
                 },
+                onOpenWorkspace = { directory ->
+                    navController.navigate(
+                        Screen.WorkspaceFiles.createRoute(
+                            serverUrl = serverUrl,
+                            username = username,
+                            password = password,
+                            directory = directory,
+                        ),
+                    )
+                },
                 onManageModels = {
                     navController.navigate(
                         Screen.ServerModelFilter.createRoute(
@@ -713,8 +753,21 @@ fun NavGraph(
                     pendingShareUris = emptyList()
                     pendingShareSessionId = null
                 },
-                startInTerminalMode = openTerminal
+                startInTerminalMode = openTerminal,
+                isServerConnected = serverId in connectedServerIds,
             )
+        }
+
+        composable(
+            route = "workspace_files?serverUrl={serverUrl}&username={username}&password={password}&directory={directory}",
+            arguments = listOf(
+                navArgument("serverUrl") { type = NavType.StringType },
+                navArgument("username") { type = NavType.StringType },
+                navArgument("password") { type = NavType.StringType },
+                navArgument("directory") { type = NavType.StringType },
+            ),
+        ) {
+            WorkspaceFilesScreen(onNavigateBack = { navController.popBackStack() })
         }
     }
 }

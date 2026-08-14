@@ -12,6 +12,7 @@ interface SyncTransport {
 }
 
 class SyncHttpException(message: String) : Exception(message)
+class SyncPermissionException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 enum class SyncDecision { MISSING_UPLOAD, UP_TO_DATE, PULL_REMOTE, PUSH_LOCAL, CONFLICT }
 enum class BackupSyncDecision { CREATE, UP_TO_DATE, UPDATE, DIVERGED }

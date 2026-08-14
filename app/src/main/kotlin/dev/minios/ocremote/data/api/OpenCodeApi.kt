@@ -2,6 +2,7 @@ package dev.minios.ocremote.data.api
 
 import dev.minios.ocremote.logging.AppLogger as Log
 import dev.minios.ocremote.BuildConfig
+import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.domain.model.*
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -16,6 +17,11 @@ import io.ktor.websocket.close
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 import io.ktor.websocket.send
+import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -26,6 +32,12 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.decodeFromStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 import java.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -71,10 +83,13 @@ internal fun healthStatusException(statusCode: Int): Exception? = when (statusCo
 @Singleton
 class OpenCodeApi @Inject constructor(
     private val httpClient: HttpClient,
-    private val json: Json
+    private val json: Json,
+    private val settingsRepository: SettingsRepository,
+    private val messageImageCache: MessageImageCache,
 ) {
     companion object {
         private const val TAG = "OpenCodeApi"
+        private const val BYTES_PER_MEGABYTE = 1024L * 1024L
     }
 
     // ============ Global ============
@@ -510,6 +525,7 @@ class OpenCodeApi @Inject constructor(
         return listMessagesPage(conn, sessionId, limit, directory = directory).messages
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
     suspend fun listMessagesPage(
         conn: ServerConnection,
         sessionId: String,
@@ -517,16 +533,77 @@ class OpenCodeApi @Inject constructor(
         before: String? = null,
         directory: String? = null,
     ): MessagePage {
+        val maxResponseBytes = settingsRepository.messageHistoryResponseLimitMb.first() * BYTES_PER_MEGABYTE
+        return listMessagesPage(conn, sessionId, limit, before, directory, maxResponseBytes)
+    }
+
+    @OptIn(ExperimentalSerializationApi::class)
+    private suspend fun listMessagesPage(
+        conn: ServerConnection,
+        sessionId: String,
+        limit: Int?,
+        before: String?,
+        directory: String?,
+        maxResponseBytes: Long,
+    ): MessagePage {
         val response = httpClient.get("${conn.baseUrl}/session/$sessionId/message") {
             conn.authHeader?.let { header("Authorization", it) }
             limit?.let { parameter("limit", it) }
             before?.let { parameter("before", it) }
             directory?.let { header("x-opencode-directory", it) }
         }
-        return MessagePage(
-            messages = response.body(),
-            nextCursor = response.headers["X-Next-Cursor"]?.takeIf { it.isNotBlank() },
-        )
+        val contentLength = response.contentLength()
+        if (contentLength != null && contentLength > maxResponseBytes && limit != null && limit > 1) {
+            response.bodyAsChannel().cancel(null)
+            val reducedLimit = (limit / 2).coerceAtLeast(1)
+            Log.w(TAG, "Reducing message page limit from $limit to $reducedLimit ($contentLength bytes) for session $sessionId")
+            return listMessagesPage(conn, sessionId, reducedLimit, before, directory, maxResponseBytes)
+        }
+        val rawFile = withContext(Dispatchers.IO) { File.createTempFile("oc-messages-", ".json") }
+        var decodeFile = rawFile
+        try {
+            withContext(Dispatchers.IO) {
+                FileOutputStream(rawFile).use { output ->
+                    val channel = response.bodyAsChannel()
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    while (!channel.isClosedForRead) {
+                        val read = channel.readAvailable(buffer)
+                        if (read < 0) break
+                        if (read > 0) output.write(buffer, 0, read)
+                    }
+                }
+            }
+            val oversized = rawFile.length() > maxResponseBytes
+            decodeFile = withContext(Dispatchers.IO) {
+                File.createTempFile("oc-messages-transformed-", ".json").also { transformed ->
+                    InputStreamReader(FileInputStream(rawFile), Charsets.UTF_8).use { input ->
+                        OutputStreamWriter(FileOutputStream(transformed), Charsets.UTF_8).use { output ->
+                            transformMessageJson(
+                                input = input,
+                                output = output,
+                                omitPayloadFields = oversized,
+                                cacheImageDataUrl = messageImageCache::cacheDataUrl,
+                            )
+                        }
+                    }
+                }
+            }
+            if (oversized) {
+                Log.w(TAG, "Sanitized oversized message response (${rawFile.length()} bytes) for session $sessionId")
+            }
+            val messages = withContext(Dispatchers.IO) {
+                FileInputStream(decodeFile).use { json.decodeFromStream<List<MessageWithParts>>(it) }
+            }
+            return MessagePage(
+                messages = messages,
+                nextCursor = response.headers["X-Next-Cursor"]?.takeIf { it.isNotBlank() },
+            )
+        } finally {
+            withContext(Dispatchers.IO) {
+                rawFile.delete()
+                if (decodeFile != rawFile) decodeFile.delete()
+            }
+        }
     }
 
     /** Returns messages as raw JSON string (for export without re-serialization). */
@@ -773,13 +850,15 @@ class OpenCodeApi @Inject constructor(
     ): Boolean {
         val url = "${conn.baseUrl}/question/$requestId/reply"
         val bodyJson = json.encodeToString(QuestionReplyBody.serializer(), QuestionReplyBody(answers = answers))
-        if (BuildConfig.DEBUG) Log.d("OpenCodeApi", "replyToQuestion: answers=${answers.size}")
         val result = httpClient.post(url) {
             conn.authHeader?.let { header("Authorization", it) }
             directory?.let { header("x-opencode-directory", it) }
             setBody(io.ktor.http.content.TextContent(bodyJson, ContentType.Application.Json))
         }
-        if (BuildConfig.DEBUG) Log.d("OpenCodeApi", "replyToQuestion: status=${result.status}")
+        Log.i(
+            TAG,
+            "Question reply: request=$requestId answers=${answers.size} status=${result.status.value}",
+        )
         return result.status.isSuccess()
     }
 
@@ -793,12 +872,11 @@ class OpenCodeApi @Inject constructor(
         directory: String? = null
     ): Boolean {
         val url = "${conn.baseUrl}/question/$requestId/reject"
-        if (BuildConfig.DEBUG) Log.d("OpenCodeApi", "rejectQuestion: request")
         val result = httpClient.post(url) {
             conn.authHeader?.let { header("Authorization", it) }
             directory?.let { header("x-opencode-directory", it) }
         }
-        if (BuildConfig.DEBUG) Log.d("OpenCodeApi", "rejectQuestion: status=${result.status}")
+        Log.i(TAG, "Question reject: request=$requestId status=${result.status.value}")
         return result.status.isSuccess()
     }
 
@@ -807,10 +885,12 @@ class OpenCodeApi @Inject constructor(
      * GET /question
      */
     suspend fun listPendingQuestions(conn: ServerConnection, directory: String? = null): List<QuestionRequest> {
-        return httpClient.get("${conn.baseUrl}/question") {
+        val response = httpClient.get("${conn.baseUrl}/question") {
             conn.authHeader?.let { header("Authorization", it) }
             directory?.let { header("x-opencode-directory", it) }
-        }.body()
+        }
+        Log.i(TAG, "Pending questions request: status=${response.status.value}")
+        return response.body()
     }
 
     // ============ Config / Providers ============
@@ -1028,9 +1108,13 @@ class OpenCodeApi @Inject constructor(
         }.body()
     }
 
-    suspend fun readFile(conn: ServerConnection, path: String): FileContent {
+    suspend fun readFile(conn: ServerConnection, path: String, directory: String? = null): FileContent {
         return httpClient.get("${conn.baseUrl}/file/content") {
             conn.authHeader?.let { header("Authorization", it) }
+            directory?.let {
+                parameter("directory", it)
+                header("x-opencode-directory", it)
+            }
             parameter("path", path)
         }.body()
     }
@@ -1231,7 +1315,9 @@ data class SearchMatch(
 @Serializable
 data class FileContent(
     val type: String,
-    val content: String
+    val content: String,
+    val encoding: String? = null,
+    val mimeType: String? = null,
 )
 
 @Serializable

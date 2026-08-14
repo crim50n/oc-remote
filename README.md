@@ -38,6 +38,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Message streaming** — real-time text streaming with auto-scroll
 - **Smart scroll behavior** — manual scroll disables auto-scroll; automatically re-enables when scrolled to bottom
 - **File mentions** — `@file` autocomplete with server-backed path search and quick insert
+- **Workspace files** — browse project folders, preview highlighted text, Markdown, and images, and download files without leaving the chat
 - **Attachment support** — send images, PDFs, text, source code, and configuration files from device storage
 - **Android sharing** — share one or multiple supported files into an existing or new chat on a connected server
 - **Tool outputs** — expandable tool-call cards with selectable monospace output
@@ -60,6 +61,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Terminal shortcuts** — Ctrl/Alt latching, volume-key virtual modifiers (Ctrl/Fn), and `Ctrl+Alt+V` paste
 - **Selection toolbar paste** — terminal selection menu includes paste action integrated with terminal input
 - **Mobile navigation and recovery** — inertial scrollback, pinch zoom, explicit connection states, reconnect for transient failures, and in-place restart for exited tabs
+- **Terminal guidance and keys** — optional panel-opening guidance, repeating arrow keys, and server-controlled cursor visibility, blink, and shape
 
 ### Session Management  
 - **Multi-session** — switch between sessions, view history
@@ -67,8 +69,8 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Session organization** — favorite and reorder important sessions across servers, filter Favorites by reusable custom categories, and keep offline favorites visible until their server reconnects
 - **Session actions** — create, reload, fork, compact, run a code review, share/unshare, rename, and delete via explicit menus
 - **Terminal mode shortcut** — open the current session in terminal mode from the chat top bar
-- **Load older messages** — paginated history loading; initial batch size is configurable (25-200)
-- **Large-session stability** — `largeHeap`, paginated message loading, and OOM fallback retry with smaller limits
+- **Fast history loading** — show the newest 10 messages first, preload the configured 25–200 message target in the background, and load older pages on demand
+- **Large-session stability** — configurable response limits, disk-backed processing, cached message images, oversized-payload fallback, and smaller-page OOM recovery
 - **Session export** — export full session as JSON file with streaming progress notification
 - **Multi-select in sessions** — long-press to enter selection mode, select multiple sessions, and delete in one action
 - **Draft persistence** — input text, image attachments, and @file mentions saved per session; survives navigation, app restart, and WebUI detours
@@ -99,7 +101,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Code word wrap** — toggle horizontal scrolling vs. word wrap in code blocks and tool outputs
 - **Compact messages** — reduce spacing between messages for denser layout
 - **Auto-expand tool results** — show tool card contents expanded by default
-- **Initial message count** — configure how many messages to load per session (25–200)
+- **History preload target** — configure how many recent messages to load per session after the newest 10 appear (25–200)
 - **Recent directories** — choose how many projects appear in the quick new-session dialog (5–50, default 20)
 - **Reasoning display** — optionally auto-expand reasoning and show dividers between messages in one response
 - **Confirm before send** — optional confirmation dialog before sending messages
@@ -109,7 +111,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Silent notifications** — suppress sound and vibration for task notifications
 - **Image optimization controls** — tune max image side (keep original or 720–2560 px) and WebP quality for attachments
 - **Diagnostics** — inspect privacy-sanitized application logs by severity, then copy, share, or clear them without ADB
-- **Settings sync** — synchronize preferences, remote servers, categories, assignments, Favorites, and hidden models through either GitHub Gist or WebDAV, with separately retained connection settings, encrypted local credentials, optional encrypted server passwords, conflict handling, and periodic background sync; local runtime configuration remains device-specific
+- **Settings sync** — synchronize preferences, remote servers, categories, assignments, Favorites, and hidden models through GitHub Gist, WebDAV, or a file selected from a compatible Android document provider such as Google Drive; connection settings are retained separately, server passwords can be encrypted, and conflicts and periodic background sync are supported while local runtime configuration remains device-specific
 - **Secure in-app updates** — automatic daily discovery plus manual checks from About; GitHub Release APKs are downloaded in-app, verified by SHA-256, package/version, and signing certificate, then handed to Android's system installer
 
 ### Connection

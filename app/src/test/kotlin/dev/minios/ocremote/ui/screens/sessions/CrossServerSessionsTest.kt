@@ -55,6 +55,19 @@ class CrossServerSessionsTest {
         )
     }
 
+    @Test
+    fun `moving favorite across multiple positions shifts intervening favorites`() {
+        assertEquals(
+            listOf("two", "three", "one", "four"),
+            moveCrossServerFavoriteOrder(
+                currentOrder = listOf("one", "two", "three", "four"),
+                visibleOrder = listOf("one", "two", "three", "four"),
+                itemKey = "one",
+                offset = 2,
+            ),
+        )
+    }
+
     private fun item(
         id: String,
         isFavorite: Boolean,

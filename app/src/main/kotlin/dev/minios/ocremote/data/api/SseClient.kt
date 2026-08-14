@@ -450,7 +450,6 @@ class SseClient @Inject constructor(
                             callId = toolObj.str("callID")
                         )
                     }
-                    Log.i(TAG, "Question asked for session $sessionId")
                     val questionsArr = props["questions"]?.jsonArray
                     val questions = questionsArr?.map { qElement ->
                         val qObj = qElement.jsonObject
@@ -470,6 +469,10 @@ class SseClient @Inject constructor(
                             options = options
                         )
                     } ?: emptyList()
+                    Log.i(
+                        TAG,
+                        "Question asked: session=$sessionId request=$id questions=${questions.size}",
+                    )
                     SseEvent.QuestionAsked(
                         id = id,
                         sessionId = sessionId,

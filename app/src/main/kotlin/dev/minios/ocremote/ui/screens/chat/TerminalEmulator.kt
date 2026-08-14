@@ -9,6 +9,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 
+enum class TerminalCursorStyle { BLOCK, UNDERLINE, BAR }
+
 /**
  * A proper terminal emulator that maintains a fixed-size screen buffer.
  *
@@ -62,6 +64,12 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
     var cursorRow: Int = 0
         private set
     var cursorCol: Int = 0
+        private set
+    var cursorVisible: Boolean = true
+        private set
+    var cursorBlinkEnabled: Boolean = true
+        private set
+    var cursorStyle: TerminalCursorStyle = TerminalCursorStyle.BLOCK
         private set
 
     // Scroll region (top inclusive, bottom exclusive, like Termux)
@@ -175,6 +183,9 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
         aboutToAutoWrap = false
         useLineDrawingG0 = false; useLineDrawingG1 = false; useG0 = true
         cursorKeysApplicationMode = false
+        cursorVisible = true
+        cursorBlinkEnabled = true
+        cursorStyle = TerminalCursorStyle.BLOCK
         escState = EscState.NORMAL
         escParams.clear()
         oscEscSeen = false
@@ -604,9 +615,41 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
                     attrFg = null; attrBg = null; attrBold = false; attrReverse = false
                     attrUnderline = false; attrItalic = false
                     aboutToAutoWrap = false
+                    cursorVisible = true
+                    cursorBlinkEnabled = true
+                    cursorStyle = TerminalCursorStyle.BLOCK
                 }
             }
-            'q' -> { /* DECLL, cursor style — ignore */ }
+            'q' -> {
+                if (paramsStr.endsWith(' ')) {
+                    when (paramsStr.trim().toIntOrNull() ?: 0) {
+                        0, 1 -> {
+                            cursorStyle = TerminalCursorStyle.BLOCK
+                            cursorBlinkEnabled = true
+                        }
+                        2 -> {
+                            cursorStyle = TerminalCursorStyle.BLOCK
+                            cursorBlinkEnabled = false
+                        }
+                        3 -> {
+                            cursorStyle = TerminalCursorStyle.UNDERLINE
+                            cursorBlinkEnabled = true
+                        }
+                        4 -> {
+                            cursorStyle = TerminalCursorStyle.UNDERLINE
+                            cursorBlinkEnabled = false
+                        }
+                        5 -> {
+                            cursorStyle = TerminalCursorStyle.BAR
+                            cursorBlinkEnabled = true
+                        }
+                        6 -> {
+                            cursorStyle = TerminalCursorStyle.BAR
+                            cursorBlinkEnabled = false
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -912,7 +955,7 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
         for (p in params) {
             when (p) {
                 25 -> {
-                    // DECTCEM — cursor visibility (we always show cursor, ignore)
+                    cursorVisible = enable
                 }
                 47, 1047, 1049 -> {
                     // Alternate screen buffer
@@ -948,7 +991,7 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
                     cursorKeysApplicationMode = enable
                 }
                 12 -> {
-                    // Start Blinking Cursor — ignore
+                    cursorBlinkEnabled = enable
                 }
                 1000, 1002, 1003, 1006, 1015 -> {
                     // Mouse tracking modes — ignore

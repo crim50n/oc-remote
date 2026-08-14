@@ -47,6 +47,7 @@ class SettingsRepository @Inject constructor(
         private val NOTIFICATIONS_KEY = booleanPreferencesKey("notifications_enabled")
 
         private val INITIAL_MESSAGE_COUNT_KEY = intPreferencesKey("initial_message_count")
+        private val MESSAGE_HISTORY_RESPONSE_LIMIT_MB_KEY = intPreferencesKey("message_history_response_limit_mb")
         private val RECENT_DIRECTORY_COUNT_KEY = intPreferencesKey("recent_directory_count")
         private val CODE_WORD_WRAP_KEY = booleanPreferencesKey("code_word_wrap")
         private val CONFIRM_BEFORE_SEND_KEY = booleanPreferencesKey("confirm_before_send")
@@ -69,6 +70,7 @@ class SettingsRepository @Inject constructor(
         private val IMAGE_ATTACHMENT_WEBP_QUALITY_KEY = intPreferencesKey("image_attachment_webp_quality")
         private val SHOW_LOCAL_RUNTIME_KEY = booleanPreferencesKey("show_local_runtime")
         private val TERMINAL_FONT_SIZE_KEY = floatPreferencesKey("terminal_font_size")
+        private val SHOW_TERMINAL_PANEL_HINT_KEY = booleanPreferencesKey("show_terminal_panel_hint")
         private val LOCAL_SETUP_COMPLETED_KEY = booleanPreferencesKey("local_setup_completed")
         private val LOCAL_PROXY_ENABLED_KEY = booleanPreferencesKey("local_proxy_enabled")
         private val LOCAL_PROXY_URL_KEY = stringPreferencesKey("local_proxy_url")
@@ -371,6 +373,17 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    /** Maximum uncompressed message-history response size before adaptive fallback. Default: 24 MB. */
+    val messageHistoryResponseLimitMb: Flow<Int> = dataStore.data.map { preferences ->
+        (preferences[MESSAGE_HISTORY_RESPONSE_LIMIT_MB_KEY] ?: 24).coerceIn(8, 128)
+    }
+
+    suspend fun setMessageHistoryResponseLimitMb(limitMb: Int) {
+        dataStore.edit { preferences ->
+            preferences[MESSAGE_HISTORY_RESPONSE_LIMIT_MB_KEY] = limitMb.coerceIn(8, 128)
+        }
+    }
+
     /** Number of directories shown in the quick new-session dialog. Default: 20. */
     val recentDirectoryCount: Flow<Int> = dataStore.data.map { preferences ->
         (preferences[RECENT_DIRECTORY_COUNT_KEY] ?: 20).coerceIn(5, 50)
@@ -630,6 +643,16 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    val showTerminalPanelHint: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[SHOW_TERMINAL_PANEL_HINT_KEY] ?: true
+    }
+
+    suspend fun setShowTerminalPanelHint(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SHOW_TERMINAL_PANEL_HINT_KEY] = enabled
+        }
+    }
+
     /**
      * Whether the local Termux setup has been completed at least once.
      */
@@ -809,6 +832,8 @@ class SettingsRepository @Inject constructor(
             chatFontSize = preferences[FONT_SIZE_KEY] ?: "medium",
             notificationsEnabled = preferences[NOTIFICATIONS_KEY] ?: true,
             initialMessageCount = preferences[INITIAL_MESSAGE_COUNT_KEY] ?: 50,
+            messageHistoryResponseLimitMb =
+                (preferences[MESSAGE_HISTORY_RESPONSE_LIMIT_MB_KEY] ?: 24).coerceIn(8, 128),
             recentDirectoryCount = (preferences[RECENT_DIRECTORY_COUNT_KEY] ?: 20).coerceIn(5, 50),
             codeWordWrap = preferences[CODE_WORD_WRAP_KEY] ?: false,
             confirmBeforeSend = preferences[CONFIRM_BEFORE_SEND_KEY] ?: false,
@@ -835,6 +860,7 @@ class SettingsRepository @Inject constructor(
             imageAttachmentWebpQuality = preferences[IMAGE_ATTACHMENT_WEBP_QUALITY_KEY] ?: 60,
             terminalFontSize = preferences[TERMINAL_FONT_SIZE_KEY] ?: 13f,
             showLocalRuntime = preferences[SHOW_LOCAL_RUNTIME_KEY] ?: true,
+            showTerminalPanelHint = preferences[SHOW_TERMINAL_PANEL_HINT_KEY] ?: true,
         )
     }
 
@@ -932,6 +958,7 @@ class SettingsRepository @Inject constructor(
         preferences[FONT_SIZE_KEY] = settings.chatFontSize
         preferences[NOTIFICATIONS_KEY] = settings.notificationsEnabled
         preferences[INITIAL_MESSAGE_COUNT_KEY] = settings.initialMessageCount
+        preferences[MESSAGE_HISTORY_RESPONSE_LIMIT_MB_KEY] = settings.messageHistoryResponseLimitMb.coerceIn(8, 128)
         preferences[RECENT_DIRECTORY_COUNT_KEY] = settings.recentDirectoryCount.coerceIn(5, 50)
         preferences[CODE_WORD_WRAP_KEY] = settings.codeWordWrap
         preferences[CONFIRM_BEFORE_SEND_KEY] = settings.confirmBeforeSend
@@ -957,6 +984,7 @@ class SettingsRepository @Inject constructor(
         preferences[IMAGE_ATTACHMENT_WEBP_QUALITY_KEY] = settings.imageAttachmentWebpQuality.coerceIn(1, 100)
         preferences[TERMINAL_FONT_SIZE_KEY] = settings.terminalFontSize.coerceIn(6f, 20f)
         settings.showLocalRuntime?.let { preferences[SHOW_LOCAL_RUNTIME_KEY] = it }
+        settings.showTerminalPanelHint?.let { preferences[SHOW_TERMINAL_PANEL_HINT_KEY] = it }
         preferences[SESSION_CATEGORIES_KEY] = json.encodeToString(categories)
     }
 

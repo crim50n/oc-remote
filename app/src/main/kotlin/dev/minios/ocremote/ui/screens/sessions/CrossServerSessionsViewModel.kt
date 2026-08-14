@@ -184,8 +184,7 @@ internal fun moveCrossServerFavoriteOrder(
     val to = (from + offset).coerceIn(0, visibleOrder.lastIndex)
     if (from == to) return currentOrder
     val reordered = visibleOrder.toMutableList()
-    reordered[from] = reordered[to]
-    reordered[to] = itemKey
+    reordered.add(to, reordered.removeAt(from))
     val visibleKeys = reordered.toSet()
     val existingVisibleCount = currentOrder.count(visibleKeys::contains)
     val visibleIterator = reordered.iterator()

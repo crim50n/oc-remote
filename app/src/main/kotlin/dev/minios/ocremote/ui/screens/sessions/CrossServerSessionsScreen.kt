@@ -1,7 +1,7 @@
 package dev.minios.ocremote.ui.screens.sessions
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -46,6 +47,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -61,6 +65,8 @@ import dev.minios.ocremote.ui.components.AppCardShape
 import dev.minios.ocremote.ui.components.AppPrimaryButton
 import dev.minios.ocremote.ui.components.AppSecondaryButton
 import dev.minios.ocremote.ui.components.AppDialog
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,8 +81,25 @@ fun CrossServerSessionsScreen(
     var selectedCategoryId by remember { mutableStateOf<String?>(null) }
     var offlinePromptItem by remember { mutableStateOf<CrossServerSessionItem?>(null) }
     var categoryPickerItem by remember { mutableStateOf<CrossServerSessionItem?>(null) }
-    val visibleItems = remember(state.items, selectedCategoryId) {
+    val filteredItems = remember(state.items, selectedCategoryId) {
         filterCrossServerFavorites(state.items, selectedCategoryId)
+    }
+    val listState = rememberLazyListState()
+    val haptic = LocalHapticFeedback.current
+    var draggedItems by remember { mutableStateOf<List<CrossServerSessionItem>?>(null) }
+    var originalDragItems by remember { mutableStateOf<List<CrossServerSessionItem>>(emptyList()) }
+    val visibleItems = draggedItems ?: filteredItems
+    val reorderableState = rememberReorderableLazyListState(
+        lazyListState = listState,
+        scrollThreshold = 72.dp,
+    ) { from, to ->
+        val currentItems = draggedItems ?: return@rememberReorderableLazyListState
+        if (from.index !in currentItems.indices || to.index !in currentItems.indices) {
+            return@rememberReorderableLazyListState
+        }
+        draggedItems = currentItems.toMutableList().apply {
+            add(to.index, removeAt(from.index))
+        }
     }
 
     Scaffold(
@@ -198,6 +221,7 @@ fun CrossServerSessionsScreen(
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
                         horizontal = 16.dp,
@@ -209,17 +233,49 @@ fun CrossServerSessionsScreen(
                         visibleItems,
                         key = { _, item -> "${item.server.id}:${item.session.id}" },
                     ) { index, item ->
-                        CrossServerSessionCard(
-                            item = item,
-                            favoritePosition = index,
-                            favoriteCount = visibleItems.size,
-                            onClick = {
-                                if (item.isConnected) onOpenSession(item) else offlinePromptItem = item
-                            },
-                            onToggleFavorite = { viewModel.toggleFavorite(item) },
-                            onMoveFavorite = { offset -> viewModel.moveFavorite(item, visibleItems, offset) },
-                            onChooseCategory = { categoryPickerItem = item },
-                        )
+                        val itemKey = item.favoriteKey()
+                        ReorderableItem(reorderableState, key = itemKey) { isDragged ->
+                            val interactionSource = remember(itemKey) { MutableInteractionSource() }
+                            CrossServerSessionCard(
+                                modifier = Modifier
+                                    .longPressDraggableHandle(
+                                        interactionSource = interactionSource,
+                                        onDragStarted = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            originalDragItems = filteredItems
+                                            draggedItems = filteredItems
+                                        },
+                                        onDragStopped = {
+                                            val original = originalDragItems
+                                            val reordered = draggedItems.orEmpty()
+                                            val from = original.indexOfFirst { it.favoriteKey() == itemKey }
+                                            val to = reordered.indexOfFirst { it.favoriteKey() == itemKey }
+                                            if (from >= 0 && to >= 0 && from != to) {
+                                                viewModel.moveFavorite(item, original, to - from)
+                                            }
+                                            draggedItems = null
+                                            originalDragItems = emptyList()
+                                        },
+                                    )
+                                    .graphicsLayer {
+                                        if (isDragged) {
+                                            scaleX = 1.015f
+                                            scaleY = 1.015f
+                                            shadowElevation = 8.dp.toPx()
+                                        }
+                                    },
+                                item = item,
+                                interactionSource = interactionSource,
+                                favoritePosition = index,
+                                favoriteCount = visibleItems.size,
+                                onClick = {
+                                    if (item.isConnected) onOpenSession(item) else offlinePromptItem = item
+                                },
+                                onToggleFavorite = { viewModel.toggleFavorite(item) },
+                                onMoveFavorite = { offset -> viewModel.moveFavorite(item, visibleItems, offset) },
+                                onChooseCategory = { categoryPickerItem = item },
+                            )
+                        }
                     }
                 }
             }
@@ -279,7 +335,9 @@ fun CrossServerSessionsScreen(
 
 @Composable
 private fun CrossServerSessionCard(
+    modifier: Modifier = Modifier,
     item: CrossServerSessionItem,
+    interactionSource: MutableInteractionSource,
     favoritePosition: Int,
     favoriteCount: Int,
     onClick: () -> Unit,
@@ -291,9 +349,10 @@ private fun CrossServerSessionCard(
     var showActions by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        onClick = onClick,
+        interactionSource = interactionSource,
+        modifier = modifier
+            .fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainerLow,
         ),

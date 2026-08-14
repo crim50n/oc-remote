@@ -193,6 +193,73 @@ class EventReducerTest {
     }
 
     @Test
+    fun lateToolCalled_preservesRunningSubagentSessionMetadata() {
+        val reducer = EventReducer()
+        val metadata = buildJsonObject { put("sessionId", "child") }
+        reducer.processEvent(
+            SseEvent.MessagePartUpdated(Part.Tool(
+                id = "part",
+                sessionId = "session",
+                messageId = "assistant",
+                callId = "call",
+                tool = "task",
+                state = ToolState.Running(
+                    input = buildJsonObject { put("subagent_type", "Deep") },
+                    title = "Deep",
+                    metadata = metadata,
+                ),
+            )),
+            "server",
+        )
+
+        reducer.processEvent(SseEvent.NextToolCalled(
+            "session",
+            "assistant",
+            "call",
+            "task",
+            buildJsonObject { put("subagent_type", "Deep") },
+            5,
+        ), "server")
+
+        val state = reducer.parts.value["assistant"]?.single()?.let { it as Part.Tool }?.state as ToolState.Running
+        assertEquals("Deep", state.title)
+        assertEquals(metadata, state.metadata)
+    }
+
+    @Test
+    fun lateToolInputEvents_preserveRunningSubagentSessionMetadata() {
+        val reducer = EventReducer()
+        val metadata = buildJsonObject { put("sessionId", "child") }
+        reducer.processEvent(
+            SseEvent.MessagePartUpdated(Part.Tool(
+                id = "part",
+                sessionId = "session",
+                messageId = "assistant",
+                callId = "call",
+                tool = "task",
+                state = ToolState.Running(
+                    input = buildJsonObject { put("description", "Audit") },
+                    title = "my-custom-reviewer",
+                    metadata = metadata,
+                ),
+            )),
+            "server",
+        )
+
+        reducer.processEvent(SseEvent.NextToolInputStarted(
+            "session", "assistant", "call", "task", 5,
+        ), "server")
+        reducer.processEvent(SseEvent.NextToolInputEnded(
+            "session", "assistant", "call", "{\"description\":\"Audit\"}",
+        ), "server")
+
+        val state = reducer.parts.value["assistant"]?.single()?.let { it as Part.Tool }?.state as ToolState.Running
+        assertEquals("my-custom-reviewer", state.title)
+        assertEquals(metadata, state.metadata)
+        assertEquals("Audit", state.input["description"]?.toString()?.trim('"'))
+    }
+
+    @Test
     fun pendingRequests_areUpsertedByRequestId() {
         val reducer = EventReducer()
         val first = SseEvent.PermissionAsked("permission", "session", "read")
@@ -390,6 +457,47 @@ class EventReducerTest {
         )
 
         assertEquals("streamed text", (reducer.parts.value["message"]?.single() as Part.Text).text)
+    }
+
+    @Test
+    fun removedMessage_isNotRestoredByLateSseOrRestSnapshot() {
+        val reducer = EventReducer()
+        val message = Message.User("message", "session", time = TimeInfo(1))
+        val part = Part.Text("part", "session", message.id, text = "original")
+        reducer.processEvent(SseEvent.MessageUpdated(message), "server")
+        reducer.processEvent(SseEvent.MessagePartUpdated(part), "server")
+
+        reducer.processEvent(SseEvent.MessageRemoved("session", message.id), "server")
+        reducer.processEvent(SseEvent.MessageUpdated(message), "server")
+        reducer.processEvent(SseEvent.MessagePartUpdated(part.copy(text = "late")), "server")
+        reducer.processEvent(SseEvent.MessagePartDelta("session", message.id, part.id, "text", " delta"), "server")
+        reducer.mergeMessages("session", listOf(MessageWithParts(message, listOf(part))))
+
+        assertNull(reducer.messages.value["session"])
+        assertNull(reducer.parts.value[message.id])
+    }
+
+    @Test
+    fun clearingSessionHistory_allowsAuthoritativeReloadAfterRemoval() {
+        val reducer = EventReducer()
+        val message = Message.User("message", "session", time = TimeInfo(1))
+        reducer.processEvent(SseEvent.MessageRemoved("session", message.id), "server")
+
+        reducer.clearSessionHistory("session")
+        reducer.mergeMessages("session", listOf(MessageWithParts(message, emptyList())))
+
+        assertEquals(listOf(message), reducer.messages.value["session"])
+    }
+
+    @Test
+    fun upsertSession_ignoresOlderStateAfterAuthoritativeRevert() {
+        val reducer = EventReducer()
+        val reverted = session("session", updated = 2).copy(revert = Session.Revert("message"))
+        reducer.upsertSession("server", reverted)
+
+        reducer.processEvent(SseEvent.SessionUpdated(session("session", updated = 1)), "server")
+
+        assertEquals(reverted, reducer.sessions.value.single())
     }
 
     @Test

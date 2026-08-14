@@ -39,6 +39,7 @@ data class SyncSettings(
     val chatFontSize: String = "medium",
     val notificationsEnabled: Boolean = true,
     val initialMessageCount: Int = 50,
+    val messageHistoryResponseLimitMb: Int = 24,
     val recentDirectoryCount: Int = 20,
     val codeWordWrap: Boolean = false,
     val confirmBeforeSend: Boolean = false,
@@ -62,6 +63,7 @@ data class SyncSettings(
     val terminalFontSize: Float = 13f,
     val showLocalRuntime: Boolean? = null,
     val diagnosticLogLevel: String? = null,
+    val showTerminalPanelHint: Boolean? = null,
 )
 
 @Serializable

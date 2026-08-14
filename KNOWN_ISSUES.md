@@ -50,3 +50,61 @@ Track open bugs here. Remove items once they are fixed and verified on device.
 - Haptic feedback strength was inconsistent on Samsung because vendor-defined `TICK`, `CLICK`, and
   `HEAVY_CLICK` effects were not monotonic. It now uses explicit duration/amplitude levels, but the
   calibration still needs physical-device verification.
+
+- Terminal extra-key row borders could overlap, the AMOLED drawer border stopped at system insets,
+  cursor visibility/blink/style escape sequences were ignored, and terminal resize had redundant
+  UI and workspace delays. Borders, DEC cursor behavior, and resize dispatch have been corrected,
+  and the terminal panel now has navigation-aware launch guidance, but the complete interaction
+  still needs physical-device verification (`ChatScreen.kt` and `TerminalEmulator.kt`).
+
+- Android document providers do not expose a portable atomic compare-and-swap operation. File-based
+  settings sync hashes the full content, checks it immediately before writing, and verifies it after
+  writing, but a concurrent writer can still create a narrow lost-update race. Persisted access and
+  background operation also need verification with Google Drive and other providers
+  (`DocumentSyncTransport.kt`).
+
+- Syntax highlighting could apply an adjacent token color to `=` and `-` in fenced code blocks.
+  These operators now inherit the base code color, but the rendering fix still needs
+  physical-device verification (`SafeMarkdownHighlighting.kt`).
+
+- Running custom subagent cards could not open their child session because a late
+  `session.next.tool.called` or `session.next.tool.input.ended` event replaced `metadata.sessionId`
+  received from `message.part.updated`. Tool lifecycle updates are now monotonic and preserve title
+  and metadata, but parallel custom subagents still need physical-device verification
+  (`EventReducer.kt` around lines 385-490).
+
+- A single message containing hundreds of megabytes of tool/file content could exhaust the Android
+  heap while Ktor buffered and deserialized a history page; retrying with fewer messages still failed
+  when that message remained in the page. History loading now reduces the page size from the response
+  `Content-Length` before reading its body, streams accepted pages from disk, caches Base64 image data
+  outside the deserialized model, and omits only oversized payload fields when a single message remains
+  too large. The threshold is configurable, but the refined fallback and cached image rendering still
+  need verification with the reported KoW Bot session (`OpenCodeApi.kt` around lines 515-605).
+
+- Assistant error rendering crashed when a server returned `error.data` as a JSON primitive instead
+  of an object. Error messages now accept object and primitive payloads and safely fall back to the
+  error name, but the reported provider-error flow still needs physical-device verification
+  (`Message.kt` around lines 118-130).
+
+- The share-target session picker could close and immediately reopen repeatedly because pending
+  attachments remained set until the destination chat consumed them. Automatic reopening is now
+  limited to the explicit wait-for-server-connection flow and blocked once a target session is set,
+  but the Android share flow still needs physical-device verification (`NavGraph.kt` around lines 200-290).
+
+- Opening a long session could block the chat until the complete configured history page had been
+  transferred and processed (#32). The newest 10 messages are now displayed first and the remainder
+  is appended in background pages without reloading known messages, but time-to-first-content and
+  scroll stability still need verification on a slow remote connection (`ChatViewModel.kt` around lines 675-760).
+
+- A chat opened from a notification or left open during an SSE disconnect did not show that its
+  server was offline, making failed permission replies and other REST actions look misleading. The
+  chat now observes the same connection state as Home and displays a persistent disconnected banner,
+  but disconnect/reconnect transitions still need physical-device verification (`NavGraph.kt` and
+  `ChatScreen.kt` around lines 1640-1960).
+
+- Question prompts reportedly cannot be answered from the Android UI in some remote-server sessions
+  (#33), although the question card and matching OpenCode endpoints are present. Release diagnostics
+  previously omitted REST reconciliation and reply status details behind `BuildConfig.DEBUG`; these
+  events are now persisted without question or answer content, but the root cause still requires a
+  diagnostic export captured immediately after reproduction (`SseClient.kt`, `OpenCodeApi.kt`,
+  `EventReducer.kt`, and `ChatViewModel.kt`).

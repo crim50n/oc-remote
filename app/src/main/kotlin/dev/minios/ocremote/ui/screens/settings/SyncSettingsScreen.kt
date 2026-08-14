@@ -1,5 +1,12 @@
 package dev.minios.ocremote.ui.screens.settings
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Sync
@@ -52,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -88,12 +97,38 @@ fun SyncSettingsScreen(
     var webDavUsername by remember { mutableStateOf("") }
     var webDavPassword by remember { mutableStateOf("") }
     var webDavPasswordFocused by remember { mutableStateOf(false) }
+    var documentUri by remember { mutableStateOf("") }
+    var documentName by remember { mutableStateOf("") }
+    var documentGrantFlags by remember { mutableStateOf(0) }
+    var documentPickerError by remember { mutableStateOf<String?>(null) }
     var includePasswords by remember { mutableStateOf(false) }
     var passphrase by remember { mutableStateOf("") }
     var passphraseFocused by remember { mutableStateOf(false) }
     var autoSync by remember { mutableStateOf(false) }
     var showVersionDialog by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    fun acceptDocument(uri: Uri, flags: Int) {
+        val accessFlags = flags and DOCUMENT_ACCESS_FLAGS
+        if (flags and DOCUMENT_REQUIRED_RESULT_FLAGS == DOCUMENT_REQUIRED_RESULT_FLAGS) {
+            documentUri = uri.toString()
+            documentName = documentDisplayName(context, uri)
+            documentGrantFlags = accessFlags
+            documentPickerError = null
+        } else {
+            documentPickerError = context.getString(R.string.sync_document_permission_error)
+        }
+    }
+    val openDocument = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri -> acceptDocument(uri, result.data?.flags ?: 0) }
+        }
+    }
+    val createDocument = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri -> acceptDocument(uri, result.data?.flags ?: 0) }
+        }
+    }
     val isAmoled = isAmoledTheme()
     val switchColors = if (isAmoled) {
         SwitchDefaults.colors(
@@ -115,6 +150,8 @@ fun SyncSettingsScreen(
         webDavEndpoint.trim() != state.config.webDav.endpoint ||
         webDavUsername.trim() != state.config.webDav.username ||
         webDavPassword.isNotBlank() ||
+        (selectedBackend == SyncBackend.DOCUMENT) != state.config.document.enabled ||
+        documentUri != state.config.document.endpoint ||
         includePasswords != state.config.includeEncryptedPasswords ||
         passphrase.isNotBlank() ||
         autoSync != state.config.autoSync
@@ -129,6 +166,11 @@ fun SyncSettingsScreen(
         gistEndpoint = state.config.gist.endpoint
         webDavEndpoint = state.config.webDav.endpoint
         webDavUsername = state.config.webDav.username
+        documentUri = state.config.document.endpoint
+        documentName = state.config.document.endpoint.takeIf(String::isNotBlank)
+            ?.let { documentDisplayName(context, Uri.parse(it)) }
+            .orEmpty()
+        documentGrantFlags = 0
         includePasswords = state.config.includeEncryptedPasswords
         autoSync = state.config.autoSync
         gistToken = ""
@@ -160,7 +202,7 @@ fun SyncSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = stringResource(R.string.sync_settings_desc),
+                text = stringResource(R.string.sync_settings_desc_v2),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -203,7 +245,7 @@ fun SyncSettingsScreen(
             HorizontalDivider()
             Text(stringResource(R.string.sync_backend), style = MaterialTheme.typography.titleSmall)
             Text(
-                text = stringResource(R.string.sync_single_storage_desc),
+                text = stringResource(R.string.sync_single_storage_desc_v2),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -220,80 +262,149 @@ fun SyncSettingsScreen(
                     label = stringResource(R.string.sync_backend_webdav),
                     isAmoled = isAmoled,
                 )
+                SyncBackendChip(
+                    selected = selectedBackend == SyncBackend.DOCUMENT,
+                    onClick = { selectedBackend = SyncBackend.DOCUMENT },
+                    label = stringResource(R.string.sync_backend_document),
+                    isAmoled = isAmoled,
+                )
             }
 
-            if (selectedBackend == SyncBackend.GIST) {
-                SyncBackendCard(
-                    title = stringResource(R.string.sync_backend_gist),
-                    state = state.gistState,
-                    configured = configured && state.config.primaryBackend == SyncBackend.GIST,
-                    isAmoled = isAmoled,
-                ) {
-                OutlinedTextField(
-                    value = gistEndpoint,
-                    onValueChange = { gistEndpoint = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.sync_gist_id)) },
-                    supportingText = { Text(stringResource(R.string.sync_gist_id_desc)) },
-                    singleLine = true,
-                )
-                SecretTextField(
-                    value = gistToken,
-                    onValueChange = { gistToken = it },
-                    focused = gistTokenFocused,
-                    onFocusChanged = { gistTokenFocused = it },
-                    stored = state.hasGithubToken,
-                    label = stringResource(R.string.sync_github_token),
-                    supportingText = stringResource(R.string.sync_credential_saved_hint),
-                )
-                if (state.config.gist.enabled && gistEndpoint.isNotBlank()) {
-                    Row(
-                        modifier = Modifier
-                            .clickable {
-                                val id = gistEndpoint.trimEnd('/').substringAfterLast('/')
-                                uriHandler.openUri("https://gist.github.com/$id")
-                            }
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+            when (selectedBackend) {
+                SyncBackend.GIST -> {
+                    SyncBackendCard(
+                        title = stringResource(R.string.sync_backend_gist),
+                        state = state.gistState,
+                        configured = configured && state.config.primaryBackend == SyncBackend.GIST,
+                        isAmoled = isAmoled,
                     ) {
-                        Icon(Icons.Default.Link, contentDescription = null)
-                        Text(stringResource(R.string.sync_open_gist), color = MaterialTheme.colorScheme.primary)
+                        OutlinedTextField(
+                            value = gistEndpoint,
+                            onValueChange = { gistEndpoint = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(stringResource(R.string.sync_gist_id)) },
+                            supportingText = { Text(stringResource(R.string.sync_gist_id_desc)) },
+                            singleLine = true,
+                        )
+                        SecretTextField(
+                            value = gistToken,
+                            onValueChange = { gistToken = it },
+                            focused = gistTokenFocused,
+                            onFocusChanged = { gistTokenFocused = it },
+                            stored = state.hasGithubToken,
+                            label = stringResource(R.string.sync_github_token),
+                            supportingText = stringResource(R.string.sync_credential_saved_hint),
+                        )
+                        if (state.config.gist.enabled && gistEndpoint.isNotBlank()) {
+                            Row(
+                                modifier = Modifier
+                                    .clickable {
+                                        val id = gistEndpoint.trimEnd('/').substringAfterLast('/')
+                                        uriHandler.openUri("https://gist.github.com/$id")
+                                    }
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.Default.Link, contentDescription = null)
+                                Text(
+                                    stringResource(R.string.sync_open_gist),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
                     }
                 }
+                SyncBackend.WEBDAV -> {
+                    SyncBackendCard(
+                        title = stringResource(R.string.sync_backend_webdav),
+                        state = state.webDavState,
+                        configured = configured && state.config.primaryBackend == SyncBackend.WEBDAV,
+                        isAmoled = isAmoled,
+                    ) {
+                        OutlinedTextField(
+                            value = webDavEndpoint,
+                            onValueChange = { webDavEndpoint = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(stringResource(R.string.sync_webdav_url)) },
+                            supportingText = { Text(stringResource(R.string.sync_webdav_url_desc)) },
+                            singleLine = true,
+                        )
+                        OutlinedTextField(
+                            value = webDavUsername,
+                            onValueChange = { webDavUsername = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(stringResource(R.string.sync_username)) },
+                            singleLine = true,
+                        )
+                        SecretTextField(
+                            value = webDavPassword,
+                            onValueChange = { webDavPassword = it },
+                            focused = webDavPasswordFocused,
+                            onFocusChanged = { webDavPasswordFocused = it },
+                            stored = state.hasWebDavPassword,
+                            label = stringResource(R.string.sync_webdav_password),
+                            supportingText = stringResource(R.string.sync_credential_saved_hint),
+                        )
+                    }
                 }
-            } else {
-                SyncBackendCard(
-                    title = stringResource(R.string.sync_backend_webdav),
-                    state = state.webDavState,
-                    configured = configured && state.config.primaryBackend == SyncBackend.WEBDAV,
-                    isAmoled = isAmoled,
-                ) {
-                OutlinedTextField(
-                    value = webDavEndpoint,
-                    onValueChange = { webDavEndpoint = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.sync_webdav_url)) },
-                    supportingText = { Text(stringResource(R.string.sync_webdav_url_desc)) },
-                    singleLine = true,
-                )
-                OutlinedTextField(
-                    value = webDavUsername,
-                    onValueChange = { webDavUsername = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.sync_username)) },
-                    singleLine = true,
-                )
-                SecretTextField(
-                    value = webDavPassword,
-                    onValueChange = { webDavPassword = it },
-                    focused = webDavPasswordFocused,
-                    onFocusChanged = { webDavPasswordFocused = it },
-                    stored = state.hasWebDavPassword,
-                    label = stringResource(R.string.sync_webdav_password),
-                    supportingText = stringResource(R.string.sync_credential_saved_hint),
-                )
+                SyncBackend.DOCUMENT -> {
+                    SyncBackendCard(
+                        title = stringResource(R.string.sync_backend_document),
+                        state = state.documentState,
+                        configured = configured && state.config.primaryBackend == SyncBackend.DOCUMENT,
+                        isAmoled = isAmoled,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.sync_document_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (documentUri.isNotBlank()) {
+                            ListItem(
+                                headlineContent = {
+                                    Text(documentName.ifBlank { stringResource(R.string.sync_document_selected) })
+                                },
+                                supportingContent = { Text(stringResource(R.string.sync_document_access_persisted)) },
+                                leadingContent = { Icon(Icons.Default.InsertDriveFile, contentDescription = null) },
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.sync_document_not_selected),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        documentPickerError?.let {
+                            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            AppSecondaryButton(
+                                onClick = { openDocument.launch(documentPickerIntent(Intent.ACTION_OPEN_DOCUMENT)) },
+                                modifier = Modifier.weight(1f),
+                                outlined = true,
+                            ) {
+                                Text(stringResource(R.string.sync_document_choose))
+                            }
+                            AppSecondaryButton(
+                                onClick = {
+                                    createDocument.launch(
+                                        documentPickerIntent(Intent.ACTION_CREATE_DOCUMENT)
+                                            .putExtra(Intent.EXTRA_TITLE, "OCRemote.json"),
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                                outlined = true,
+                            ) {
+                                Text(stringResource(R.string.sync_document_create))
+                            }
+                        }
+                    }
                 }
+                SyncBackend.NONE -> Unit
             }
 
             HorizontalDivider()
@@ -354,13 +465,17 @@ fun SyncSettingsScreen(
                         webDavEndpoint = webDavEndpoint,
                         webDavUsername = webDavUsername,
                         webDavPassword = webDavPassword,
+                        documentEnabled = selectedBackend == SyncBackend.DOCUMENT,
+                        documentUri = documentUri,
+                        documentGrantFlags = documentGrantFlags,
                         includePasswords = includePasswords,
                         passphrase = passphrase,
                         autoSync = autoSync,
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !working && connectionChanged,
+                enabled = !working && connectionChanged &&
+                    (selectedBackend != SyncBackend.DOCUMENT || documentUri.isNotBlank()),
             ) {
                 if (operation == SyncUiOperation.SAVING) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -584,3 +699,22 @@ private fun SecretTextField(
 }
 
 private const val STORED_SECRET_PLACEHOLDER = "********"
+private const val DOCUMENT_ACCESS_FLAGS =
+    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+private const val DOCUMENT_REQUIRED_RESULT_FLAGS =
+    DOCUMENT_ACCESS_FLAGS or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+
+private fun documentPickerIntent(action: String): Intent = Intent(action).apply {
+    addCategory(Intent.CATEGORY_OPENABLE)
+    type = "*/*"
+    putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/json", "text/plain", "application/octet-stream"))
+    addFlags(DOCUMENT_ACCESS_FLAGS or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+}
+
+private fun documentDisplayName(context: Context, uri: Uri): String {
+    return runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+    }.getOrNull().orEmpty().ifBlank { uri.lastPathSegment.orEmpty() }
+}

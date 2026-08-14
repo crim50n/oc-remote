@@ -97,6 +97,7 @@ fun SettingsScreen(
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
 
     val initialMessageCount by viewModel.initialMessageCount.collectAsState()
+    val messageHistoryResponseLimitMb by viewModel.messageHistoryResponseLimitMb.collectAsState()
     val recentDirectoryCount by viewModel.recentDirectoryCount.collectAsState()
     val codeWordWrap by viewModel.codeWordWrap.collectAsState()
     val confirmBeforeSend by viewModel.confirmBeforeSend.collectAsState()
@@ -117,11 +118,13 @@ fun SettingsScreen(
     val imageAttachmentWebpQuality by viewModel.imageAttachmentWebpQuality.collectAsState()
     val showLocalRuntime by viewModel.showLocalRuntime.collectAsState()
     val terminalFontSize by viewModel.terminalFontSize.collectAsState()
+    val showTerminalPanelHint by viewModel.showTerminalPanelHint.collectAsState()
 
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
     var showFontSizeDialog by remember { mutableStateOf(false) }
     var showMessageCountDialog by remember { mutableStateOf(false) }
+    var showMessageHistoryResponseLimitDialog by remember { mutableStateOf(false) }
     var showRecentDirectoryCountDialog by remember { mutableStateOf(false) }
     var showReconnectModeDialog by remember { mutableStateOf(false) }
     var showHapticPatternDialog by remember { mutableStateOf(false) }
@@ -185,7 +188,7 @@ fun SettingsScreen(
 
             ListItem(
                 headlineContent = { Text(stringResource(R.string.sync_title)) },
-                supportingContent = { Text(stringResource(R.string.sync_settings_desc)) },
+                supportingContent = { Text(stringResource(R.string.sync_settings_desc_v2)) },
                 leadingContent = { Icon(Icons.Default.CloudSync, contentDescription = null) },
                 modifier = Modifier.clickable { onNavigateToSync() },
             )
@@ -344,6 +347,22 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { showTerminalFontSizeDialog = true }
             )
 
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_terminal_panel_hint)) },
+                supportingContent = { Text(stringResource(R.string.settings_terminal_panel_hint_desc)) },
+                leadingContent = { Icon(Icons.Default.Terminal, contentDescription = null) },
+                trailingContent = {
+                    Switch(
+                        checked = showTerminalPanelHint,
+                        onCheckedChange = viewModel::setShowTerminalPanelHint,
+                        colors = switchColors,
+                    )
+                },
+                modifier = Modifier.clickable {
+                    viewModel.setShowTerminalPanelHint(!showTerminalPanelHint)
+                },
+            )
+
             // Compact messages
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_compact_messages)) },
@@ -436,6 +455,15 @@ fun SettingsScreen(
                     Icon(Icons.Default.History, contentDescription = null)
                 },
                 modifier = Modifier.clickable { showMessageCountDialog = true }
+            )
+
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_history_response_limit)) },
+                supportingContent = {
+                    Text(stringResource(R.string.settings_history_response_limit_value, messageHistoryResponseLimitMb))
+                },
+                leadingContent = { Icon(Icons.Default.History, contentDescription = null) },
+                modifier = Modifier.clickable { showMessageHistoryResponseLimitDialog = true },
             )
 
             // Confirm before send
@@ -625,6 +653,17 @@ fun SettingsScreen(
                     showMessageCountDialog = false
                 },
                 onDismiss = { showMessageCountDialog = false }
+            )
+        }
+
+        if (showMessageHistoryResponseLimitDialog) {
+            MessageHistoryResponseLimitPickerDialog(
+                currentLimitMb = messageHistoryResponseLimitMb,
+                onLimitSelected = { limitMb ->
+                    viewModel.setMessageHistoryResponseLimitMb(limitMb)
+                    showMessageHistoryResponseLimitDialog = false
+                },
+                onDismiss = { showMessageHistoryResponseLimitDialog = false },
             )
         }
 
@@ -1400,6 +1439,23 @@ private fun MessageCountPickerDialog(
         selectedKey = currentCount,
         onSelect = onCountSelected,
         onDismiss = onDismiss
+    )
+}
+
+@Composable
+private fun MessageHistoryResponseLimitPickerDialog(
+    currentLimitMb: Int,
+    onLimitSelected: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    SettingsPickerDialog(
+        title = stringResource(R.string.settings_history_response_limit),
+        options = listOf(8, 16, 24, 32, 48, 64, 96, 128).map {
+            it to stringResource(R.string.settings_history_response_limit_value, it)
+        },
+        selectedKey = currentLimitMb,
+        onSelect = onLimitSelected,
+        onDismiss = onDismiss,
     )
 }
 

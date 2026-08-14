@@ -73,6 +73,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 
@@ -125,6 +126,7 @@ import dev.minios.ocremote.service.SessionNotificationCoordinator
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -189,7 +191,6 @@ import android.view.MotionEvent
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import dev.minios.ocremote.BuildConfig
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
 import dev.minios.ocremote.R
 import dev.minios.ocremote.ui.components.ProviderIcon
@@ -778,8 +779,27 @@ private fun decodeDataUrlBytes(dataUrl: String): ByteArray? {
     }
 }
 
-private fun decodePartFileBytes(file: Part.File): ByteArray? {
+internal fun resolveCachedMessageImage(url: String, appCacheDirectory: java.io.File): java.io.File? {
+    if (!url.startsWith("file:", ignoreCase = true)) return null
+    return try {
+        val imageCacheDirectory = java.io.File(appCacheDirectory, "message-images").canonicalFile
+        java.io.File(java.net.URI(url)).canonicalFile.takeIf {
+            it.parentFile == imageCacheDirectory && it.isFile
+        }
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun decodePartFileBytes(file: Part.File, appCacheDirectory: java.io.File): ByteArray? {
     val url = file.url ?: return null
+    if (url.startsWith("file:", ignoreCase = true)) {
+        return try {
+            resolveCachedMessageImage(url, appCacheDirectory)?.readBytes()
+        } catch (_: Exception) {
+            null
+        }
+    }
     val encoded = if (url.contains(',')) url.substringAfter(',') else url
     if (encoded.isBlank()) return null
     return try {
@@ -787,6 +807,14 @@ private fun decodePartFileBytes(file: Part.File): ByteArray? {
     } catch (_: Exception) {
         null
     }
+}
+
+private fun partFileImageModel(file: Part.File, appCacheDirectory: java.io.File): Any? {
+    val url = file.url ?: return null
+    if (url.startsWith("file:", ignoreCase = true)) {
+        return resolveCachedMessageImage(url, appCacheDirectory)
+    }
+    return decodePartFileBytes(file, appCacheDirectory)
 }
 
 private fun extensionForMime(mime: String): String {
@@ -1006,10 +1034,12 @@ fun ChatScreen(
     onNavigateToSession: (sessionId: String) -> Unit = {},
     onNavigateToChildSession: (sessionId: String) -> Unit = {},
     onOpenInWebView: () -> Unit = {},
+    onOpenWorkspace: (directory: String) -> Unit = {},
     onManageModels: () -> Unit = {},
     initialSharedAttachments: List<Uri> = emptyList(),
     onSharedAttachmentsConsumed: () -> Unit = {},
     startInTerminalMode: Boolean = false,
+    isServerConnected: Boolean = true,
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -1041,6 +1071,7 @@ fun ChatScreen(
     var terminalAltLatched by rememberSaveable { mutableStateOf(false) }
     var terminalVirtualCtrlDown by remember { mutableStateOf(false) }
     var terminalVirtualFnDown by remember { mutableStateOf(false) }
+    var showTerminalPanelHintOverlay by remember { mutableStateOf(false) }
     val terminalFocusRequester = remember { FocusRequester() }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -1051,6 +1082,7 @@ fun ChatScreen(
     val view = LocalView.current
     val density = LocalDensity.current
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
+    val usesGestureNavigation = WindowInsets.systemGestures.getLeft(density, LayoutDirection.Ltr) > 0
     var terminalOverlayHeightPx by remember { mutableStateOf(0) }
 
     // @ file mention state
@@ -1100,6 +1132,13 @@ fun ChatScreen(
 
     LaunchedEffect(isTerminalMode) {
         if (isTerminalMode) {
+            if (viewModel.shouldShowTerminalPanelHint() && TerminalPanelHintCoordinator.tryShow()) {
+                showTerminalPanelHintOverlay = true
+                launch {
+                    delay(8_000)
+                    showTerminalPanelHintOverlay = false
+                }
+            }
             viewModel.openTerminalSession { ok ->
                 if (!ok) {
                     coroutineScope.launch {
@@ -1109,6 +1148,7 @@ fun ChatScreen(
                 }
             }
         } else {
+            showTerminalPanelHintOverlay = false
             terminalCtrlLatched = false
             terminalAltLatched = false
             terminalVirtualCtrlDown = false
@@ -1614,6 +1654,7 @@ fun ChatScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             if (!isTerminalMode && uiState.sessionLoaded) {
+            Column {
             Box {
             TopAppBar(
                 title = {
@@ -1730,6 +1771,26 @@ fun ChatScreen(
                                     isTerminalMode = true
                                 },
                             )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_workspace_files)) },
+                                onClick = {
+                                    showMenu = false
+                                    onOpenWorkspace(viewModel.getSessionDirectory().orEmpty())
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.FolderOpen, contentDescription = null)
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_open_in_web)) },
+                                onClick = {
+                                    showMenu = false
+                                    onOpenInWebView()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Language, contentDescription = null)
+                                },
+                            )
                             HorizontalDivider(
                                 modifier = Modifier.padding(vertical = 4.dp),
                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
@@ -1826,20 +1887,6 @@ fun ChatScreen(
                                     Icon(Icons.Default.RateReview, contentDescription = null)
                                 },
                             )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 4.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.menu_open_in_web)) },
-                                onClick = {
-                                    showMenu = false
-                                    onOpenInWebView()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Language, contentDescription = null)
-                                }
-                            )
                             // Show Share or Unshare depending on current share status
                             if (uiState.shareUrl != null) {
                                 DropdownMenuItem(
@@ -1904,6 +1951,10 @@ fun ChatScreen(
                     active = uiState.isLoading && uiState.messages.isEmpty(),
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
+            }
+                if (!isServerConnected) {
+                    DisconnectedServerBanner()
+                }
             }
             }
         },
@@ -2185,18 +2236,10 @@ fun ChatScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(if (isTerminalMode) PaddingValues(0.dp) else padding)
         ) {
             when {
                 isTerminalMode -> {
-                    // IME inset relative to content area. Some devices report 0 for
-                    // ime.exclude(navigationBars), so keep a robust fallback to raw ime.
-                    val imeBottomRaw = WindowInsets.ime.getBottom(density)
-                    val navBottom = WindowInsets.navigationBars.getBottom(density)
-                    val imeBottomPx = (imeBottomRaw - navBottom).coerceAtLeast(0).let { adjusted ->
-                        if (adjusted == 0 && imeBottomRaw > 0) imeBottomRaw else adjusted
-                    }
-                    val imeBottomDp = with(density) { imeBottomPx.toDp() }
                     val overlayHeightDp = with(density) { terminalOverlayHeightPx.toDp() }
 
                     ModalNavigationDrawer(
@@ -2207,7 +2250,8 @@ fun ChatScreen(
                                 drawerContainerColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surface,
                                 drawerContentColor = MaterialTheme.colorScheme.onSurface,
                                 drawerTonalElevation = 0.dp,
-                                drawerShape = RoundedCornerShape(0.dp)
+                                drawerShape = RoundedCornerShape(0.dp),
+                                windowInsets = WindowInsets(0, 0, 0, 0),
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -2217,8 +2261,10 @@ fun ChatScreen(
                                     Column(
                                         modifier = Modifier
                                             .fillMaxHeight()
-                                            .padding(vertical = 8.dp)
-                                            .imePadding(),
+                                            .windowInsetsPadding(
+                                                WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical),
+                                            )
+                                            .padding(vertical = 8.dp),
                                         verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                     LazyColumn(
@@ -2312,10 +2358,20 @@ fun ChatScreen(
                                                                             }
                                                                         }
                                                                     },
-                                                                    modifier = Modifier.size(48.dp),
+                                                                    modifier = Modifier
+                                                                        .size(48.dp)
+                                                                        .then(
+                                                                            if (isAmoled) {
+                                                                                Modifier.border(
+                                                                                    1.dp,
+                                                                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+                                                                                    CircleShape,
+                                                                                )
+                                                                            } else Modifier
+                                                                        ),
                                                                     colors = IconButtonDefaults.iconButtonColors(
                                                                         containerColor = if (isAmoled) {
-                                                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
+                                                                            Color.Black
                                                                         } else {
                                                                             MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
                                                                         }
@@ -2329,10 +2385,20 @@ fun ChatScreen(
                                                             }
                                                             IconButton(
                                                                 onClick = { viewModel.closeTerminalTab(tab.id) },
-                                                                modifier = Modifier.size(48.dp),
+                                                                modifier = Modifier
+                                                                    .size(48.dp)
+                                                                    .then(
+                                                                        if (isAmoled) {
+                                                                            Modifier.border(
+                                                                                1.dp,
+                                                                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+                                                                                CircleShape,
+                                                                            )
+                                                                        } else Modifier
+                                                                    ),
                                                                 colors = IconButtonDefaults.iconButtonColors(
                                                                     containerColor = if (isAmoled) {
-                                                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
+                                                                        Color.Black
                                                                     } else {
                                                                         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
                                                                     }
@@ -2423,7 +2489,13 @@ fun ChatScreen(
                             }
                         }
                     ) {
-                        Box(modifier = Modifier.fillMaxSize()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .windowInsetsPadding(
+                                    WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical),
+                                ),
+                        ) {
                             SessionTerminalInline(
                                 emulator = viewModel.terminalEmulator,
                                 terminalVersion = terminalVersion,
@@ -2436,7 +2508,7 @@ fun ChatScreen(
                                 },
                                 fontSizeSp = terminalFontSizeSp,
                                 onFontSizeChange = viewModel::setTerminalFontSize,
-                                contentBottomPadding = overlayHeightDp + imeBottomDp,
+                                contentBottomPadding = overlayHeightDp,
                                 modifier = Modifier.fillMaxSize()
                             )
 
@@ -2518,17 +2590,27 @@ fun ChatScreen(
                                 }
                             }
 
+                            if (showTerminalPanelHintOverlay && !terminalDrawerState.isOpen) {
+                                TerminalPanelCoachmark(
+                                    usesGestureNavigation = usesGestureNavigation,
+                                    modifier = Modifier
+                                        .align(Alignment.CenterStart)
+                                        .zIndex(3f),
+                                )
+                            }
+
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.CenterStart)
                                     .fillMaxHeight()
-                                    .padding(bottom = overlayHeightDp + imeBottomDp)
+                                    .padding(bottom = overlayHeightDp)
                                     .width(18.dp)
                                     .zIndex(0f)
                                     .pointerInput(terminalDrawerState) {
                                         detectTapGestures(
                                             onLongPress = {
                                                 if (!terminalDrawerState.isOpen) {
+                                                    showTerminalPanelHintOverlay = false
                                                     coroutineScope.launch { terminalDrawerState.open() }
                                                 }
                                             }
@@ -2536,11 +2618,13 @@ fun ChatScreen(
                                     }
                                     .pointerInput(terminalDrawerState) {
                                         var dragged = 0f
+                                        val openThreshold = 32.dp.toPx()
                                         detectHorizontalDragGestures(
                                             onHorizontalDrag = { _, dragAmount ->
                                                 if (terminalDrawerState.isOpen) return@detectHorizontalDragGestures
                                                 dragged += dragAmount
-                                                if (dragged > 2f) {
+                                                if (dragged > openThreshold) {
+                                                    showTerminalPanelHintOverlay = false
                                                     coroutineScope.launch { terminalDrawerState.open() }
                                                     dragged = 0f
                                                 }
@@ -2549,7 +2633,11 @@ fun ChatScreen(
                                             onDragCancel = { dragged = 0f }
                                         )
                                     }
-                            )
+                            ) {
+                                if (showTerminalPanelHintOverlay && !terminalDrawerState.isOpen) {
+                                    TerminalPanelEdgeHighlight(modifier = Modifier.fillMaxSize())
+                                }
+                            }
 
                         TerminalKeyboardOverlay(
                             connected = terminalConnected,
@@ -2566,7 +2654,6 @@ fun ChatScreen(
                                     .align(Alignment.BottomCenter)
                                     .zIndex(1f)
                                     .fillMaxWidth()
-                                    .padding(bottom = imeBottomDp)
                                     .onSizeChanged { terminalOverlayHeightPx = it.height }
                             )
 
@@ -3141,6 +3228,38 @@ private fun AttachmentSourceCard(
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DisconnectedServerBanner() {
+    val isAmoled = isAmoledTheme()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.errorContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.CloudOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(17.dp),
+            )
+            Text(
+                text = stringResource(R.string.chat_server_disconnected),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isAmoled) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onErrorContainer
+                },
             )
         }
     }
@@ -3773,7 +3892,6 @@ private fun SessionTerminalInline(
             val verticalOffsetPx = firstVisibleRow * rowHeightPx
             LaunchedEffect(termCols, termRows, connected, pinchActive) {
                 if (!pinchActive && connected && viewportWidthPx > 0 && viewportHeightPx > 0) {
-                    delay(150)
                     onResize(termCols, termRows)
                 }
             }
@@ -3784,20 +3902,15 @@ private fun SessionTerminalInline(
                     windowRows = termRows,
                 )
             }
-            val cursorAlpha = if (terminalLifecycleActive) {
-                val cursorAnim = rememberInfiniteTransition(label = "terminal_cursor")
-                val animatedAlpha by cursorAnim.animateFloat(
-                    initialValue = 1f,
-                    targetValue = 0f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(durationMillis = 700),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "terminal_cursor_alpha"
-                )
-                animatedAlpha
-            } else {
-                1f
+            var cursorBlinkOn by remember { mutableStateOf(true) }
+            LaunchedEffect(terminalLifecycleActive, emulator.cursorBlinkEnabled, terminalVersion) {
+                cursorBlinkOn = true
+                if (terminalLifecycleActive && emulator.cursorBlinkEnabled) {
+                    while (true) {
+                        delay(500)
+                        cursorBlinkOn = !cursorBlinkOn
+                    }
+                }
             }
 
             val accessibilityOutput = remember(terminalVersion, scrollbackOffsetRows, termRows) {
@@ -4007,7 +4120,13 @@ private fun SessionTerminalInline(
                     }
                 }
 
-                if (connected && cursorPos != null) {
+                if (
+                    connected &&
+                    terminalLifecycleActive &&
+                    emulator.cursorVisible &&
+                    (!emulator.cursorBlinkEnabled || cursorBlinkOn) &&
+                    cursorPos != null
+                ) {
                     val cursorCol = cursorPos.second.coerceIn(0, (termCols - 1).coerceAtLeast(0))
                     val cursorRow = cursorPos.first.coerceIn(0, (termRows - 1).coerceAtLeast(0))
                     val cursorX = with(LocalDensity.current) { (cursorCol * charWidthPx).toDp() }
@@ -4015,13 +4134,138 @@ private fun SessionTerminalInline(
                     val cursorW = with(LocalDensity.current) { charWidthPx.toDp() }
                     val cursorH = with(LocalDensity.current) { rowHeightPx.toDp() }
 
-                    Box(
-                        modifier = Modifier
-                            .offset(x = cursorX, y = cursorY)
-                            .size(width = cursorW, height = cursorH)
-                            .background(Color(0xFFD3D7CF).copy(alpha = cursorAlpha))
+                    val cursorModifier = Modifier.offset(x = cursorX, y = cursorY).then(
+                        when (emulator.cursorStyle) {
+                            TerminalCursorStyle.BLOCK -> Modifier
+                                .size(width = cursorW, height = cursorH)
+                            TerminalCursorStyle.UNDERLINE -> Modifier
+                                .offset(y = cursorH - 2.dp)
+                                .size(width = cursorW, height = 2.dp)
+                            TerminalCursorStyle.BAR -> Modifier
+                                .size(width = 2.dp, height = cursorH)
+                        },
                     )
+                    Box(modifier = cursorModifier.background(Color(0xFFD3D7CF)))
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TerminalPanelEdgeHighlight(
+    modifier: Modifier = Modifier,
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    val transition = rememberInfiniteTransition(label = "terminal_panel_hint")
+    val progress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "terminal_panel_hint_progress",
+    )
+
+    Box(
+        modifier = modifier
+            .graphicsLayer { alpha = 0.5f + progress * 0.5f }
+            .background(accent.copy(alpha = 0.2f)),
+    )
+}
+
+@Composable
+private fun TerminalPanelCoachmark(
+    usesGestureNavigation: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val isAmoled = isAmoledTheme()
+    val accent = MaterialTheme.colorScheme.primary
+    val coachmarkColor = if (isAmoled) Color(0xFF242429) else MaterialTheme.colorScheme.surfaceContainerHigh
+    val transition = rememberInfiniteTransition(label = "terminal_panel_swipe_hint")
+    val swipeProgress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "terminal_panel_swipe_progress",
+    )
+    Row(
+        modifier = modifier.offset(x = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Canvas(
+            modifier = Modifier
+                .width(8.dp)
+                .height(18.dp),
+        ) {
+            val path = Path().apply {
+                moveTo(size.width, 0f)
+                lineTo(0f, size.height / 2f)
+                lineTo(size.width, size.height)
+                close()
+            }
+            drawPath(path = path, color = coachmarkColor)
+        }
+        Surface(
+            modifier = Modifier
+                .padding(end = 28.dp)
+                .widthIn(max = 260.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = coachmarkColor,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shadowElevation = if (isAmoled) 0.dp else 5.dp,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (!usesGestureNavigation) {
+                    Canvas(
+                        modifier = Modifier
+                            .width(34.dp)
+                            .height(24.dp),
+                    ) {
+                        val centerY = size.height / 2f
+                        val startX = 3.dp.toPx()
+                        val endX = 31.dp.toPx()
+                        val movingX = startX + (endX - startX) * swipeProgress
+                        drawLine(
+                            color = accent.copy(alpha = 0.45f),
+                            start = Offset(startX, centerY),
+                            end = Offset(endX, centerY),
+                            strokeWidth = 2.dp.toPx(),
+                        )
+                        drawLine(
+                            color = accent,
+                            start = Offset(endX - 6.dp.toPx(), centerY - 5.dp.toPx()),
+                            end = Offset(endX, centerY),
+                            strokeWidth = 2.dp.toPx(),
+                        )
+                        drawLine(
+                            color = accent,
+                            start = Offset(endX - 6.dp.toPx(), centerY + 5.dp.toPx()),
+                            end = Offset(endX, centerY),
+                            strokeWidth = 2.dp.toPx(),
+                        )
+                        drawCircle(accent, radius = 3.dp.toPx(), center = Offset(movingX, centerY))
+                    }
+                }
+                Text(
+                    text = stringResource(
+                        if (usesGestureNavigation) {
+                            R.string.chat_terminal_panel_hint_gestures
+                        } else {
+                            R.string.chat_terminal_panel_hint_swipe
+                        },
+                    ),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
     }
@@ -4070,21 +4314,14 @@ private fun TerminalKeyboardOverlay(
                     TerminalKey("/") { onSendInput("/") },
                     TerminalKey("-", popupLabel = "|", popupAction = { onSendInput("|") }) { onSendInput("-") },
                     TerminalKey("HOME") { onSendInput(home) },
-                    TerminalKey("\u2191") { onSendInput(arrowUp) },
+                    TerminalKey(arrow = TerminalArrowDirection.UP, repeatable = true) { onSendInput(arrowUp) },
                     TerminalKey("END") { onSendInput(end) },
                     TerminalKey("PGUP") { onSendInput("\u001B[5~") },
                 )
             )
-            // Thin divider between rows
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(
-                        if (isAmoled) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
-                        else Color(0xFF333333)
-                    )
-            )
+            if (!isAmoled) {
+                HorizontalDivider(thickness = 1.dp, color = Color(0xFF333333))
+            }
             // Row 2: matches Termux default extra keys
             TerminalKeyRow(
                 isAmoled = isAmoled,
@@ -4092,9 +4329,9 @@ private fun TerminalKeyboardOverlay(
                     TerminalKey("\u21B9") { onSendInput("\t") },
                     TerminalKey("CTRL", active = ctrlLatched, action = onToggleCtrl),
                     TerminalKey("ALT", active = altLatched, action = onToggleAlt),
-                    TerminalKey("\u2190") { onSendInput(arrowLeft) },
-                    TerminalKey("\u2193") { onSendInput(arrowDown) },
-                    TerminalKey("\u2192") { onSendInput(arrowRight) },
+                    TerminalKey(arrow = TerminalArrowDirection.LEFT, repeatable = true) { onSendInput(arrowLeft) },
+                    TerminalKey(arrow = TerminalArrowDirection.DOWN, repeatable = true) { onSendInput(arrowDown) },
+                    TerminalKey(arrow = TerminalArrowDirection.RIGHT, repeatable = true) { onSendInput(arrowRight) },
                     TerminalKey("PGDN") { onSendInput("\u001B[6~") },
                 )
             )
@@ -4103,12 +4340,16 @@ private fun TerminalKeyboardOverlay(
 }
 
 private data class TerminalKey(
-    val label: String,
+    val label: String = "",
     val active: Boolean = false,
     val popupLabel: String? = null,
     val popupAction: (() -> Unit)? = null,
+    val arrow: TerminalArrowDirection? = null,
+    val repeatable: Boolean = false,
     val action: () -> Unit
 )
+
+private enum class TerminalArrowDirection { UP, DOWN, LEFT, RIGHT }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -4124,6 +4365,40 @@ private fun TerminalKeyRow(keys: List<TerminalKey>, isAmoled: Boolean) {
                         .width(1.dp)
                         .height(34.dp)
                         .background(Color(0xFF333333))
+                )
+            }
+            val keyColor = when {
+                isAmoled && key.active -> MaterialTheme.colorScheme.primary
+                isAmoled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
+                key.active -> Color(0xFF80CBC4)
+                else -> Color(0xFFCCCCCC)
+            }
+            val interactionModifier = if (key.repeatable) {
+                Modifier.pointerInput(key.action) {
+                    detectTapGestures(
+                        onPress = {
+                            key.action()
+                            kotlinx.coroutines.coroutineScope {
+                                val repeatJob = launch {
+                                    delay(400)
+                                    while (true) {
+                                        key.action()
+                                        delay(70)
+                                    }
+                                }
+                                try {
+                                    tryAwaitRelease()
+                                } finally {
+                                    repeatJob.cancel()
+                                }
+                            }
+                        },
+                    )
+                }
+            } else {
+                Modifier.combinedClickable(
+                    onClick = key.action,
+                    onLongClick = { key.popupAction?.invoke() },
                 )
             }
             Box(
@@ -4145,27 +4420,47 @@ private fun TerminalKeyRow(keys: List<TerminalKey>, isAmoled: Boolean) {
                             else -> Modifier
                         }
                     )
-                    .combinedClickable(
-                        onClick = key.action,
-                        onLongClick = { key.popupAction?.invoke() }
-                    )
+                    .then(interactionModifier)
             ) {
-                Text(
-                    text = key.label,
-                    maxLines = 1,
-                    softWrap = false,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 13.sp
-                    ),
-                    color = when {
-                        isAmoled && key.active -> MaterialTheme.colorScheme.primary
-                        isAmoled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
-                        key.active -> Color(0xFF80CBC4)
-                        else -> Color(0xFFCCCCCC)
-                    }
-                )
+                if (key.arrow != null) {
+                    TerminalArrow(key.arrow, keyColor)
+                } else {
+                    Text(
+                        text = key.label,
+                        maxLines = 1,
+                        softWrap = false,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = if (key.label.length == 1) 16.sp else 14.sp,
+                        ),
+                        color = keyColor,
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun TerminalArrow(direction: TerminalArrowDirection, color: Color) {
+    Canvas(modifier = Modifier.size(16.dp)) {
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val shaft = 8.dp.toPx()
+        val head = 5.dp.toPx()
+        val stroke = 1.25.dp.toPx()
+        val (start, end) = when (direction) {
+            TerminalArrowDirection.UP -> Offset(center.x, center.y + shaft) to Offset(center.x, center.y - shaft)
+            TerminalArrowDirection.DOWN -> Offset(center.x, center.y - shaft) to Offset(center.x, center.y + shaft)
+            TerminalArrowDirection.LEFT -> Offset(center.x + shaft, center.y) to Offset(center.x - shaft, center.y)
+            TerminalArrowDirection.RIGHT -> Offset(center.x - shaft, center.y) to Offset(center.x + shaft, center.y)
+        }
+        drawLine(color, start, end, stroke, cap = StrokeCap.Round)
+        val heads = when (direction) {
+            TerminalArrowDirection.UP -> listOf(Offset(end.x - head, end.y + head), Offset(end.x + head, end.y + head))
+            TerminalArrowDirection.DOWN -> listOf(Offset(end.x - head, end.y - head), Offset(end.x + head, end.y - head))
+            TerminalArrowDirection.LEFT -> listOf(Offset(end.x + head, end.y - head), Offset(end.x + head, end.y + head))
+            TerminalArrowDirection.RIGHT -> listOf(Offset(end.x - head, end.y - head), Offset(end.x - head, end.y + head))
+        }
+        heads.forEach { drawLine(color, end, it, stroke, cap = StrokeCap.Round) }
     }
 }
 
@@ -6676,6 +6971,8 @@ private fun TaskToolCard(
     val isAmoled = isAmoledTheme()
     val input = extractToolInput(tool)
     val description = input["description"]?.jsonPrimitive?.contentOrNull
+    val subagentType = input["subagent_type"]?.jsonPrimitive?.contentOrNull
+        ?.takeIf { it.isNotBlank() }
     val output = extractToolOutput(tool)
 
     val serverTitle = when (val s = tool.state) {
@@ -6737,7 +7034,7 @@ private fun TaskToolCard(
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = serverTitle ?: stringResource(R.string.tool_sub_agent),
+                            text = subagentType ?: serverTitle ?: stringResource(R.string.tool_sub_agent),
                             style = MaterialTheme.typography.labelMedium,
                             maxLines = 1
                         )
@@ -7067,27 +7364,20 @@ private fun ImageThumbnailRow(
 ) {
     var previewIndex by remember { mutableStateOf(-1) }
     val requestSaveImage = LocalImageSaveRequest.current
+    val appCacheDirectory = LocalContext.current.cacheDir
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         for ((index, file) in imageFiles.withIndex()) {
-            val bitmap = remember(file.url) {
-                try {
-                    val url = file.url ?: return@remember null
-                    val base64Data = if (url.contains(",")) url.substringAfter(",") else url
-                    val bytes = Base64.decode(base64Data, Base64.DEFAULT)
-                    android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                } catch (e: Exception) {
-                    Log.e("FileCard", "Failed to decode image: ${e.message}")
-                    null
-                }
+            val imageModel = remember(file.url, appCacheDirectory) {
+                partFileImageModel(file, appCacheDirectory)
             }
 
-            if (bitmap != null) {
-                androidx.compose.foundation.Image(
-                    bitmap = bitmap.asImageBitmap(),
+            if (imageModel != null) {
+                AsyncImage(
+                    model = imageModel,
                     contentDescription = file.filename ?: stringResource(R.string.chat_image),
                     modifier = Modifier
                         .size(80.dp)
@@ -7118,14 +7408,16 @@ private fun ImageThumbnailRow(
     // Fullscreen image preview dialog
     if (previewIndex >= 0 && previewIndex < imageFiles.size) {
         val file = imageFiles[previewIndex]
-        val imageBytes = remember(file.url) { decodePartFileBytes(file) }
-        val bitmap = remember(imageBytes) {
-            imageBytes?.let { bytes -> android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
+        val imageBytes = remember(file.url, appCacheDirectory) {
+            decodePartFileBytes(file, appCacheDirectory)
+        }
+        val imageModel = remember(file.url, appCacheDirectory) {
+            partFileImageModel(file, appCacheDirectory)
         }
 
-        if (bitmap != null) {
+        if (imageModel != null) {
             ImagePreviewDialog(
-                imageModel = bitmap,
+                imageModel = imageModel,
                 contentDescription = file.filename ?: stringResource(R.string.chat_image),
                 onDismiss = { previewIndex = -1 },
                 onSave = {

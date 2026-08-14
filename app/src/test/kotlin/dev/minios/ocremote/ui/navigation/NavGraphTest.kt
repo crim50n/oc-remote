@@ -9,6 +9,30 @@ import org.junit.Test
 
 class NavGraphTest {
     @Test
+    fun `share picker does not reopen after a target session is selected`() {
+        assertEquals(
+            false,
+            shouldReopenSharePicker(
+                waitingForConnection = true,
+                pickerVisible = false,
+                hasPendingAttachments = true,
+                targetSessionId = "session-1",
+                hasConnectedServers = true,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldReopenSharePicker(
+                waitingForConnection = true,
+                pickerVisible = false,
+                hasPendingAttachments = true,
+                targetSessionId = null,
+                hasConnectedServers = true,
+            ),
+        )
+    }
+
+    @Test
     fun `share picker puts connected favorites first in global order`() {
         val firstServer = ServerConfig(id = "server-a", url = "http://a")
         val secondServer = ServerConfig(id = "server-b", url = "http://b")

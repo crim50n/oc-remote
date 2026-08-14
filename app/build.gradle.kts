@@ -18,8 +18,8 @@ android {
         applicationId = "dev.minios.ocremote"
         minSdk = 26
         targetSdk = 34
-        versionCode = 25
-        versionName = "1.8.1"
+        versionCode = 26
+        versionName = "1.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -99,6 +99,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("sh.calvin.reorderable:reorderable:3.1.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
@@ -122,6 +123,7 @@ dependencies {
 
     // Kotlinx Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
+    implementation("com.google.code.gson:gson:2.11.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")

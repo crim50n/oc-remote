@@ -211,6 +211,7 @@
     <string name="chat_stop">Stop</string>
     <string name="chat_abort">Abort</string>
     <string name="chat_empty">Start a conversation with OpenCode</string>
+    <string name="chat_server_disconnected">Server disconnected</string>
     <string name="chat_copy">Copy</string>
     <string name="chat_revert">Revert</string>
     <string name="chat_revert_title">Revert message?</string>
@@ -386,6 +387,8 @@
     <string name="chat_terminal_clear">Clear</string>
     <string name="chat_terminal_connect_failed">Failed to open terminal</string>
     <string name="chat_terminal_tap_keyboard">Tap to open keyboard</string>
+    <string name="chat_terminal_panel_hint_swipe">Swipe right from the left edge to open the terminal panel. You can also touch and hold the edge.</string>
+    <string name="chat_terminal_panel_hint_gestures">Touch and hold the left edge of the screen to open the terminal panel.</string>
     
     <!-- Patch File Actions -->
     <string name="patch_created">Created</string>
@@ -423,6 +426,8 @@
     <string name="settings_notifications_desc">Notify when agent completes a task</string>
 
     <string name="settings_initial_messages">Messages to load initially</string>
+    <string name="settings_history_response_limit">History response memory limit</string>
+    <string name="settings_history_response_limit_value">%1$d MB</string>
     <string name="settings_recent_directories">Recent directories</string>
     <string name="settings_recent_directories_desc">%1$d directories in the quick new-session dialog</string>
     <string name="settings_code_word_wrap">Word wrap in code blocks</string>
@@ -484,6 +489,8 @@
     <string name="settings_categories_empty">No categories yet</string>
     <string name="settings_terminal_font_size">Terminal default font size</string>
     <string name="settings_terminal_font_size_value">%1$d sp</string>
+    <string name="settings_terminal_panel_hint">Terminal panel hint</string>
+    <string name="settings_terminal_panel_hint_desc">Show panel-opening instructions once each time the app starts</string>
     <string name="settings_silent_notifications">Silent notifications</string>
     <string name="settings_silent_notifications_desc">Suppress sound and vibration for task notifications</string>
     <string name="dialog_select_reconnect_mode">Select reconnect mode</string>
@@ -617,6 +624,18 @@
 
     <!-- Chat menu actions -->
     <string name="menu_open_in_web">Open in Web</string>
+    <string name="menu_workspace_files">Workspace files</string>
+    <string name="workspace_files_title">Workspace files</string>
+    <string name="workspace_download_file">Download file</string>
+    <string name="workspace_file_saved">File saved</string>
+    <string name="workspace_file_save_failed">Could not save file</string>
+    <string name="workspace_load_failed">Could not load workspace files</string>
+    <string name="workspace_empty_directory">This folder is empty</string>
+    <string name="workspace_ignored">Ignored</string>
+    <string name="workspace_binary_unavailable">This server does not provide the contents of this binary file.</string>
+    <string name="workspace_word_wrap">Wrap long lines</string>
+    <string name="workspace_markdown_preview">Show formatted Markdown</string>
+    <string name="workspace_markdown_raw">Show Markdown source</string>
     <string name="menu_reload_session">Reload session</string>
     <string name="menu_new_session">New session</string>
     <string name="menu_fork_session">Fork session</string>
@@ -664,6 +683,7 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <!-- Settings sync -->
     <string name="sync_title">Settings sync</string>
     <string name="sync_settings_desc">Sync settings and servers through Gist or WebDAV</string>
+    <string name="sync_settings_desc_v2">Sync settings and servers through Gist, WebDAV, or a system file provider</string>
     <string name="sync_settings_primary_desc">Keep settings and servers in a primary storage and optionally mirror them to a backup</string>
     <string name="sync_settings_primary_backup_desc">Keep settings and servers in the primary sync storage and optionally mirror them to the backup sync storage</string>
     <string name="sync_settings_primary_backup_destination_desc">Keep settings and servers at the primary sync destination and optionally mirror them to the backup destination</string>
@@ -671,8 +691,10 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_backend">Storage</string>
     <string name="sync_storage_desc">Enable one or both storages and choose which one is the source of truth. The other storage is maintained as a backup.</string>
     <string name="sync_single_storage_desc">Choose one storage for synchronization. Gist and WebDAV connection settings are kept separately when you switch.</string>
+    <string name="sync_single_storage_desc_v2">Choose one storage for synchronization. Connection settings are kept separately when you switch.</string>
     <string name="sync_backend_gist">GitHub Gist</string>
     <string name="sync_backend_webdav">WebDAV</string>
+    <string name="sync_backend_document">File</string>
     <string name="sync_gist_id">Gist ID or URL</string>
     <string name="sync_gist_id_desc">Leave empty to create a private Gist</string>
     <string name="sync_github_token">GitHub token</string>
@@ -680,6 +702,13 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_webdav_url_desc">Full URL of the OCRemote.json file</string>
     <string name="sync_username">Username</string>
     <string name="sync_webdav_password">WebDAV password</string>
+    <string name="sync_document_desc">Choose an OCRemote.json file from Google Drive or any other app available in the system file picker.</string>
+    <string name="sync_document_choose">Choose file</string>
+    <string name="sync_document_create">Create file</string>
+    <string name="sync_document_selected">Selected sync file</string>
+    <string name="sync_document_not_selected">No sync file selected</string>
+    <string name="sync_document_access_persisted">The app retains access for manual and automatic sync</string>
+    <string name="sync_document_permission_error">Permanent read and write access is required. Choose a provider that supports persistent document access.</string>
     <string name="sync_credential_saved_hint">Leave empty to keep the securely stored value</string>
     <string name="sync_credential_stored">Stored securely; enter a new value to replace it</string>
     <string name="sync_credential_stored_short">Stored securely</string>

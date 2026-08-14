@@ -46,6 +46,14 @@ internal fun Throwable.rethrowCancellation() {
 }
 private const val MAX_REVERT_RECOVERY_PAGES = 20
 private const val MAX_CHILD_SESSIONS = 100
+private const val FAST_INITIAL_MESSAGE_COUNT = 10
+private const val BACKGROUND_MESSAGE_PAGE_COUNT = 25
+
+internal fun fastInitialMessageLimit(configuredLimit: Int): Int =
+    configuredLimit.coerceAtLeast(1).coerceAtMost(FAST_INITIAL_MESSAGE_COUNT)
+
+internal fun backgroundMessageLimit(loadedCount: Int, configuredLimit: Int): Int =
+    (configuredLimit - loadedCount).coerceIn(1, BACKGROUND_MESSAGE_PAGE_COUNT)
 
 internal fun descendantSessionIds(sessions: List<Session>, rootSessionId: String): Set<String> {
     val result = linkedSetOf(rootSessionId)
@@ -331,6 +339,8 @@ class ChatViewModel @Inject constructor(
     val imageAttachmentWebpQuality = settingsRepository.imageAttachmentWebpQuality.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), 60
     )
+
+    suspend fun shouldShowTerminalPanelHint(): Boolean = settingsRepository.showTerminalPanelHint.first()
     // ============ Pagination ============
     /** Current message limit (doubles each time user loads older messages). */
     private var currentMessageLimit = 50
@@ -668,34 +678,19 @@ class ChatViewModel @Inject constructor(
             _isLoading.value = true
             _error.value = null
             try {
+                val initialLimit = fastInitialMessageLimit(currentMessageLimit)
                 val firstPage = api.listMessagesPage(
                     conn,
                     sessionId,
-                    limit = currentMessageLimit,
+                    limit = initialLimit,
                     directory = sessionDirectory,
                 )
                 val messages = firstPage.messages.toMutableList()
                 val revertMessageId = eventReducer.sessions.value.find { it.id == sessionId }?.revert?.messageId
                 var nextCursor = firstPage.nextCursor
+                val knownIds = messages.mapTo(mutableSetOf()) { it.info.id }
                 var recoveryPages = 0
-                while (
-                    nextCursor != null &&
-                    recoveryPages < MAX_REVERT_RECOVERY_PAGES &&
-                    needsOlderHistoryForRevert(messages.map { it.info.id }, revertMessageId)
-                ) {
-                    val requestedCursor = nextCursor
-                    val olderPage = api.listMessagesPage(
-                        conn,
-                        sessionId,
-                        limit = currentMessageLimit,
-                        before = requestedCursor,
-                        directory = sessionDirectory,
-                    )
-                    messages += olderPage.messages
-                    recoveryPages++
-                    nextCursor = olderPage.nextCursor?.takeUnless { it == requestedCursor }
-                    if (olderPage.messages.isEmpty()) break
-                }
+
                 olderMessagesCursor = nextCursor
                 eventReducer.mergeMessages(sessionId, messages)
                 reconcilePendingPrompts(
@@ -703,10 +698,57 @@ class ChatViewModel @Inject constructor(
                     minimumAgeMs = 10_000L,
                 )
                 _hasOlderMessages.value = nextCursor != null
+                _isLoading.value = false
                 if (BuildConfig.DEBUG) {
                     Log.d(
                         TAG,
-                        "Loaded ${messages.size} messages for session $sessionId " +
+                        "Displayed initial ${messages.size} messages for session $sessionId " +
+                            "(requested=$initialLimit, hasOlder=${_hasOlderMessages.value})",
+                    )
+                }
+
+                while (nextCursor != null) {
+                    val needsConfiguredHistory = messages.size < currentMessageLimit
+                    val needsRevertHistory = !needsConfiguredHistory &&
+                        recoveryPages < MAX_REVERT_RECOVERY_PAGES &&
+                        needsOlderHistoryForRevert(knownIds, revertMessageId)
+                    if (!needsConfiguredHistory && !needsRevertHistory) break
+
+                    val requestedCursor = nextCursor
+                    val pageLimit = if (needsConfiguredHistory) {
+                        backgroundMessageLimit(messages.size, currentMessageLimit)
+                    } else {
+                        currentMessageLimit
+                    }
+                    _isLoadingOlder.value = true
+                    val olderPage = try {
+                        api.listMessagesPage(
+                            conn,
+                            sessionId,
+                            limit = pageLimit,
+                            before = requestedCursor,
+                            directory = sessionDirectory,
+                        )
+                    } catch (e: Exception) {
+                        e.rethrowCancellation()
+                        Log.e(TAG, "Failed to preload older messages", e)
+                        break
+                    }
+                    messages += olderPage.messages
+                    knownIds += olderPage.messages.map { it.info.id }
+                    eventReducer.mergeMessages(sessionId, olderPage.messages)
+                    if (needsRevertHistory) recoveryPages++
+                    nextCursor = olderPage.nextCursor?.takeUnless { it == requestedCursor }
+                    olderMessagesCursor = nextCursor
+                    _hasOlderMessages.value = nextCursor != null
+                    if (olderPage.messages.isEmpty()) break
+                }
+                olderMessagesCursor = nextCursor
+                _hasOlderMessages.value = nextCursor != null
+                if (BuildConfig.DEBUG) {
+                    Log.d(
+                        TAG,
+                        "Finished background history load: ${messages.size} messages for session $sessionId " +
                             "(limit=$currentMessageLimit, revertRecoveryPages=$recoveryPages, hasOlder=${_hasOlderMessages.value})",
                     )
                 }
@@ -739,6 +781,7 @@ class ChatViewModel @Inject constructor(
                 }
             } finally {
                 _isLoading.value = false
+                _isLoadingOlder.value = false
             }
         }
     }
@@ -862,9 +905,12 @@ class ChatViewModel @Inject constructor(
                 questions = sessionQuestions,
                 expectedRevision = revision,
             )
-            if (BuildConfig.DEBUG) {
-                Log.d(TAG, "Loaded ${sessionPermissions.size} permissions and ${sessionQuestions.size} questions for session $sessionId: applied=$applied")
-            }
+            Log.i(
+                TAG,
+                "Pending requests loaded: session=$sessionId descendants=${interactionSessionIds.size} " +
+                    "permissions=${sessionPermissions.size}/${allPermissions.size} " +
+                    "questions=${sessionQuestions.size}/${allQuestions.size} applied=$applied",
+            )
         } catch (e: Exception) {
             e.rethrowCancellation()
             Log.e(TAG, "Failed to load pending requests: ${e.javaClass.simpleName}: ${e.message}", e)
@@ -1445,7 +1491,10 @@ class ChatViewModel @Inject constructor(
                     onResult(false)
                     return@launch
                 }
-                api.revertSession(conn, sessionId, lastUser.message.id)
+                val revertedSession = api.revertSession(conn, sessionId, lastUser.message.id)
+                eventReducer.upsertSession(serverId, revertedSession)
+                pendingPromptRepository.remove(lastUser.message.id)
+                _pendingPrompts.value = _pendingPrompts.value.filterNot { it.messageId == lastUser.message.id }
                 if (BuildConfig.DEBUG) Log.d(TAG, "Reverted session $sessionId to message ${lastUser.message.id}")
                 // Restore the user message text to the input field
                 restoreRevertedDraft(extractRevertedDraft(lastUser))
@@ -1461,7 +1510,10 @@ class ChatViewModel @Inject constructor(
     fun revertMessage(messageId: String, revertedText: String? = null, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
-                api.revertSession(conn, sessionId, messageId)
+                val revertedSession = api.revertSession(conn, sessionId, messageId)
+                eventReducer.upsertSession(serverId, revertedSession)
+                pendingPromptRepository.remove(messageId)
+                _pendingPrompts.value = _pendingPrompts.value.filterNot { it.messageId == messageId }
                 if (BuildConfig.DEBUG) Log.d(TAG, "Reverted session $sessionId to message $messageId")
                 val targetMessage = uiState.value.messages
                     .lastOrNull { it.message.id == messageId && it.isUser }
