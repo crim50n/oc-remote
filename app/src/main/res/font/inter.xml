@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- Variable font — covers weight 100–900, upright -->
+    <font
+        android:font="@font/inter_variable"
+        android:fontStyle="normal"
+        android:fontWeight="100"
+        app:font="@font/inter_variable"
+        app:fontStyle="normal"
+        app:fontWeight="100" />
+
+    <!-- Variable font — covers weight 100–900, italic -->
+    <font
+        android:font="@font/inter_variable_italic"
+        android:fontStyle="italic"
+        android:fontWeight="100"
+        app:font="@font/inter_variable_italic"
+        app:fontStyle="italic"
+        app:fontWeight="100" />
+
+</font-family>
