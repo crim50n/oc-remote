@@ -24,6 +24,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.automirrored.filled.LabelOff
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -166,6 +168,7 @@ private fun PulsingDotsIndicator(
     }
 }
 
+@Suppress("DEPRECATION")
 @Composable
 private fun ServerRefreshEdge(
     state: SwipeRefreshState,
@@ -182,6 +185,7 @@ private fun ServerRefreshEdge(
  * Session List Screen - shows all sessions for a connected server,
  * grouped by project. Tapping a session navigates to the chat screen.
  */
+@Suppress("DEPRECATION")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionListScreen(
@@ -1517,7 +1521,7 @@ private fun SessionRow(
                                 leadingIcon = {
                                     Icon(
                                         imageVector = item.category?.let { sessionCategoryIcon(it.icon) }
-                                            ?: Icons.Default.Label,
+                                            ?: Icons.AutoMirrored.Filled.Label,
                                         contentDescription = null,
                                         tint = item.category?.let { sessionCategoryColor(it.color) }
                                             ?: LocalContentColor.current,
@@ -1652,7 +1656,7 @@ internal fun SessionCategoryPickerDialog(
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Default.LabelOff, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.LabelOff, contentDescription = null)
                     Text(
                         text = stringResource(R.string.session_category_none),
                         modifier = Modifier.weight(1f).padding(horizontal = 12.dp),

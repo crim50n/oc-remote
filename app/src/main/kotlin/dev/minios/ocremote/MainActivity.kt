@@ -187,7 +187,6 @@ class MainActivity : ComponentActivity() {
             }
             
             OpenCodeTheme(darkTheme = darkTheme, dynamicColor = dynamicColor, amoledDark = amoledDark) {
-                
                 // Set status bar color based on theme
                 SideEffect {
                     val window = this.window
@@ -251,11 +250,8 @@ class MainActivity : ComponentActivity() {
                     putExtra("server_username", savedServer.username)
                     putExtra("server_password", savedServer.password)
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(serviceIntent)
-                } else {
-                    startService(serviceIntent)
-                }
+
+                startForegroundService(serviceIntent)
             } else {
                 Log.w(TAG, "Deep-link server is not configured: $serverUrl")
             }

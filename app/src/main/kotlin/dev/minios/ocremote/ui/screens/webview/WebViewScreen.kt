@@ -114,6 +114,7 @@ fun WebViewScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        @Suppress("DEPRECATION")
         SwipeRefresh(
             state = rememberSwipeRefreshState(isRefreshing),
             onRefresh = { refresh() }
@@ -139,7 +140,6 @@ fun WebViewScreen(
                         settings.apply {
                             javaScriptEnabled = true
                             domStorageEnabled = true
-                            databaseEnabled = true
                             allowContentAccess = true
                             allowFileAccess = false
                             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW

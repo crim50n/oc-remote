@@ -24,9 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Sync
@@ -366,7 +366,7 @@ fun SyncSettingsScreen(
                                     Text(documentName.ifBlank { stringResource(R.string.sync_document_selected) })
                                 },
                                 supportingContent = { Text(stringResource(R.string.sync_document_access_persisted)) },
-                                leadingContent = { Icon(Icons.Default.InsertDriveFile, contentDescription = null) },
+                                leadingContent = { Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = null) },
                             )
                         } else {
                             Text(

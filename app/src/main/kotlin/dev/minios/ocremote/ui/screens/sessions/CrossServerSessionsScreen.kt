@@ -20,7 +20,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.Card
@@ -401,7 +401,7 @@ private fun CrossServerSessionCard(
                         leadingIcon = {
                             Icon(
                                 imageVector = item.category?.let { sessionCategoryIcon(it.icon) }
-                                    ?: Icons.Default.Label,
+                                    ?: Icons.AutoMirrored.Filled.Label,
                                 contentDescription = null,
                                 tint = item.category?.let { sessionCategoryColor(it.color) }
                                     ?: LocalContentColor.current,
