@@ -77,9 +77,9 @@ class SseClient @Inject constructor(
             directory?.let { header("x-opencode-directory", it) }
 
             timeout {
-                requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+                requestTimeoutMillis = Long.MAX_VALUE
                 connectTimeoutMillis = 10_000
-                socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+                socketTimeoutMillis = Long.MAX_VALUE
             }
         }
 

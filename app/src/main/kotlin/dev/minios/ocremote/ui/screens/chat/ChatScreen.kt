@@ -147,9 +147,10 @@ import com.mikepenz.markdown.m3.markdownTypography
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.compose.elements.MarkdownImage
 import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
-import com.mikepenz.markdown.model.DefaultMarkdownAnnotator
+import com.mikepenz.markdown.model.markdownAnnotator
 import com.mikepenz.markdown.model.ImageData
 import com.mikepenz.markdown.model.ImageTransformer
+import androidx.compose.ui.text.TextLinkStyles
 import com.mikepenz.markdown.utils.getUnescapedTextInNode
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
@@ -5293,13 +5294,6 @@ private fun MarkdownContent(
 
     val colors = markdownColor(
         text = textColor,
-        codeText = codeBlockFg,
-        inlineCodeText = inlineCodeFg,
-        linkText = when {
-            isAmoled -> MaterialTheme.colorScheme.primary
-            isUser -> MaterialTheme.colorScheme.onPrimaryContainer
-            else -> MaterialTheme.colorScheme.primary
-        },
         codeBackground = codeBlockBg,
         inlineCodeBackground = Color.Transparent,
         dividerColor = textColor.copy(alpha = 0.32f)
@@ -5348,25 +5342,27 @@ private fun MarkdownContent(
         ordered = bodyStyle,
         bullet = bodyStyle,
         list = bodyStyle,
-        link = bodyStyle.copy(
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Medium
+        textLink = TextLinkStyles(
+            style = bodyStyle.copy(
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium
+            ).toSpanStyle()
         )
     )
 
     val components = markdownComponents(
         codeBlock = safeHighlightedCodeBlock,
         codeFence = safeHighlightedCodeFence,
-        image = { model ->
-            val imageUrl = remember(model.content, model.node) {
-                markdownImageUrl(model.content, model.node)
+        image = { scope ->
+            val imageUrl = remember(scope.content, scope.node) {
+                markdownImageUrl(scope.content, scope.node)
             }
             Box(
                 modifier = Modifier.clickable(enabled = imageUrl != null) {
                     previewImageUrl = imageUrl
                 },
             ) {
-                MarkdownImage(model.content, model.node)
+                MarkdownImage(scope.content, scope.node)
                 if (imageUrl != null) {
                     Surface(
                         modifier = Modifier
@@ -5490,12 +5486,12 @@ internal fun normalizeTaskListMarkers(markdown: String): String {
         }
     }
 }
-internal val ChatMarkdownAnnotator = DefaultMarkdownAnnotator { content, node ->
+internal val ChatMarkdownAnnotator = markdownAnnotator(annotate = { content, node ->
     markdownTokenReplacement(content, node)?.let { replacement ->
         append(replacement)
         true
     } ?: false
-}
+})
 
 private val EmailAutolinkRegex = Regex("<[^<>\\s@]+@[^<>\\s@]+>")
 
@@ -8662,7 +8658,7 @@ private fun ContextUsageDialog(
                         text = "$percentage%",
                         style = MaterialTheme.typography.headlineMedium,
                         color = progressColor,
-                        fontWeight = FontWeigh
+                        fontWeight = FontWeight.SemiBold
                     )
                     Text(
                         text = stringResource(

@@ -63,7 +63,7 @@ internal val horizontallyScrollableMarkdownTable: MarkdownComponent = {
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState()),
     ) {
-        MarkdownTable(it.content, it.node, it.typography.text)
+        MarkdownTable(it.content, it.node, style = it.typography.table)
     }
 }
 
@@ -74,8 +74,8 @@ private fun SafeMarkdownHighlightedCodeFence(
     node: ASTNode,
     highlights: Highlights.Builder = Highlights.Builder(),
 ) {
-    MarkdownCodeFence(content, node) { code, language ->
-        SafeMarkdownHighlightedCode(code, language, highlights)
+    MarkdownCodeFence(content, node) { code, language, style ->
+        SafeMarkdownHighlightedCode(code, language, highlights, style)
     }
 }
 
@@ -85,8 +85,8 @@ private fun SafeMarkdownHighlightedCodeBlock(
     node: ASTNode,
     highlights: Highlights.Builder = Highlights.Builder(),
 ) {
-    MarkdownCodeBlock(content, node) { code, language ->
-        SafeMarkdownHighlightedCode(code, language, highlights)
+    MarkdownCodeBlock(content, node) { code, language, style ->
+        SafeMarkdownHighlightedCode(code, language, highlights, style)
     }
 }
 
@@ -121,7 +121,7 @@ private fun SafeMarkdownHighlightedCode(
         Column(modifier = Modifier.fillMaxWidth()) {
             MarkdownBasicText(
                 annotatedCode,
-                color = LocalMarkdownColors.current.codeText,
+                color = style.color,
                 modifier = codeScrollModifier
                     .padding(codeBlockPadding),
                 style = style,
@@ -143,7 +143,7 @@ private fun SafeMarkdownHighlightedCode(
                         imageVector = Icons.Default.ContentCopy,
                         contentDescription = stringResource(R.string.chat_copy),
                         modifier = Modifier.size(14.dp),
-                        tint = LocalMarkdownColors.current.codeText.copy(alpha = 0.42f),
+                        tint = style.color.copy(alpha = 0.42f),
                     )
                 }
             }
