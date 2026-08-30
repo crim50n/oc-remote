@@ -435,8 +435,7 @@ fun SessionListScreen(
                         modifier = Modifier
                             .align(Alignment.Center)
                             .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Chat,
@@ -444,11 +443,13 @@ fun SessionListScreen(
                             modifier = Modifier.size(64.dp),
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                         )
+                        Spacer(Modifier.height(16.dp))
                         Text(
                             text = stringResource(R.string.sessions_empty),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
+                        Spacer(Modifier.height(8.dp))
                         Text(
                             text = stringResource(R.string.sessions_tap_plus),
                             style = MaterialTheme.typography.bodyMedium,

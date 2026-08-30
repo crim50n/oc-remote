@@ -165,7 +165,12 @@ fun AboutScreen(
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
-                val buttonModifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
+                val buttonModifier = Modifier.fillMaxWidth().padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 4.dp,
+                    bottom = 12.dp
+                )
                 when (val state = updateState) {
                     UpdateState.Idle, UpdateState.UpToDate -> AppPrimaryButton(
                         onClick = viewModel::checkForUpdates,
