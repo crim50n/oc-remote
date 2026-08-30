@@ -107,6 +107,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
@@ -139,13 +140,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.compose.elements.MarkdownImage
-import com.mikepenz.markdown.coil2.Coil2ImageTransformerImpl
+import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
 import com.mikepenz.markdown.model.DefaultMarkdownAnnotator
 import com.mikepenz.markdown.model.ImageData
 import com.mikepenz.markdown.model.ImageTransformer
@@ -3791,6 +3792,7 @@ private fun SessionTerminalInline(
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.None,
                 autoCorrectEnabled = false,
+                keyboardType = KeyboardType.Ascii,
                 imeAction = ImeAction.Send
             ),
             keyboardActions = KeyboardActions(
@@ -5392,10 +5394,10 @@ private fun MarkdownContent(
         table = horizontallyScrollableMarkdownTable,
     )
     val clickableImageTransformer = remember {
-        object : ImageTransformer by Coil2ImageTransformerImpl {
+        object : ImageTransformer by Coil3ImageTransformerImpl {
             @Composable
             override fun transform(link: String): ImageData? {
-                val image = Coil2ImageTransformerImpl.transform(link) ?: return null
+                val image = Coil3ImageTransformerImpl.transform(link) ?: return null
                 return image.copy(
                     modifier = image.modifier.clickable { previewImageUrl = link },
                 )
@@ -8660,6 +8662,7 @@ private fun ContextUsageDialog(
                         text = "$percentage%",
                         style = MaterialTheme.typography.headlineMedium,
                         color = progressColor,
+                        fontWeight = FontWeigh
                     )
                     Text(
                         text = stringResource(

@@ -14,7 +14,7 @@ enum class TerminalCursorStyle { BLOCK, UNDERLINE, BAR }
 /**
  * A proper terminal emulator that maintains a fixed-size screen buffer.
  *
- * Modelled after Termux's TerminalEmulator.java but simplified for our use case.
+ * Modeled after Termux's TerminalEmulator.java but simplified for our use case.
  * Processes raw PTY output incrementally and maintains screen state including:
  * - Fixed-size cell grid with cursor tracking
  * - Scroll regions (DECSTBM)
@@ -823,7 +823,7 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
 
     private fun doDeleteLines(count: Int) {
         aboutToAutoWrap = false
-        if (cursorRow < topMargin || cursorRow >= bottomMargin) return
+        if (cursorRow !in topMargin..<bottomMargin) return
         val linesAfter = bottomMargin - cursorRow
         val toDelete = count.coerceAtMost(linesAfter)
         val toMove = linesAfter - toDelete
