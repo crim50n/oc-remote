@@ -649,7 +649,7 @@ class OpenCodeApi @Inject constructor(
 
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             okClient.newCall(request).execute().use { response ->
-                val body = response.body ?: throw java.io.IOException("Empty response body")
+                val body = response.body!!
                 val source = body.source()
                 val buffer = ByteArray(8192)
                 while (true) {

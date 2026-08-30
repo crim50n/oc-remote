@@ -187,12 +187,9 @@ class MainActivity : ComponentActivity() {
             }
             
             OpenCodeTheme(darkTheme = darkTheme, dynamicColor = dynamicColor, amoledDark = amoledDark) {
-                // Set status bar color based on theme
+                // Set status bar appearance based on theme
                 SideEffect {
                     val window = this.window
-                    window.statusBarColor = Color.Transparent.toArgb()
-                    window.navigationBarColor = Color.Transparent.toArgb()
-                    
                     val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                     insetsController.isAppearanceLightStatusBars = !darkTheme
                     insetsController.isAppearanceLightNavigationBars = !darkTheme

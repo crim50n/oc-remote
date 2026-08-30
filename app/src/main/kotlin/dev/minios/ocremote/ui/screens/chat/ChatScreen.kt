@@ -1,5 +1,6 @@
 package dev.minios.ocremote.ui.screens.chat
 
+import android.content.ClipData
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -93,7 +94,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.ClipEntry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.platform.TextToolbar
 import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.semantics.Role
@@ -137,7 +140,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import coil3.compose.AsyncImage
@@ -1080,7 +1083,7 @@ fun ChatScreen(
     val context = LocalContext.current
     val isAmoled = isAmoledTheme()
     val keyboardController = LocalSoftwareKeyboardController.current
-    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboardManager = LocalClipboard.current
     val view = LocalView.current
     val density = LocalDensity.current
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
@@ -1220,14 +1223,12 @@ fun ChatScreen(
     DisposableEffect(isTerminalMode) {
         val activity = context as? android.app.Activity
         if (isTerminalMode && activity != null) {
-            activity.window.statusBarColor = android.graphics.Color.BLACK
             androidx.core.view.WindowCompat.getInsetsController(
                 activity.window, activity.window.decorView
             ).isAppearanceLightStatusBars = false
         }
         onDispose {
             val act = context as? android.app.Activity ?: return@onDispose
-            act.window.statusBarColor = android.graphics.Color.TRANSPARENT
             androidx.core.view.WindowCompat.getInsetsController(
                 act.window, act.window.decorView
             ).isAppearanceLightStatusBars = !isDarkTheme
@@ -1242,14 +1243,16 @@ fun ChatScreen(
 
     fun pasteClipboardToTerminal() {
         if (!terminalConnected) return
-        val clip = clipboardManager.getText()?.text ?: return
-        if (clip.isEmpty()) return
-        val cleaned = clip
-            .replace(Regex("[\u001B\u0080-\u009F]"), "")
-            .replace("\r\n", "\r")
-            .replace('\n', '\r')
-        if (cleaned.isNotEmpty()) {
-            viewModel.sendTerminalInput(cleaned)
+        coroutineScope.launch {
+            val clip = clipboardManager.getClipEntry()?.clipData?.getItemAt(0)?.text ?: return@launch
+            if (clip.isEmpty()) return@launch
+            val cleaned = clip.toString()
+                .replace(Regex("[\u001B\u0080-\u009F]"), "")
+                .replace("\r\n", "\r")
+                .replace('\n', '\r')
+            if (cleaned.isNotEmpty()) {
+                viewModel.sendTerminalInput(cleaned)
+            }
         }
     }
 
@@ -1915,7 +1918,7 @@ fun ChatScreen(
                                         viewModel.shareSession { url ->
                                             coroutineScope.launch {
                                                 if (url != null) {
-                                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
+                                                    clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("URL", url)))
                                                     snackbarHostState.showSnackbar(context.getString(R.string.chat_share_url_copied))
                                                 } else {
                                                     snackbarHostState.showSnackbar(context.getString(R.string.chat_share_failed))
@@ -2166,7 +2169,7 @@ fun ChatScreen(
                             viewModel.shareSession { url ->
                                 coroutineScope.launch {
                                     if (url != null) {
-                                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
+                                        clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("URL", url)))
                                         snackbarHostState.showSnackbar(context.getString(R.string.chat_share_url_copied))
                                     } else {
                                         snackbarHostState.showSnackbar(context.getString(R.string.chat_share_failed))
@@ -2849,10 +2852,8 @@ fun ChatScreen(
                                         .filterIsInstance<Part.Text>()
                                         .joinToString("\n") { it.text }
                                     if (text.isNotBlank()) {
-                                        clipboardManager.setText(
-                                            androidx.compose.ui.text.AnnotatedString(text)
-                                        )
                                         coroutineScope.launch {
+                                            clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("Code Block", text)))
                                             snackbarHostState.showSnackbar(context.getString(R.string.chat_copied_clipboard))
                                         }
                                     }
@@ -5393,7 +5394,7 @@ private fun MarkdownContent(
         object : ImageTransformer by Coil3ImageTransformerImpl {
             @Composable
             override fun transform(link: String): ImageData? {
-                val image = Coil3ImageTransformerImpl.transform(link) ?: return null
+                val image = Coil3ImageTransformerImpl.transform(link)
                 return image.copy(
                     modifier = image.modifier.clickable { previewImageUrl = link },
                 )
@@ -5946,8 +5947,9 @@ private fun ApplyPatchToolCard(tool: Part.Tool) {
             countUnifiedPatchChanges(patch)
         }
     }
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val hapticView = LocalView.current
     val hapticOn = LocalHapticFeedbackEnabled.current
     val autoExpand = LocalCollapseTools.current
@@ -5998,7 +6000,9 @@ private fun ApplyPatchToolCard(tool: Part.Tool) {
                 } else if (hasContent) {
                     IconButton(
                         onClick = {
-                            clipboard.setText(AnnotatedString(patch))
+                            coroutineScope.launch {
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Patch", patch)))
+                            }
                             android.widget.Toast.makeText(context, R.string.chat_copied_clipboard, android.widget.Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.size(22.dp),
@@ -6095,8 +6099,9 @@ private fun UnifiedPatchView(patch: String) {
 @Composable
 private fun EditToolCard(tool: Part.Tool) {
     val isAmoled = isAmoledTheme()
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val input = extractToolInput(tool)
     val filePath = input["filePath"]?.jsonPrimitive?.contentOrNull ?: ""
     val shortPath = filePath.substringAfterLast('/')
@@ -6208,9 +6213,11 @@ private fun EditToolCard(tool: Part.Tool) {
                     } else if (hasContent) {
                         IconButton(
                             onClick = {
-                                clipboard.setText(AnnotatedString("Edit: $filePath\n\n${authoritativePatch ?: diffAfter}"))
-                                android.widget.Toast.makeText(context, R.string.chat_copied_clipboard, android.widget.Toast.LENGTH_SHORT).show()
-                            },
+                            coroutineScope.launch {
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Edit", "Edit: $filePath\n\n${authoritativePatch ?: diffAfter}")))
+                            }
+                            android.widget.Toast.makeText(context, R.string.chat_copied_clipboard, android.widget.Toast.LENGTH_SHORT).show()
+                        },
                             modifier = Modifier.size(22.dp),
                         ) {
                             Icon(
@@ -6234,7 +6241,7 @@ private fun EditToolCard(tool: Part.Tool) {
             AnimatedVisibility(visible = expanded && hasContent) {
                 Column(modifier = Modifier.padding(top = 6.dp)) {
                     if (isError) {
-                        val errorText = (tool.state as ToolState.Error).error
+                        val errorText = tool.state.error
                         Surface(
                             shape = RoundedCornerShape(4.dp),
                             color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.errorContainer,
@@ -6520,8 +6527,9 @@ private fun WriteToolCard(tool: Part.Tool) {
 @Composable
 private fun BashToolCard(tool: Part.Tool) {
     val isAmoled = isAmoledTheme()
-    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboardManager = LocalClipboard.current
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val input = extractToolInput(tool)
     val command = input["command"]?.jsonPrimitive?.contentOrNull ?: ""
     val output = (tool.state as? ToolState.Running)
@@ -6609,7 +6617,9 @@ private fun BashToolCard(tool: Part.Tool) {
                         if (displayText.isNotBlank()) {
                             IconButton(
                                 onClick = {
-                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(displayText))
+                                    coroutineScope.launch {
+                                        clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("Code Block", displayText)))
+                                    }
                                     android.widget.Toast.makeText(
                                         context,
                                         context.getString(R.string.chat_copied_clipboard),
@@ -6805,8 +6815,9 @@ private fun ReadToolCard(tool: Part.Tool) {
 @Composable
 private fun SearchToolCard(tool: Part.Tool) {
     val isAmoled = isAmoledTheme()
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val input = extractToolInput(tool)
     val pattern = input["pattern"]?.jsonPrimitive?.contentOrNull
     val include = input["include"]?.jsonPrimitive?.contentOrNull
@@ -6886,9 +6897,12 @@ private fun SearchToolCard(tool: Part.Tool) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
                             onClick = {
-                                clipboard.setText(AnnotatedString(if (hasOutput) output else title))
-                                android.widget.Toast.makeText(context, R.string.chat_copied_clipboard, android.widget.Toast.LENGTH_SHORT).show()
-                            },
+                            val textToCopy = if (hasOutput) output else title
+                            coroutineScope.launch {
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Search Result", textToCopy)))
+                            }
+                            android.widget.Toast.makeText(context, R.string.chat_copied_clipboard, android.widget.Toast.LENGTH_SHORT).show()
+                        },
                             modifier = Modifier.size(22.dp),
                         ) {
                             Icon(

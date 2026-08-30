@@ -1,5 +1,6 @@
 package dev.minios.ocremote.data.api
 
+import com.google.gson.Strictness
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import com.google.gson.stream.JsonWriter
@@ -31,7 +32,7 @@ internal fun transformMessageJson(
 ) {
     JsonReader(input).use { reader ->
         JsonWriter(output).use { writer ->
-            reader.isLenient = true
+            reader.strictness = Strictness.LENIENT
             writer.setSerializeNulls(true)
             copyJsonValue(reader, writer, fieldName = null, omitPayloadFields, cacheImageDataUrl)
         }

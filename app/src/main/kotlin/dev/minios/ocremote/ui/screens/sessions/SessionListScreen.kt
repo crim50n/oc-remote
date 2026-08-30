@@ -1,5 +1,6 @@
 package dev.minios.ocremote.ui.screens.sessions
 
+import android.content.ClipData
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -39,6 +40,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -53,7 +56,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.activity.compose.BackHandler
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import kotlinx.coroutines.launch
 import dev.minios.ocremote.R
 import dev.minios.ocremote.data.api.FileNode
 import dev.minios.ocremote.domain.model.Project
@@ -1429,7 +1433,8 @@ private fun SessionRow(
     onDelete: () -> Unit
 ) {
     val isAmoled = isAmoledTheme()
-    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboardManager = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     var showActions by remember { mutableStateOf(false) }
     var showCategoryPicker by remember { mutableStateOf(false) }
@@ -1561,7 +1566,9 @@ private fun SessionRow(
                                 leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
                                 onClick = {
                                     showActions = false
-                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(item.session.id))
+                                    coroutineScope.launch {
+                                        clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("Session ID", item.session.id)))
+                                    }
                                     Toast.makeText(
                                         context,
                                         context.getString(R.string.chat_copied_clipboard),

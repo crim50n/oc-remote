@@ -376,28 +376,39 @@ class ChatViewModel @Inject constructor(
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val allSessions = args[0] as List<Session>
+        @Suppress("UNCHECKED_CAST")
         val allMessages = args[1] as Map<String, List<Message>>
+        @Suppress("UNCHECKED_CAST")
         val allParts = args[2] as Map<String, List<Part>>
+        @Suppress("UNCHECKED_CAST")
         val statuses = args[3] as Map<String, SessionStatus>
+        @Suppress("UNCHECKED_CAST")
         val pendingInteractions = args[4] as List<PendingInteraction>
         val loading = args[5] as Boolean
         val error = args[6] as String?
         val sending = args[7] as Boolean
         val selProviderId = args[8] as String?
         val selModelId = args[9] as String?
+        @Suppress("UNCHECKED_CAST")
         val allProviders = args[10] as List<ProviderInfo>
+        @Suppress("UNCHECKED_CAST")
         val providers = args[11] as List<ProviderInfo>
+        @Suppress("UNCHECKED_CAST")
         val defaultModels = args[12] as Map<String, String>
+        @Suppress("UNCHECKED_CAST")
         val agents = args[13] as List<AgentInfo>
         @Suppress("UNCHECKED_CAST")
         val agentSelection = args[14] as Pair<String, Boolean>
         val selectedAgent = agentSelection.first
         val isAgentExplicitlySelected = agentSelection.second
         val selectedVariant = args[15] as String?
+        @Suppress("UNCHECKED_CAST")
         val commands = args[16] as List<CommandInfo>
         val hasOlderMessages = args[17] as Boolean
         val isLoadingOlder = args[18] as Boolean
+        @Suppress("UNCHECKED_CAST")
         val pendingPrompts = args[19] as List<PendingPromptRecord>
+        @Suppress("UNCHECKED_CAST")
         val promptDeliveries = args[20] as Map<String, PromptDeliveryInfo>
         fun deliveryFor(messageId: String) = when (promptDeliveries[messageId]?.state) {
             PromptDeliveryState.PROMOTED -> MessageDelivery.PROMOTED

@@ -1,6 +1,7 @@
 package dev.minios.ocremote.ui.screens.home
 
 import android.Manifest
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -17,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,9 +26,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.OffsetMapping
@@ -36,10 +39,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.launch
 import dev.minios.ocremote.R
 import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.domain.model.ServerConfig
@@ -135,7 +139,8 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboardManager = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
     val launchInstaller = rememberUpdateInstallLauncher(viewModel::installerLaunched)
 
     val readyUpdate = uiState.updateState as? UpdateState.ReadyToInstall
@@ -308,12 +313,16 @@ fun HomeScreen(
                                     onStop = { viewModel.stopLocalServer(context) },
                                     onSetup = {
                                         val setupCommand = uiState.setupCommand ?: viewModel.getLocalSetupCommand()
-                                        clipboardManager.setText(AnnotatedString(setupCommand))
+                                        coroutineScope.launch {
+                                            clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("Setup Command", setupCommand)))
+                                        }
                                         Toast.makeText(context, R.string.home_local_setup_copied, Toast.LENGTH_SHORT).show()
                                         viewModel.setupLocalServer(context)
                                     },
                                     onCopyFixCommand = { command ->
-                                        clipboardManager.setText(AnnotatedString(command))
+                                        coroutineScope.launch {
+                                            clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("Fix Command", command)))
+                                        }
                                         Toast.makeText(context, R.string.home_local_fix_command_copied, Toast.LENGTH_SHORT).show()
                                     },
                                     onOpenTermuxOverlaySettings = {
@@ -579,7 +588,7 @@ private fun UpdateAvailableCard(
                                 release == null -> R.string.about_check_updates
                                 UpdatePolicy.isInstallable(release) -> R.string.update_retry
                                 else -> R.string.update_open_release
-                            },
+                            }
                         ),
                     )
                 }
@@ -717,7 +726,7 @@ private fun LocalRuntimeCard(
                     modifier = Modifier.fillMaxWidth(),
                     outlined = true,
                 ) {
-                    Icon(Icons.Default.OpenInNew, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.home_local_open_termux_overlay_settings))
                 }

@@ -45,13 +45,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dev.minios.ocremote.R
 import dev.minios.ocremote.BuildConfig
 import dev.minios.ocremote.data.repository.DiagnosticLogRepository
@@ -76,7 +77,7 @@ fun DiagnosticsScreen(
 ) {
     val entries by viewModel.entries.collectAsState()
     val logLevel by viewModel.logLevel.collectAsState()
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val context = LocalContext.current
     val isAmoled = isAmoledTheme()
     val scope = rememberCoroutineScope()
@@ -161,7 +162,9 @@ fun DiagnosticsScreen(
                                 leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
                                 enabled = entries.isNotEmpty(),
                                 onClick = {
-                                    scope.launch { clipboard.setText(AnnotatedString(exportText())) }
+                                    scope.launch {
+                                        clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Diagnostics", exportText())))
+                                    }
                                     showActionsMenu = false
                                 },
                             )

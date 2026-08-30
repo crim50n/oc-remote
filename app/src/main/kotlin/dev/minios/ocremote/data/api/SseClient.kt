@@ -108,7 +108,7 @@ class SseClient @Inject constructor(
             onOpen()
 
             while (!channel.isClosedForRead) {
-                val line = withTimeoutOrNull(HEARTBEAT_TIMEOUT_MS) { channel.readUTF8Line() }
+                val line = withTimeoutOrNull(HEARTBEAT_TIMEOUT_MS) { channel.readLine() }
                     ?: if (channel.isClosedForRead) break else {
                         throw SseConnectionException("SSE stream timed out")
                     }

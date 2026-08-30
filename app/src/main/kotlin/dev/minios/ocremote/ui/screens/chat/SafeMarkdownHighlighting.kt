@@ -1,5 +1,6 @@
 package dev.minios.ocremote.ui.screens.chat
 
+import android.content.ClipData
 import android.widget.Toast
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -17,9 +18,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -45,6 +48,7 @@ import dev.snipme.highlights.Highlights
 import dev.snipme.highlights.model.BoldHighlight
 import dev.snipme.highlights.model.ColorHighlight
 import dev.snipme.highlights.model.SyntaxLanguage
+import kotlinx.coroutines.launch
 import org.intellij.markdown.ast.ASTNode
 
 private const val TAG = "SafeMarkdownHighlight"
@@ -100,7 +104,8 @@ private fun SafeMarkdownHighlightedCode(
     val backgroundCodeColor = LocalMarkdownColors.current.codeBackground
     val codeBackgroundCornerSize = LocalMarkdownDimens.current.codeBackgroundCornerSize
     val codeBlockPadding = LocalMarkdownPadding.current.codeBlock
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val codeScrollModifier = if (LocalCodeWordWrap.current) {
         Modifier
@@ -132,7 +137,9 @@ private fun SafeMarkdownHighlightedCode(
             ) {
                 IconButton(
                     onClick = {
-                        clipboard.setText(AnnotatedString(code))
+                        coroutineScope.launch {
+                            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Code Block", code)))
+                        }
                         Toast.makeText(context, R.string.chat_copied_clipboard, Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier

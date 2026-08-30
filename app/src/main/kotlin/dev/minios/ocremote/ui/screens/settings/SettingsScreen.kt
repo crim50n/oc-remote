@@ -43,8 +43,10 @@ import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.ViewCompact
-import androidx.compose.material.icons.filled.WrapText
+import androidx.compose.material.icons.automirrored.filled.WrapText
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,7 +59,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dev.minios.ocremote.R
 import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.domain.model.SessionCategory
@@ -385,7 +387,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_code_word_wrap)) },
                 supportingContent = { Text(stringResource(R.string.settings_code_word_wrap_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.WrapText, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.WrapText, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -471,7 +473,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_confirm_send)) },
                 supportingContent = { Text(stringResource(R.string.settings_confirm_send_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.Send, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -1168,7 +1170,7 @@ internal fun LocalServerLaunchOptionsDialog(
                         value = stringResource(R.string.home_local_startup_timeout_value, localStartupTimeoutSec),
                         onValueChange = {},
                         readOnly = true,
-                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                         label = { Text(stringResource(R.string.home_local_startup_timeout_label)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = timeoutExpanded) },
                     )
