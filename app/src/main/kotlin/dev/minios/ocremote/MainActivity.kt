@@ -333,12 +333,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         /** Parse BCP 47 tag (e.g. "pt-BR", "zh-CN", "en") into a [Locale]. */
         fun parseLocale(tag: String): Locale {
-            val parts = tag.split("-")
-            return if (parts.size >= 2) {
-                Locale(parts[0], parts[1].uppercase())
-            } else {
-                Locale(parts[0])
-            }
+            return Locale.forLanguageTag(tag)
         }
     }
 }

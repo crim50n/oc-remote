@@ -607,7 +607,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             sessionLoaded.await()
             while (true) {
-                delay(3_000)
+                delay(3_000.milliseconds)
                 reconcileActiveStatus()
             }
         }
@@ -756,7 +756,7 @@ class ChatViewModel @Inject constructor(
                 e.rethrowCancellation()
                 Log.e(TAG, "Failed to load messages", e)
                 // On OOM or other memory errors, retry with a smaller limit
-                if (e is OutOfMemoryError || (e.cause is OutOfMemoryError)) {
+                if (e.cause is OutOfMemoryError) {
                     Log.w(TAG, "OOM loading messages, retrying with smaller limit")
                     currentMessageLimit = (currentMessageLimit / 2).coerceAtLeast(10)
                     try {
@@ -1022,7 +1022,7 @@ class ChatViewModel @Inject constructor(
             return
         }
         fileSearchJob = viewModelScope.launch {
-            delay(150) // debounce
+            delay(150.milliseconds) // debounce
             try {
                 val results = api.findFiles(
                     conn = conn,
@@ -1181,7 +1181,7 @@ class ChatViewModel @Inject constructor(
                     eventReducer.updateSessionStatus(sessionId, SessionStatus.Idle)
                     pendingPromptRepository.remove(messageId)
                     _pendingPrompts.value = _pendingPrompts.value.filterNot { it.messageId == messageId }
-                    delay(50)
+                    delay(50.milliseconds)
                     restoreDraftAfterFailedSend(draftSnapshot)
                 } else {
                     reconcilePendingMessage(messageId)
@@ -1196,7 +1196,7 @@ class ChatViewModel @Inject constructor(
     private suspend fun reconcilePendingMessage(messageId: String) {
         var latestMessages = emptyList<MessageWithParts>()
         for (delayMs in listOf(150L, 400L, 1_000L, 2_000L, 4_000L)) {
-            delay(delayMs)
+            delay(delayMs.milliseconds)
             if (_pendingPrompts.value.none { it.messageId == messageId }) return
             try {
                 val messages = api.listMessages(conn, sessionId, limit = 20)

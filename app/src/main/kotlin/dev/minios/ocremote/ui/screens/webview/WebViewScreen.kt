@@ -16,8 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.foundation.background
 import kotlinx.coroutines.flow.SharedFlow
 
@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.SharedFlow
  * - Reacts to deep-link navigation events (navigateUrlFlow) even when
  *   the WebView is already open, by calling loadUrl() on the existing instance.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WebViewScreen(
     serverUrl: String,
@@ -114,9 +115,8 @@ fun WebViewScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        @Suppress("DEPRECATION")
-        SwipeRefresh(
-            state = rememberSwipeRefreshState(isRefreshing),
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
             onRefresh = { refresh() }
         ) {
             Box(

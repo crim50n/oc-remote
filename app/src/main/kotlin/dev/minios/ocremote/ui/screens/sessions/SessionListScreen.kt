@@ -83,9 +83,9 @@ import dev.minios.ocremote.ui.components.AppLoadingEdge
 import dev.minios.ocremote.ui.components.sessionCategoryColor
 import dev.minios.ocremote.ui.components.sessionCategoryIcon
 import dev.minios.ocremote.ui.screens.settings.SessionCategoriesDialog
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.SwipeRefreshState
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshState
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 
 internal fun shouldRevealPromotedSession(
     previousTopSessionId: String?,
@@ -168,17 +168,18 @@ private fun PulsingDotsIndicator(
     }
 }
 
-@Suppress("DEPRECATION")
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ServerRefreshEdge(
-    state: SwipeRefreshState,
-    refreshTriggerDistance: androidx.compose.ui.unit.Dp,
+    isRefreshing: Boolean,
+    state: PullToRefreshState,
     modifier: Modifier = Modifier,
 ) {
-    val density = LocalDensity.current
-    val triggerPx = with(density) { refreshTriggerDistance.toPx() }.coerceAtLeast(1f)
-    val progress = (state.indicatorOffset / triggerPx).coerceIn(0f, 1f)
-    AppLoadingEdge(active = state.isRefreshing, progress = progress, modifier = modifier)
+    AppLoadingEdge(
+        active = isRefreshing,
+        progress = state.distanceFraction,
+        modifier = modifier
+    )
 }
 
 /**
@@ -262,8 +263,8 @@ fun SessionListScreen(
     }
 
     val allSessions = uiState.sessionGroups.flatMap { it.sessions }
-    val refreshTriggerDistance = 80.dp
-    val swipeRefreshState = rememberSwipeRefreshState(uiState.isLoading && allSessions.isNotEmpty())
+    val pullToRefreshState = rememberPullToRefreshState()
+    val isRefreshing = uiState.isLoading && allSessions.isNotEmpty()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -330,8 +331,8 @@ fun SessionListScreen(
                     )
                 }
                 ServerRefreshEdge(
-                    state = swipeRefreshState,
-                    refreshTriggerDistance = refreshTriggerDistance,
+                    isRefreshing = isRefreshing,
+                    state = pullToRefreshState,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
@@ -375,19 +376,18 @@ fun SessionListScreen(
             }
         }
     ) { padding ->
-        SwipeRefresh(
-            state = swipeRefreshState,
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
             onRefresh = viewModel::loadSessions,
-            swipeEnabled = !uiState.isSelectionMode && !uiState.isLoading,
-            refreshTriggerDistance = refreshTriggerDistance,
+            state = pullToRefreshState,
             modifier = Modifier.fillMaxSize().padding(padding),
-            indicator = { _, _ -> },
+            indicator = { },
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.surface)
-                    .graphicsLayer { translationY = swipeRefreshState.indicatorOffset * 0.45f },
+                    .graphicsLayer { translationY = pullToRefreshState.distanceFraction * 80f },
             ) {
                 when {
                 uiState.isLoading && allSessions.isEmpty() -> {
