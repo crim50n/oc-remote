@@ -59,9 +59,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -178,17 +180,26 @@ fun SyncSettingsScreen(
         passphrase = ""
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.sync_title)) },
+                title = {
+                    Text(
+                        text = stringResource(R.string.sync_title),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+                scrollBehavior = scrollBehavior
             )
         },
     ) { padding ->
@@ -207,7 +218,10 @@ fun SyncSettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Text(stringResource(R.string.sync_common_settings), style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(R.string.sync_common_settings),
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+            )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.sync_automatic)) },
                 supportingContent = { Text(stringResource(R.string.sync_automatic_desc)) },
@@ -243,7 +257,10 @@ fun SyncSettingsScreen(
             }
 
             HorizontalDivider()
-            Text(stringResource(R.string.sync_backend), style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(R.string.sync_backend),
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+            )
             Text(
                 text = stringResource(R.string.sync_single_storage_desc_v2),
                 style = MaterialTheme.typography.bodySmall,
@@ -537,10 +554,15 @@ fun SyncSettingsScreen(
     if (showVersionDialog) {
         AppDialog(onDismissRequest = { showVersionDialog = false }, modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(stringResource(R.string.sync_choose_version), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    stringResource(R.string.sync_choose_version),
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
                 Text(
                     stringResource(R.string.sync_choose_version_desc),
                     style = MaterialTheme.typography.bodyMedium,

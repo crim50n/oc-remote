@@ -1666,7 +1666,7 @@ fun ChatScreen(
                     Column {
                         Text(
                             text = uiState.sessionTitle,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )

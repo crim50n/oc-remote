@@ -5,6 +5,8 @@ import android.content.ClipData
 import android.os.Build
 import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
@@ -43,7 +45,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.ClipEntry
@@ -133,11 +137,20 @@ fun DiagnosticsScreen(
         }
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.diagnostics_title), maxLines = 1) },
+                title = {
+                    Text(
+                        text = stringResource(R.string.diagnostics_title),
+                        maxLines = 1,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
@@ -192,6 +205,7 @@ fun DiagnosticsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+                scrollBehavior = scrollBehavior
             )
         },
     ) { padding ->
@@ -281,31 +295,39 @@ fun DiagnosticsScreen(
 
     if (showClearConfirmation) {
         AppDialog(onDismissRequest = { showClearConfirmation = false }) {
-            Text(
-                text = stringResource(R.string.diagnostics_clear_confirm_title),
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp),
-            )
-            Text(
-                text = stringResource(R.string.diagnostics_clear_confirm_message),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End,
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 8.dp)
             ) {
-                AppSecondaryButton(onClick = { showClearConfirmation = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-                AppPrimaryButton(
-                    onClick = {
-                        showClearConfirmation = false
-                        viewModel.clear()
-                    },
-                    destructive = true,
+                Text(
+                    text = stringResource(R.string.diagnostics_clear_confirm_title),
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp),
+                )
+                Text(
+                    text = stringResource(R.string.diagnostics_clear_confirm_message),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End,
                 ) {
-                    Text(stringResource(R.string.diagnostics_clear))
+                    AppSecondaryButton(onClick = { showClearConfirmation = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    AppPrimaryButton(
+                        onClick = {
+                            showClearConfirmation = false
+                            viewModel.clear()
+                        },
+                        destructive = true,
+                    ) {
+                        Text(stringResource(R.string.diagnostics_clear))
+                    }
                 }
             }
         }

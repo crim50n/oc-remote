@@ -40,6 +40,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalContext
@@ -269,8 +270,10 @@ fun SessionListScreen(
     val allSessions = uiState.sessionGroups.flatMap { it.sessions }
     val pullToRefreshState = rememberPullToRefreshState()
     val isRefreshing = uiState.isLoading && allSessions.isNotEmpty()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             Box {
@@ -279,7 +282,7 @@ fun SessionListScreen(
                     title = {
                         Text(
                             text = stringResource(R.string.sessions_selected_count, uiState.selectedIds.size),
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                         )
                     },
                     navigationIcon = {
@@ -301,7 +304,8 @@ fun SessionListScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
-                    )
+                    ),
+                    scrollBehavior = scrollBehavior
                 )
                 } else {
                 TopAppBar(
@@ -309,7 +313,7 @@ fun SessionListScreen(
                         Column {
                             Text(
                                 text = uiState.serverName.ifEmpty { stringResource(R.string.sessions_title) },
-                                style = MaterialTheme.typography.titleMedium
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                         }
                     },
@@ -331,7 +335,8 @@ fun SessionListScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
-                    )
+                    ),
+                    scrollBehavior = scrollBehavior
                     )
                 }
                 ServerRefreshEdge(

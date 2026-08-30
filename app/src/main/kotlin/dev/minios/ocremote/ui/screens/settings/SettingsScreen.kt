@@ -50,6 +50,7 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -58,6 +59,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dev.minios.ocremote.R
@@ -149,11 +151,19 @@ fun SettingsScreen(
         SwitchDefaults.colors()
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
+                title = {
+                    Text(
+                        text = stringResource(R.string.settings_title),
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -164,7 +174,8 @@ fun SettingsScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
-                )
+                ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->
@@ -774,7 +785,7 @@ internal fun SessionCategoriesDialog(
                 text = stringResource(
                     if (editing) R.string.settings_category_edit else R.string.settings_session_categories
                 ),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
             )
 
             if (editing) {
@@ -922,7 +933,7 @@ private fun SectionHeader(title: String) {
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp)
         )
@@ -1001,7 +1012,7 @@ internal fun LocalServerLaunchOptionsDialog(
         ) {
             Text(
                 text = stringResource(R.string.home_local_launch_options),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
             )
 
             Column(
@@ -1010,7 +1021,11 @@ internal fun LocalServerLaunchOptionsDialog(
                     .verticalScroll(bodyScrollState),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(stringResource(R.string.home_local_network_section), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.home_local_network_section),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.home_local_allow_lan_access)) },
@@ -1025,7 +1040,11 @@ internal fun LocalServerLaunchOptionsDialog(
                     colors = dialogListItemColors,
                 )
 
-                Text(stringResource(R.string.home_local_security_section), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.home_local_security_section),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
                 OutlinedTextField(
                     value = localServerUsername,
@@ -1064,7 +1083,11 @@ internal fun LocalServerLaunchOptionsDialog(
                     )
                 }
 
-                Text(stringResource(R.string.home_local_proxy_section), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.home_local_proxy_section),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.home_local_proxy_enable)) },
@@ -1120,7 +1143,11 @@ internal fun LocalServerLaunchOptionsDialog(
                     )
                 }
 
-                Text(stringResource(R.string.home_local_autostart_section), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.home_local_autostart_section),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.home_local_run_background_label)) },
@@ -1274,7 +1301,7 @@ internal fun <K> SettingsPickerDialog(
                 // Title
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
                     modifier = Modifier.padding(
                         start = 24.dp,
                         end = 24.dp,
@@ -1512,10 +1539,16 @@ private fun HapticPatternDialog(
 
     AppDialog(onDismissRequest = onDismiss, modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(stringResource(R.string.settings_haptic_pattern), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.settings_haptic_pattern),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
+            )
             Text(
                 stringResource(R.string.settings_haptic_duration_value, durationMillis.roundToInt()),
                 style = MaterialTheme.typography.bodyLarge,
@@ -1577,12 +1610,13 @@ private fun TerminalFontSizeDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
                 text = stringResource(R.string.settings_terminal_font_size),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
             )
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
