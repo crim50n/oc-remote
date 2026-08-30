@@ -449,11 +449,11 @@ private fun BreathingCircleIndicator(
     }
 }
 
-/** Format a token count to a human-readable string (e.g., 1.2k, 45.3k, 1.2M). */
+/** Format a token count to a human-readable string (e.g., 1.2K, 45.3K, 1.2M). */
 private fun formatTokenCount(count: Int): String {
     return when {
         count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
-        count >= 1_000 -> String.format("%.1fk", count / 1_000.0)
+        count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
         else -> count.toString()
     }
 }
