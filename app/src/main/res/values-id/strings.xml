@@ -723,4 +723,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="workspace_markdown_preview">Tampilkan Markdown yang diformat</string>
     <string name="workspace_markdown_raw">Tampilkan sumber Markdown</string>
     <string name="chat_server_disconnected">Server terputus</string>
+    <string name="server_password_show">Tampilkan kata sandi</string>
+    <string name="server_password_hide">Sembunyikan kata sandi</string>
 </resources>

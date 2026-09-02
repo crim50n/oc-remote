@@ -717,4 +717,6 @@
     <string name="workspace_markdown_preview">Markdownをフォーマット表示</string>
     <string name="workspace_markdown_raw">Markdownソースを表示</string>
     <string name="chat_server_disconnected">サーバーが切断されました</string>
+    <string name="server_password_show">パスワードを表示</string>
+    <string name="server_password_hide">パスワードを非表示</string>
 </resources>

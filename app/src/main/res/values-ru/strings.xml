@@ -718,4 +718,6 @@
     <string name="workspace_markdown_preview">Показать отформатированный Markdown</string>
     <string name="workspace_markdown_raw">Показать исходный код Markdown</string>
     <string name="chat_server_disconnected">Сервер отключён</string>
+    <string name="server_password_show">Показать пароль</string>
+    <string name="server_password_hide">Скрыть пароль</string>
 </resources>

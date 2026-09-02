@@ -115,6 +115,8 @@
     <string name="server_username_hint">opencode</string>
     <string name="server_password">Password</string>
     <string name="server_password_hint">Optional</string>
+    <string name="server_password_show">Show password</string>
+    <string name="server_password_hide">Hide password</string>
     <string name="server_save">Save</string>
     <string name="server_cancel">Cancel</string>
     <string name="server_delete">Delete</string>

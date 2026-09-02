@@ -717,4 +717,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="workspace_markdown_preview">Biçimlendirilmiş Markdown\'u göster</string>
     <string name="workspace_markdown_raw">Markdown kaynağını göster</string>
     <string name="chat_server_disconnected">Sunucu bağlantısı kesildi</string>
+    <string name="server_password_show">Şifreyi göster</string>
+    <string name="server_password_hide">Şifreyi gizle</string>
 </resources>

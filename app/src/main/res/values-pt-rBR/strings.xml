@@ -717,4 +717,6 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="workspace_markdown_preview">Exibir Markdown formatado</string>
     <string name="workspace_markdown_raw">Exibir código-fonte do Markdown</string>
     <string name="chat_server_disconnected">Servidor desconectado</string>
+    <string name="server_password_show">Mostrar senha</string>
+    <string name="server_password_hide">Ocultar senha</string>
 </resources>
