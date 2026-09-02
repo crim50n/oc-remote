@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -143,11 +144,16 @@ fun ServerMcpScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center,
                             ) {
-                                Text(stringResource(R.string.server_mcp_empty), style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    text = stringResource(R.string.server_mcp_empty),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    textAlign = TextAlign.Center,
+                                )
                                 Text(
                                     text = stringResource(R.string.server_mcp_empty_desc),
                                     modifier = Modifier.padding(top = 8.dp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
                                 )
                             }
                         }

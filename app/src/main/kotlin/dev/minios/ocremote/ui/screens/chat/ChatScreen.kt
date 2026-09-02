@@ -8505,7 +8505,12 @@ private fun ChatInputBar(
                             color = MaterialTheme.colorScheme.onSurface,
                             fontFamily = if (isShellMode) FontFamily.Monospace else FontFamily.Default
                         ),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Default,
+                            keyboardType = if (isShellMode) KeyboardType.Ascii else KeyboardType.Text,
+                            autoCorrectEnabled = !isShellMode,
+                            capitalization = if (isShellMode) KeyboardCapitalization.None else KeyboardCapitalization.Sentences
+                        ),
                         maxLines = 5,
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         visualTransformation = visualTransformation,

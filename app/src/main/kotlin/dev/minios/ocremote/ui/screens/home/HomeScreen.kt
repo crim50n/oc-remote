@@ -660,8 +660,8 @@ private fun LocalRuntimeCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             val compactActive = runtimeStatus == LocalRuntimeStatus.Running &&
                 localServerConnected &&
@@ -706,7 +706,7 @@ private fun LocalRuntimeCard(
                                     contentDescription = stringResource(
                                         if (runtimeStatus == LocalRuntimeStatus.Running) R.string.home_local_stop else R.string.home_local_start
                                     ),
-                                    tint = cardContentColor,
+                                    tint = if (runtimeStatus == LocalRuntimeStatus.Running) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                 )
                             }
                         }
@@ -748,18 +748,6 @@ private fun LocalRuntimeCard(
                                     Icon(Icons.Default.Tune, contentDescription = null)
                                 },
                             )
-                            if (termuxInstalled) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.home_local_setup)) },
-                                    onClick = {
-                                        showMenu = false
-                                        onSetup()
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Build, contentDescription = null)
-                                    },
-                                )
-                            }
                             if (runtimeStatus == LocalRuntimeStatus.Error && !fixCommand.isNullOrBlank()) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.home_local_copy_fix_command)) },
@@ -781,18 +769,6 @@ private fun LocalRuntimeCard(
                                     },
                                     leadingIcon = {
                                         Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                                    },
-                                )
-                            }
-                            if (!termuxInstalled) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.home_local_install_termux)) },
-                                    onClick = {
-                                        showMenu = false
-                                        onInstallTermux()
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Download, contentDescription = null)
                                     },
                                 )
                             }
@@ -839,7 +815,7 @@ private fun LocalRuntimeCard(
                 }
 
                 // Needs setup — show setup command and Setup button
-                runtimeStatus == LocalRuntimeStatus.NeedsSetup -> {
+                runtimeStatus == LocalRuntimeStatus.NeedsSetup && !localServerConnected -> {
                     Text(
                         text = stringResource(R.string.home_local_setup_desc),
                         style = MaterialTheme.typography.bodySmall,
@@ -857,7 +833,7 @@ private fun LocalRuntimeCard(
                 }
 
                 // Stopped or Error — show Setup button as secondary
-                runtimeStatus == LocalRuntimeStatus.Stopped || runtimeStatus == LocalRuntimeStatus.Error -> {
+                (runtimeStatus == LocalRuntimeStatus.Stopped || runtimeStatus == LocalRuntimeStatus.Error) && !localServerConnected -> {
                     AppSecondaryButton(
                         onClick = onSetup,
                         modifier = Modifier.fillMaxWidth(),
@@ -995,12 +971,14 @@ private fun ServerCard(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onOpenSessions, enabled = isConnected) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Chat,
-                            contentDescription = stringResource(R.string.sessions_title),
-                            tint = if (isConnected) cardContentColor else cardContentColor.copy(alpha = 0.38f),
-                        )
+                    if (isConnected) {
+                        IconButton(onClick = onOpenSessions) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Chat,
+                                contentDescription = stringResource(R.string.sessions_title),
+                                tint = cardContentColor,
+                            )
+                        }
                     }
 
                     IconButton(
@@ -1019,7 +997,7 @@ private fun ServerCard(
                                 contentDescription = stringResource(
                                     if (isConnected) R.string.home_disconnect else R.string.home_connect,
                                 ),
-                                tint = cardContentColor,
+                                tint = if (isConnected) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                             )
                         }
                     }
