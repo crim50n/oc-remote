@@ -597,6 +597,9 @@ fun SessionListScreen(
                                 }
                             }
                         }
+                        item(key = "session-list-fab-spacer") {
+                            Spacer(modifier = Modifier.height(84.dp))
+                        }
                     }
                 }
                 }
@@ -1069,6 +1072,9 @@ private fun OpenProjectDialog(
                                             }
                                         )
                                     }
+                                    item(key = "dir-search-fab-spacer") {
+                                        Spacer(modifier = Modifier.height(84.dp))
+                                    }
                                 }
                             }
                         }
@@ -1102,6 +1108,9 @@ private fun OpenProjectDialog(
                                             },
                                             onClick = { onSelect(absPath) }
                                         )
+                                    }
+                                    item(key = "dir-list-fab-spacer") {
+                                        Spacer(modifier = Modifier.height(84.dp))
                                     }
                                 }
                             }
