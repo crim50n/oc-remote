@@ -1579,6 +1579,10 @@ fun ChatScreen(
     // Disabled when user manually scrolls up; re-enabled when user scrolls back to bottom.
     var autoScrollEnabled by remember { mutableStateOf(true) }
 
+    // True while the app itself is animating to the bottom, so a programmatic
+    // scroll isn't mistaken for a user drag that should disable auto-scroll.
+    var isAutoScrolling by remember { mutableStateOf(false) }
+
     // True when the very bottom of the list is visible (accounting for offset within tall items)
     val isAtBottom by remember {
         derivedStateOf {
@@ -1597,7 +1601,7 @@ fun ChatScreen(
     LaunchedEffect(listState.isScrollInProgress, isAtBottom) {
         if (listState.isScrollInProgress) {
             // User is actively dragging/flinging — disable auto-scroll
-            autoScrollEnabled = false
+            if (!isAutoScrolling) autoScrollEnabled = false
         } else if (isAtBottom) {
             // User stopped scrolling and ended up at the bottom — re-enable
             autoScrollEnabled = true
@@ -1605,8 +1609,9 @@ fun ChatScreen(
     }
 
 
-    // Auto-scroll to bottom when new content arrives (only if auto-scroll is enabled)
-    // Track message count, part count, and content length of the last part to catch streaming updates
+    // Auto-scroll to bottom when new content arrives (only if auto-scroll is enabled).
+    // Only follow when the user is already at the bottom so that a streaming reply
+    // doesn't yank the viewport away while they're reading higher up.
     val messageCount = uiState.messages.size
     val lastPartCount = uiState.messages.lastOrNull()?.parts?.size ?: 0
     val lastContentLength = uiState.messages.lastOrNull()?.parts?.lastOrNull()?.let { part ->
@@ -1626,9 +1631,14 @@ fun ChatScreen(
     val pendingCount = pendingInteractions.size
     val isBusy = isWorkingSessionStatus(uiState.sessionStatus)
     LaunchedEffect(messageCount, lastPartCount, lastContentLength, pendingCount, isBusy) {
-        if (messageCount > 0 && autoScrollEnabled) {
+        if (messageCount > 0 && autoScrollEnabled && isAtBottom) {
             val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
-            listState.scrollToItem(lastIndex)
+            isAutoScrolling = true
+            try {
+                listState.animateScrollToItem(lastIndex)
+            } finally {
+                isAutoScrolling = false
+            }
         }
     }
 
@@ -1636,7 +1646,12 @@ fun ChatScreen(
     LaunchedEffect(uiState.isLoading) {
         if (!uiState.isLoading && messageCount > 0) {
             val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
-            listState.scrollToItem(lastIndex)
+            isAutoScrolling = true
+            try {
+                listState.animateScrollToItem(lastIndex)
+            } finally {
+                isAutoScrolling = false
+            }
             autoScrollEnabled = true
         }
     }
@@ -2944,7 +2959,12 @@ fun ChatScreen(
                             onClick = {
                                 coroutineScope.launch {
                                     val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
-                                    listState.scrollToItem(lastIndex)
+                                    isAutoScrolling = true
+                                    try {
+                                        listState.animateScrollToItem(lastIndex)
+                                    } finally {
+                                        isAutoScrolling = false
+                                    }
                                     autoScrollEnabled = true
                                 }
                             },
@@ -8503,7 +8523,7 @@ private fun ChatInputBar(
                             .heightIn(min = 24.dp),
                         textStyle = MaterialTheme.typography.bodyLarge.copy(
                             color = MaterialTheme.colorScheme.onSurface,
-                            fontFamily = if (isShellMode) FontFamily.Monospace else FontFamily.Default
+                            fontFamily = if (isShellMode) FontFamily.Monospace else null
                         ),
                         keyboardOptions = KeyboardOptions(
                             imeAction = ImeAction.Default,
