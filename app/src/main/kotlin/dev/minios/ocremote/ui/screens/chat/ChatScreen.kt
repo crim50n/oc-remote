@@ -4737,7 +4737,9 @@ private fun ChatMessageBubble(
             color = backgroundColor,
             border = bubbleBorder,
             tonalElevation = 0.dp,
-            modifier = modifier.fillMaxWidth().animateContentSize()
+            modifier = modifier.fillMaxWidth().animateContentSize(
+                animationSpec = tween(durationMillis = 70, easing = FastOutSlowInEasing)
+            )
         ) {
             val compact = LocalCompactMessages.current
             Box {
