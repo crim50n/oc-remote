@@ -2,6 +2,7 @@ package dev.minios.ocremote.ui.screens.chat
 
 import android.content.ClipData
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -1576,12 +1577,10 @@ fun ChatScreen(
     }
 
     // Whether auto-scroll should follow new content.
-    // Disabled when user manually scrolls up; re-enabled when user scrolls back to bottom.
+    // Disabled when the user manually scrolls away from the bottom; re-enabled when
+    // they scroll back to the bottom. Programmatic pinning uses an instant scrollToItem,
+    // so while following we always sit at the bottom and never trip the disable below.
     var autoScrollEnabled by remember { mutableStateOf(true) }
-
-    // True while the app itself is animating to the bottom, so a programmatic
-    // scroll isn't mistaken for a user drag that should disable auto-scroll.
-    var isAutoScrolling by remember { mutableStateOf(false) }
 
     // True when the very bottom of the list is visible (accounting for offset within tall items)
     val isAtBottom by remember {
@@ -1597,24 +1596,34 @@ fun ChatScreen(
         }
     }
 
-    // When user touches the list, disable auto-scroll; re-enable when they reach the bottom
+    // When the user drags/flings the list, disable auto-scroll once they move away from
+    // the bottom. Programmatic pinning is instantaneous and keeps us at the bottom, so it
+    // never trips this and there is no flicker. Re-enable when they land on the bottom.
     LaunchedEffect(listState.isScrollInProgress, isAtBottom) {
         if (listState.isScrollInProgress) {
-            // User is actively dragging/flinging: disable auto-scroll once they move away
-            // from the bottom. Programmatic auto-scroll stays at the bottom, so it won't
-            // trip this and cause auto-scroll to flicker off.
-            if (!isAutoScrolling && !isAtBottom) autoScrollEnabled = false
+            if (!isAtBottom) autoScrollEnabled = false
         } else if (isAtBottom) {
-            // User stopped scrolling and ended up at the bottom — re-enable
             autoScrollEnabled = true
+        }
+    }
+
+    // True when the user is already near the bottom, i.e. actively following new content.
+    // We only auto-scroll when this holds so a streaming message never yanks the viewport
+    // out from under the user while they're reading further up. Slightly more lenient than
+    // isAtBottom so following resumes the moment the last item comes into view.
+    val isNearBottom by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val lastVisible = info.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf true
+            lastVisible.index >= info.totalItemsCount - 1
         }
     }
 
 
     // Auto-scroll to bottom when new content arrives (only if auto-scroll is enabled).
-    // autoScrollEnabled already reflects whether the user wants to follow (it is turned
-    // off when they scroll up, and back on when they return to the bottom), so here we
-    // simply animate to the newest item whenever new content lands.
+    // We pin to the newest item with an instant scrollToItem: while at the bottom the
+    // per-update delta is tiny, and there is no repeated animation to cancel/restart,
+    // so following streaming output is smooth instead of flickering.
     val messageCount = uiState.messages.size
     val lastPartCount = uiState.messages.lastOrNull()?.parts?.size ?: 0
     val lastContentLength = uiState.messages.lastOrNull()?.parts?.lastOrNull()?.let { part ->
@@ -1634,14 +1643,9 @@ fun ChatScreen(
     val pendingCount = pendingInteractions.size
     val isBusy = isWorkingSessionStatus(uiState.sessionStatus)
     LaunchedEffect(messageCount, lastPartCount, lastContentLength, pendingCount, isBusy) {
-        if (messageCount > 0 && autoScrollEnabled) {
+        if (messageCount > 0 && autoScrollEnabled && isNearBottom) {
             val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
-            isAutoScrolling = true
-            try {
-                listState.animateScrollToItem(lastIndex)
-            } finally {
-                isAutoScrolling = false
-            }
+            listState.scrollToItem(lastIndex)
         }
     }
 
@@ -1649,12 +1653,7 @@ fun ChatScreen(
     LaunchedEffect(uiState.isLoading) {
         if (!uiState.isLoading && messageCount > 0) {
             val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
-            isAutoScrolling = true
-            try {
-                listState.animateScrollToItem(lastIndex)
-            } finally {
-                isAutoScrolling = false
-            }
+            listState.scrollToItem(lastIndex)
             autoScrollEnabled = true
         }
     }
@@ -2962,12 +2961,7 @@ fun ChatScreen(
                             onClick = {
                                 coroutineScope.launch {
                                     val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
-                                    isAutoScrolling = true
-                                    try {
-                                        listState.animateScrollToItem(lastIndex)
-                                    } finally {
-                                        isAutoScrolling = false
-                                    }
+                                    listState.animateScrollToItem(lastIndex)
                                     autoScrollEnabled = true
                                 }
                             },
@@ -4759,7 +4753,7 @@ private fun ChatMessageBubble(
             color = backgroundColor,
             border = bubbleBorder,
             tonalElevation = 0.dp,
-            modifier = modifier.fillMaxWidth()
+            modifier = modifier.fillMaxWidth().animateContentSize()
         ) {
             val compact = LocalCompactMessages.current
             Box {
