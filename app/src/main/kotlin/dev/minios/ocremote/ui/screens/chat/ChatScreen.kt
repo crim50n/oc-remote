@@ -183,6 +183,7 @@ import kotlin.math.roundToInt
 import kotlin.math.abs
 
 import android.net.Uri
+import androidx.core.net.toUri
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
@@ -1338,7 +1339,7 @@ fun ChatScreen(
                 continue
             }
             try {
-                val uri = android.net.Uri.parse(uriStr)
+                val uri = uriStr.toUri()
                 if (uriStr.startsWith("data:image/", ignoreCase = true)) {
                     val mime = uriStr.substringAfter("data:").substringBefore(';').ifBlank { "image/png" }
                     val syntheticName = "image.${mime.substringAfter('/', "png")}".lowercase()

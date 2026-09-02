@@ -3,6 +3,7 @@ package dev.minios.ocremote.data.update
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
@@ -16,7 +17,7 @@ object UpdateInstaller {
     fun unknownSourcesSettingsIntent(context: Context): Intent {
         return Intent(
             Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-            Uri.parse("package:${context.packageName}"),
+            "package:${context.packageName}".toUri(),
         )
     }
 

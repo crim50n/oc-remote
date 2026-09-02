@@ -3,6 +3,7 @@ package dev.minios.ocremote.data.repository
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -167,7 +168,7 @@ class SyncRepository @Inject constructor(
             }
         }
         if (config.document.enabled) {
-            val uri = Uri.parse(config.document.endpoint.trim())
+            val uri = config.document.endpoint.trim().toUri()
             require(uri.scheme == CONTENT_RESOLVER_SCHEME) { "Choose a sync file through the system file picker" }
             val permission = context.contentResolver.persistedUriPermissions.firstOrNull { it.uri == uri }
             require(permission?.isReadPermission == true && permission.isWritePermission) {
@@ -234,7 +235,7 @@ class SyncRepository @Inject constructor(
             previousDocumentEndpoint.isNotBlank() &&
             previousDocumentEndpoint != config.document.endpoint.trim()
         ) {
-            releaseDocumentPermission(Uri.parse(previousDocumentEndpoint))
+            releaseDocumentPermission(previousDocumentEndpoint.toUri())
         }
     }
 
@@ -331,7 +332,7 @@ class SyncRepository @Inject constructor(
     }
 
     suspend fun disconnect() = syncMutex.withLock {
-        val documentUri = state.first().config.document.endpoint.takeIf(String::isNotBlank)?.let(Uri::parse)
+        val documentUri = state.first().config.document.endpoint.takeIf(String::isNotBlank)?.toUri()
         secretStore.clearAll()
         dataStore.edit { preferences ->
             preferences.remove(PRIMARY_BACKEND)
@@ -556,7 +557,7 @@ class SyncRepository @Inject constructor(
                 ?: error("WebDAV password is missing"),
         )
 
-        SyncBackend.DOCUMENT -> DocumentSyncTransport(context.contentResolver, Uri.parse(target.endpoint))
+        SyncBackend.DOCUMENT -> DocumentSyncTransport(context.contentResolver, target.endpoint.toUri())
 
         SyncBackend.NONE -> error("Sync is not configured")
     }

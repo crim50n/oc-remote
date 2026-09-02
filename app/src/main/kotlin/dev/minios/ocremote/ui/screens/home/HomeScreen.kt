@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.core.net.toUri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
@@ -278,7 +279,7 @@ fun HomeScreen(
                                     onDisable = {
                                         val intent = Intent(
                                             Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                            Uri.parse("package:${context.packageName}")
+                                            "package:${context.packageName}".toUri()
                                         )
                                         context.startActivity(intent)
                                     }
@@ -295,7 +296,7 @@ fun HomeScreen(
                                     onCheckUpdates = viewModel::checkForUpdates,
                                     onOpenRelease = { releaseUrl ->
                                         context.startActivity(
-                                            Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl)),
+                                            Intent(Intent.ACTION_VIEW, releaseUrl.toUri()),
                                         )
                                     },
                                 )
@@ -339,7 +340,7 @@ fun HomeScreen(
                                     onOpenTermuxOverlaySettings = {
                                         val intent = Intent(
                                             Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                            Uri.parse("package:com.termux"),
+                                            "package:com.termux".toUri(),
                                         )
                                         context.startActivity(intent)
                                     },
@@ -371,7 +372,7 @@ fun HomeScreen(
                                     onInstallTermux = {
                                         val intent = Intent(
                                             Intent.ACTION_VIEW,
-                                            Uri.parse("https://f-droid.org/packages/com.termux/")
+                                            "https://f-droid.org/packages/com.termux/".toUri()
                                         )
                                         context.startActivity(intent)
                                     },

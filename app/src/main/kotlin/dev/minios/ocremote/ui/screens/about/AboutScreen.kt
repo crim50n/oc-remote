@@ -2,6 +2,7 @@ package dev.minios.ocremote.ui.screens.about
 
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -199,7 +200,7 @@ fun AboutScreen(
                             if (UpdatePolicy.isInstallable(state.release)) {
                                 viewModel.prepareInstall(state.release)
                             } else {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.release.releaseUrl)))
+                                context.startActivity(Intent(Intent.ACTION_VIEW, state.release.releaseUrl.toUri()))
                             }
                         },
                         modifier = buttonModifier,
@@ -221,7 +222,7 @@ fun AboutScreen(
                                 if (UpdatePolicy.isInstallable(release)) {
                                     viewModel.prepareInstall(release)
                                 } else {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.releaseUrl)))
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, release.releaseUrl.toUri()))
                                 }
                             } ?: viewModel.checkForUpdates()
                         },
@@ -273,7 +274,7 @@ fun AboutScreen(
                         )
                     },
                     modifier = Modifier.clickable {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl)))
+                        context.startActivity(Intent(Intent.ACTION_VIEW, githubUrl.toUri()))
                     },
                     colors = itemColors,
                 )
@@ -301,7 +302,7 @@ fun AboutScreen(
                         )
                     },
                     modifier = Modifier.clickable {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(opencodeUrl)))
+                        context.startActivity(Intent(Intent.ACTION_VIEW, opencodeUrl.toUri()))
                     },
                     colors = itemColors,
                 )

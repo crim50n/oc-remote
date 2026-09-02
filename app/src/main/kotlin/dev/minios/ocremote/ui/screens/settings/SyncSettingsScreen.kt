@@ -3,6 +3,7 @@ package dev.minios.ocremote.ui.screens.settings
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import android.provider.OpenableColumns
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -170,7 +171,7 @@ fun SyncSettingsScreen(
         webDavUsername = state.config.webDav.username
         documentUri = state.config.document.endpoint
         documentName = state.config.document.endpoint.takeIf(String::isNotBlank)
-            ?.let { documentDisplayName(context, Uri.parse(it)) }
+            ?.let { documentDisplayName(context, it.toUri()) }
             .orEmpty()
         documentGrantFlags = 0
         includePasswords = state.config.includeEncryptedPasswords
