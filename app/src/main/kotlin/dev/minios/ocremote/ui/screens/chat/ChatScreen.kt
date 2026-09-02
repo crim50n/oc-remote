@@ -1600,8 +1600,10 @@ fun ChatScreen(
     // When user touches the list, disable auto-scroll; re-enable when they reach the bottom
     LaunchedEffect(listState.isScrollInProgress, isAtBottom) {
         if (listState.isScrollInProgress) {
-            // User is actively dragging/flinging — disable auto-scroll
-            if (!isAutoScrolling) autoScrollEnabled = false
+            // User is actively dragging/flinging: disable auto-scroll once they move away
+            // from the bottom. Programmatic auto-scroll stays at the bottom, so it won't
+            // trip this and cause auto-scroll to flicker off.
+            if (!isAutoScrolling && !isAtBottom) autoScrollEnabled = false
         } else if (isAtBottom) {
             // User stopped scrolling and ended up at the bottom — re-enable
             autoScrollEnabled = true
@@ -1610,8 +1612,9 @@ fun ChatScreen(
 
 
     // Auto-scroll to bottom when new content arrives (only if auto-scroll is enabled).
-    // Only follow when the user is already at the bottom so that a streaming reply
-    // doesn't yank the viewport away while they're reading higher up.
+    // autoScrollEnabled already reflects whether the user wants to follow (it is turned
+    // off when they scroll up, and back on when they return to the bottom), so here we
+    // simply animate to the newest item whenever new content lands.
     val messageCount = uiState.messages.size
     val lastPartCount = uiState.messages.lastOrNull()?.parts?.size ?: 0
     val lastContentLength = uiState.messages.lastOrNull()?.parts?.lastOrNull()?.let { part ->
@@ -1631,7 +1634,7 @@ fun ChatScreen(
     val pendingCount = pendingInteractions.size
     val isBusy = isWorkingSessionStatus(uiState.sessionStatus)
     LaunchedEffect(messageCount, lastPartCount, lastContentLength, pendingCount, isBusy) {
-        if (messageCount > 0 && autoScrollEnabled && isAtBottom) {
+        if (messageCount > 0 && autoScrollEnabled) {
             val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
             isAutoScrolling = true
             try {
@@ -3815,7 +3818,9 @@ private fun SessionTerminalInline(
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.None,
                 autoCorrectEnabled = false,
-                keyboardType = KeyboardType.Ascii,
+                // Password forces a non-predictive layout that IMEs like Gboard won't
+                // autocorrect, while still showing a full text (ASCII) keyboard.
+                keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Send
             ),
             keyboardActions = KeyboardActions(
@@ -8521,10 +8526,16 @@ private fun ChatInputBar(
                                 bottom = 10.dp,
                             )
                             .heightIn(min = 24.dp),
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontFamily = if (isShellMode) FontFamily.Monospace else null
-                        ),
+                        textStyle = if (isShellMode) {
+                            MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        } else {
+                            MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        },
                         keyboardOptions = KeyboardOptions(
                             imeAction = ImeAction.Default,
                             keyboardType = if (isShellMode) KeyboardType.Ascii else KeyboardType.Text,
