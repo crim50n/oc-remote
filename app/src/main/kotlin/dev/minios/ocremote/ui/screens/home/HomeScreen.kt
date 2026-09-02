@@ -644,7 +644,8 @@ private fun LocalRuntimeCard(
     }
 
     Card(
-        onClick = { if (localServerConnected) onOpenLocalSessions() },
+        onClick = onOpenLocalSessions,
+        enabled = localServerConnected,
         modifier = Modifier.fillMaxWidth(),
         shape = AppCardShape,
         colors = CardDefaults.cardColors(
@@ -826,9 +827,10 @@ private fun LocalRuntimeCard(
             when {
                 // Termux not installed — show install button
                 !termuxInstalled -> {
-                    AppPrimaryButton(
+                    AppSecondaryButton(
                         onClick = onInstallTermux,
                         modifier = Modifier.fillMaxWidth(),
+                        outlined = true,
                     ) {
                         Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
@@ -843,9 +845,10 @@ private fun LocalRuntimeCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = cardContentColor.copy(alpha = 0.85f),
                     )
-                    AppPrimaryButton(
+                    AppSecondaryButton(
                         onClick = onSetup,
                         modifier = Modifier.fillMaxWidth(),
+                        outlined = true,
                     ) {
                         Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
@@ -853,18 +856,16 @@ private fun LocalRuntimeCard(
                     }
                 }
 
-                // If not running and connected, and no setup needed, we might still need a prominent start button if it's stopped
+                // Stopped or Error — show Setup button as secondary
                 runtimeStatus == LocalRuntimeStatus.Stopped || runtimeStatus == LocalRuntimeStatus.Error -> {
-                    // Only show prominent start button if not already connected (though usually it's one or the other)
-                    if (!localServerConnected) {
-                        AppPrimaryButton(
-                            onClick = onStart,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.home_local_start))
-                        }
+                    AppSecondaryButton(
+                        onClick = onSetup,
+                        modifier = Modifier.fillMaxWidth(),
+                        outlined = true,
+                    ) {
+                        Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.home_local_setup))
                     }
                 }
             }
@@ -945,6 +946,7 @@ private fun ServerCard(
 
     Card(
         onClick = onOpenSessions,
+        enabled = isConnected,
         modifier = Modifier.fillMaxWidth(),
         shape = AppCardShape,
         colors = CardDefaults.cardColors(

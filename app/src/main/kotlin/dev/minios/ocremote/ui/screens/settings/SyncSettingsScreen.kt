@@ -66,6 +66,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dev.minios.ocremote.R
@@ -80,6 +81,8 @@ import dev.minios.ocremote.ui.components.AppSecondaryButton
 import dev.minios.ocremote.ui.components.isAmoledTheme
 import java.text.DateFormat
 import java.util.Date
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -706,6 +709,7 @@ private fun SecretTextField(
     label: String,
     supportingText: String,
 ) {
+    var passwordVisible by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = if (stored && value.isBlank() && !focused) STORED_SECRET_PLACEHOLDER else value,
         onValueChange = onValueChange,
@@ -716,7 +720,20 @@ private fun SecretTextField(
         supportingText = {
             Text(if (stored && value.isBlank()) stringResource(R.string.sync_credential_stored) else supportingText)
         },
-        visualTransformation = PasswordVisualTransformation(),
+        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            val image = if (passwordVisible)
+                Icons.Default.VisibilityOff
+            else Icons.Default.Visibility
+
+            val description = if (passwordVisible)
+                stringResource(R.string.server_password_hide)
+            else stringResource(R.string.server_password_show)
+
+            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                Icon(imageVector = image, contentDescription = description)
+            }
+        },
         singleLine = true,
     )
 }
