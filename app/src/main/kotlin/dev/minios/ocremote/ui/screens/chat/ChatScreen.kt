@@ -2,6 +2,7 @@ package dev.minios.ocremote.ui.screens.chat
 
 import android.content.ClipData
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -4736,7 +4737,7 @@ private fun ChatMessageBubble(
             color = backgroundColor,
             border = bubbleBorder,
             tonalElevation = 0.dp,
-            modifier = modifier.fillMaxWidth()
+            modifier = modifier.fillMaxWidth().animateContentSize()
         ) {
             val compact = LocalCompactMessages.current
             Box {
