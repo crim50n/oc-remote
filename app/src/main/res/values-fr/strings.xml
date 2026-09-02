@@ -717,4 +717,6 @@ Jetons : ~%4$d -&gt; ~%5$d</string>
     <string name="workspace_markdown_preview">Afficher le Markdown formaté</string>
     <string name="workspace_markdown_raw">Afficher le code source Markdown</string>
     <string name="chat_server_disconnected">Serveur déconnecté</string>
+    <string name="server_password_show">Afficher le mot de passe</string>
+    <string name="server_password_hide">Masquer le mot de passe</string>
 </resources>

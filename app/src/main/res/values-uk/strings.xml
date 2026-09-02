@@ -717,4 +717,6 @@
     <string name="workspace_markdown_preview">Показати відформатований Markdown</string>
     <string name="workspace_markdown_raw">Показати вихідний код Markdown</string>
     <string name="chat_server_disconnected">З\'єднання з сервером розірвано</string>
+    <string name="server_password_show">Показати пароль</string>
+    <string name="server_password_hide">Приховати пароль</string>
 </resources>

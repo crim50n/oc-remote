@@ -3,6 +3,7 @@ package dev.minios.ocremote.ui.screens.settings
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import android.provider.OpenableColumns
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -24,9 +25,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Sync
@@ -59,12 +60,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dev.minios.ocremote.R
 import dev.minios.ocremote.data.repository.BackendSyncState
 import dev.minios.ocremote.data.repository.BackendSyncStatus
@@ -77,6 +81,8 @@ import dev.minios.ocremote.ui.components.AppSecondaryButton
 import dev.minios.ocremote.ui.components.isAmoledTheme
 import java.text.DateFormat
 import java.util.Date
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -168,7 +174,7 @@ fun SyncSettingsScreen(
         webDavUsername = state.config.webDav.username
         documentUri = state.config.document.endpoint
         documentName = state.config.document.endpoint.takeIf(String::isNotBlank)
-            ?.let { documentDisplayName(context, Uri.parse(it)) }
+            ?.let { documentDisplayName(context, it.toUri()) }
             .orEmpty()
         documentGrantFlags = 0
         includePasswords = state.config.includeEncryptedPasswords
@@ -178,17 +184,26 @@ fun SyncSettingsScreen(
         passphrase = ""
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.sync_title)) },
+                title = {
+                    Text(
+                        text = stringResource(R.string.sync_title),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+                scrollBehavior = scrollBehavior
             )
         },
     ) { padding ->
@@ -207,7 +222,10 @@ fun SyncSettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Text(stringResource(R.string.sync_common_settings), style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(R.string.sync_common_settings),
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+            )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.sync_automatic)) },
                 supportingContent = { Text(stringResource(R.string.sync_automatic_desc)) },
@@ -243,7 +261,10 @@ fun SyncSettingsScreen(
             }
 
             HorizontalDivider()
-            Text(stringResource(R.string.sync_backend), style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(R.string.sync_backend),
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+            )
             Text(
                 text = stringResource(R.string.sync_single_storage_desc_v2),
                 style = MaterialTheme.typography.bodySmall,
@@ -366,7 +387,7 @@ fun SyncSettingsScreen(
                                     Text(documentName.ifBlank { stringResource(R.string.sync_document_selected) })
                                 },
                                 supportingContent = { Text(stringResource(R.string.sync_document_access_persisted)) },
-                                leadingContent = { Icon(Icons.Default.InsertDriveFile, contentDescription = null) },
+                                leadingContent = { Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = null) },
                             )
                         } else {
                             Text(
@@ -537,10 +558,15 @@ fun SyncSettingsScreen(
     if (showVersionDialog) {
         AppDialog(onDismissRequest = { showVersionDialog = false }, modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(stringResource(R.string.sync_choose_version), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    stringResource(R.string.sync_choose_version),
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
                 Text(
                     stringResource(R.string.sync_choose_version_desc),
                     style = MaterialTheme.typography.bodyMedium,
@@ -683,6 +709,7 @@ private fun SecretTextField(
     label: String,
     supportingText: String,
 ) {
+    var passwordVisible by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = if (stored && value.isBlank() && !focused) STORED_SECRET_PLACEHOLDER else value,
         onValueChange = onValueChange,
@@ -693,7 +720,20 @@ private fun SecretTextField(
         supportingText = {
             Text(if (stored && value.isBlank()) stringResource(R.string.sync_credential_stored) else supportingText)
         },
-        visualTransformation = PasswordVisualTransformation(),
+        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            val image = if (passwordVisible)
+                Icons.Default.VisibilityOff
+            else Icons.Default.Visibility
+
+            val description = if (passwordVisible)
+                stringResource(R.string.server_password_hide)
+            else stringResource(R.string.server_password_show)
+
+            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                Icon(imageVector = image, contentDescription = description)
+            }
+        },
         singleLine = true,
     )
 }

@@ -4,6 +4,11 @@ import android.net.Uri
 import android.content.Intent
 import dev.minios.ocremote.logging.AppLogger as Log
 import dev.minios.ocremote.BuildConfig
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
@@ -385,7 +390,31 @@ fun NavGraph(
     
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route
+        startDestination = Screen.Home.route,
+        enterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Start,
+                animationSpec = tween(400, easing = FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(400))
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Start,
+                animationSpec = tween(400, easing = FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(400))
+        },
+        popEnterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.End,
+                animationSpec = tween(400, easing = FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(400))
+        },
+        popExitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.End,
+                animationSpec = tween(400, easing = FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(400))
+        }
     ) {
         // ============ Home Screen ============
         composable(Screen.Home.route) {

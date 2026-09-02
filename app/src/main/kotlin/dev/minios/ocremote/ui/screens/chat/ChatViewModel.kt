@@ -38,6 +38,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "ChatViewModel"
 
@@ -375,28 +376,39 @@ class ChatViewModel @Inject constructor(
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val allSessions = args[0] as List<Session>
+        @Suppress("UNCHECKED_CAST")
         val allMessages = args[1] as Map<String, List<Message>>
+        @Suppress("UNCHECKED_CAST")
         val allParts = args[2] as Map<String, List<Part>>
+        @Suppress("UNCHECKED_CAST")
         val statuses = args[3] as Map<String, SessionStatus>
+        @Suppress("UNCHECKED_CAST")
         val pendingInteractions = args[4] as List<PendingInteraction>
         val loading = args[5] as Boolean
         val error = args[6] as String?
         val sending = args[7] as Boolean
         val selProviderId = args[8] as String?
         val selModelId = args[9] as String?
+        @Suppress("UNCHECKED_CAST")
         val allProviders = args[10] as List<ProviderInfo>
+        @Suppress("UNCHECKED_CAST")
         val providers = args[11] as List<ProviderInfo>
+        @Suppress("UNCHECKED_CAST")
         val defaultModels = args[12] as Map<String, String>
+        @Suppress("UNCHECKED_CAST")
         val agents = args[13] as List<AgentInfo>
         @Suppress("UNCHECKED_CAST")
         val agentSelection = args[14] as Pair<String, Boolean>
         val selectedAgent = agentSelection.first
         val isAgentExplicitlySelected = agentSelection.second
         val selectedVariant = args[15] as String?
+        @Suppress("UNCHECKED_CAST")
         val commands = args[16] as List<CommandInfo>
         val hasOlderMessages = args[17] as Boolean
         val isLoadingOlder = args[18] as Boolean
+        @Suppress("UNCHECKED_CAST")
         val pendingPrompts = args[19] as List<PendingPromptRecord>
+        @Suppress("UNCHECKED_CAST")
         val promptDeliveries = args[20] as Map<String, PromptDeliveryInfo>
         fun deliveryFor(messageId: String) = when (promptDeliveries[messageId]?.state) {
             PromptDeliveryState.PROMOTED -> MessageDelivery.PROMOTED
@@ -607,7 +619,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             sessionLoaded.await()
             while (true) {
-                delay(3_000)
+                delay(3_000.milliseconds)
                 reconcileActiveStatus()
             }
         }
@@ -756,7 +768,7 @@ class ChatViewModel @Inject constructor(
                 e.rethrowCancellation()
                 Log.e(TAG, "Failed to load messages", e)
                 // On OOM or other memory errors, retry with a smaller limit
-                if (e is OutOfMemoryError || (e.cause is OutOfMemoryError)) {
+                if (e.cause is OutOfMemoryError) {
                     Log.w(TAG, "OOM loading messages, retrying with smaller limit")
                     currentMessageLimit = (currentMessageLimit / 2).coerceAtLeast(10)
                     try {
@@ -1022,7 +1034,7 @@ class ChatViewModel @Inject constructor(
             return
         }
         fileSearchJob = viewModelScope.launch {
-            delay(150) // debounce
+            delay(150.milliseconds) // debounce
             try {
                 val results = api.findFiles(
                     conn = conn,
@@ -1181,7 +1193,7 @@ class ChatViewModel @Inject constructor(
                     eventReducer.updateSessionStatus(sessionId, SessionStatus.Idle)
                     pendingPromptRepository.remove(messageId)
                     _pendingPrompts.value = _pendingPrompts.value.filterNot { it.messageId == messageId }
-                    delay(50)
+                    delay(50.milliseconds)
                     restoreDraftAfterFailedSend(draftSnapshot)
                 } else {
                     reconcilePendingMessage(messageId)
@@ -1196,7 +1208,7 @@ class ChatViewModel @Inject constructor(
     private suspend fun reconcilePendingMessage(messageId: String) {
         var latestMessages = emptyList<MessageWithParts>()
         for (delayMs in listOf(150L, 400L, 1_000L, 2_000L, 4_000L)) {
-            delay(delayMs)
+            delay(delayMs.milliseconds)
             if (_pendingPrompts.value.none { it.messageId == messageId }) return
             try {
                 val messages = api.listMessages(conn, sessionId, limit = 20)

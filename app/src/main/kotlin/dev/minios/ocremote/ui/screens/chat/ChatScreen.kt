@@ -1,6 +1,8 @@
 package dev.minios.ocremote.ui.screens.chat
 
+import android.content.ClipData
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -93,7 +95,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.ClipEntry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.platform.TextToolbar
 import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.semantics.Role
@@ -107,6 +111,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
@@ -136,19 +141,20 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.compose.elements.MarkdownImage
-import com.mikepenz.markdown.coil2.Coil2ImageTransformerImpl
-import com.mikepenz.markdown.model.DefaultMarkdownAnnotator
+import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
+import com.mikepenz.markdown.model.markdownAnnotator
 import com.mikepenz.markdown.model.ImageData
 import com.mikepenz.markdown.model.ImageTransformer
+import androidx.compose.ui.text.TextLinkStyles
 import com.mikepenz.markdown.utils.getUnescapedTextInNode
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
@@ -178,6 +184,7 @@ import kotlin.math.roundToInt
 import kotlin.math.abs
 
 import android.net.Uri
+import androidx.core.net.toUri
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
@@ -444,11 +451,11 @@ private fun BreathingCircleIndicator(
     }
 }
 
-/** Format a token count to a human-readable string (e.g., 1.2k, 45.3k, 1.2M). */
+/** Format a token count to a human-readable string (e.g., 1.2K, 45.3K, 1.2M). */
 private fun formatTokenCount(count: Int): String {
     return when {
         count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
-        count >= 1_000 -> String.format("%.1fk", count / 1_000.0)
+        count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
         else -> count.toString()
     }
 }
@@ -1078,7 +1085,7 @@ fun ChatScreen(
     val context = LocalContext.current
     val isAmoled = isAmoledTheme()
     val keyboardController = LocalSoftwareKeyboardController.current
-    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboardManager = LocalClipboard.current
     val view = LocalView.current
     val density = LocalDensity.current
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
@@ -1218,14 +1225,12 @@ fun ChatScreen(
     DisposableEffect(isTerminalMode) {
         val activity = context as? android.app.Activity
         if (isTerminalMode && activity != null) {
-            activity.window.statusBarColor = android.graphics.Color.BLACK
             androidx.core.view.WindowCompat.getInsetsController(
                 activity.window, activity.window.decorView
             ).isAppearanceLightStatusBars = false
         }
         onDispose {
             val act = context as? android.app.Activity ?: return@onDispose
-            act.window.statusBarColor = android.graphics.Color.TRANSPARENT
             androidx.core.view.WindowCompat.getInsetsController(
                 act.window, act.window.decorView
             ).isAppearanceLightStatusBars = !isDarkTheme
@@ -1240,14 +1245,16 @@ fun ChatScreen(
 
     fun pasteClipboardToTerminal() {
         if (!terminalConnected) return
-        val clip = clipboardManager.getText()?.text ?: return
-        if (clip.isEmpty()) return
-        val cleaned = clip
-            .replace(Regex("[\u001B\u0080-\u009F]"), "")
-            .replace("\r\n", "\r")
-            .replace('\n', '\r')
-        if (cleaned.isNotEmpty()) {
-            viewModel.sendTerminalInput(cleaned)
+        coroutineScope.launch {
+            val clip = clipboardManager.getClipEntry()?.clipData?.getItemAt(0)?.text ?: return@launch
+            if (clip.isEmpty()) return@launch
+            val cleaned = clip.toString()
+                .replace(Regex("[\u001B\u0080-\u009F]"), "")
+                .replace("\r\n", "\r")
+                .replace('\n', '\r')
+            if (cleaned.isNotEmpty()) {
+                viewModel.sendTerminalInput(cleaned)
+            }
         }
     }
 
@@ -1333,7 +1340,7 @@ fun ChatScreen(
                 continue
             }
             try {
-                val uri = android.net.Uri.parse(uriStr)
+                val uri = uriStr.toUri()
                 if (uriStr.startsWith("data:image/", ignoreCase = true)) {
                     val mime = uriStr.substringAfter("data:").substringBefore(';').ifBlank { "image/png" }
                     val syntheticName = "image.${mime.substringAfter('/', "png")}".lowercase()
@@ -1661,7 +1668,7 @@ fun ChatScreen(
                     Column {
                         Text(
                             text = uiState.sessionTitle,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -1913,7 +1920,7 @@ fun ChatScreen(
                                         viewModel.shareSession { url ->
                                             coroutineScope.launch {
                                                 if (url != null) {
-                                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
+                                                    clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("URL", url)))
                                                     snackbarHostState.showSnackbar(context.getString(R.string.chat_share_url_copied))
                                                 } else {
                                                     snackbarHostState.showSnackbar(context.getString(R.string.chat_share_failed))
@@ -2164,7 +2171,7 @@ fun ChatScreen(
                             viewModel.shareSession { url ->
                                 coroutineScope.launch {
                                     if (url != null) {
-                                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
+                                        clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("URL", url)))
                                         snackbarHostState.showSnackbar(context.getString(R.string.chat_share_url_copied))
                                     } else {
                                         snackbarHostState.showSnackbar(context.getString(R.string.chat_share_failed))
@@ -2847,10 +2854,8 @@ fun ChatScreen(
                                         .filterIsInstance<Part.Text>()
                                         .joinToString("\n") { it.text }
                                     if (text.isNotBlank()) {
-                                        clipboardManager.setText(
-                                            androidx.compose.ui.text.AnnotatedString(text)
-                                        )
                                         coroutineScope.launch {
+                                            clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("Code Block", text)))
                                             snackbarHostState.showSnackbar(context.getString(R.string.chat_copied_clipboard))
                                         }
                                     }
@@ -3791,6 +3796,9 @@ private fun SessionTerminalInline(
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.None,
                 autoCorrectEnabled = false,
+                // Password forces a non-predictive layout that IMEs like Gboard won't
+                // autocorrect, while still showing a full text (ASCII) keyboard.
+                keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Send
             ),
             keyboardActions = KeyboardActions(
@@ -4729,7 +4737,9 @@ private fun ChatMessageBubble(
             color = backgroundColor,
             border = bubbleBorder,
             tonalElevation = 0.dp,
-            modifier = modifier.fillMaxWidth()
+            modifier = modifier.fillMaxWidth().animateContentSize(
+                animationSpec = tween(durationMillis = 70, easing = FastOutSlowInEasing)
+            )
         ) {
             val compact = LocalCompactMessages.current
             Box {
@@ -5291,13 +5301,6 @@ private fun MarkdownContent(
 
     val colors = markdownColor(
         text = textColor,
-        codeText = codeBlockFg,
-        inlineCodeText = inlineCodeFg,
-        linkText = when {
-            isAmoled -> MaterialTheme.colorScheme.primary
-            isUser -> MaterialTheme.colorScheme.onPrimaryContainer
-            else -> MaterialTheme.colorScheme.primary
-        },
         codeBackground = codeBlockBg,
         inlineCodeBackground = Color.Transparent,
         dividerColor = textColor.copy(alpha = 0.32f)
@@ -5346,25 +5349,27 @@ private fun MarkdownContent(
         ordered = bodyStyle,
         bullet = bodyStyle,
         list = bodyStyle,
-        link = bodyStyle.copy(
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Medium
+        textLink = TextLinkStyles(
+            style = bodyStyle.copy(
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium
+            ).toSpanStyle()
         )
     )
 
     val components = markdownComponents(
         codeBlock = safeHighlightedCodeBlock,
         codeFence = safeHighlightedCodeFence,
-        image = { model ->
-            val imageUrl = remember(model.content, model.node) {
-                markdownImageUrl(model.content, model.node)
+        image = { scope ->
+            val imageUrl = remember(scope.content, scope.node) {
+                markdownImageUrl(scope.content, scope.node)
             }
             Box(
                 modifier = Modifier.clickable(enabled = imageUrl != null) {
                     previewImageUrl = imageUrl
                 },
             ) {
-                MarkdownImage(model.content, model.node)
+                MarkdownImage(scope.content, scope.node)
                 if (imageUrl != null) {
                     Surface(
                         modifier = Modifier
@@ -5392,10 +5397,10 @@ private fun MarkdownContent(
         table = horizontallyScrollableMarkdownTable,
     )
     val clickableImageTransformer = remember {
-        object : ImageTransformer by Coil2ImageTransformerImpl {
+        object : ImageTransformer by Coil3ImageTransformerImpl {
             @Composable
             override fun transform(link: String): ImageData? {
-                val image = Coil2ImageTransformerImpl.transform(link) ?: return null
+                val image = Coil3ImageTransformerImpl.transform(link)
                 return image.copy(
                     modifier = image.modifier.clickable { previewImageUrl = link },
                 )
@@ -5488,12 +5493,12 @@ internal fun normalizeTaskListMarkers(markdown: String): String {
         }
     }
 }
-internal val ChatMarkdownAnnotator = DefaultMarkdownAnnotator { content, node ->
+internal val ChatMarkdownAnnotator = markdownAnnotator(annotate = { content, node ->
     markdownTokenReplacement(content, node)?.let { replacement ->
         append(replacement)
         true
     } ?: false
-}
+})
 
 private val EmailAutolinkRegex = Regex("<[^<>\\s@]+@[^<>\\s@]+>")
 
@@ -5948,8 +5953,9 @@ private fun ApplyPatchToolCard(tool: Part.Tool) {
             countUnifiedPatchChanges(patch)
         }
     }
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val hapticView = LocalView.current
     val hapticOn = LocalHapticFeedbackEnabled.current
     val autoExpand = LocalCollapseTools.current
@@ -6000,7 +6006,9 @@ private fun ApplyPatchToolCard(tool: Part.Tool) {
                 } else if (hasContent) {
                     IconButton(
                         onClick = {
-                            clipboard.setText(AnnotatedString(patch))
+                            coroutineScope.launch {
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Patch", patch)))
+                            }
                             android.widget.Toast.makeText(context, R.string.chat_copied_clipboard, android.widget.Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.size(22.dp),
@@ -6097,8 +6105,9 @@ private fun UnifiedPatchView(patch: String) {
 @Composable
 private fun EditToolCard(tool: Part.Tool) {
     val isAmoled = isAmoledTheme()
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val input = extractToolInput(tool)
     val filePath = input["filePath"]?.jsonPrimitive?.contentOrNull ?: ""
     val shortPath = filePath.substringAfterLast('/')
@@ -6210,9 +6219,11 @@ private fun EditToolCard(tool: Part.Tool) {
                     } else if (hasContent) {
                         IconButton(
                             onClick = {
-                                clipboard.setText(AnnotatedString("Edit: $filePath\n\n${authoritativePatch ?: diffAfter}"))
-                                android.widget.Toast.makeText(context, R.string.chat_copied_clipboard, android.widget.Toast.LENGTH_SHORT).show()
-                            },
+                            coroutineScope.launch {
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Edit", "Edit: $filePath\n\n${authoritativePatch ?: diffAfter}")))
+                            }
+                            android.widget.Toast.makeText(context, R.string.chat_copied_clipboard, android.widget.Toast.LENGTH_SHORT).show()
+                        },
                             modifier = Modifier.size(22.dp),
                         ) {
                             Icon(
@@ -6236,7 +6247,7 @@ private fun EditToolCard(tool: Part.Tool) {
             AnimatedVisibility(visible = expanded && hasContent) {
                 Column(modifier = Modifier.padding(top = 6.dp)) {
                     if (isError) {
-                        val errorText = (tool.state as ToolState.Error).error
+                        val errorText = tool.state.error
                         Surface(
                             shape = RoundedCornerShape(4.dp),
                             color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.errorContainer,
@@ -6522,8 +6533,9 @@ private fun WriteToolCard(tool: Part.Tool) {
 @Composable
 private fun BashToolCard(tool: Part.Tool) {
     val isAmoled = isAmoledTheme()
-    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboardManager = LocalClipboard.current
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val input = extractToolInput(tool)
     val command = input["command"]?.jsonPrimitive?.contentOrNull ?: ""
     val output = (tool.state as? ToolState.Running)
@@ -6611,7 +6623,9 @@ private fun BashToolCard(tool: Part.Tool) {
                         if (displayText.isNotBlank()) {
                             IconButton(
                                 onClick = {
-                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(displayText))
+                                    coroutineScope.launch {
+                                        clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("Code Block", displayText)))
+                                    }
                                     android.widget.Toast.makeText(
                                         context,
                                         context.getString(R.string.chat_copied_clipboard),
@@ -6807,8 +6821,9 @@ private fun ReadToolCard(tool: Part.Tool) {
 @Composable
 private fun SearchToolCard(tool: Part.Tool) {
     val isAmoled = isAmoledTheme()
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val input = extractToolInput(tool)
     val pattern = input["pattern"]?.jsonPrimitive?.contentOrNull
     val include = input["include"]?.jsonPrimitive?.contentOrNull
@@ -6888,9 +6903,12 @@ private fun SearchToolCard(tool: Part.Tool) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
                             onClick = {
-                                clipboard.setText(AnnotatedString(if (hasOutput) output else title))
-                                android.widget.Toast.makeText(context, R.string.chat_copied_clipboard, android.widget.Toast.LENGTH_SHORT).show()
-                            },
+                            val textToCopy = if (hasOutput) output else title
+                            coroutineScope.launch {
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Search Result", textToCopy)))
+                            }
+                            android.widget.Toast.makeText(context, R.string.chat_copied_clipboard, android.widget.Toast.LENGTH_SHORT).show()
+                        },
                             modifier = Modifier.size(22.dp),
                         ) {
                             Icon(
@@ -8488,11 +8506,22 @@ private fun ChatInputBar(
                                 bottom = 10.dp,
                             )
                             .heightIn(min = 24.dp),
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontFamily = if (isShellMode) FontFamily.Monospace else FontFamily.Default
+                        textStyle = if (isShellMode) {
+                            MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        } else {
+                            MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Default,
+                            keyboardType = if (isShellMode) KeyboardType.Ascii else KeyboardType.Text,
+                            autoCorrectEnabled = !isShellMode,
+                            capitalization = if (isShellMode) KeyboardCapitalization.None else KeyboardCapitalization.Sentences
                         ),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                         maxLines = 5,
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         visualTransformation = visualTransformation,
@@ -8660,6 +8689,7 @@ private fun ContextUsageDialog(
                         text = "$percentage%",
                         style = MaterialTheme.typography.headlineMedium,
                         color = progressColor,
+                        fontWeight = FontWeight.SemiBold
                     )
                     Text(
                         text = stringResource(

@@ -67,13 +67,14 @@ class UpdateRepository @Inject constructor(
         decodeCachedRelease(preferences[CACHED_RELEASE_KEY])
             ?.takeIf { UpdatePolicy.isNewer(it, BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME) }
             ?.let { _state.value = UpdateState.Available(it) }
+        Unit
     }
 
     suspend fun check(manual: Boolean) = operationMutex.withLock {
         if (_state.value is UpdateState.Downloading || _state.value is UpdateState.ReadyToInstall) return@withLock
         val preferences = dataStore.data.first()
         val now = System.currentTimeMillis()
-        if (!manual && now - (preferences[LAST_ATTEMPT_KEY] ?: 0L) < CHECK_INTERVAL_MS) return
+        if (!manual && now - (preferences[LAST_ATTEMPT_KEY] ?: 0L) < CHECK_INTERVAL_MS) return@withLock
         val cachedAvailable = _state.value as? UpdateState.Available
         if (manual || cachedAvailable == null) _state.value = UpdateState.Checking
         dataStore.edit { it[LAST_ATTEMPT_KEY] = now }
@@ -86,7 +87,7 @@ class UpdateRepository @Inject constructor(
                 } else {
                     UpdateState.Idle
                 }
-                return
+                return@withLock
             }
 
         if (UpdatePolicy.isNewer(release, BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME)) {

@@ -2,15 +2,16 @@ package dev.minios.ocremote.ui.screens.about
 
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -20,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -34,7 +36,7 @@ import dev.minios.ocremote.ui.components.AppPrimaryButton
 import dev.minios.ocremote.ui.components.appAmoledBorder
 import dev.minios.ocremote.ui.components.isAmoledTheme
 import dev.minios.ocremote.ui.components.rememberUpdateInstallLauncher
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,11 +56,19 @@ fun AboutScreen(
         readyUpdate?.let { launchInstaller(it.apkPath) }
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.about_title)) },
+                title = {
+                    Text(
+                        text = stringResource(R.string.about_title),
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -69,7 +79,8 @@ fun AboutScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
-                )
+                ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->
@@ -155,7 +166,12 @@ fun AboutScreen(
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
-                val buttonModifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
+                val buttonModifier = Modifier.fillMaxWidth().padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 4.dp,
+                    bottom = 12.dp
+                )
                 when (val state = updateState) {
                     UpdateState.Idle, UpdateState.UpToDate -> AppPrimaryButton(
                         onClick = viewModel::checkForUpdates,
@@ -184,7 +200,7 @@ fun AboutScreen(
                             if (UpdatePolicy.isInstallable(state.release)) {
                                 viewModel.prepareInstall(state.release)
                             } else {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.release.releaseUrl)))
+                                context.startActivity(Intent(Intent.ACTION_VIEW, state.release.releaseUrl.toUri()))
                             }
                         },
                         modifier = buttonModifier,
@@ -206,7 +222,7 @@ fun AboutScreen(
                                 if (UpdatePolicy.isInstallable(release)) {
                                     viewModel.prepareInstall(release)
                                 } else {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.releaseUrl)))
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, release.releaseUrl.toUri()))
                                 }
                             } ?: viewModel.checkForUpdates()
                         },
@@ -251,14 +267,14 @@ fun AboutScreen(
                     },
                     trailingContent = {
                         Icon(
-                            Icons.Default.OpenInNew,
+                            Icons.AutoMirrored.Filled.OpenInNew,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
                     },
                     modifier = Modifier.clickable {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl)))
+                        context.startActivity(Intent(Intent.ACTION_VIEW, githubUrl.toUri()))
                     },
                     colors = itemColors,
                 )
@@ -279,14 +295,14 @@ fun AboutScreen(
                     },
                     trailingContent = {
                         Icon(
-                            Icons.Default.OpenInNew,
+                            Icons.AutoMirrored.Filled.OpenInNew,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
                     },
                     modifier = Modifier.clickable {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(opencodeUrl)))
+                        context.startActivity(Intent(Intent.ACTION_VIEW, opencodeUrl.toUri()))
                     },
                     colors = itemColors,
                 )

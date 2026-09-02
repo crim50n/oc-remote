@@ -6,7 +6,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Science
@@ -46,5 +46,5 @@ fun sessionCategoryIcon(key: String): ImageVector = when (key) {
     "docs" -> Icons.Default.Description
     "star" -> Icons.Default.Star
     "build" -> Icons.Default.Build
-    else -> Icons.Default.Label
+    else -> Icons.AutoMirrored.Filled.Label
 }

@@ -717,4 +717,6 @@
     <string name="workspace_markdown_preview">عرض Markdown منسق</string>
     <string name="workspace_markdown_raw">عرض مصدر Markdown</string>
     <string name="chat_server_disconnected">تم قطع الاتصال بالخادم</string>
+    <string name="server_password_show">عرض كلمة المرور</string>
+    <string name="server_password_hide">إخفاء كلمة المرور</string>
 </resources>

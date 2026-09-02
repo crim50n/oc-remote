@@ -14,13 +14,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.Card
@@ -49,10 +50,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dev.minios.ocremote.R
 import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.ui.components.sessionCategoryColor
@@ -101,15 +103,17 @@ fun CrossServerSessionsScreen(
             add(to.index, removeAt(from.index))
         }
     }
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = {
                     Text(
                         text = stringResource(R.string.cross_sessions_favorites),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     )
                 },
                 navigationIcon = {
@@ -120,6 +124,7 @@ fun CrossServerSessionsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                 ),
+                scrollBehavior = scrollBehavior
             )
         },
     ) { padding ->
@@ -401,7 +406,7 @@ private fun CrossServerSessionCard(
                         leadingIcon = {
                             Icon(
                                 imageVector = item.category?.let { sessionCategoryIcon(it.icon) }
-                                    ?: Icons.Default.Label,
+                                    ?: Icons.AutoMirrored.Filled.Label,
                                 contentDescription = null,
                                 tint = item.category?.let { sessionCategoryColor(it.color) }
                                     ?: LocalContentColor.current,

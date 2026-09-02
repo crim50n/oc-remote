@@ -717,4 +717,6 @@
     <string name="workspace_markdown_preview">显示格式化的 Markdown</string>
     <string name="workspace_markdown_raw">显示 Markdown 源码</string>
     <string name="chat_server_disconnected">服务器已断开连接</string>
+    <string name="server_password_show">显示密码</string>
+    <string name="server_password_hide">隐藏密码</string>
 </resources>

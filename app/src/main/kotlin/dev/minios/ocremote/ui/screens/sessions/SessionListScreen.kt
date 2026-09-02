@@ -1,5 +1,6 @@
 package dev.minios.ocremote.ui.screens.sessions
 
+import android.content.ClipData
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -24,6 +25,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.automirrored.filled.LabelOff
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -37,6 +40,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -51,7 +57,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.activity.compose.BackHandler
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import kotlinx.coroutines.launch
 import dev.minios.ocremote.R
 import dev.minios.ocremote.data.api.FileNode
 import dev.minios.ocremote.domain.model.Project
@@ -81,9 +88,9 @@ import dev.minios.ocremote.ui.components.AppLoadingEdge
 import dev.minios.ocremote.ui.components.sessionCategoryColor
 import dev.minios.ocremote.ui.components.sessionCategoryIcon
 import dev.minios.ocremote.ui.screens.settings.SessionCategoriesDialog
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.SwipeRefreshState
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshState
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 
 internal fun shouldRevealPromotedSession(
     previousTopSessionId: String?,
@@ -166,22 +173,25 @@ private fun PulsingDotsIndicator(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ServerRefreshEdge(
-    state: SwipeRefreshState,
-    refreshTriggerDistance: androidx.compose.ui.unit.Dp,
+    isRefreshing: Boolean,
+    state: PullToRefreshState,
     modifier: Modifier = Modifier,
 ) {
-    val density = LocalDensity.current
-    val triggerPx = with(density) { refreshTriggerDistance.toPx() }.coerceAtLeast(1f)
-    val progress = (state.indicatorOffset / triggerPx).coerceIn(0f, 1f)
-    AppLoadingEdge(active = state.isRefreshing, progress = progress, modifier = modifier)
+    AppLoadingEdge(
+        active = isRefreshing,
+        progress = state.distanceFraction,
+        modifier = modifier
+    )
 }
 
 /**
  * Session List Screen - shows all sessions for a connected server,
  * grouped by project. Tapping a session navigates to the chat screen.
  */
+@Suppress("DEPRECATION")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionListScreen(
@@ -258,10 +268,12 @@ fun SessionListScreen(
     }
 
     val allSessions = uiState.sessionGroups.flatMap { it.sessions }
-    val refreshTriggerDistance = 80.dp
-    val swipeRefreshState = rememberSwipeRefreshState(uiState.isLoading && allSessions.isNotEmpty())
+    val pullToRefreshState = rememberPullToRefreshState()
+    val isRefreshing = uiState.isLoading && allSessions.isNotEmpty()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             Box {
@@ -270,7 +282,7 @@ fun SessionListScreen(
                     title = {
                         Text(
                             text = stringResource(R.string.sessions_selected_count, uiState.selectedIds.size),
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                         )
                     },
                     navigationIcon = {
@@ -292,7 +304,8 @@ fun SessionListScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
-                    )
+                    ),
+                    scrollBehavior = scrollBehavior
                 )
                 } else {
                 TopAppBar(
@@ -300,7 +313,7 @@ fun SessionListScreen(
                         Column {
                             Text(
                                 text = uiState.serverName.ifEmpty { stringResource(R.string.sessions_title) },
-                                style = MaterialTheme.typography.titleMedium
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                         }
                     },
@@ -322,12 +335,13 @@ fun SessionListScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
-                    )
+                    ),
+                    scrollBehavior = scrollBehavior
                     )
                 }
                 ServerRefreshEdge(
-                    state = swipeRefreshState,
-                    refreshTriggerDistance = refreshTriggerDistance,
+                    isRefreshing = isRefreshing,
+                    state = pullToRefreshState,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
@@ -371,19 +385,18 @@ fun SessionListScreen(
             }
         }
     ) { padding ->
-        SwipeRefresh(
-            state = swipeRefreshState,
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
             onRefresh = viewModel::loadSessions,
-            swipeEnabled = !uiState.isSelectionMode && !uiState.isLoading,
-            refreshTriggerDistance = refreshTriggerDistance,
+            state = pullToRefreshState,
             modifier = Modifier.fillMaxSize().padding(padding),
-            indicator = { _, _ -> },
+            indicator = { },
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.surface)
-                    .graphicsLayer { translationY = swipeRefreshState.indicatorOffset * 0.45f },
+                    .graphicsLayer { translationY = pullToRefreshState.distanceFraction * 80f },
             ) {
                 when {
                 uiState.isLoading && allSessions.isEmpty() -> {
@@ -422,8 +435,7 @@ fun SessionListScreen(
                         modifier = Modifier
                             .align(Alignment.Center)
                             .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Chat,
@@ -431,11 +443,13 @@ fun SessionListScreen(
                             modifier = Modifier.size(64.dp),
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                         )
+                        Spacer(Modifier.height(16.dp))
                         Text(
                             text = stringResource(R.string.sessions_empty),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
+                        Spacer(Modifier.height(8.dp))
                         Text(
                             text = stringResource(R.string.sessions_tap_plus),
                             style = MaterialTheme.typography.bodyMedium,
@@ -582,6 +596,9 @@ fun SessionListScreen(
                                 )
                                 }
                             }
+                        }
+                        item(key = "session-list-fab-spacer") {
+                            Spacer(modifier = Modifier.height(84.dp))
                         }
                     }
                 }
@@ -1055,6 +1072,9 @@ private fun OpenProjectDialog(
                                             }
                                         )
                                     }
+                                    item(key = "dir-search-fab-spacer") {
+                                        Spacer(modifier = Modifier.height(84.dp))
+                                    }
                                 }
                             }
                         }
@@ -1088,6 +1108,9 @@ private fun OpenProjectDialog(
                                             },
                                             onClick = { onSelect(absPath) }
                                         )
+                                    }
+                                    item(key = "dir-list-fab-spacer") {
+                                        Spacer(modifier = Modifier.height(84.dp))
                                     }
                                 }
                             }
@@ -1425,7 +1448,8 @@ private fun SessionRow(
     onDelete: () -> Unit
 ) {
     val isAmoled = isAmoledTheme()
-    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboardManager = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     var showActions by remember { mutableStateOf(false) }
     var showCategoryPicker by remember { mutableStateOf(false) }
@@ -1517,7 +1541,7 @@ private fun SessionRow(
                                 leadingIcon = {
                                     Icon(
                                         imageVector = item.category?.let { sessionCategoryIcon(it.icon) }
-                                            ?: Icons.Default.Label,
+                                            ?: Icons.AutoMirrored.Filled.Label,
                                         contentDescription = null,
                                         tint = item.category?.let { sessionCategoryColor(it.color) }
                                             ?: LocalContentColor.current,
@@ -1557,7 +1581,9 @@ private fun SessionRow(
                                 leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
                                 onClick = {
                                     showActions = false
-                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(item.session.id))
+                                    coroutineScope.launch {
+                                        clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("Session ID", item.session.id)))
+                                    }
                                     Toast.makeText(
                                         context,
                                         context.getString(R.string.chat_copied_clipboard),
@@ -1652,7 +1678,7 @@ internal fun SessionCategoryPickerDialog(
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Default.LabelOff, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.LabelOff, contentDescription = null)
                     Text(
                         text = stringResource(R.string.session_category_none),
                         modifier = Modifier.weight(1f).padding(horizontal = 12.dp),

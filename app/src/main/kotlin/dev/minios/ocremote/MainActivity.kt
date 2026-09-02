@@ -187,13 +187,9 @@ class MainActivity : ComponentActivity() {
             }
             
             OpenCodeTheme(darkTheme = darkTheme, dynamicColor = dynamicColor, amoledDark = amoledDark) {
-                
-                // Set status bar color based on theme
+                // Set status bar appearance based on theme
                 SideEffect {
                     val window = this.window
-                    window.statusBarColor = Color.Transparent.toArgb()
-                    window.navigationBarColor = Color.Transparent.toArgb()
-                    
                     val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                     insetsController.isAppearanceLightStatusBars = !darkTheme
                     insetsController.isAppearanceLightNavigationBars = !darkTheme
@@ -251,11 +247,8 @@ class MainActivity : ComponentActivity() {
                     putExtra("server_username", savedServer.username)
                     putExtra("server_password", savedServer.password)
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(serviceIntent)
-                } else {
-                    startService(serviceIntent)
-                }
+
+                startForegroundService(serviceIntent)
             } else {
                 Log.w(TAG, "Deep-link server is not configured: $serverUrl")
             }
@@ -337,12 +330,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         /** Parse BCP 47 tag (e.g. "pt-BR", "zh-CN", "en") into a [Locale]. */
         fun parseLocale(tag: String): Locale {
-            val parts = tag.split("-")
-            return if (parts.size >= 2) {
-                Locale(parts[0], parts[1].uppercase())
-            } else {
-                Locale(parts[0])
-            }
+            return Locale.forLanguageTag(tag)
         }
     }
 }

@@ -717,4 +717,6 @@
     <string name="workspace_markdown_preview">서식 있는 Markdown 보기</string>
     <string name="workspace_markdown_raw">Markdown 원본 보기</string>
     <string name="chat_server_disconnected">서버 연결이 끊어졌습니다</string>
+    <string name="server_password_show">비밀번호 표시</string>
+    <string name="server_password_hide">비밀번호 숨기기</string>
 </resources>

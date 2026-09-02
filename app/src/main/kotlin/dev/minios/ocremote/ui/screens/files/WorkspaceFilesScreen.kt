@@ -59,22 +59,26 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import coil3.compose.AsyncImage
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.compose.components.MarkdownComponent
 import com.mikepenz.markdown.compose.LocalMarkdownTypography
 import com.mikepenz.markdown.compose.elements.MarkdownHeader
 import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.mikepenz.markdown.model.DefaultMarkdownTypography
 import com.mikepenz.markdown.model.MarkdownTypography
@@ -128,7 +132,10 @@ fun WorkspaceFilesScreen(
         }
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
@@ -139,6 +146,7 @@ fun WorkspaceFilesScreen(
                         Column {
                             Text(
                                 text = preview.node.name,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -153,7 +161,7 @@ fun WorkspaceFilesScreen(
                     } else {
                         Text(
                             text = currentLocation,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -196,6 +204,7 @@ fun WorkspaceFilesScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+                scrollBehavior = scrollBehavior
             )
         },
     ) { padding ->
@@ -404,7 +413,7 @@ private fun WorkspaceMarkdownPreview(
         ordered = bodyStyle,
         bullet = bodyStyle,
         list = bodyStyle,
-        link = bodyStyle.copy(fontWeight = FontWeight.Medium),
+        textLink = TextLinkStyles(style = bodyStyle.copy(fontWeight = FontWeight.Medium).toSpanStyle()),
     )
     CompositionLocalProvider(LocalCodeWordWrap provides wordWrap) {
         Box(
@@ -415,6 +424,7 @@ private fun WorkspaceMarkdownPreview(
             androidx.compose.foundation.text.selection.SelectionContainer {
                 Markdown(
                     content = markdown,
+                    colors = markdownColor(),
                     components = components,
                     typography = typography,
                     modifier = Modifier.fillMaxWidth(),
@@ -442,26 +452,12 @@ private fun workspaceMarkdownHeading(
 
 private fun MarkdownTypography.withInlineCodeSize(
     headingStyle: androidx.compose.ui.text.TextStyle,
-): MarkdownTypography = DefaultMarkdownTypography(
-    h1 = h1,
-    h2 = h2,
-    h3 = h3,
-    h4 = h4,
-    h5 = h5,
-    h6 = h6,
-    text = text,
-    code = code,
+): MarkdownTypography = (this as DefaultMarkdownTypography).copy(
     inlineCode = inlineCode.copy(
         fontSize = headingStyle.fontSize,
         lineHeight = headingStyle.lineHeight,
         fontWeight = headingStyle.fontWeight,
     ),
-    quote = quote,
-    paragraph = paragraph,
-    ordered = ordered,
-    bullet = bullet,
-    list = list,
-    link = link,
 )
 
 private fun workspaceFileIcon(kind: WorkspaceFileKind): ImageVector = when (kind) {

@@ -77,9 +77,9 @@ class SseClient @Inject constructor(
             directory?.let { header("x-opencode-directory", it) }
 
             timeout {
-                requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+                requestTimeoutMillis = Long.MAX_VALUE
                 connectTimeoutMillis = 10_000
-                socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+                socketTimeoutMillis = Long.MAX_VALUE
             }
         }
 
@@ -108,7 +108,7 @@ class SseClient @Inject constructor(
             onOpen()
 
             while (!channel.isClosedForRead) {
-                val line = withTimeoutOrNull(HEARTBEAT_TIMEOUT_MS) { channel.readUTF8Line() }
+                val line = withTimeoutOrNull(HEARTBEAT_TIMEOUT_MS) { channel.readLine() }
                     ?: if (channel.isClosedForRead) break else {
                         throw SseConnectionException("SSE stream timed out")
                     }
