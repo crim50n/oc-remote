@@ -643,6 +643,7 @@ private fun LocalRuntimeCard(
     }
 
     Card(
+        onClick = { if (localServerConnected) onOpenLocalSessions() },
         modifier = Modifier.fillMaxWidth(),
         shape = AppCardShape,
         colors = CardDefaults.cardColors(
@@ -664,7 +665,7 @@ private fun LocalRuntimeCard(
                 localServerConnected &&
                 localServerConnectionError.isNullOrBlank()
 
-            // Header row with title and status chip
+            // Header row with title and actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -675,89 +676,124 @@ private fun LocalRuntimeCard(
                     style = MaterialTheme.typography.titleMedium,
                     color = cardContentColor,
                 )
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = stringResource(R.string.more_options),
-                            tint = cardContentColor,
-                        )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (localServerConnected) {
+                        IconButton(onClick = onOpenLocalSessions) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Chat,
+                                contentDescription = stringResource(R.string.sessions_title),
+                                tint = cardContentColor,
+                            )
+                        }
                     }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                        modifier = Modifier.appPopupBorder(),
-                        containerColor = appPopupContainerColor(),
-                    ) {
-                        if (showLocalServerSettings) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.settings_title)) },
-                                onClick = {
-                                    showMenu = false
-                                    onOpenLocalServerSettings()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Settings, contentDescription = null)
-                                },
+
+                    if (termuxInstalled && runtimeStatus != LocalRuntimeStatus.NeedsSetup) {
+                        IconButton(
+                            onClick = { if (runtimeStatus == LocalRuntimeStatus.Running) onStop() else onStart() },
+                            enabled = runtimeStatus == LocalRuntimeStatus.Running || runtimeStatus == LocalRuntimeStatus.Stopped || runtimeStatus == LocalRuntimeStatus.Error
+                        ) {
+                            if (runtimeStatus == LocalRuntimeStatus.Starting || runtimeStatus == LocalRuntimeStatus.Stopping) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = cardContentColor,
+                                )
+                            } else {
+                                Icon(
+                                    if (runtimeStatus == LocalRuntimeStatus.Running) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                    contentDescription = stringResource(
+                                        if (runtimeStatus == LocalRuntimeStatus.Running) R.string.home_local_stop else R.string.home_local_start
+                                    ),
+                                    tint = cardContentColor,
+                                )
+                            }
+                        }
+                    }
+
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = stringResource(R.string.more_options),
+                                tint = cardContentColor,
                             )
                         }
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.home_local_launch_options)) },
-                            onClick = {
-                                showMenu = false
-                                onOpenLocalLaunchOptions()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Tune, contentDescription = null)
-                            },
-                        )
-                        if (termuxInstalled) {
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            modifier = Modifier.appPopupBorder(),
+                            containerColor = appPopupContainerColor(),
+                        ) {
+                            if (showLocalServerSettings) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.settings_title)) },
+                                    onClick = {
+                                        showMenu = false
+                                        onOpenLocalServerSettings()
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Settings, contentDescription = null)
+                                    },
+                                )
+                            }
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.home_local_setup)) },
+                                text = { Text(stringResource(R.string.home_local_launch_options)) },
                                 onClick = {
                                     showMenu = false
-                                    onSetup()
+                                    onOpenLocalLaunchOptions()
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Build, contentDescription = null)
+                                    Icon(Icons.Default.Tune, contentDescription = null)
                                 },
                             )
-                        }
-                        if (runtimeStatus == LocalRuntimeStatus.Error && !fixCommand.isNullOrBlank()) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.home_local_copy_fix_command)) },
-                                onClick = {
-                                    showMenu = false
-                                    onCopyFixCommand(fixCommand)
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.ContentCopy, contentDescription = null)
-                                },
-                            )
-                        }
-                        if (runtimeStatus == LocalRuntimeStatus.Error && needsOverlaySettings) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.home_local_open_termux_overlay_settings)) },
-                                onClick = {
-                                    showMenu = false
-                                    onOpenTermuxOverlaySettings()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                                },
-                            )
-                        }
-                        if (!termuxInstalled) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.home_local_install_termux)) },
-                                onClick = {
-                                    showMenu = false
-                                    onInstallTermux()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Download, contentDescription = null)
-                                },
-                            )
+                            if (termuxInstalled) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.home_local_setup)) },
+                                    onClick = {
+                                        showMenu = false
+                                        onSetup()
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Build, contentDescription = null)
+                                    },
+                                )
+                            }
+                            if (runtimeStatus == LocalRuntimeStatus.Error && !fixCommand.isNullOrBlank()) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.home_local_copy_fix_command)) },
+                                    onClick = {
+                                        showMenu = false
+                                        onCopyFixCommand(fixCommand)
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.ContentCopy, contentDescription = null)
+                                    },
+                                )
+                            }
+                            if (runtimeStatus == LocalRuntimeStatus.Error && needsOverlaySettings) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.home_local_open_termux_overlay_settings)) },
+                                    onClick = {
+                                        showMenu = false
+                                        onOpenTermuxOverlaySettings()
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+                                    },
+                                )
+                            }
+                            if (!termuxInstalled) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.home_local_install_termux)) },
+                                    onClick = {
+                                        showMenu = false
+                                        onInstallTermux()
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Download, contentDescription = null)
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -789,23 +825,13 @@ private fun LocalRuntimeCard(
             when {
                 // Termux not installed — show install button
                 !termuxInstalled -> {
-                    Row(
+                    AppPrimaryButton(
+                        onClick = onInstallTermux,
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        AppPrimaryButton(
-                            onClick = onOpenLocalSessions,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
-                        AppSecondaryButton(
-                            onClick = onInstallTermux,
-                            modifier = Modifier.weight(1f),
-                            outlined = true,
-                        ) {
-                            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
+                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.home_local_install_termux))
                     }
                 }
 
@@ -816,116 +842,38 @@ private fun LocalRuntimeCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = cardContentColor.copy(alpha = 0.85f),
                     )
-                    Row(
+                    AppPrimaryButton(
+                        onClick = onSetup,
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.home_local_setup))
+                    }
+                }
+
+                // If not running and connected, and no setup needed, we might still need a prominent start button if it's stopped
+                runtimeStatus == LocalRuntimeStatus.Stopped || runtimeStatus == LocalRuntimeStatus.Error -> {
+                    // Only show prominent start button if not already connected (though usually it's one or the other)
+                    if (!localServerConnected) {
                         AppPrimaryButton(
-                            onClick = onOpenLocalSessions,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
-                        AppSecondaryButton(
                             onClick = onStart,
-                            modifier = Modifier.weight(1f),
-                            outlined = true,
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
-                    }
-                }
-
-                // Running or Starting or Stopping — show stop button
-                runtimeStatus == LocalRuntimeStatus.Running ||
-                    runtimeStatus == LocalRuntimeStatus.Starting ||
-                    runtimeStatus == LocalRuntimeStatus.Stopping -> {
-                    val actionLabel = when (runtimeStatus) {
-                        LocalRuntimeStatus.Starting -> stringResource(R.string.home_local_status_starting)
-                        LocalRuntimeStatus.Stopping -> stringResource(R.string.home_local_status_stopping)
-                        else -> stringResource(R.string.home_local_stop)
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        AppPrimaryButton(
-                            onClick = onOpenLocalSessions,
-                            modifier = Modifier.weight(1f),
-                            enabled = localServerConnected,
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
-                        AppSecondaryButton(
-                            onClick = onStop,
-                            modifier = Modifier.weight(1f),
-                            enabled = runtimeStatus == LocalRuntimeStatus.Running,
-                            destructive = true,
-                            outlined = true,
-                        ) {
-                            if (runtimeStatus == LocalRuntimeStatus.Starting || runtimeStatus == LocalRuntimeStatus.Stopping) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.error,
-                                )
-                            }
-                            Text(actionLabel, maxLines = 1)
-                        }
-                    }
-                }
-
-                // Stopped or Error — show start button
-                else -> {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        AppPrimaryButton(
-                            onClick = onOpenLocalSessions,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
-
-                        AppSecondaryButton(
-                            onClick = onSetup,
-                            modifier = Modifier.weight(1f),
-                            outlined = true,
-                        ) {
-                            Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.home_local_start))
                         }
                     }
                 }
             }
 
-            if (
-                runtimeStatus != LocalRuntimeStatus.Running &&
-                runtimeStatus != LocalRuntimeStatus.Starting &&
-                runtimeStatus != LocalRuntimeStatus.Stopping &&
-                localServerConnected
-            ) {
-                if (!compactActive) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-                }
-
-                if (!localServerConnectionError.isNullOrBlank()) {
-                    Text(
-                        text = localServerConnectionError,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-
-                AppSecondaryButton(
-                    onClick = onOpenLocalSessions,
-                    modifier = Modifier.fillMaxWidth(),
-                    outlined = true,
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.home_local_open_sessions))
-                }
+            if (!localServerConnectionError.isNullOrBlank()) {
+                Text(
+                    text = localServerConnectionError,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
     }
@@ -995,6 +943,7 @@ private fun ServerCard(
     }
 
     Card(
+        onClick = onOpenSessions,
         modifier = Modifier.fillMaxWidth(),
         shape = AppCardShape,
         colors = CardDefaults.cardColors(
@@ -1043,22 +992,40 @@ private fun ServerCard(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box {
-                        IconButton(onClick = onOpenSessions) {
+                    IconButton(onClick = onOpenSessions, enabled = isConnected) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Chat,
+                            contentDescription = stringResource(R.string.sessions_title),
+                            tint = if (isConnected) cardContentColor else cardContentColor.copy(alpha = 0.38f),
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { if (isConnected) onDisconnect() else onConnect() },
+                        enabled = !isConnecting
+                    ) {
+                        if (isConnecting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = cardContentColor
+                            )
+                        } else {
                             Icon(
-                                Icons.AutoMirrored.Filled.Chat,
-                                contentDescription = stringResource(R.string.sessions_title),
+                                if (isConnected) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                contentDescription = stringResource(
+                                    if (isConnected) R.string.home_disconnect else R.string.home_connect,
+                                ),
                                 tint = cardContentColor,
                             )
                         }
                     }
+
                     Box {
                         IconButton(onClick = { showMenu = true }) {
                             Icon(
-                                if (isConnected) Icons.Default.Close else Icons.Default.PlayArrow,
-                                contentDescription = stringResource(
-                                    if (isConnected) R.string.home_disconnect else R.string.home_connect,
-                                ),
+                                Icons.Default.MoreVert,
+                                contentDescription = stringResource(R.string.more_options),
                                 tint = cardContentColor,
                             )
                         }
@@ -1121,47 +1088,6 @@ private fun ServerCard(
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
-            }
-
-            // Action buttons row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                AppPrimaryButton(
-                    onClick = onOpenSessions,
-                    modifier = Modifier.weight(1f),
-                    enabled = isConnected,
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
-                }
-                if (isConnected) {
-                    AppSecondaryButton(
-                        onClick = onDisconnect,
-                        modifier = Modifier.weight(1f),
-                        destructive = true,
-                        outlined = true,
-                    ) {
-                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
-                    }
-                } else {
-                    AppSecondaryButton(
-                        onClick = onConnect,
-                        modifier = Modifier.weight(1f),
-                        enabled = !isConnecting,
-                        outlined = true,
-                    ) {
-                        if (isConnecting) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = if (isAmoled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                        } else {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
-                    }
-                }
             }
         }
     }
