@@ -108,3 +108,25 @@ Track open bugs here. Remove items once they are fixed and verified on device.
   events are now persisted without question or answer content, but the root cause still requires a
   diagnostic export captured immediately after reproduction (`SseClient.kt`, `OpenCodeApi.kt`,
   `EventReducer.kt`, and `ChatViewModel.kt`).
+
+- A disconnected server was indicated only in the native chat while session lists, terminal,
+  workspace files, WebView, provider/model, and MCP screens still attempted requests and exposed
+  network actions. Server-scoped screens now share an explicit disconnected/reconnecting banner,
+  preserve cached content in read-only mode, suppress automatic requests, and resume loading after
+  reconnect. The terminal also no longer applies the status-bar inset twice below that banner, but
+  the complete transition and corrected spacing need physical-device verification (`NavGraph.kt`,
+  `ServerConnectionBanner.kt`, `ChatScreen.kt`, and the affected screen ViewModels).
+
+- Settings sync conflicts were visible only after opening Sync Settings and did not explain how the
+  local and remote copies differed. Conflicts now persist a secret-free grouped comparison, appear
+  on the main Settings screen, and post a notification that opens conflict resolution, but background
+  detection, notification permission behavior, and resolution cleanup still need device verification
+  (`SyncRepository.kt`, `SyncConflictSummary.kt`, and `SyncConflictNotifier.kt`).
+
+- The model visibility screen briefly showed “Models not found” before the first provider request
+  started because the connection-state repository initially emitted an empty connected-server set.
+  The empty state now requires a completed provider load, but startup behavior still needs device
+  verification (`ServerSettingsViewModel.kt` and `ServerModelFilterScreen.kt`).
+
+- Web fetch tool cards used the translation/languages icon after the Lucide migration. They now use
+  the globe icon, but the corrected rendering still needs device verification (`ChatScreen.kt`).

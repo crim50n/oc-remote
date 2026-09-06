@@ -18,12 +18,17 @@ import dev.minios.ocremote.data.api.ServerConfigResponse
 import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.data.repository.DiagnosticLogRepository
+import dev.minios.ocremote.data.repository.ServerConnectionStateRepository
 import dev.minios.ocremote.data.repository.LocalServerManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -54,6 +59,7 @@ data class ServerSettingsUiState(
     val pendingOauth: PendingOauth? = null,
     val isSaving: Boolean = false,
     val isLoading: Boolean = true,
+    val hasLoadedProviders: Boolean = false,
     val error: String? = null,
     val oauthProxyHint: Boolean = false,
 )
@@ -98,6 +104,7 @@ class ServerSettingsViewModel @Inject constructor(
     private val api: OpenCodeApi,
     private val settingsRepository: SettingsRepository,
     private val diagnosticLogRepository: DiagnosticLogRepository,
+    private val connectionStateRepository: ServerConnectionStateRepository,
 ) : ViewModel() {
 
     private val serverUrl: String = savedStateHandle.get<String>("serverUrl").orEmpty()
@@ -107,6 +114,7 @@ class ServerSettingsViewModel @Inject constructor(
     private val serverName: String = savedStateHandle.get<String>("serverName").orEmpty()
 
     private val conn = ServerConnection.from(serverUrl, username, password.ifEmpty { null })
+    private fun isServerConnected(): Boolean = serverId in connectionStateRepository.connectedServerIds.value
 
     private val _allProviders = MutableStateFlow<List<ProviderInfo>>(emptyList())
     private val _providerCatalog = MutableStateFlow<List<ProviderInfo>>(emptyList())
@@ -117,6 +125,10 @@ class ServerSettingsViewModel @Inject constructor(
     private val _hiddenModels = MutableStateFlow<Set<String>>(emptySet())
     private val _uiState = MutableStateFlow(ServerSettingsUiState(serverName = serverName, isLoading = true))
     val uiState: StateFlow<ServerSettingsUiState> = _uiState.asStateFlow()
+    private var providersLoadJob: Job? = null
+    private var authMethodsLoadJob: Job? = null
+    private var configLoadJob: Job? = null
+    private var agentsLoadJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -125,14 +137,31 @@ class ServerSettingsViewModel @Inject constructor(
                 rebuildUi()
             }
         }
-        loadProviders()
-        loadConfig()
-        loadAgents()
-        loadAuthMethods()
+        viewModelScope.launch {
+            connectionStateRepository.connectedServerIds
+                .map { serverId in it }
+                .distinctUntilChanged()
+                .collect { connected ->
+                    if (connected) {
+                        loadProviders()
+                        loadConfig()
+                        loadAgents()
+                        loadAuthMethods()
+                    } else {
+                        providersLoadJob?.cancel()
+                        authMethodsLoadJob?.cancel()
+                        configLoadJob?.cancel()
+                        agentsLoadJob?.cancel()
+                        _uiState.update { it.copy(isLoading = false, isSaving = false, error = null) }
+                    }
+                }
+        }
     }
 
     fun loadProviders() {
-        viewModelScope.launch {
+        if (!isServerConnected()) return
+        providersLoadJob?.cancel()
+        providersLoadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 val response = api.getProviders(conn)
@@ -142,12 +171,15 @@ class ServerSettingsViewModel @Inject constructor(
                 _providerCatalog.value = catalog.all
                 _providerConnected.value = catalog.connected.toSet()
                 _config.value = api.getGlobalConfig(conn)
+                _uiState.update { it.copy(hasLoadedProviders = true) }
                 rebuildUi()
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to load providers", e)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
+                        hasLoadedProviders = true,
                         error = e.message ?: "Failed to load providers"
                     )
                 }
@@ -156,39 +188,49 @@ class ServerSettingsViewModel @Inject constructor(
     }
 
     private fun loadAuthMethods() {
-        viewModelScope.launch {
+        if (!isServerConnected()) return
+        authMethodsLoadJob?.cancel()
+        authMethodsLoadJob = viewModelScope.launch {
             try {
                 _authMethods.value = api.getProviderAuthMethods(conn)
                 rebuildUi()
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to load auth methods", e)
             }
         }
     }
 
     private fun loadConfig() {
-        viewModelScope.launch {
+        if (!isServerConnected()) return
+        configLoadJob?.cancel()
+        configLoadJob = viewModelScope.launch {
             try {
                 _config.value = api.getGlobalConfig(conn)
                 rebuildUi()
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to load config", e)
             }
         }
     }
 
     private fun loadAgents() {
-        viewModelScope.launch {
+        if (!isServerConnected()) return
+        agentsLoadJob?.cancel()
+        agentsLoadJob = viewModelScope.launch {
             try {
                 _agents.value = api.listAgents(conn)
                 rebuildUi()
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to load agents", e)
             }
         }
     }
 
     fun setProviderEnabled(providerId: String, enabled: Boolean) {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             val before = _config.value
             val current = before.disabledProviders.toSet()
@@ -209,6 +251,7 @@ class ServerSettingsViewModel @Inject constructor(
     }
 
     fun connectProviderApi(providerId: String, apiKey: String) {
+        if (!isServerConnected()) return
         if (apiKey.isBlank()) return
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
@@ -233,6 +276,7 @@ class ServerSettingsViewModel @Inject constructor(
     }
 
     fun startProviderOauth(providerId: String, methodIndex: Int) {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             try {
@@ -270,6 +314,7 @@ class ServerSettingsViewModel @Inject constructor(
     }
 
     fun completeProviderOauth(code: String?) {
+        if (!isServerConnected()) return
         val pending = _uiState.value.pendingOauth ?: return
         // Prevent duplicate calls while already in progress
         if (_uiState.value.isSaving) return
@@ -351,6 +396,7 @@ class ServerSettingsViewModel @Inject constructor(
     }
 
     fun disconnectProvider(providerId: String) {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             try {
@@ -383,18 +429,21 @@ class ServerSettingsViewModel @Inject constructor(
     }
 
     fun setDefaultModel(model: String?) {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             updateConfigPatch(ServerConfigPatch(model = model))
         }
     }
 
     fun setSmallModel(model: String?) {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             updateConfigPatch(ServerConfigPatch(smallModel = model))
         }
     }
 
     fun setDefaultAgent(agent: String?) {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             updateConfigPatch(ServerConfigPatch(defaultAgent = agent))
         }

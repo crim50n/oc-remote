@@ -717,4 +717,24 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="workspace_markdown_preview">Mostrar Markdown formateado</string>
     <string name="workspace_markdown_raw">Mostrar código fuente de Markdown</string>
     <string name="chat_server_disconnected">Servidor desconectado</string>
+    <string name="diagnostics_export_count">Mensajes para enviar</string>
+    <string name="diagnostics_export_count_value">Últimos %1$d mensajes</string>
+    <string name="notification_channel_sync">Sincronización de ajustes</string>
+    <string name="notification_channel_sync_desc">Alertas cuando los ajustes sincronizados requieren tu elección</string>
+    <string name="sync_conflict_settings_warning">Conflicto de sincronización — toca para revisar</string>
+    <string name="sync_conflict_notification_title">Conflicto de sincronización de ajustes</string>
+    <string name="sync_conflict_notification_text">Los ajustes locales y remotos han cambiado. Toca para comparar y elegir una versión.</string>
+    <string name="sync_conflict_differences">Diferencias entre las copias</string>
+    <string name="sync_conflict_local_snapshot">Local: %1$s · generación %2$d</string>
+    <string name="sync_conflict_remote_snapshot">Remoto: %1$s · generación %2$d</string>
+    <string name="sync_conflict_area_settings">Ajustes</string>
+    <string name="sync_conflict_area_servers">Servidores</string>
+    <string name="sync_conflict_area_categories">Categorías</string>
+    <string name="sync_conflict_area_assignments">Asignación de categorías</string>
+    <string name="sync_conflict_area_favorites">Favoritos</string>
+    <string name="sync_conflict_area_hidden_models">Modelos ocultos</string>
+    <string name="sync_conflict_changed_values">%1$s: %2$d valores diferentes</string>
+    <string name="sync_conflict_item_counts">%1$s: local %2$d · remoto %3$d</string>
+    <string name="sync_conflict_passwords_hidden">Las contraseñas cifradas están ocultas y no se comparan.</string>
+    <string name="sync_conflict_comparison_limit">La app puede comparar las dos copias actuales, pero no puede determinar en qué lado cambió cada valor.</string>
 </resources>

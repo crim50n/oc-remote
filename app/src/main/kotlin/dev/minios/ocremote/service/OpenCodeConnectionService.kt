@@ -237,6 +237,9 @@ class OpenCodeConnectionService : Service() {
         serviceScope.launch {
             connectedServerIds.collect(serverConnectionStateRepository::updateConnectedServerIds)
         }
+        serviceScope.launch {
+            connectingServerIds.collect(serverConnectionStateRepository::updateConnectingServerIds)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -371,7 +374,7 @@ class OpenCodeConnectionService : Service() {
         _connectedServerIds.update { it - serverId }
         _connectingServerIds.update { it - serverId }
 
-        eventReducer.clearForServer(serverId)
+        eventReducer.clearTransientForServer(serverId)
 
         if (connections.isEmpty()) {
             // Last server disconnected — clean up and stop service
@@ -409,7 +412,7 @@ class OpenCodeConnectionService : Service() {
         _connectingServerIds.value = emptySet()
 
         for (serverId in serverIds) {
-            eventReducer.clearForServer(serverId)
+            eventReducer.clearTransientForServer(serverId)
         }
 
         releaseWakeLock()

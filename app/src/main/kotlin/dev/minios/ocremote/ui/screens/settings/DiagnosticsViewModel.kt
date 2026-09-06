@@ -12,6 +12,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class DiagnosticsExport(
+    val entries: List<DiagnosticLogEntry>,
+    val totalEntryCount: Int,
+    val text: String,
+)
+
 @HiltViewModel
 class DiagnosticsViewModel @Inject constructor(
     private val repository: DiagnosticLogRepository,
@@ -26,10 +32,21 @@ class DiagnosticsViewModel @Inject constructor(
         SharingStarted.WhileSubscribed(5000),
         "INFO",
     )
+    val exportEntryLimit: StateFlow<Int> = repository.exportEntryLimit.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        DiagnosticLogRepository.DEFAULT_EXPORT_ENTRY_LIMIT,
+    )
 
-    suspend fun export(): String {
+    suspend fun export(limit: Int): DiagnosticsExport {
         AppLogger.flush()
-        return DiagnosticLogRepository.export(entries.value)
+        val allEntries = entries.value
+        val exportedEntries = allEntries.takeLast(limit)
+        return DiagnosticsExport(
+            entries = exportedEntries,
+            totalEntryCount = allEntries.size,
+            text = DiagnosticLogRepository.export(exportedEntries, exportedEntries.size),
+        )
     }
 
     fun droppedEntryCount(): Long = AppLogger.droppedEntryCount()
@@ -40,5 +57,9 @@ class DiagnosticsViewModel @Inject constructor(
 
     fun setLogLevel(level: String) {
         viewModelScope.launch { repository.setLogLevel(level) }
+    }
+
+    fun setExportEntryLimit(limit: Int) {
+        viewModelScope.launch { repository.setExportEntryLimit(limit) }
     }
 }

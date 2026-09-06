@@ -717,4 +717,24 @@ Jetons : ~%4$d -&gt; ~%5$d</string>
     <string name="workspace_markdown_preview">Afficher le Markdown formaté</string>
     <string name="workspace_markdown_raw">Afficher le code source Markdown</string>
     <string name="chat_server_disconnected">Serveur déconnecté</string>
+    <string name="diagnostics_export_count">Messages à envoyer</string>
+    <string name="diagnostics_export_count_value">%1$d derniers messages</string>
+    <string name="notification_channel_sync">Synchronisation des paramètres</string>
+    <string name="notification_channel_sync_desc">Alertes lorsque la synchronisation des paramètres nécessite votre choix</string>
+    <string name="sync_conflict_settings_warning">Conflit de synchronisation — appuyez pour examiner</string>
+    <string name="sync_conflict_notification_title">Conflit de synchronisation des paramètres</string>
+    <string name="sync_conflict_notification_text">Les paramètres locaux et distants ont été modifiés. Appuyez pour comparer et choisir une version.</string>
+    <string name="sync_conflict_differences">Différences entre les copies</string>
+    <string name="sync_conflict_local_snapshot">Local : %1$s · génération %2$d</string>
+    <string name="sync_conflict_remote_snapshot">Distant : %1$s · génération %2$d</string>
+    <string name="sync_conflict_area_settings">Paramètres</string>
+    <string name="sync_conflict_area_servers">Serveurs</string>
+    <string name="sync_conflict_area_categories">Catégories</string>
+    <string name="sync_conflict_area_assignments">Affectations de catégories</string>
+    <string name="sync_conflict_area_favorites">Favoris</string>
+    <string name="sync_conflict_area_hidden_models">Modèles masqués</string>
+    <string name="sync_conflict_changed_values">%1$s : %2$d valeurs différentes</string>
+    <string name="sync_conflict_item_counts">%1$s : local %2$d · distant %3$d</string>
+    <string name="sync_conflict_passwords_hidden">Les mots de passe chiffrés sont masqués et ne sont pas comparés.</string>
+    <string name="sync_conflict_comparison_limit">L’application peut comparer les deux copies actuelles, mais ne peut pas déterminer de quel côté chaque valeur a été modifiée.</string>
 </resources>

@@ -717,4 +717,24 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="workspace_markdown_preview">Biçimlendirilmiş Markdown\'u göster</string>
     <string name="workspace_markdown_raw">Markdown kaynağını göster</string>
     <string name="chat_server_disconnected">Sunucu bağlantısı kesildi</string>
+    <string name="diagnostics_export_count">Gönderilecek mesajlar</string>
+    <string name="diagnostics_export_count_value">En son %1$d mesaj</string>
+    <string name="notification_channel_sync">Ayarları senkronize et</string>
+    <string name="notification_channel_sync_desc">Senkronize edilen ayarlar seçiminizi gerektirdiğinde uyarılar</string>
+    <string name="sync_conflict_settings_warning">Senkronizasyon çakışması — incelemek için dokunun</string>
+    <string name="sync_conflict_notification_title">Ayar senkronizasyonu çakışması</string>
+    <string name="sync_conflict_notification_text">Yerel ve uzaktaki ayarlar değişti. Karşılaştırmak ve bir sürüm seçmek için dokunun.</string>
+    <string name="sync_conflict_differences">Kopyalar arasındaki farklar</string>
+    <string name="sync_conflict_local_snapshot">Yerel: %1$s · nesil %2$d</string>
+    <string name="sync_conflict_remote_snapshot">Uzak: %1$s · nesil %2$d</string>
+    <string name="sync_conflict_area_settings">Ayarlar</string>
+    <string name="sync_conflict_area_servers">Sunucular</string>
+    <string name="sync_conflict_area_categories">Kategoriler</string>
+    <string name="sync_conflict_area_assignments">Kategori atamaları</string>
+    <string name="sync_conflict_area_favorites">Favoriler</string>
+    <string name="sync_conflict_area_hidden_models">Gizli modeller</string>
+    <string name="sync_conflict_changed_values">%1$s: %2$d değer farklı</string>
+    <string name="sync_conflict_item_counts">%1$s: yerel %2$d · uzak %3$d</string>
+    <string name="sync_conflict_passwords_hidden">Şifrelenmiş parolalar gizlidir ve karşılaştırılmaz.</string>
+    <string name="sync_conflict_comparison_limit">Uygulama mevcut iki kopyayı karşılaştırabilir, ancak her bir değerin hangi tarafta değiştiğini belirleyemez.</string>
 </resources>

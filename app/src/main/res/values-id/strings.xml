@@ -723,4 +723,24 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="workspace_markdown_preview">Tampilkan Markdown yang diformat</string>
     <string name="workspace_markdown_raw">Tampilkan sumber Markdown</string>
     <string name="chat_server_disconnected">Server terputus</string>
+    <string name="diagnostics_export_count">Pesan yang akan dikirim</string>
+    <string name="diagnostics_export_count_value">%1$d pesan terbaru</string>
+    <string name="notification_channel_sync">Sinkronisasi pengaturan</string>
+    <string name="notification_channel_sync_desc">Peringatan saat pengaturan yang disinkronkan memerlukan pilihan Anda</string>
+    <string name="sync_conflict_settings_warning">Konflik sinkronisasi — ketuk untuk meninjau</string>
+    <string name="sync_conflict_notification_title">Konflik sinkronisasi pengaturan</string>
+    <string name="sync_conflict_notification_text">Pengaturan lokal dan jarak jauh telah berubah. Ketuk untuk membandingkan dan pilih versi.</string>
+    <string name="sync_conflict_differences">Perbedaan antara salinan</string>
+    <string name="sync_conflict_local_snapshot">Lokal: %1$s · generasi %2$d</string>
+    <string name="sync_conflict_remote_snapshot">Jarak jauh: %1$s · generasi %2$d</string>
+    <string name="sync_conflict_area_settings">Pengaturan</string>
+    <string name="sync_conflict_area_servers">Server</string>
+    <string name="sync_conflict_area_categories">Kategori</string>
+    <string name="sync_conflict_area_assignments">Penugasan kategori</string>
+    <string name="sync_conflict_area_favorites">Favorit</string>
+    <string name="sync_conflict_area_hidden_models">Model tersembunyi</string>
+    <string name="sync_conflict_changed_values">%1$s: %2$d nilai berbeda</string>
+    <string name="sync_conflict_item_counts">%1$s: lokal %2$d · jarak jauh %3$d</string>
+    <string name="sync_conflict_passwords_hidden">Kata sandi terenkripsi disembunyikan dan tidak dibandingkan.</string>
+    <string name="sync_conflict_comparison_limit">Aplikasi dapat membandingkan dua salinan saat ini, tetapi tidak dapat menentukan sisi mana yang mengubah setiap nilai.</string>
 </resources>

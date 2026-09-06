@@ -7,11 +7,11 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 ## Why OC Remote
 
 - **Work from anywhere** — use OpenCode through a mobile-first native chat or a full interactive terminal
-- **Stay connected** — manage multiple remote servers or run OpenCode directly on-device through Termux
+- **Stay connected** — manage, reorder, and reconnect multiple remote servers, or run OpenCode directly on-device through Termux
 - **Keep projects organized** — search, favorite, categorize, reorder, share, export, and revisit sessions across servers
 - **Use the complete workflow** — stream responses, inspect tool output and context usage, attach files, answer questions, approve permissions, and run session actions without falling back to a desktop
 - **Make it yours** — choose from 15 locales, flexible themes including AMOLED, and detailed chat, connection, notification, and image controls
-- **Operate reliably** — atomic settings import, deduplicated connections, configurable recovery, diagnostics, completion notifications, large-session safeguards, and cryptographically verified in-app updates
+- **Operate reliably** — keep cached server content available during disconnects, resume safely after reconnect, review detailed sync conflicts, limit diagnostic exports, and use cryptographically verified in-app updates
 
 ## Screenshots
 
@@ -49,6 +49,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Slash commands** — `/new`, `/fork`, `/compact`, `/share`, `/rename`, `/undo`, `/redo`, `/shell`
 - **Message actions** — long-press user messages to revert with confirmation
 - **Reliable delivery** — outgoing prompts stay visible with queued state while delayed server events and history are reconciled
+- **Offline-aware screens** — preserve cached chat and server content in read-only mode, show disconnected or reconnecting status, and resume loading after reconnection
 - **Retry control** — connection retry errors and countdowns stay visible while Stop remains available to abort the pending run
 - **Interaction queue** — simultaneous permissions and questions stay ordered with position, retry, parent-chat routing, and permanent-approval confirmation
 
@@ -66,7 +67,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 ### Session Management  
 - **Multi-session** — switch between sessions, view history
 - **Project browser** — search sessions, optionally group them by project, and start chats from 5–50 configurable recent directories
-- **Session organization** — favorite and reorder important sessions across servers, filter Favorites by reusable custom categories, and keep offline favorites visible until their server reconnects
+- **Session organization** — favorite and reorder important sessions across servers, filter Favorites with reusable custom categories and 32 icon choices, and keep offline favorites visible until their server reconnects
 - **Session actions** — create, reload, fork, compact, run a code review, share/unshare, rename, and delete via explicit menus
 - **Terminal mode shortcut** — open the current session in terminal mode from the chat top bar
 - **Fast history loading** — show the newest 10 messages first, preload the configured 25–200 message target in the background, and load older pages on demand
@@ -110,12 +111,12 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Notifications** — toggle task completion notifications
 - **Silent notifications** — suppress sound and vibration for task notifications
 - **Image optimization controls** — tune max image side (keep original or 720–2560 px) and WebP quality for attachments
-- **Diagnostics** — inspect privacy-sanitized application logs by severity, then copy, share, or clear them without ADB
-- **Settings sync** — synchronize preferences, remote servers, categories, assignments, Favorites, and hidden models through GitHub Gist, WebDAV, or a file selected from a compatible Android document provider such as Google Drive; connection settings are retained separately, server passwords can be encrypted, and conflicts and periodic background sync are supported while local runtime configuration remains device-specific
+- **Diagnostics** — inspect privacy-sanitized logs by severity, choose the latest 100–1,000 messages to export, and copy, share, or clear them without ADB
+- **Settings sync** — synchronize preferences, ordered remote servers, categories, assignments, Favorites, and hidden models through GitHub Gist, WebDAV, or an Android document provider; conflicts persist with grouped local/remote comparisons, appear in Settings, and can trigger a notification, while credentials and local runtime configuration remain device-specific
 - **Secure in-app updates** — automatic daily discovery plus manual checks from About; GitHub Release APKs are downloaded in-app, verified by SHA-256, package/version, and signing certificate, then handed to Android's system installer
 
 ### Connection
-- **Multi-server** — connect to multiple OpenCode servers simultaneously
+- **Multi-server** — connect to multiple OpenCode servers simultaneously and long-press remote server cards to reorder them
 - **Local runtime via Termux** — set up and run OpenCode directly on-device from the Home screen (setup/start/stop/sessions)
 - **Local runtime launch options** — configure LAN binding (`0.0.0.0`), optional server username/password auth, background launch mode, auto-start (background-only), startup timeout, and proxy/`NO_PROXY` from the app
 - **Provider OAuth flow** — browser OAuth, headless fallback handling, and provider-state refresh on resume
@@ -123,6 +124,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **SSE event stream** — real-time session status, permissions, questions
 - **WebSocket transport** — used for terminal PTY streams
 - **Auto-reconnect** — exponential backoff starting at 1s, with max delay based on reconnect mode (5s/30s/60s)
+- **Connection-aware screens** — disconnected and reconnecting banners span chat, sessions, terminal, files, WebView, provider/model, and MCP screens, with cached content retained and network actions paused until reconnect
 - **Background service** — foreground service keeps connections alive when app is minimized
 
 ## Requirements

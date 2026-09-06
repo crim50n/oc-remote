@@ -1,5 +1,7 @@
 package dev.minios.ocremote.ui.components
 
+import com.composables.icons.lucide.*
+
 import androidx.compose.foundation.background
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -19,9 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -160,7 +159,7 @@ fun SessionCardContent(
             ) {
                 if (isFavorite) {
                     Icon(
-                        Icons.Default.Star,
+                        Lucide.Star,
                         contentDescription = stringResource(R.string.session_favorite),
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
@@ -176,7 +175,7 @@ fun SessionCardContent(
                 }
                 if (status is SessionStatus.Retry) {
                     Icon(
-                        Icons.Default.Refresh,
+                        Lucide.RefreshCw,
                         contentDescription = stringResource(R.string.sessions_retrying),
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(15.dp),

@@ -23,6 +23,7 @@ import dev.minios.ocremote.data.repository.PromptDeliveryInfo
 import dev.minios.ocremote.data.repository.PromptDeliveryState
 import dev.minios.ocremote.data.repository.PendingPromptRepository
 import dev.minios.ocremote.data.repository.SettingsRepository
+import dev.minios.ocremote.data.repository.ServerConnectionStateRepository
 import dev.minios.ocremote.domain.model.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +33,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -231,6 +235,7 @@ class ChatViewModel @Inject constructor(
     private val draftRepository: DraftRepository,
     private val settingsRepository: SettingsRepository,
     private val pendingPromptRepository: PendingPromptRepository,
+    private val connectionStateRepository: ServerConnectionStateRepository,
 ) : ViewModel() {
 
     @Volatile
@@ -244,8 +249,10 @@ class ChatViewModel @Inject constructor(
     val sessionId: String = savedStateHandle.get<String>("sessionId").orEmpty()
 
     private val conn = ServerConnection.from(serverUrl, username, password.ifEmpty { null })
+    private fun isServerConnected(): Boolean = serverId in connectionStateRepository.connectedServerIds.value
 
     private val _isLoading = MutableStateFlow(true)
+    private var messageLoadJob: Job? = null
     private val _error = MutableStateFlow<String?>(null)
     private val _isSending = MutableStateFlow(false)
     private val _pendingPrompts = MutableStateFlow<List<PendingPromptRecord>>(emptyList())
@@ -597,23 +604,34 @@ class ChatViewModel @Inject constructor(
             }
         }
 
-        // Load initial message count from settings, then load data
         viewModelScope.launch {
             currentMessageLimit = settingsRepository.initialMessageCount.first()
-            loadSession()
-            loadMessages()
-            loadPendingRequests()
+            connectionStateRepository.connectedServerIds
+                .map { serverId in it }
+                .distinctUntilChanged()
+                .collectLatest { connected ->
+                    terminalWorkspace.setServerAvailable(connected)
+                    if (connected) {
+                        loadSession()
+                        loadMessages()
+                        loadPendingRequests()
+                        loadProviders()
+                        loadAgents()
+                        loadCommands()
+                    } else {
+                        messageLoadJob?.cancel()
+                        _isLoading.value = false
+                        _isLoadingOlder.value = false
+                        _error.value = null
+                    }
+                }
         }
         viewModelScope.launch {
-            sessionLoaded.await()
             while (true) {
                 delay(3_000)
-                reconcileActiveStatus()
+                if (isServerConnected()) reconcileActiveStatus()
             }
         }
-        loadProviders()
-        loadAgents()
-        loadCommands()
 
     }
 
@@ -674,7 +692,9 @@ class ChatViewModel @Inject constructor(
     }
 
     fun loadMessages() {
-        viewModelScope.launch {
+        if (!isServerConnected()) return
+        messageLoadJob?.cancel()
+        messageLoadJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
@@ -787,6 +807,7 @@ class ChatViewModel @Inject constructor(
     }
 
     fun reloadSession() {
+        if (!isServerConnected()) return
         _isLoading.value = true
         _error.value = null
         olderMessagesCursor = null
@@ -806,6 +827,7 @@ class ChatViewModel @Inject constructor(
      * The server returns the N most recent messages, so we simply request more.
      */
     fun loadOlderMessages() {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             var nextCursor: String? = olderMessagesCursor ?: return@launch
             _isLoadingOlder.value = true
@@ -919,19 +941,16 @@ class ChatViewModel @Inject constructor(
 
     // Removed initModelFromMessages as it's handled reactively
 
-    private fun loadProviders() {
-        viewModelScope.launch {
-            try {
-                val response = api.getProviders(conn)
-                _allProviders.value = response.providers
-                applyProviderFilter()
-                _defaultModels.value = response.default
-                if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${response.providers.size} providers, defaults: ${response.default}")
-                // No need to set default here, combine block handles fallback
-            } catch (e: Exception) {
-                e.rethrowCancellation()
-                Log.e(TAG, "Failed to load providers", e)
-            }
+    private suspend fun loadProviders() {
+        try {
+            val response = api.getProviders(conn)
+            _allProviders.value = response.providers
+            applyProviderFilter()
+            _defaultModels.value = response.default
+            if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${response.providers.size} providers, defaults: ${response.default}")
+        } catch (e: Exception) {
+            e.rethrowCancellation()
+            Log.e(TAG, "Failed to load providers", e)
         }
     }
 
@@ -949,16 +968,14 @@ class ChatViewModel @Inject constructor(
         _providers.value = filtered
     }
 
-    private fun loadAgents() {
-        viewModelScope.launch {
-            try {
-                val agents = api.listAgents(conn)
-                _agents.value = agents
-                if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${agents.size} agents: ${agents.map { it.name }}")
-            } catch (e: Exception) {
-                e.rethrowCancellation()
-                Log.e(TAG, "Failed to load agents", e)
-            }
+    private suspend fun loadAgents() {
+        try {
+            val agents = api.listAgents(conn)
+            _agents.value = agents
+            if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${agents.size} agents: ${agents.map { it.name }}")
+        } catch (e: Exception) {
+            e.rethrowCancellation()
+            Log.e(TAG, "Failed to load agents", e)
         }
     }
 
@@ -966,16 +983,14 @@ class ChatViewModel @Inject constructor(
         _selectedAgent.value = name to true
     }
 
-    private fun loadCommands() {
-        viewModelScope.launch {
-            try {
-                val commands = api.listCommands(conn)
-                _commands.value = commands
-                if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${commands.size} commands: ${commands.map { it.name }}")
-            } catch (e: Exception) {
-                e.rethrowCancellation()
-                Log.e(TAG, "Failed to load commands", e)
-            }
+    private suspend fun loadCommands() {
+        try {
+            val commands = api.listCommands(conn)
+            _commands.value = commands
+            if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${commands.size} commands: ${commands.map { it.name }}")
+        } catch (e: Exception) {
+            e.rethrowCancellation()
+            Log.e(TAG, "Failed to load commands", e)
         }
     }
 
@@ -1001,6 +1016,7 @@ class ChatViewModel @Inject constructor(
 
     /** Search files and directories for @-mention autocomplete. Debounced by 200ms. */
     fun searchFilesForMention(query: String) {
+        if (!isServerConnected()) return
         fileSearchJob?.cancel()
         if (query.isEmpty()) {
             // Show recent/top files immediately with no debounce
@@ -1111,6 +1127,7 @@ class ChatViewModel @Inject constructor(
     fun getSessionDirectory(): String? = sessionDirectory
 
     fun sendMessage(text: String, attachments: List<PromptPart> = emptyList()): Boolean {
+        if (!isServerConnected()) return false
         if (text.isBlank() && attachments.isEmpty()) return false
         val parts = mutableListOf<PromptPart>()
         if (text.isNotBlank()) {
@@ -1122,6 +1139,7 @@ class ChatViewModel @Inject constructor(
 
     /** Send pre-built prompt parts (used when @-file mentions need structured parts). */
     fun sendMessage(promptParts: List<PromptPart>, attachments: List<PromptPart>): Boolean {
+        if (!isServerConnected()) return false
         val parts = promptParts + attachments
         if (parts.isEmpty()) return false
         return sendParts(parts)
@@ -1269,6 +1287,10 @@ class ChatViewModel @Inject constructor(
         reply: String,
         onResult: (Boolean) -> Unit = {},
     ) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             try {
                 val success = api.replyToPermission(
@@ -1288,6 +1310,7 @@ class ChatViewModel @Inject constructor(
     }
 
     fun abortSession() {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             try {
                 api.abortSession(conn, sessionId, directory = sessionDirectory)
@@ -1311,6 +1334,10 @@ class ChatViewModel @Inject constructor(
         answers: List<List<String>>,
         onResult: (Boolean) -> Unit = {},
     ) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             try {
                 val success = api.replyToQuestion(
@@ -1339,6 +1366,10 @@ class ChatViewModel @Inject constructor(
         requestId: String,
         onResult: (Boolean) -> Unit = {},
     ) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             try {
                 val success = api.rejectQuestion(
@@ -1368,6 +1399,10 @@ class ChatViewModel @Inject constructor(
 
     /** Share the current session. Returns the share URL or null on failure. */
     fun shareSession(onResult: (String?) -> Unit) {
+        if (!isServerConnected()) {
+            onResult(null)
+            return
+        }
         viewModelScope.launch {
             try {
                 val session = api.shareSession(conn, sessionId)
@@ -1382,6 +1417,10 @@ class ChatViewModel @Inject constructor(
     }
 
     fun unshareSession(onResult: (Boolean) -> Unit) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             try {
                 api.unshareSession(conn, sessionId)
@@ -1396,6 +1435,10 @@ class ChatViewModel @Inject constructor(
 
     /** Compact (summarize) the current session. */
     fun compactSession(onResult: (Boolean) -> Unit) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             try {
                 val state = uiState.value
@@ -1423,6 +1466,10 @@ class ChatViewModel @Inject constructor(
      * Shows a notification with download progress.
      */
     fun exportSession(context: android.content.Context, uri: android.net.Uri, onResult: (Boolean) -> Unit) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             val channelId = "opencode_export"
@@ -1482,6 +1529,10 @@ class ChatViewModel @Inject constructor(
 
     /** Undo the last user message in the session, restoring its text to the input field. */
     fun undoMessage(onResult: (Boolean) -> Unit) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             try {
                 // Find the last user message (before any existing revert point)
@@ -1508,6 +1559,10 @@ class ChatViewModel @Inject constructor(
 
     /** Revert to a specific user message by ID, optionally restoring its text to the input field. */
     fun revertMessage(messageId: String, revertedText: String? = null, onResult: (Boolean) -> Unit) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             try {
                 val revertedSession = api.revertSession(conn, sessionId, messageId)
@@ -1554,6 +1609,10 @@ class ChatViewModel @Inject constructor(
 
     /** Redo the last undone message. */
     fun redoMessage(onResult: (Boolean) -> Unit) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             try {
                 api.unrevertSession(conn, sessionId)
@@ -1568,6 +1627,10 @@ class ChatViewModel @Inject constructor(
 
     /** Fork the current session. Returns the new session or null. */
     fun forkSession(onResult: (Session?) -> Unit) {
+        if (!isServerConnected()) {
+            onResult(null)
+            return
+        }
         viewModelScope.launch {
             try {
                 val session = api.forkSession(conn, sessionId)
@@ -1582,6 +1645,10 @@ class ChatViewModel @Inject constructor(
 
     /** Rename the current session. */
     fun renameSession(title: String, onResult: (Boolean) -> Unit) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             try {
                 api.updateSession(conn, sessionId, title)
@@ -1596,6 +1663,10 @@ class ChatViewModel @Inject constructor(
 
     /** Execute a server-side command (e.g. /init, /review, MCP commands). */
     fun executeCommand(command: String, arguments: String = "", onResult: (Boolean) -> Unit) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             try {
                 if (!sessionLoaded.isCompleted) {
@@ -1645,6 +1716,10 @@ class ChatViewModel @Inject constructor(
 
     /** Execute shell command in current session. */
     fun runShellCommand(command: String, onResult: (Boolean) -> Unit) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         if (!sessionPromptable) {
             onResult(false)
             return
@@ -1680,6 +1755,10 @@ class ChatViewModel @Inject constructor(
     }
 
     fun openTerminalSession(onResult: (Boolean) -> Unit = {}) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             // Wait for loadSession() to finish so sessionDirectory is populated.
             // This prevents the race condition where the PTY is created with directory=null
@@ -1691,6 +1770,10 @@ class ChatViewModel @Inject constructor(
     }
 
     fun createTerminalTab(onResult: (Boolean) -> Unit = {}) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
             sessionLoaded.await()
             terminalWorkspace.createTab(cwd = sessionDirectory, directory = sessionDirectory, onResult = onResult)
@@ -1706,6 +1789,10 @@ class ChatViewModel @Inject constructor(
     }
 
     fun recoverTerminalTab(tabId: String, onResult: (Boolean) -> Unit = {}) {
+        if (!isServerConnected()) {
+            onResult(false)
+            return
+        }
         terminalWorkspace.recoverTab(tabId, onResult)
     }
 
@@ -1714,6 +1801,7 @@ class ChatViewModel @Inject constructor(
     }
 
     fun sendTerminalInput(input: String) {
+        if (!isServerConnected()) return
         terminalWorkspace.sendActiveInput(input)
     }
 
@@ -1722,6 +1810,7 @@ class ChatViewModel @Inject constructor(
     }
 
     fun resizeTerminal(cols: Int, rows: Int) {
+        if (!isServerConnected()) return
         terminalWorkspace.resizeActive(cols, rows)
     }
 
@@ -1731,6 +1820,10 @@ class ChatViewModel @Inject constructor(
 
     /** Create a new session and return it. */
     fun createNewSession(onResult: (Session?) -> Unit) {
+        if (!isServerConnected()) {
+            onResult(null)
+            return
+        }
         viewModelScope.launch {
             try {
                 val session = api.createSession(conn, directory = sessionDirectory)

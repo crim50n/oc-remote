@@ -22,6 +22,7 @@ import dev.minios.ocremote.data.repository.ServerRepository
 import dev.minios.ocremote.data.repository.normalizeServerUrl
 import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.data.repository.DiagnosticLogRepository
+import dev.minios.ocremote.data.repository.EventReducer
 import dev.minios.ocremote.data.update.UpdateRepository
 import dev.minios.ocremote.data.update.UpdateState
 import dev.minios.ocremote.data.update.AvailableUpdate
@@ -100,6 +101,7 @@ class HomeViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val diagnosticLogRepository: DiagnosticLogRepository,
     private val updateRepository: UpdateRepository,
+    private val eventReducer: EventReducer,
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -370,6 +372,12 @@ class HomeViewModel @Inject constructor(
                     autoConnect = autoConnect
                 )
                 serverRepository.updateServer(updatedServer)
+                if (
+                    normalizeServerUrl(editingServer.url) != normalizeServerUrl(updatedServer.url) ||
+                    editingServer.username != updatedServer.username
+                ) {
+                    eventReducer.clearForServer(editingServer.id)
+                }
             } else {
                 serverRepository.addServer(
                     url = url,
@@ -392,6 +400,13 @@ class HomeViewModel @Inject constructor(
                 disconnectFromServer(serverId)
             }
             serverRepository.deleteServer(serverId)
+            eventReducer.clearForServer(serverId)
+        }
+    }
+
+    fun setServerOrder(expectedServerIds: List<String>, serverIds: List<String>) {
+        viewModelScope.launch {
+            serverRepository.setServerOrder(expectedServerIds, serverIds)
         }
     }
 

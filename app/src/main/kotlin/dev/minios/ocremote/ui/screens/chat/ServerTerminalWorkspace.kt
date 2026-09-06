@@ -9,6 +9,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -72,6 +75,7 @@ internal class ServerTerminalWorkspace(
         var lastSize: Pair<Int, Int>? = null,
         var pendingSize: Pair<Int, Int>? = null,
         var resizeJob: Job? = null,
+        var creationJob: Job? = null,
     )
 
     private data class ResizeRequest(
@@ -86,6 +90,7 @@ internal class ServerTerminalWorkspace(
     private val tabs = mutableListOf<RuntimeTab>()
     private val lock = Any()
     private var defaultFontSizeSp: Float = DEFAULT_TERMINAL_FONT_SIZE_SP
+    @Volatile private var serverAvailable = false
 
     private val _tabList = MutableStateFlow<List<TerminalTabUi>>(emptyList())
     val tabList: StateFlow<List<TerminalTabUi>> = _tabList
@@ -152,7 +157,8 @@ internal class ServerTerminalWorkspace(
     ) {
         publishActiveState()
 
-        scope.launch {
+        tab.creationJob?.cancel()
+        tab.creationJob = scope.launch {
             var createdPtyId: String? = null
             try {
                 val info = api.createPty(
@@ -165,7 +171,7 @@ internal class ServerTerminalWorkspace(
                 val socket = api.openPtySocket(conn, info.id, cursor = 0, directory = tab.directory)
 
                 val accepted = synchronized(lock) {
-                    if (tabs.none { it.id == tab.id }) {
+                    if (!serverAvailable || tabs.none { it.id == tab.id }) {
                         false
                     } else {
                         if (!removeOnFailure) tab.emulator.reset()
@@ -182,6 +188,21 @@ internal class ServerTerminalWorkspace(
 
                 publishActiveState()
                 onResult(true)
+            } catch (e: CancellationException) {
+                createdPtyId?.let { ptyId ->
+                    withContext(NonCancellable) {
+                        runCatching { api.removePty(conn, ptyId) }
+                    }
+                }
+                synchronized(lock) {
+                    tab.creationJob = null
+                    if (tabs.any { it.id == tab.id }) {
+                        tab.state = TerminalTabState.Exited
+                        publishTabsLocked()
+                    }
+                }
+                publishActiveState()
+                throw e
             } catch (e: Exception) {
                 Log.e(WORKSPACE_TAG, "Failed to create tab", e)
                 createdPtyId?.let { ptyId ->
@@ -203,6 +224,8 @@ internal class ServerTerminalWorkspace(
                 }
                 publishActiveState()
                 onResult(false)
+            } finally {
+                synchronized(lock) { tab.creationJob = null }
             }
         }
     }
@@ -230,6 +253,7 @@ internal class ServerTerminalWorkspace(
         removed.readerJob?.cancel()
         removed.reconnectJob?.cancel()
         removed.resizeJob?.cancel()
+        removed.creationJob?.cancel()
         scope.launch {
             try {
                 removed.socket?.close()
@@ -283,6 +307,35 @@ internal class ServerTerminalWorkspace(
         }
     }
 
+    fun setServerAvailable(available: Boolean) {
+        if (serverAvailable == available) return
+        serverAvailable = available
+        synchronized(lock) {
+            if (!available) {
+                tabs.forEach { tab ->
+                    tab.creationJob?.cancel()
+                    tab.creationJob = null
+                    tab.reconnectJob?.cancel()
+                    tab.reconnectJob = null
+                    tab.resizeJob?.cancel()
+                    tab.resizeJob = null
+                    if (tab.state == TerminalTabState.Reconnecting) tab.state = TerminalTabState.Disconnected
+                }
+            } else {
+                tabs.filter { tab ->
+                    tab.ptyId != null && tab.state != TerminalTabState.Connected && tab.reconnectJob?.isActive != true
+                }.forEach { tab ->
+                    tab.state = TerminalTabState.Reconnecting
+                    tab.reconnectJob = scope.launch {
+                        reconnectLoop(tab.id, immediate = true, onFirstResult = null)
+                    }
+                }
+            }
+            publishTabsLocked()
+        }
+        publishActiveState()
+    }
+
     fun resizeActive(cols: Int, rows: Int) {
         if (cols <= 0 || rows <= 0) return
         val size = cols to rows
@@ -308,7 +361,9 @@ internal class ServerTerminalWorkspace(
 
     private suspend fun resizeLoop(tabId: String) {
         while (true) {
+            if (!serverAvailable) return
             delay(120)
+            if (!serverAvailable) return
             val request = synchronized(lock) {
                 val tab = tabs.firstOrNull { it.id == tabId } ?: return
                 val size = tab.pendingSize
@@ -348,6 +403,7 @@ internal class ServerTerminalWorkspace(
                     tab.readerJob?.cancel()
                     tab.reconnectJob?.cancel()
                     tab.resizeJob?.cancel()
+                    tab.creationJob?.cancel()
                     tab.socket = null
                     tab.ptyId = null
                     tab.state = TerminalTabState.Starting
@@ -381,6 +437,7 @@ internal class ServerTerminalWorkspace(
             tab.readerJob?.cancel()
             tab.reconnectJob?.cancel()
             tab.resizeJob?.cancel()
+            tab.creationJob?.cancel()
             scope.launch {
                 try {
                     tab.socket?.close()
@@ -440,7 +497,7 @@ internal class ServerTerminalWorkspace(
             tab.resizeJob = null
             tab.pendingSize = tab.lastSize
             publishTabsLocked()
-            shouldReconnect = tab.ptyId != null && tab.reconnectJob?.isActive != true
+            shouldReconnect = serverAvailable && tab.ptyId != null && tab.reconnectJob?.isActive != true
             if (shouldReconnect) {
                 tab.reconnectJob = scope.launch {
                     reconnectLoop(tabId = tabId, immediate = false, onFirstResult = null)
@@ -453,6 +510,17 @@ internal class ServerTerminalWorkspace(
     private suspend fun reconnectLoop(tabId: String, immediate: Boolean, onFirstResult: ((Boolean) -> Unit)?) {
         var firstAttempt = true
         while (true) {
+            if (!serverAvailable) {
+                synchronized(lock) {
+                    tabs.firstOrNull { it.id == tabId }?.let { tab ->
+                        tab.reconnectJob = null
+                        if (tab.state == TerminalTabState.Reconnecting) tab.state = TerminalTabState.Disconnected
+                        publishTabsLocked()
+                    }
+                }
+                publishActiveState()
+                return
+            }
             val snapshot = synchronized(lock) {
                 val tab = tabs.firstOrNull { it.id == tabId } ?: return
                 if (tab.state == TerminalTabState.Connected) {

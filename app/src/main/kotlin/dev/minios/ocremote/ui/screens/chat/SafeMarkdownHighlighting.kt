@@ -1,5 +1,7 @@
 package dev.minios.ocremote.ui.screens.chat
 
+import com.composables.icons.lucide.*
+
 import android.widget.Toast
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -11,8 +13,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -140,7 +140,7 @@ private fun SafeMarkdownHighlightedCode(
                         .size(22.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ContentCopy,
+                        imageVector = Lucide.Copy,
                         contentDescription = stringResource(R.string.chat_copy),
                         modifier = Modifier.size(14.dp),
                         tint = LocalMarkdownColors.current.codeText.copy(alpha = 0.42f),

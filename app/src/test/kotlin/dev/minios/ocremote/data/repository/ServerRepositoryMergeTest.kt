@@ -161,4 +161,98 @@ class ServerRepositoryMergeTest {
         assertEquals(listOf(currentLocal), result.servers)
         assertTrue(result.idMapping.isEmpty())
     }
+
+    @Test
+    fun `server reorder preserves local and unlisted server slots`() {
+        val first = ServerConfig(id = "first", url = "https://first.example", password = "one")
+        val local = ServerConfig(id = "local", url = LocalServerManager.LOCAL_SERVER_URL)
+        val second = ServerConfig(id = "second", url = "https://second.example", isHealthy = true)
+        val addedLater = ServerConfig(id = "added", url = "https://added.example")
+
+        val reordered = reorderPortableServers(
+            current = listOf(first, local, second, addedLater),
+            orderedServerIds = listOf("second", "unknown", "first", "second"),
+        )
+
+        assertEquals(listOf("second", "local", "first", "added"), reordered.map(ServerConfig::id))
+        assertEquals(second, reordered[0])
+        assertEquals(local, reordered[1])
+        assertEquals(first, reordered[2])
+        assertEquals(addedLater, reordered[3])
+    }
+
+    @Test
+    fun `sync merge applies remote order without moving local-only slots`() {
+        val current = listOf(
+            ServerConfig(id = "local-only", url = "https://local-only.example"),
+            ServerConfig(id = "first", url = "https://first.example"),
+            ServerConfig(id = "runtime", url = LocalServerManager.LOCAL_SERVER_URL),
+            ServerConfig(id = "second", url = "https://second.example"),
+        )
+
+        val result = mergeSyncServers(
+            current = current,
+            remote = listOf(
+                SyncServer(id = "remote-second", url = "https://second.example"),
+                SyncServer(id = "remote-first", url = "https://first.example"),
+                SyncServer(id = "remote-new", url = "https://new.example"),
+            ),
+            passwords = emptyMap(),
+        )
+
+        assertEquals(
+            listOf("local-only", "second", "runtime", "first", "remote-new"),
+            result.servers.map(ServerConfig::id),
+        )
+        assertEquals("second", result.idMapping["remote-second"])
+        assertEquals("first", result.idMapping["remote-first"])
+    }
+
+    @Test
+    fun `drag order does not overwrite concurrent sync reorder`() {
+        val current = listOf(
+            ServerConfig(id = "second", url = "https://second.example"),
+            ServerConfig(id = "first", url = "https://first.example"),
+            ServerConfig(id = "new", url = "https://new.example"),
+        )
+
+        val result = reorderPortableServersIfBaseUnchanged(
+            current = current,
+            expectedServerIds = listOf("first", "second"),
+            orderedServerIds = listOf("second", "first"),
+        )
+
+        assertEquals(current, result)
+    }
+
+    @Test
+    fun `drag order preserves server added after drag started`() {
+        val current = listOf(
+            ServerConfig(id = "first", url = "https://first.example"),
+            ServerConfig(id = "second", url = "https://second.example"),
+            ServerConfig(id = "new", url = "https://new.example"),
+        )
+
+        val result = reorderPortableServersIfBaseUnchanged(
+            current = current,
+            expectedServerIds = listOf("first", "second"),
+            orderedServerIds = listOf("second", "first"),
+        )
+
+        assertEquals(listOf("second", "first", "new"), result.map(ServerConfig::id))
+    }
+
+    @Test
+    fun `duplicate persisted IDs leave order unchanged`() {
+        val current = listOf(
+            ServerConfig(id = "duplicate", url = "https://first.example"),
+            ServerConfig(id = "duplicate", url = "https://second.example"),
+            ServerConfig(id = "other", url = "https://other.example"),
+        )
+
+        assertEquals(
+            current,
+            reorderPortableServers(current, listOf("other", "duplicate")),
+        )
+    }
 }

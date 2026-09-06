@@ -1,5 +1,9 @@
 package dev.minios.ocremote.ui.screens.server
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.backIcon
+import dev.minios.ocremote.ui.components.forwardChevronIcon
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,12 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Hub
-import androidx.compose.material.icons.filled.DeviceHub
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,6 +32,7 @@ import dev.minios.ocremote.R
 import dev.minios.ocremote.ui.components.AppCardShape
 import dev.minios.ocremote.ui.components.appAmoledBorder
 import dev.minios.ocremote.ui.components.isAmoledTheme
+import dev.minios.ocremote.ui.components.ServerConnectionBanner
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +41,9 @@ fun ServerSettingsScreen(
     onOpenProviders: () -> Unit,
     onOpenModels: () -> Unit,
     onOpenMcp: () -> Unit,
+    isServerConnected: Boolean = true,
+    isServerConnecting: Boolean = false,
+    onConnectServer: () -> Unit = {},
 ) {
     val isAmoled = isAmoledTheme()
     Scaffold(
@@ -51,7 +53,7 @@ fun ServerSettingsScreen(
                 title = { Text(stringResource(R.string.server_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(backIcon(), contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -64,10 +66,15 @@ fun ServerSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(padding),
         ) {
+            if (!isServerConnected) {
+                ServerConnectionBanner(connecting = isServerConnecting, onConnect = onConnectServer)
+            }
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
             Card(
                 shape = AppCardShape,
                 colors = CardDefaults.cardColors(
@@ -84,7 +91,7 @@ fun ServerSettingsScreen(
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Hub, contentDescription = null)
+                    Icon(Lucide.Plug, contentDescription = null)
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -101,7 +108,7 @@ fun ServerSettingsScreen(
                         )
                     }
                     Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        forwardChevronIcon(),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -124,7 +131,7 @@ fun ServerSettingsScreen(
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Tune, contentDescription = null)
+                    Icon(Lucide.SlidersHorizontal, contentDescription = null)
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -141,7 +148,7 @@ fun ServerSettingsScreen(
                         )
                     }
                     Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        forwardChevronIcon(),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -164,7 +171,7 @@ fun ServerSettingsScreen(
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.DeviceHub, contentDescription = null)
+                    Icon(Lucide.ServerCog, contentDescription = null)
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -181,11 +188,12 @@ fun ServerSettingsScreen(
                         )
                     }
                     Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        forwardChevronIcon(),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
             }
         }
     }

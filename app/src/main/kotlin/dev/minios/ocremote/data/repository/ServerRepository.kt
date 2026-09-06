@@ -32,6 +32,38 @@ internal fun portableSyncServers(servers: List<ServerConfig>): List<SyncServer> 
     .filter { isPortableSyncServerUrl(it.url) }
     .map { SyncServer(it.id, normalizeServerUrl(it.url), it.name, it.username, it.autoConnect) }
 
+internal fun reorderPortableServers(
+    current: List<ServerConfig>,
+    orderedServerIds: List<String>,
+): List<ServerConfig> {
+    if (current.map(ServerConfig::id).distinct().size != current.size) return current
+    val byId = current.associateBy(ServerConfig::id)
+    val orderedIds = orderedServerIds
+        .distinct()
+        .filter { id -> byId[id]?.let { isPortableSyncServerUrl(it.url) } == true }
+    if (orderedIds.size < 2) return current
+
+    val orderedServers = orderedIds.mapNotNull(byId::get).iterator()
+    val orderedIdSet = orderedIds.toSet()
+    return current.map { server ->
+        if (server.id in orderedIdSet) orderedServers.next() else server
+    }
+}
+
+internal fun reorderPortableServersIfBaseUnchanged(
+    current: List<ServerConfig>,
+    expectedServerIds: List<String>,
+    orderedServerIds: List<String>,
+): List<ServerConfig> {
+    val currentPortableIds = current.filter { isPortableSyncServerUrl(it.url) }.map(ServerConfig::id)
+    val currentIdSet = currentPortableIds.toSet()
+    val expectedPresentIds = expectedServerIds.distinct().filter { it in currentIdSet }
+    val expectedIdSet = expectedPresentIds.toSet()
+    val currentExpectedIds = currentPortableIds.filter { it in expectedIdSet }
+    if (currentExpectedIds != expectedPresentIds) return current
+    return reorderPortableServers(current, orderedServerIds)
+}
+
 internal data class ServerMergeResult(
     val servers: List<ServerConfig>,
     val idMapping: Map<String, String>,
@@ -67,7 +99,10 @@ internal fun mergeSyncServers(
         if (existingIndex >= 0) mergedServers[existingIndex] = merged else mergedServers += merged
         idMapping[source.id] = merged.id
     }
-    return ServerMergeResult(mergedServers, idMapping)
+    val remoteOrder = remote
+        .filter { isPortableSyncServerUrl(it.url) }
+        .mapNotNull { idMapping[it.id] }
+    return ServerMergeResult(reorderPortableServers(mergedServers, remoteOrder), idMapping)
 }
 
 data class LocalServerUpsertResult(
@@ -193,6 +228,20 @@ class ServerRepository @Inject constructor(
             preferences[serversKey] = json.encodeToString(readServers(preferences).map { server ->
                 if (server.id == serverId) server.copy(autoConnect = autoConnect) else server
             })
+        }
+    }
+
+    suspend fun setServerOrder(expectedServerIds: List<String>, orderedServerIds: List<String>) {
+        dataStore.edit { preferences ->
+            val current = readServers(preferences)
+            val reordered = reorderPortableServersIfBaseUnchanged(
+                current = current,
+                expectedServerIds = expectedServerIds,
+                orderedServerIds = orderedServerIds,
+            )
+            if (reordered != current) {
+                preferences[serversKey] = json.encodeToString(reordered)
+            }
         }
     }
     

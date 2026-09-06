@@ -718,4 +718,24 @@
     <string name="workspace_markdown_preview">Показать отформатированный Markdown</string>
     <string name="workspace_markdown_raw">Показать исходный код Markdown</string>
     <string name="chat_server_disconnected">Сервер отключён</string>
+    <string name="diagnostics_export_count">Сообщения для отправки</string>
+    <string name="diagnostics_export_count_value">Последние %1$d сообщений</string>
+    <string name="notification_channel_sync">Синхронизация настроек</string>
+    <string name="notification_channel_sync_desc">Уведомления, когда синхронизированные настройки требуют вашего выбора</string>
+    <string name="sync_conflict_settings_warning">Конфликт синхронизации — нажмите для просмотра</string>
+    <string name="sync_conflict_notification_title">Конфликт синхронизации настроек</string>
+    <string name="sync_conflict_notification_text">Локальные и удалённые настройки изменены. Нажмите, чтобы сравнить и выбрать версию.</string>
+    <string name="sync_conflict_differences">В чём различия копий</string>
+    <string name="sync_conflict_local_snapshot">Локально: %1$s · поколение %2$d</string>
+    <string name="sync_conflict_remote_snapshot">Удалённо: %1$s · поколение %2$d</string>
+    <string name="sync_conflict_area_settings">Настройки</string>
+    <string name="sync_conflict_area_servers">Серверы</string>
+    <string name="sync_conflict_area_categories">Категории</string>
+    <string name="sync_conflict_area_assignments">Назначения категорий</string>
+    <string name="sync_conflict_area_favorites">Избранное</string>
+    <string name="sync_conflict_area_hidden_models">Скрытые модели</string>
+    <string name="sync_conflict_changed_values">%1$s: отличаются %2$d значений</string>
+    <string name="sync_conflict_item_counts">%1$s: локально %2$d · удалённо %3$d</string>
+    <string name="sync_conflict_passwords_hidden">Зашифрованные пароли скрыты и не сравниваются.</string>
+    <string name="sync_conflict_comparison_limit">Приложение может сравнить две текущие копии, но не может определить, с какой стороны изменено каждое значение.</string>
 </resources>

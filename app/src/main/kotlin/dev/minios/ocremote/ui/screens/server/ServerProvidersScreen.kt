@@ -1,5 +1,8 @@
 package dev.minios.ocremote.ui.screens.server
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.backIcon
+
 import dev.minios.ocremote.logging.AppLogger as Log
 import android.widget.Toast
 import dev.minios.ocremote.BuildConfig
@@ -17,9 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -69,11 +69,15 @@ import dev.minios.ocremote.ui.components.AppPrimaryButton
 import dev.minios.ocremote.ui.components.AppSecondaryButton
 import dev.minios.ocremote.ui.components.appAmoledBorder
 import dev.minios.ocremote.ui.components.isAmoledTheme
+import dev.minios.ocremote.ui.components.ServerConnectionBanner
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServerProvidersScreen(
     onNavigateBack: () -> Unit,
+    isServerConnected: Boolean = true,
+    isServerConnecting: Boolean = false,
+    onConnectServer: () -> Unit = {},
     viewModel: ServerSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -176,7 +180,7 @@ fun ServerProvidersScreen(
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = !uiState.isSaving,
+                            enabled = isServerConnected && !uiState.isSaving,
                         ) {
                             Text(method.label)
                         }
@@ -235,7 +239,7 @@ fun ServerProvidersScreen(
                                 apiKeyProvider = null
                                 apiKey = ""
                             },
-                            enabled = apiKey.isNotBlank() && !uiState.isSaving
+                            enabled = isServerConnected && apiKey.isNotBlank() && !uiState.isSaving
                         ) { Text(stringResource(R.string.connect)) }
                     }
                 }
@@ -310,7 +314,7 @@ fun ServerProvidersScreen(
                                     textAlign = TextAlign.Center,
                                 )
                                 Icon(
-                                    Icons.Default.ContentCopy,
+                                    Lucide.Copy,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -388,7 +392,7 @@ fun ServerProvidersScreen(
                                     viewModel.completeProviderOauth(oauthCode)
                                     oauthCode = ""
                                 },
-                                enabled = oauthCode.isNotBlank() && !uiState.isSaving
+                                enabled = isServerConnected && oauthCode.isNotBlank() && !uiState.isSaving
                             ) { Text(stringResource(R.string.server_settings_oauth_complete)) }
                         }
                     }
@@ -403,7 +407,7 @@ fun ServerProvidersScreen(
                 title = { Text(stringResource(R.string.server_settings_providers)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(backIcon(), contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -412,11 +416,14 @@ fun ServerProvidersScreen(
             )
         }
     ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        if (!isServerConnected) {
+            ServerConnectionBanner(connecting = isServerConnecting, onConnect = onConnectServer)
+        }
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
-                .padding(padding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -447,6 +454,7 @@ fun ServerProvidersScreen(
                         showConnect = false,
                         canDisconnect = provider.source != "env",
                         isSaving = uiState.isSaving,
+                        networkEnabled = isServerConnected,
                         isAmoled = isAmoled,
                         showSource = true
                     )
@@ -470,11 +478,13 @@ fun ServerProvidersScreen(
                         showConnect = true,
                         canDisconnect = false,
                         isSaving = uiState.isSaving,
+                        networkEnabled = isServerConnected,
                         isAmoled = isAmoled,
                         showSource = false
                     )
                 }
             }
+        }
         }
     }
 }
@@ -492,6 +502,7 @@ private fun ProviderRow(
     showConnect: Boolean,
     canDisconnect: Boolean,
     isSaving: Boolean,
+    networkEnabled: Boolean,
     isAmoled: Boolean,
     showSource: Boolean
 ) {
@@ -536,11 +547,11 @@ private fun ProviderRow(
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center) {
                 if (showConnect) {
-                    TextButton(onClick = onConnect, enabled = !isSaving) {
+                    TextButton(onClick = onConnect, enabled = networkEnabled && !isSaving) {
                         Text(stringResource(R.string.connect))
                     }
                 } else if (canDisconnect) {
-                    TextButton(onClick = onDisconnect, enabled = !isSaving) {
+                    TextButton(onClick = onDisconnect, enabled = networkEnabled && !isSaving) {
                         Text(stringResource(R.string.disconnect))
                     }
                 } else {

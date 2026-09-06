@@ -1,5 +1,8 @@
 package dev.minios.ocremote.ui.screens.sessions
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.backIcon
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.horizontalScroll
@@ -14,15 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Label
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -114,7 +108,7 @@ fun CrossServerSessionsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(backIcon(), contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -140,7 +134,7 @@ fun CrossServerSessionsScreen(
                         onClick = { selectedCategoryId = null },
                         label = { Text(stringResource(R.string.cross_sessions_all)) },
                         leadingIcon = if (selectedCategoryId == null) {
-                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                            { Icon(Lucide.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
                         } else null,
                         colors = if (selectedCategoryId == null) {
                             if (isAmoled) {
@@ -170,7 +164,7 @@ fun CrossServerSessionsScreen(
                             label = { Text(category.name) },
                             leadingIcon = {
                                 Icon(
-                                    if (selected) Icons.Default.Check else sessionCategoryIcon(category.icon),
+                                    if (selected) Lucide.Check else sessionCategoryIcon(category.icon),
                                     contentDescription = null,
                                     tint = sessionCategoryColor(category.color),
                                     modifier = Modifier.size(18.dp),
@@ -209,7 +203,7 @@ fun CrossServerSessionsScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    Icon(Icons.Default.StarBorder, contentDescription = null, modifier = Modifier.size(40.dp))
+                    Icon(Lucide.Star, contentDescription = null, modifier = Modifier.size(40.dp))
                     Text(
                         text = stringResource(
                             if (selectedCategoryId == null) R.string.cross_sessions_empty_favorites_any_server
@@ -376,7 +370,7 @@ private fun CrossServerSessionCard(
             trailingContent = {
                 androidx.compose.foundation.layout.Box {
                 IconButton(onClick = { showActions = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                    Icon(Lucide.EllipsisVertical, contentDescription = stringResource(R.string.more_options))
                 }
                 DropdownMenu(
                     expanded = showActions,
@@ -389,7 +383,10 @@ private fun CrossServerSessionCard(
                             Text(stringResource(if (item.isFavorite) R.string.session_favorite_remove else R.string.session_favorite_add))
                         },
                         leadingIcon = {
-                            Icon(if (item.isFavorite) Icons.Default.Star else Icons.Default.StarBorder, contentDescription = null)
+                            Icon(
+                                if (item.isFavorite) Lucide.StarOff else Lucide.Star,
+                                contentDescription = null,
+                            )
                         },
                         onClick = {
                             showActions = false
@@ -401,7 +398,7 @@ private fun CrossServerSessionCard(
                         leadingIcon = {
                             Icon(
                                 imageVector = item.category?.let { sessionCategoryIcon(it.icon) }
-                                    ?: Icons.Default.Label,
+                                    ?: Lucide.Tag,
                                 contentDescription = null,
                                 tint = item.category?.let { sessionCategoryColor(it.color) }
                                     ?: LocalContentColor.current,
@@ -415,7 +412,7 @@ private fun CrossServerSessionCard(
                     if (item.isFavorite) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.session_favorite_move_up)) },
-                            leadingIcon = { Icon(Icons.Default.ArrowUpward, contentDescription = null) },
+                            leadingIcon = { Icon(Lucide.ArrowUp, contentDescription = null) },
                             enabled = favoritePosition > 0,
                             onClick = {
                                 showActions = false
@@ -424,7 +421,7 @@ private fun CrossServerSessionCard(
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.session_favorite_move_down)) },
-                            leadingIcon = { Icon(Icons.Default.ArrowDownward, contentDescription = null) },
+                            leadingIcon = { Icon(Lucide.ArrowDown, contentDescription = null) },
                             enabled = favoritePosition < favoriteCount - 1,
                             onClick = {
                                 showActions = false

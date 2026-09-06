@@ -1,5 +1,8 @@
 package dev.minios.ocremote.ui.screens.settings
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.backIcon
+
 import android.content.Intent
 import android.content.ClipData
 import android.os.Build
@@ -11,15 +14,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -76,12 +70,14 @@ fun DiagnosticsScreen(
 ) {
     val entries by viewModel.entries.collectAsState()
     val logLevel by viewModel.logLevel.collectAsState()
+    val exportEntryLimit by viewModel.exportEntryLimit.collectAsState()
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     val isAmoled = isAmoledTheme()
     val scope = rememberCoroutineScope()
     var showActionsMenu by remember { mutableStateOf(false) }
     var showLevelDialog by remember { mutableStateOf(false) }
+    var showExportLimitDialog by remember { mutableStateOf(false) }
     var showClearConfirmation by remember { mutableStateOf(false) }
     val logLevelLabel = stringResource(
         when (logLevel) {
@@ -92,8 +88,11 @@ fun DiagnosticsScreen(
         },
     )
 
-    suspend fun exportText(): String = buildString {
-        val timeRange = entries.takeIf { it.isNotEmpty() }?.let {
+    suspend fun exportText(): String {
+        val export = viewModel.export(exportEntryLimit)
+        val exportedEntries = export.entries
+        return buildString {
+        val timeRange = exportedEntries.takeIf { it.isNotEmpty() }?.let {
             "${java.time.Instant.ofEpochMilli(it.first().timestamp)}..${java.time.Instant.ofEpochMilli(it.last().timestamp)}"
         } ?: "empty"
         appendLine("OC Remote diagnostics")
@@ -102,11 +101,13 @@ fun DiagnosticsScreen(
         appendLine("Android SDK: ${Build.VERSION.SDK_INT}")
         appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
         appendLine("Persistent log level: $logLevel")
+        appendLine("Included entries: ${exportedEntries.size} of ${export.totalEntryCount}")
         appendLine("Time range: $timeRange")
         appendLine("Dropped queue entries: ${viewModel.droppedEntryCount()}")
         appendLine("Included: lifecycle, connection, REST/SSE result classes, reducer transitions, updates, and crashes; no chat or terminal payloads")
         appendLine()
-        append(viewModel.export().ifBlank { context.getString(R.string.diagnostics_empty) })
+        append(export.text.ifBlank { context.getString(R.string.diagnostics_empty) })
+        }
     }
 
     fun shareAsFile() {
@@ -139,16 +140,16 @@ fun DiagnosticsScreen(
                 title = { Text(stringResource(R.string.diagnostics_title), maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(backIcon(), contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = ::shareAsFile, enabled = entries.isNotEmpty()) {
-                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.diagnostics_share))
+                        Icon(Lucide.Share2, contentDescription = stringResource(R.string.diagnostics_share))
                     }
                     Box {
                         IconButton(onClick = { showActionsMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                            Icon(Lucide.EllipsisVertical, contentDescription = stringResource(R.string.more_options))
                         }
                         DropdownMenu(
                             expanded = showActionsMenu,
@@ -158,7 +159,7 @@ fun DiagnosticsScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.diagnostics_copy)) },
-                                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+                                leadingIcon = { Icon(Lucide.Copy, contentDescription = null) },
                                 enabled = entries.isNotEmpty(),
                                 onClick = {
                                     scope.launch { clipboard.setText(AnnotatedString(exportText())) }
@@ -174,7 +175,7 @@ fun DiagnosticsScreen(
                                 },
                                 leadingIcon = {
                                     Icon(
-                                        Icons.Default.DeleteOutline,
+                                        Lucide.Trash,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.error,
                                     )
@@ -195,6 +196,26 @@ fun DiagnosticsScreen(
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             Surface(
                 onClick = { showLevelDialog = true },
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp, end = 16.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
+                border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(Lucide.SlidersHorizontal, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.diagnostics_log_level), style = MaterialTheme.typography.titleSmall)
+                        Text(logLevelLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text(entries.size.toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Surface(
+                onClick = { showExportLimitDialog = true },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                 shape = RoundedCornerShape(16.dp),
                 color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
@@ -205,12 +226,15 @@ fun DiagnosticsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(Lucide.ListEnd, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.diagnostics_log_level), style = MaterialTheme.typography.titleSmall)
-                        Text(logLevelLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.diagnostics_export_count), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            stringResource(R.string.diagnostics_export_count_value, exportEntryLimit),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
-                    Text(entries.size.toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (entries.isEmpty()) {
@@ -220,7 +244,7 @@ fun DiagnosticsScreen(
                     verticalArrangement = Arrangement.Center,
                 ) {
                     Icon(
-                        Icons.Default.Info,
+                        Lucide.Info,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.primary,
@@ -327,6 +351,22 @@ fun DiagnosticsScreen(
                 showLevelDialog = false
             },
             onDismiss = { showLevelDialog = false },
+            maxHeight = 460,
+        )
+    }
+
+    if (showExportLimitDialog) {
+        SettingsPickerDialog(
+            title = stringResource(R.string.diagnostics_export_count),
+            options = DiagnosticLogRepository.EXPORT_ENTRY_LIMITS.map { limit ->
+                limit.toString() to stringResource(R.string.diagnostics_export_count_value, limit)
+            },
+            selectedKey = exportEntryLimit.toString(),
+            onSelect = { limit ->
+                viewModel.setExportEntryLimit(limit.toInt())
+                showExportLimitDialog = false
+            },
+            onDismiss = { showExportLimitDialog = false },
             maxHeight = 460,
         )
     }

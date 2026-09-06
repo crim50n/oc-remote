@@ -717,4 +717,24 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="workspace_markdown_preview">Exibir Markdown formatado</string>
     <string name="workspace_markdown_raw">Exibir código-fonte do Markdown</string>
     <string name="chat_server_disconnected">Servidor desconectado</string>
+    <string name="diagnostics_export_count">Mensagens para enviar</string>
+    <string name="diagnostics_export_count_value">Últimas %1$d mensagens</string>
+    <string name="notification_channel_sync">Sincronização de configurações</string>
+    <string name="notification_channel_sync_desc">Alertas quando configurações sincronizadas exigem sua escolha</string>
+    <string name="sync_conflict_settings_warning">Conflito de sincronização — toque para revisar</string>
+    <string name="sync_conflict_notification_title">Conflito na sincronização de configurações</string>
+    <string name="sync_conflict_notification_text">As configurações locais e remotas foram alteradas. Toque para comparar e escolher uma versão.</string>
+    <string name="sync_conflict_differences">Como as cópias diferem</string>
+    <string name="sync_conflict_local_snapshot">Local: %1$s · geração %2$d</string>
+    <string name="sync_conflict_remote_snapshot">Remoto: %1$s · geração %2$d</string>
+    <string name="sync_conflict_area_settings">Configurações</string>
+    <string name="sync_conflict_area_servers">Servidores</string>
+    <string name="sync_conflict_area_categories">Categorias</string>
+    <string name="sync_conflict_area_assignments">Atribuições de categoria</string>
+    <string name="sync_conflict_area_favorites">Favoritos</string>
+    <string name="sync_conflict_area_hidden_models">Modelos ocultos</string>
+    <string name="sync_conflict_changed_values">%1$s: %2$d valores diferentes</string>
+    <string name="sync_conflict_item_counts">%1$s: local %2$d · remoto %3$d</string>
+    <string name="sync_conflict_passwords_hidden">Senhas criptografadas estão ocultas e não são comparadas.</string>
+    <string name="sync_conflict_comparison_limit">O app pode comparar as duas cópias atuais, mas não consegue determinar de qual lado cada valor foi alterado.</string>
 </resources>

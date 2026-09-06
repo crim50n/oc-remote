@@ -226,6 +226,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 9cb97affc179c460730f6e7168686fbe
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -331,6 +333,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -613,7 +617,23 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
         sync_conflict_desc: de8c6c6be56c26e6f5ee52a7bc6a716c
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_connect: 29b3f66f2648e80fec272d89eac5fa0d
         sync_credential_saved_hint: b5b84d5cffec4180fc372fd1e3d7c51f
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63
@@ -932,6 +952,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 9cb97affc179c460730f6e7168686fbe
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -1037,6 +1059,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -1314,6 +1338,22 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63
         sync_credential_stored_short: 1efe848aab6b8b1b303f3bb6d5613a8b
         sync_direction_desc: 581ec5ed954348c4d7432af26b922557
@@ -1603,6 +1643,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 9cb97affc179c460730f6e7168686fbe
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -1708,6 +1750,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -1985,6 +2029,22 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63
         sync_credential_stored_short: 1efe848aab6b8b1b303f3bb6d5613a8b
         sync_direction_desc: 581ec5ed954348c4d7432af26b922557
@@ -2274,6 +2334,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 309a5e90d7d5d0e672454803e788f54e
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -2379,6 +2441,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -2656,6 +2720,22 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63
         sync_credential_stored_short: 1efe848aab6b8b1b303f3bb6d5613a8b
         sync_direction_desc: 581ec5ed954348c4d7432af26b922557
@@ -2945,6 +3025,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 9cb97affc179c460730f6e7168686fbe
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -3050,6 +3132,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -3327,6 +3411,22 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63
         sync_credential_stored_short: 1efe848aab6b8b1b303f3bb6d5613a8b
         sync_direction_desc: 581ec5ed954348c4d7432af26b922557
@@ -3616,6 +3716,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 9cb97affc179c460730f6e7168686fbe
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -3721,6 +3823,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -3998,6 +4102,22 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63
         sync_credential_stored_short: 1efe848aab6b8b1b303f3bb6d5613a8b
         sync_direction_desc: 581ec5ed954348c4d7432af26b922557
@@ -4287,6 +4407,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 9cb97affc179c460730f6e7168686fbe
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -4392,6 +4514,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -4669,6 +4793,22 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63
         sync_credential_stored_short: 1efe848aab6b8b1b303f3bb6d5613a8b
         sync_direction_desc: 581ec5ed954348c4d7432af26b922557
@@ -4958,6 +5098,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 9cb97affc179c460730f6e7168686fbe
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -5063,6 +5205,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -5340,6 +5484,22 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63
         sync_credential_stored_short: 1efe848aab6b8b1b303f3bb6d5613a8b
         sync_direction_desc: 581ec5ed954348c4d7432af26b922557
@@ -5629,6 +5789,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 9cb97affc179c460730f6e7168686fbe
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -5734,6 +5896,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -6016,7 +6180,23 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
         sync_conflict_desc: de8c6c6be56c26e6f5ee52a7bc6a716c
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_connect: 29b3f66f2648e80fec272d89eac5fa0d
         sync_credential_saved_hint: b5b84d5cffec4180fc372fd1e3d7c51f
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63
@@ -6335,6 +6515,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 9cb97affc179c460730f6e7168686fbe
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -6440,6 +6622,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -6717,6 +6901,22 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63
         sync_credential_stored_short: 1efe848aab6b8b1b303f3bb6d5613a8b
         sync_direction_desc: 581ec5ed954348c4d7432af26b922557
@@ -7006,6 +7206,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 9cb97affc179c460730f6e7168686fbe
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -7111,6 +7313,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -7388,6 +7592,22 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63
         sync_credential_stored_short: 1efe848aab6b8b1b303f3bb6d5613a8b
         sync_direction_desc: 581ec5ed954348c4d7432af26b922557
@@ -7677,6 +7897,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 9cb97affc179c460730f6e7168686fbe
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -7782,6 +8004,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -8064,7 +8288,23 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
         sync_conflict_desc: de8c6c6be56c26e6f5ee52a7bc6a716c
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_connect: 29b3f66f2648e80fec272d89eac5fa0d
         sync_credential_saved_hint: b5b84d5cffec4180fc372fd1e3d7c51f
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63
@@ -8383,6 +8623,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 9cb97affc179c460730f6e7168686fbe
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -8488,6 +8730,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -8770,7 +9014,23 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
         sync_conflict_desc: de8c6c6be56c26e6f5ee52a7bc6a716c
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_connect: 29b3f66f2648e80fec272d89eac5fa0d
         sync_credential_saved_hint: b5b84d5cffec4180fc372fd1e3d7c51f
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63
@@ -9089,6 +9349,8 @@ checksums:
         diagnostics_copy: 0c346821b991550b915cf843b724aada
         diagnostics_empty: 044d5c602e59de67ded12872b44e948b
         diagnostics_empty_desc: 9cb97affc179c460730f6e7168686fbe
+        diagnostics_export_count: b20536ae77aa972258a36968f908db04
+        diagnostics_export_count_value: 66e2d16ba3706e5dc6ce804bec2a95e0
         diagnostics_level_current: b9609f5e89b5f8b9e5759073a94d66ed
         diagnostics_level_debug: 6bcd046f7b7813b3f94431c67e158d96
         diagnostics_level_error: ea067311426cd985bf15879ca14e00f8
@@ -9194,6 +9456,8 @@ checksums:
         notification_channel_connection_desc: 2c8ae3ac5174524d91c80cae80927ba9
         notification_channel_permissions: 690a7179023b820377237d52a48d8a89
         notification_channel_permissions_desc: fe651b0eefe97f28bd2342175690d119
+        notification_channel_sync: 876ce49e2b5007bfbfa7c38322b485c8
+        notification_channel_sync_desc: a8e7e4c462a1fc7462b4bbc23f6d5b02
         notification_channel_tasks: a636014d2548526a914ab7052bf8caab
         notification_channel_tasks_desc: 215add01b1db6ea201bb4dda845710ae
         notification_channel_tasks_silent: f856639d00789b49f7753a9bb19f95f7
@@ -9476,7 +9740,23 @@ checksums:
         sync_choose_version_desc: 8ff7800fff8d7a285010390987fd203c
         sync_choose_version_multi_desc: a201cf314d5f28dba41a6c7164681d27
         sync_common_settings: 2a9a854833d5aba40822ffb48e3c958b
+        sync_conflict_area_assignments: a4fcf36584c98aa9433f17927ec8cd89
+        sync_conflict_area_categories: ee66978b94c71f3d47b5347902078d7e
+        sync_conflict_area_favorites: e1721e408a223e1309936e64e2ea450c
+        sync_conflict_area_hidden_models: de756af834749118d312e9710bd8a40b
+        sync_conflict_area_servers: 66a981b1f28a2a525f2cdb85045bbc6e
+        sync_conflict_area_settings: 7e7cfd6e9744a4b3677b19f963e3b696
+        sync_conflict_changed_values: c2550a582cef871a63f02b31282819eb
+        sync_conflict_comparison_limit: 1e7d44adfc967ed83b9482bebd65dba4
         sync_conflict_desc: de8c6c6be56c26e6f5ee52a7bc6a716c
+        sync_conflict_differences: 724b88b830df11297010b6cc1d34f8e5
+        sync_conflict_item_counts: d36a1324ee72469ee22c3567e60a5322
+        sync_conflict_local_snapshot: 6e17522581b551c412b9d4fe98dbb4e2
+        sync_conflict_notification_text: a36b777259fb9aeaed07b0091da052c4
+        sync_conflict_notification_title: d55258c14adfa35e548575c12068731e
+        sync_conflict_passwords_hidden: 38c693b8ed6d45bb14763849afbc2191
+        sync_conflict_remote_snapshot: f8f8e9509b3b2505907b9abd0152d662
+        sync_conflict_settings_warning: 38e189d22c26e5b61ed010965c8065d2
         sync_connect: 29b3f66f2648e80fec272d89eac5fa0d
         sync_credential_saved_hint: b5b84d5cffec4180fc372fd1e3d7c51f
         sync_credential_stored: 28223da2a4a9a77fa991c49cfe1c0f63

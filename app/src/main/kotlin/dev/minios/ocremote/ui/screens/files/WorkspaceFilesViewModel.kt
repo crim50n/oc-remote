@@ -12,15 +12,21 @@ import dev.minios.ocremote.data.api.FileNode
 import dev.minios.ocremote.data.api.OpenCodeApi
 import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.repository.SettingsRepository
+import dev.minios.ocremote.data.repository.ServerConnectionStateRepository
+import dev.minios.ocremote.data.repository.ServerRepository
+import dev.minios.ocremote.data.repository.normalizeServerUrl
 import dev.minios.ocremote.logging.AppLogger as Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -127,6 +133,8 @@ class WorkspaceFilesViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val api: OpenCodeApi,
     private val settingsRepository: SettingsRepository,
+    private val connectionStateRepository: ServerConnectionStateRepository,
+    private val serverRepository: ServerRepository,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     private val connection = ServerConnection.from(
@@ -135,6 +143,9 @@ class WorkspaceFilesViewModel @Inject constructor(
         password = savedStateHandle.get<String>("password").orEmpty().ifEmpty { null },
     )
     private val directory = savedStateHandle.get<String>("directory").orEmpty()
+    private val routeServerId = savedStateHandle.get<String>("serverId").orEmpty()
+    private val serverUrl = savedStateHandle.get<String>("serverUrl").orEmpty()
+    @Volatile private var effectiveServerId = routeServerId
     private val _uiState = MutableStateFlow(WorkspaceFilesUiState(directory = directory))
     val uiState = _uiState.asStateFlow()
     private val _saveResults = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
@@ -147,10 +158,27 @@ class WorkspaceFilesViewModel @Inject constructor(
     private var loadJob: Job? = null
 
     init {
-        loadDirectory("")
+        viewModelScope.launch {
+            combine(serverRepository.servers, connectionStateRepository.connectedServerIds) { servers, connectedIds ->
+                effectiveServerId = servers.firstOrNull {
+                    it.id == routeServerId || normalizeServerUrl(it.url) == normalizeServerUrl(serverUrl)
+                }?.id ?: routeServerId
+                effectiveServerId in connectedIds
+            }
+                .distinctUntilChanged()
+                .collect { connected ->
+                    if (connected) {
+                        loadDirectory(_uiState.value.currentPath)
+                    } else {
+                        loadJob?.cancel()
+                        _uiState.update { it.copy(isLoading = false, error = null) }
+                    }
+                }
+        }
     }
 
     fun loadDirectory(path: String) {
+        if (effectiveServerId !in connectionStateRepository.connectedServerIds.value) return
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _uiState.update {
@@ -160,13 +188,15 @@ class WorkspaceFilesViewModel @Inject constructor(
                 val entries = api.listDirectory(connection, path = path, directory = directory)
                 _uiState.update { it.copy(entries = entries, isLoading = false) }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to list workspace directory", e)
-                _uiState.update { it.copy(entries = emptyList(), isLoading = false, error = e.message) }
+                _uiState.update { it.copy(isLoading = false, error = e.message) }
             }
         }
     }
 
     fun open(node: FileNode) {
+        if (effectiveServerId !in connectionStateRepository.connectedServerIds.value) return
         if (node.type == "directory") {
             loadDirectory(node.path)
             return
@@ -180,6 +210,7 @@ class WorkspaceFilesViewModel @Inject constructor(
                     it.copy(preview = WorkspaceFilePreview(node, content), isLoading = false)
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to read workspace file", e)
                 _uiState.update { it.copy(isLoading = false, error = e.message) }
             }
@@ -200,6 +231,7 @@ class WorkspaceFilesViewModel @Inject constructor(
     }
 
     fun retry() {
+        if (effectiveServerId !in connectionStateRepository.connectedServerIds.value) return
         val preview = _uiState.value.preview
         if (preview != null) open(preview.node) else loadDirectory(_uiState.value.currentPath)
     }

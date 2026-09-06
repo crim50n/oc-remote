@@ -1,5 +1,8 @@
 package dev.minios.ocremote.ui.screens.settings
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.backIcon
+
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,37 +16,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.BatteryChargingFull
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.CloudSync
-import androidx.compose.material.icons.filled.ColorLens
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FormatSize
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.HorizontalRule
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Label
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PhotoSizeSelectLarge
-import androidx.compose.material.icons.filled.ScreenLockPortrait
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.Terminal
-import androidx.compose.material.icons.filled.UnfoldMore
-import androidx.compose.material.icons.filled.Vibration
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.ViewCompact
-import androidx.compose.material.icons.filled.WrapText
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -76,6 +48,7 @@ import dev.minios.ocremote.ui.components.SessionCategoryColorKeys
 import dev.minios.ocremote.ui.components.SessionCategoryIconKeys
 import dev.minios.ocremote.ui.components.sessionCategoryColor
 import dev.minios.ocremote.ui.components.sessionCategoryIcon
+import dev.minios.ocremote.data.repository.SyncStatus
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -119,6 +92,8 @@ fun SettingsScreen(
     val showLocalRuntime by viewModel.showLocalRuntime.collectAsState()
     val terminalFontSize by viewModel.terminalFontSize.collectAsState()
     val showTerminalPanelHint by viewModel.showTerminalPanelHint.collectAsState()
+    val syncState by viewModel.syncState.collectAsState()
+    val hasSyncConflict = syncState.status == SyncStatus.CONFLICT
 
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
@@ -155,8 +130,8 @@ fun SettingsScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.close)
+                            backIcon(),
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
                 },
@@ -181,15 +156,31 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_language)) },
                 supportingContent = { Text(getLanguageDisplayName(currentLanguage)) },
                 leadingContent = {
-                    Icon(Icons.Default.Language, contentDescription = null)
+                    Icon(Lucide.Languages, contentDescription = null)
                 },
                 modifier = Modifier.clickable { showLanguageDialog = true }
             )
 
             ListItem(
                 headlineContent = { Text(stringResource(R.string.sync_title)) },
-                supportingContent = { Text(stringResource(R.string.sync_settings_desc_v2)) },
-                leadingContent = { Icon(Icons.Default.CloudSync, contentDescription = null) },
+                supportingContent = {
+                    Text(
+                        stringResource(
+                            if (hasSyncConflict) R.string.sync_conflict_settings_warning
+                            else R.string.sync_settings_desc_v2,
+                        ),
+                        color = if (hasSyncConflict) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                leadingContent = {
+                    Icon(
+                        if (hasSyncConflict) Lucide.TriangleAlert else Lucide.CloudCog,
+                        contentDescription = null,
+                        tint = if (hasSyncConflict) MaterialTheme.colorScheme.error
+                        else LocalContentColor.current,
+                    )
+                },
                 modifier = Modifier.clickable { onNavigateToSync() },
             )
 
@@ -198,7 +189,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_reconnect_mode)) },
                 supportingContent = { Text(getReconnectModeDisplayName(reconnectMode)) },
                 leadingContent = {
-                    Icon(Icons.Default.Sync, contentDescription = null)
+                    Icon(Lucide.RefreshCw, contentDescription = null)
                 },
                 modifier = Modifier.clickable { showReconnectModeDialog = true }
             )
@@ -208,7 +199,7 @@ fun SettingsScreen(
                 supportingContent = {
                     Text(stringResource(R.string.settings_recent_directories_desc, recentDirectoryCount))
                 },
-                leadingContent = { Icon(Icons.Default.Folder, contentDescription = null) },
+                leadingContent = { Icon(Lucide.Folder, contentDescription = null) },
                 modifier = Modifier.clickable { showRecentDirectoryCountDialog = true },
             )
 
@@ -216,7 +207,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_background_wake_lock)) },
                 supportingContent = { Text(stringResource(R.string.settings_background_wake_lock_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.BatteryChargingFull, contentDescription = null)
+                    Icon(Lucide.BatteryCharging, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -239,7 +230,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_notifications)) },
                 supportingContent = { Text(stringResource(R.string.settings_notifications_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.Notifications, contentDescription = null)
+                    Icon(Lucide.Bell, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -255,7 +246,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_silent_notifications)) },
                 supportingContent = { Text(stringResource(R.string.settings_silent_notifications_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.NotificationsOff, contentDescription = null)
+                    Icon(Lucide.VolumeX, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -280,7 +271,14 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_theme)) },
                 supportingContent = { Text(getThemeDisplayName(currentTheme)) },
                 leadingContent = {
-                    Icon(Icons.Default.Palette, contentDescription = null)
+                    Icon(
+                        imageVector = when (currentTheme) {
+                            "light" -> Lucide.Sun
+                            "dark" -> Lucide.Moon
+                            else -> Lucide.SunMoon
+                        },
+                        contentDescription = null,
+                    )
                 },
                 modifier = Modifier.clickable { showThemeDialog = true }
             )
@@ -291,7 +289,7 @@ fun SettingsScreen(
                     headlineContent = { Text(stringResource(R.string.settings_dynamic_color)) },
                     supportingContent = { Text(stringResource(R.string.settings_dynamic_color_desc)) },
                     leadingContent = {
-                        Icon(Icons.Default.ColorLens, contentDescription = null)
+                        Icon(Lucide.Wallpaper, contentDescription = null)
                     },
                     trailingContent = {
                         Switch(
@@ -309,7 +307,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_amoled_dark)) },
                 supportingContent = { Text(stringResource(R.string.settings_amoled_dark_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.DarkMode, contentDescription = null)
+                    Icon(Lucide.Moon, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -331,7 +329,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_font_size)) },
                 supportingContent = { Text(getFontSizeDisplayName(chatFontSize)) },
                 leadingContent = {
-                    Icon(Icons.Default.FormatSize, contentDescription = null)
+                    Icon(Lucide.Type, contentDescription = null)
                 },
                 modifier = Modifier.clickable { showFontSizeDialog = true }
             )
@@ -342,7 +340,7 @@ fun SettingsScreen(
                     Text(stringResource(R.string.settings_terminal_font_size_value, terminalFontSize.roundToInt()))
                 },
                 leadingContent = {
-                    Icon(Icons.Default.Terminal, contentDescription = null)
+                    Icon(Lucide.Terminal, contentDescription = null)
                 },
                 modifier = Modifier.clickable { showTerminalFontSizeDialog = true }
             )
@@ -350,7 +348,7 @@ fun SettingsScreen(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_terminal_panel_hint)) },
                 supportingContent = { Text(stringResource(R.string.settings_terminal_panel_hint_desc)) },
-                leadingContent = { Icon(Icons.Default.Terminal, contentDescription = null) },
+                leadingContent = { Icon(Lucide.PanelBottomOpen, contentDescription = null) },
                 trailingContent = {
                     Switch(
                         checked = showTerminalPanelHint,
@@ -368,7 +366,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_compact_messages)) },
                 supportingContent = { Text(stringResource(R.string.settings_compact_messages_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.ViewCompact, contentDescription = null)
+                    Icon(Lucide.Rows3, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -385,7 +383,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_code_word_wrap)) },
                 supportingContent = { Text(stringResource(R.string.settings_code_word_wrap_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.WrapText, contentDescription = null)
+                    Icon(Lucide.WrapText, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -402,7 +400,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_auto_expand_tools)) },
                 supportingContent = { Text(stringResource(R.string.settings_auto_expand_tools_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.UnfoldMore, contentDescription = null)
+                    Icon(Lucide.UnfoldVertical, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -417,7 +415,7 @@ fun SettingsScreen(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_expand_reasoning)) },
                 supportingContent = { Text(stringResource(R.string.settings_expand_reasoning_desc)) },
-                leadingContent = { Icon(Icons.Default.UnfoldMore, contentDescription = null) },
+                leadingContent = { Icon(Lucide.BrainCircuit, contentDescription = null) },
                 trailingContent = {
                     Switch(
                         checked = expandReasoning,
@@ -431,7 +429,7 @@ fun SettingsScreen(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_turn_dividers)) },
                 supportingContent = { Text(stringResource(R.string.settings_turn_dividers_desc)) },
-                leadingContent = { Icon(Icons.Default.HorizontalRule, contentDescription = null) },
+                leadingContent = { Icon(Lucide.SeparatorHorizontal, contentDescription = null) },
                 trailingContent = {
                     Switch(
                         checked = showTurnDividers,
@@ -452,7 +450,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_initial_messages)) },
                 supportingContent = { Text("$initialMessageCount") },
                 leadingContent = {
-                    Icon(Icons.Default.History, contentDescription = null)
+                    Icon(Lucide.History, contentDescription = null)
                 },
                 modifier = Modifier.clickable { showMessageCountDialog = true }
             )
@@ -462,7 +460,7 @@ fun SettingsScreen(
                 supportingContent = {
                     Text(stringResource(R.string.settings_history_response_limit_value, messageHistoryResponseLimitMb))
                 },
-                leadingContent = { Icon(Icons.Default.History, contentDescription = null) },
+                leadingContent = { Icon(Lucide.MemoryStick, contentDescription = null) },
                 modifier = Modifier.clickable { showMessageHistoryResponseLimitDialog = true },
             )
 
@@ -471,7 +469,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_confirm_send)) },
                 supportingContent = { Text(stringResource(R.string.settings_confirm_send_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.Send, contentDescription = null)
+                    Icon(Lucide.Send, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -488,7 +486,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_haptic_feedback)) },
                 supportingContent = { Text(stringResource(R.string.settings_haptic_feedback_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.Vibration, contentDescription = null)
+                    Icon(Lucide.Vibrate, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -519,7 +517,7 @@ fun SettingsScreen(
                     supportingContent = {
                         Text(stringResource(R.string.settings_haptic_pattern_value, hapticDurationMillis, hapticAmplitude))
                     },
-                    leadingContent = { Icon(Icons.Default.Vibration, contentDescription = null) },
+                    leadingContent = { Icon(Lucide.Vibrate, contentDescription = null) },
                     modifier = Modifier.clickable { showHapticPatternDialog = true },
                 )
             }
@@ -529,7 +527,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_keep_screen_on)) },
                 supportingContent = { Text(stringResource(R.string.settings_keep_screen_on_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.ScreenLockPortrait, contentDescription = null)
+                    Icon(Lucide.Smartphone, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -546,7 +544,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_compress_images)) },
                 supportingContent = { Text(stringResource(R.string.settings_compress_images_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.PhotoSizeSelectLarge, contentDescription = null)
+                    Icon(Lucide.ImageDown, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -591,7 +589,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_local_runtime)) },
                 supportingContent = { Text(stringResource(R.string.settings_local_runtime_desc)) },
                 leadingContent = {
-                    Icon(Icons.Default.Code, contentDescription = null)
+                    Icon(Lucide.SquareTerminal, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -606,7 +604,7 @@ fun SettingsScreen(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.diagnostics_title)) },
                 supportingContent = { Text(stringResource(R.string.diagnostics_settings_desc)) },
-                leadingContent = { Icon(Icons.Default.BugReport, contentDescription = null) },
+                leadingContent = { Icon(Lucide.Bug, contentDescription = null) },
                 modifier = Modifier.clickable(onClick = onNavigateToDiagnostics),
             )
 
@@ -807,7 +805,7 @@ internal fun SessionCategoriesDialog(
                         ) {
                             if (selected) {
                                 Icon(
-                                    Icons.Default.Check,
+                                    Lucide.Check,
                                     contentDescription = null,
                                     tint = Color.White,
                                     modifier = Modifier.size(18.dp),
@@ -890,7 +888,7 @@ internal fun SessionCategoriesDialog(
                                 )
                                 IconButton(onClick = { onDelete(category.id) }) {
                                     Icon(
-                                        Icons.Default.Delete,
+                                        Lucide.Trash2,
                                         contentDescription = stringResource(R.string.settings_category_delete),
                                         tint = MaterialTheme.colorScheme.error,
                                     )
@@ -1045,7 +1043,7 @@ internal fun LocalServerLaunchOptionsDialog(
                     trailingIcon = {
                         IconButton(onClick = { maskServerPassword = !maskServerPassword }) {
                             Icon(
-                                imageVector = if (maskServerPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                imageVector = if (maskServerPassword) Lucide.Eye else Lucide.EyeOff,
                                 contentDescription = null,
                             )
                         }
@@ -1088,7 +1086,7 @@ internal fun LocalServerLaunchOptionsDialog(
                         trailingIcon = {
                             IconButton(onClick = { maskProxyUrl = !maskProxyUrl }) {
                                 Icon(
-                                    imageVector = if (maskProxyUrl) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    imageVector = if (maskProxyUrl) Lucide.Eye else Lucide.EyeOff,
                                     contentDescription = null,
                                 )
                             }
@@ -1329,7 +1327,7 @@ internal fun <K> SettingsPickerDialog(
                             )
                             if (isSelected) {
                                 Icon(
-                                    Icons.Default.Check,
+                                    Lucide.Check,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.primary

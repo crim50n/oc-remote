@@ -1,5 +1,10 @@
 package dev.minios.ocremote.ui.screens.sessions
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.backIcon
+import dev.minios.ocremote.ui.components.forwardChevronIcon
+import dev.minios.ocremote.ui.components.mirrorForRtl
+
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -21,11 +26,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.automirrored.filled.ViewList
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -78,6 +78,7 @@ import dev.minios.ocremote.ui.components.appPopupBorder
 import dev.minios.ocremote.ui.components.appPopupContainerColor
 import dev.minios.ocremote.ui.components.isAmoledTheme
 import dev.minios.ocremote.ui.components.AppLoadingEdge
+import dev.minios.ocremote.ui.components.ServerConnectionBanner
 import dev.minios.ocremote.ui.components.sessionCategoryColor
 import dev.minios.ocremote.ui.components.sessionCategoryIcon
 import dev.minios.ocremote.ui.screens.settings.SessionCategoriesDialog
@@ -187,6 +188,9 @@ private fun ServerRefreshEdge(
 fun SessionListScreen(
     onNavigateToChat: (sessionId: String, openTerminal: Boolean) -> Unit,
     onNavigateBack: () -> Unit,
+    isServerConnected: Boolean = true,
+    isServerConnecting: Boolean = false,
+    onConnectServer: () -> Unit = {},
     viewModel: SessionListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -275,16 +279,19 @@ fun SessionListScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = { viewModel.clearSelection() }) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                            Icon(Lucide.X, contentDescription = stringResource(R.string.close))
                         }
                     },
                     actions = {
                         TextButton(onClick = { viewModel.selectAll() }) {
                             Text(stringResource(R.string.sessions_select_all))
                         }
-                        IconButton(onClick = { showDeleteSelectedDialog = true }) {
+                        IconButton(
+                            onClick = { showDeleteSelectedDialog = true },
+                            enabled = isServerConnected,
+                        ) {
                             Icon(
-                                Icons.Default.Delete,
+                                Lucide.Trash2,
                                 contentDescription = stringResource(R.string.sessions_delete_selected),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -306,18 +313,19 @@ fun SessionListScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                            Icon(backIcon(), contentDescription = stringResource(R.string.back))
                         }
                     },
                     actions = {
                         IconButton(onClick = { viewModel.setGroupSessionsByProject(!groupByProject) }) {
-                            Icon(
-                                imageVector = if (groupByProject) Icons.AutoMirrored.Filled.ViewList else Icons.Default.Folder,
+                             Icon(
+                                 imageVector = if (groupByProject) Lucide.List else Lucide.Folder,
                                 contentDescription = stringResource(
                                     if (groupByProject) R.string.sessions_view_recent
-                                    else R.string.sessions_view_projects,
-                                ),
-                            )
+                                     else R.string.sessions_view_projects,
+                                 ),
+                                 modifier = if (groupByProject) Modifier.mirrorForRtl() else Modifier,
+                             )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -333,7 +341,7 @@ fun SessionListScreen(
             }
         },
         floatingActionButton = {
-            if (!uiState.isSelectionMode) {
+            if (!uiState.isSelectionMode && isServerConnected) {
                 FloatingActionButton(
                     onClick = {
                         // If there are known projects, show the quick dialog first;
@@ -366,17 +374,24 @@ fun SessionListScreen(
                         Modifier
                     }
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sessions_new))
+                    Icon(Lucide.Plus, contentDescription = stringResource(R.string.sessions_new))
                 }
             }
         }
     ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        if (!isServerConnected) {
+            ServerConnectionBanner(
+                connecting = isServerConnecting,
+                onConnect = onConnectServer,
+            )
+        }
         SwipeRefresh(
             state = swipeRefreshState,
             onRefresh = viewModel::loadSessions,
-            swipeEnabled = !uiState.isSelectionMode && !uiState.isLoading,
+            swipeEnabled = isServerConnected && !uiState.isSelectionMode && !uiState.isLoading,
             refreshTriggerDistance = refreshTriggerDistance,
-            modifier = Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier.fillMaxWidth().weight(1f),
             indicator = { _, _ -> },
         ) {
             Box(
@@ -402,7 +417,7 @@ fun SessionListScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Warning,
+                            imageVector = Lucide.TriangleAlert,
                             contentDescription = null,
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.error
@@ -412,7 +427,10 @@ fun SessionListScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )
-                        AppPrimaryButton(onClick = { viewModel.loadSessions() }) {
+                        AppPrimaryButton(
+                            onClick = { viewModel.loadSessions() },
+                            enabled = isServerConnected,
+                        ) {
                             Text(stringResource(R.string.retry))
                         }
                     }
@@ -426,9 +444,9 @@ fun SessionListScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Chat,
+                            imageVector = Lucide.MessageCircle,
                             contentDescription = null,
-                            modifier = Modifier.size(64.dp),
+                            modifier = Modifier.size(64.dp).mirrorForRtl(),
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                         )
                         Text(
@@ -457,11 +475,11 @@ fun SessionListScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(bottom = 4.dp),
-                                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                                leadingIcon = { Icon(Lucide.Search, contentDescription = null) },
                                 trailingIcon = {
                                     if (searchQuery.isNotEmpty()) {
                                         IconButton(onClick = { searchQuery = "" }) {
-                                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                                            Icon(Lucide.X, contentDescription = stringResource(R.string.close))
                                         }
                                     }
                                 },
@@ -521,6 +539,7 @@ fun SessionListScreen(
                                         deleteSessionTitle = item.session.title ?: untitledLabel
                                         showDeleteDialog = true
                                     },
+                                    networkActionsEnabled = isServerConnected,
                                 )
                             }
                         } else {
@@ -541,6 +560,7 @@ fun SessionListScreen(
                                         }
                                     },
                                     onNewSession = { viewModel.createNewSession(group.directory) },
+                                    newSessionEnabled = isServerConnected,
                                 )
                             }
                                 if (expanded) items(group.sessions, key = { it.session.id }) { item ->
@@ -578,7 +598,8 @@ fun SessionListScreen(
                                         deleteSessionId = item.session.id
                                         deleteSessionTitle = item.session.title ?: untitledLabel
                                         showDeleteDialog = true
-                                    }
+                                    },
+                                    networkActionsEnabled = isServerConnected,
                                 )
                                 }
                             }
@@ -587,6 +608,7 @@ fun SessionListScreen(
                 }
                 }
             }
+        }
         }
     }
 
@@ -735,6 +757,7 @@ private fun ProjectHeader(
     expanded: Boolean,
     onToggle: () -> Unit,
     onNewSession: () -> Unit,
+    newSessionEnabled: Boolean,
 ) {
     Row(
         modifier = Modifier
@@ -746,7 +769,7 @@ private fun ProjectHeader(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Icon(
-            Icons.Default.Folder,
+            Lucide.Folder,
             contentDescription = null,
             modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
@@ -781,11 +804,11 @@ private fun ProjectHeader(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        IconButton(onClick = onNewSession) {
-            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sessions_new_in_project))
+        IconButton(onClick = onNewSession, enabled = newSessionEnabled) {
+            Icon(Lucide.Plus, contentDescription = stringResource(R.string.sessions_new_in_project))
         }
         Icon(
-            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+            imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -900,7 +923,7 @@ private fun OpenProjectDialog(
                         style = MaterialTheme.typography.titleMedium
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                        Icon(Lucide.X, contentDescription = stringResource(R.string.close))
                     }
                 }
 
@@ -933,7 +956,7 @@ private fun OpenProjectDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        Icons.Default.Search,
+                        Lucide.Search,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -963,7 +986,7 @@ private fun OpenProjectDialog(
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
                             Icon(
-                                Icons.Default.Close,
+                                Lucide.X,
                                 contentDescription = stringResource(R.string.chat_clear),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             )
@@ -993,7 +1016,7 @@ private fun OpenProjectDialog(
                     ) {
                         if (canGoUp) {
                             Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
+                                backIcon(),
                                 contentDescription = stringResource(R.string.back),
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
@@ -1119,7 +1142,7 @@ private fun OpenProjectDialog(
                             FloatingActionButtonDefaults.elevation()
                         },
                     ) {
-                        Icon(Icons.Default.CreateNewFolder, contentDescription = stringResource(R.string.sessions_create_folder))
+                        Icon(Lucide.FolderPlus, contentDescription = stringResource(R.string.sessions_create_folder))
                     }
                 }
             }
@@ -1246,7 +1269,7 @@ private fun DirectoryRow(
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Icon(
-            Icons.Default.Folder,
+            Lucide.Folder,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -1278,7 +1301,7 @@ private fun DirectoryRow(
                     onClick = onNavigate,
                 ) {
                     Icon(
-                        Icons.Default.ChevronRight,
+                        forwardChevronIcon(),
                         contentDescription = stringResource(R.string.open),
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
@@ -1342,7 +1365,7 @@ private fun NewSessionQuickDialog(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Icon(
-                                Icons.Default.Folder,
+                                Lucide.Folder,
                                 contentDescription = null,
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
@@ -1389,7 +1412,7 @@ private fun NewSessionQuickDialog(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Icon(
-                        Icons.Default.FolderOpen,
+                        Lucide.FolderOpen,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -1422,7 +1445,8 @@ private fun SessionRow(
     onSaveCategory: (String?, String, String, String) -> Unit,
     onDeleteCategory: (String) -> Unit,
     onRename: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    networkActionsEnabled: Boolean,
 ) {
     val isAmoled = isAmoledTheme()
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -1489,7 +1513,7 @@ private fun SessionRow(
                         if (!isSelectionMode) {
                             Box {
                         IconButton(onClick = { showActions = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                            Icon(Lucide.EllipsisVertical, contentDescription = stringResource(R.string.more_options))
                         }
                         DropdownMenu(
                             expanded = showActions,
@@ -1503,7 +1527,7 @@ private fun SessionRow(
                                 },
                                 leadingIcon = {
                                     Icon(
-                                        if (item.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                        if (item.isFavorite) Lucide.StarOff else Lucide.Star,
                                         contentDescription = null,
                                     )
                                 },
@@ -1517,7 +1541,7 @@ private fun SessionRow(
                                 leadingIcon = {
                                     Icon(
                                         imageVector = item.category?.let { sessionCategoryIcon(it.icon) }
-                                            ?: Icons.Default.Label,
+                                            ?: Lucide.Tag,
                                         contentDescription = null,
                                         tint = item.category?.let { sessionCategoryColor(it.color) }
                                             ?: LocalContentColor.current,
@@ -1531,7 +1555,7 @@ private fun SessionRow(
                             if (item.isFavorite) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.session_favorite_move_up)) },
-                                    leadingIcon = { Icon(Icons.Default.ArrowUpward, contentDescription = null) },
+                                    leadingIcon = { Icon(Lucide.ArrowUp, contentDescription = null) },
                                     enabled = (item.favoriteIndex ?: 0) > 0,
                                     onClick = {
                                         showActions = false
@@ -1540,7 +1564,7 @@ private fun SessionRow(
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.session_favorite_move_down)) },
-                                    leadingIcon = { Icon(Icons.Default.ArrowDownward, contentDescription = null) },
+                                    leadingIcon = { Icon(Lucide.ArrowDown, contentDescription = null) },
                                     enabled = (item.favoriteIndex ?: Int.MAX_VALUE) < favoriteCount - 1,
                                     onClick = {
                                         showActions = false
@@ -1554,7 +1578,7 @@ private fun SessionRow(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.session_copy_id)) },
-                                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+                                leadingIcon = { Icon(Lucide.Copy, contentDescription = null) },
                                 onClick = {
                                     showActions = false
                                     clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(item.session.id))
@@ -1567,7 +1591,8 @@ private fun SessionRow(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.session_rename)) },
-                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                                leadingIcon = { Icon(Lucide.Pencil, contentDescription = null) },
+                                enabled = networkActionsEnabled,
                                 onClick = {
                                     showActions = false
                                     onRename()
@@ -1577,11 +1602,12 @@ private fun SessionRow(
                                 text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
                                 leadingIcon = {
                                     Icon(
-                                        Icons.Default.Delete,
+                                        Lucide.Trash2,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.error,
                                     )
                                 },
+                                enabled = networkActionsEnabled,
                                 onClick = {
                                     showActions = false
                                     onDelete()
@@ -1652,12 +1678,12 @@ internal fun SessionCategoryPickerDialog(
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Default.LabelOff, contentDescription = null)
+                    Icon(Lucide.BadgeX, contentDescription = null)
                     Text(
                         text = stringResource(R.string.session_category_none),
                         modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
                     )
-                    if (selectedCategoryId == null) Icon(Icons.Default.Check, contentDescription = null)
+                    if (selectedCategoryId == null) Icon(Lucide.Check, contentDescription = null)
                 }
                 categories.forEach { category ->
                     Row(
@@ -1677,7 +1703,7 @@ internal fun SessionCategoryPickerDialog(
                             text = category.name,
                             modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
                         )
-                        if (selectedCategoryId == category.id) Icon(Icons.Default.Check, contentDescription = null)
+                        if (selectedCategoryId == category.id) Icon(Lucide.Check, contentDescription = null)
                     }
                 }
             }
@@ -1694,7 +1720,7 @@ internal fun SessionCategoryPickerDialog(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Default.Edit,
+                    Lucide.Pencil,
                     contentDescription = null,
                     modifier = Modifier.size(22.dp),
                     tint = MaterialTheme.colorScheme.primary,

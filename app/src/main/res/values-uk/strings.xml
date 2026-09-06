@@ -717,4 +717,24 @@
     <string name="workspace_markdown_preview">Показати відформатований Markdown</string>
     <string name="workspace_markdown_raw">Показати вихідний код Markdown</string>
     <string name="chat_server_disconnected">З\'єднання з сервером розірвано</string>
+    <string name="diagnostics_export_count">Повідомлення для надсилання</string>
+    <string name="diagnostics_export_count_value">Останні %1$d повідомлень</string>
+    <string name="notification_channel_sync">Синхронізація налаштувань</string>
+    <string name="notification_channel_sync_desc">Сповіщення, коли синхронізовані налаштування потребують вашого вибору</string>
+    <string name="sync_conflict_settings_warning">Конфлікт синхронізації — торкніться, щоб переглянути</string>
+    <string name="sync_conflict_notification_title">Конфлікт синхронізації налаштувань</string>
+    <string name="sync_conflict_notification_text">Локальні та віддалені налаштування змінено. Торкніться, щоб порівняти та вибрати версію.</string>
+    <string name="sync_conflict_differences">У чому різниця між копіями</string>
+    <string name="sync_conflict_local_snapshot">Локально: %1$s · покоління %2$d</string>
+    <string name="sync_conflict_remote_snapshot">Віддалено: %1$s · покоління %2$d</string>
+    <string name="sync_conflict_area_settings">Налаштування</string>
+    <string name="sync_conflict_area_servers">Сервери</string>
+    <string name="sync_conflict_area_categories">Категорії</string>
+    <string name="sync_conflict_area_assignments">Призначення категорій</string>
+    <string name="sync_conflict_area_favorites">Вибране</string>
+    <string name="sync_conflict_area_hidden_models">Приховані моделі</string>
+    <string name="sync_conflict_changed_values">%1$s: відрізняється %2$d значень</string>
+    <string name="sync_conflict_item_counts">%1$s: локально %2$d · віддалено %3$d</string>
+    <string name="sync_conflict_passwords_hidden">Зашифровані паролі приховані та не порівнюються.</string>
+    <string name="sync_conflict_comparison_limit">Додаток може порівняти дві поточні копії, але не може визначити, з якого боку змінено кожне значення.</string>
 </resources>

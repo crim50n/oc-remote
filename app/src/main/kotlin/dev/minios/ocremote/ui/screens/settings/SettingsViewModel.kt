@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.minios.ocremote.data.repository.LocalServerManager
 import dev.minios.ocremote.data.repository.SettingsRepository
+import dev.minios.ocremote.data.repository.SyncRepository
+import dev.minios.ocremote.data.repository.SyncState
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -12,8 +14,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    syncRepository: SyncRepository,
 ) : ViewModel() {
+    val syncState = syncRepository.state.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = SyncState(),
+    )
     
     val appLanguage = settingsRepository.appLanguage.stateIn(
         scope = viewModelScope,

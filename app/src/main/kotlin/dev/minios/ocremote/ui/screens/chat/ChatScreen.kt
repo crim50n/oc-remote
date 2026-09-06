@@ -1,5 +1,11 @@
 package dev.minios.ocremote.ui.screens.chat
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.backIcon
+import dev.minios.ocremote.ui.components.forwardIcon
+import dev.minios.ocremote.ui.components.mirrorForRtl
+import dev.minios.ocremote.ui.components.undoIcon
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -54,13 +60,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.compositionLocalOf
@@ -201,6 +200,7 @@ import dev.minios.ocremote.ui.components.AppLoadingEdge
 import dev.minios.ocremote.ui.components.AppPickerItemShape
 import dev.minios.ocremote.ui.components.AppPrimaryButton
 import dev.minios.ocremote.ui.components.AppSecondaryButton
+import dev.minios.ocremote.ui.components.ServerConnectionBanner
 import dev.minios.ocremote.ui.components.appAmoledBorder
 import dev.minios.ocremote.ui.components.appSelectedItemColor
 import dev.minios.ocremote.ui.components.appPopupBorder
@@ -1040,6 +1040,8 @@ fun ChatScreen(
     onSharedAttachmentsConsumed: () -> Unit = {},
     startInTerminalMode: Boolean = false,
     isServerConnected: Boolean = true,
+    isServerConnecting: Boolean = false,
+    onConnectServer: () -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -1130,8 +1132,8 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(isTerminalMode) {
-        if (isTerminalMode) {
+    LaunchedEffect(isTerminalMode, isServerConnected) {
+        if (isTerminalMode && isServerConnected) {
             if (viewModel.shouldShowTerminalPanelHint() && TerminalPanelHintCoordinator.tryShow()) {
                 showTerminalPanelHintOverlay = true
                 launch {
@@ -1653,8 +1655,9 @@ fun ChatScreen(
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
+            if ((!isTerminalMode && uiState.sessionLoaded) || !isServerConnected) {
+            Column(modifier = if (isTerminalMode) Modifier.statusBarsPadding() else Modifier) {
             if (!isTerminalMode && uiState.sessionLoaded) {
-            Column {
             Box {
             TopAppBar(
                 title = {
@@ -1687,7 +1690,7 @@ fun ChatScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(backIcon(), contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -1727,7 +1730,7 @@ fun ChatScreen(
                     if (uiState.parentSessionId == null) Box {
                         val isAmoled = isAmoledTheme()
                         IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                            Icon(Lucide.EllipsisVertical, contentDescription = stringResource(R.string.more_options))
                         }
                         if (inputText.text.isNotEmpty()) {
                             Surface(
@@ -1740,7 +1743,7 @@ fun ChatScreen(
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        Icons.Default.AttachFile,
+                                        Lucide.Paperclip,
                                         contentDescription = null,
                                         modifier = Modifier.size(10.dp),
                                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -1756,7 +1759,7 @@ fun ChatScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_attach)) },
-                                leadingIcon = { Icon(Icons.Default.AttachFile, contentDescription = null) },
+                                leadingIcon = { Icon(Lucide.Paperclip, contentDescription = null) },
                                 onClick = {
                                     showMenu = false
                                     inputMode = ChatInputMode.NORMAL.name
@@ -1765,7 +1768,7 @@ fun ChatScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.tool_terminal)) },
-                                leadingIcon = { Icon(Icons.Default.Terminal, contentDescription = null) },
+                                leadingIcon = { Icon(Lucide.Terminal, contentDescription = null) },
                                 onClick = {
                                     showMenu = false
                                     isTerminalMode = true
@@ -1778,7 +1781,7 @@ fun ChatScreen(
                                     onOpenWorkspace(viewModel.getSessionDirectory().orEmpty())
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.FolderOpen, contentDescription = null)
+                                    Icon(Lucide.FolderOpen, contentDescription = null)
                                 },
                             )
                             DropdownMenuItem(
@@ -1788,7 +1791,7 @@ fun ChatScreen(
                                     onOpenInWebView()
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Language, contentDescription = null)
+                                    Icon(Lucide.Globe, contentDescription = null)
                                 },
                             )
                             HorizontalDivider(
@@ -1802,7 +1805,7 @@ fun ChatScreen(
                                     viewModel.reloadSession()
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Refresh, contentDescription = null)
+                                    Icon(Lucide.RefreshCw, contentDescription = null)
                                 },
                             )
                             DropdownMenuItem(
@@ -1812,7 +1815,7 @@ fun ChatScreen(
                                     showRenameDialog = true
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Edit, contentDescription = null)
+                                    Icon(Lucide.Pencil, contentDescription = null)
                                 }
                             )
                             DropdownMenuItem(
@@ -1830,7 +1833,7 @@ fun ChatScreen(
                                     }
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Add, contentDescription = null)
+                                    Icon(Lucide.Plus, contentDescription = null)
                                 }
                             )
                             DropdownMenuItem(
@@ -1848,7 +1851,7 @@ fun ChatScreen(
                                     }
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.CopyAll, contentDescription = null)
+                                    Icon(Lucide.GitFork, contentDescription = null)
                                 }
                             )
                             HorizontalDivider(
@@ -1868,7 +1871,7 @@ fun ChatScreen(
                                     }
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Compress, contentDescription = null)
+                                    Icon(Lucide.Shrink, contentDescription = null)
                                 }
                             )
                             DropdownMenuItem(
@@ -1884,7 +1887,7 @@ fun ChatScreen(
                                     }
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.RateReview, contentDescription = null)
+                                    Icon(Lucide.ClipboardCheck, contentDescription = null)
                                 },
                             )
                             // Show Share or Unshare depending on current share status
@@ -1902,7 +1905,7 @@ fun ChatScreen(
                                         }
                                     },
                                     leadingIcon = {
-                                        Icon(Icons.Default.LinkOff, contentDescription = null)
+                                        Icon(Lucide.Unlink, contentDescription = null)
                                     }
                                 )
                             } else {
@@ -1922,7 +1925,7 @@ fun ChatScreen(
                                         }
                                     },
                                     leadingIcon = {
-                                        Icon(Icons.Default.Share, contentDescription = null)
+                                        Icon(Lucide.Share2, contentDescription = null)
                                     }
                                 )
                             }
@@ -1937,7 +1940,7 @@ fun ChatScreen(
                                     exportLauncher.launch("$slug.json")
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.FileDownload, contentDescription = null)
+                                    Icon(Lucide.FileDown, contentDescription = null)
                                 }
                             )
                         }
@@ -1952,8 +1955,12 @@ fun ChatScreen(
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
+            }
                 if (!isServerConnected) {
-                    DisconnectedServerBanner()
+                    ServerConnectionBanner(
+                        connecting = isServerConnecting,
+                        onConnect = onConnectServer,
+                    )
                 }
             }
             }
@@ -2229,6 +2236,7 @@ fun ChatScreen(
                 contextWindow = uiState.contextWindow,
                 lastContextTokens = uiState.lastContextTokens,
                 contextUsage = uiState.contextUsage,
+                isServerConnected = isServerConnected,
             )
             }
         }
@@ -2236,7 +2244,7 @@ fun ChatScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(if (isTerminalMode) PaddingValues(0.dp) else padding)
+                .padding(if (isTerminalMode && isServerConnected) PaddingValues(0.dp) else padding)
         ) {
             when {
                 isTerminalMode -> {
@@ -2378,7 +2386,7 @@ fun ChatScreen(
                                                                     )
                                                                 ) {
                                                                     Icon(
-                                                                        Icons.Default.Refresh,
+                                                                        Lucide.RefreshCw,
                                                                         contentDescription = recoveryDescription,
                                                                     )
                                                                 }
@@ -2405,7 +2413,7 @@ fun ChatScreen(
                                                                 )
                                                             ) {
                                                                 Icon(
-                                                                    Icons.Default.Close,
+                                                                    Lucide.X,
                                                                     contentDescription = stringResource(R.string.chat_terminal_close_tab),
                                                                 )
                                                             }
@@ -2455,7 +2463,7 @@ fun ChatScreen(
                                                 .weight(1f)
                                                 .heightIn(min = 48.dp),
                                         ) {
-                                            Icon(Icons.Default.Add, contentDescription = null)
+                                            Icon(Lucide.Plus, contentDescription = null)
                                             Spacer(Modifier.width(6.dp))
                                             Text(stringResource(R.string.chat_terminal_new_tab))
                                         }
@@ -2468,7 +2476,7 @@ fun ChatScreen(
                                                 .weight(1f)
                                                 .heightIn(min = 48.dp),
                                         ) {
-                                            Icon(Icons.Default.Keyboard, contentDescription = null)
+                                            Icon(Lucide.Keyboard, contentDescription = null)
                                             Spacer(Modifier.width(6.dp))
                                             Text(stringResource(R.string.chat_terminal_keyboard))
                                         }
@@ -2491,11 +2499,17 @@ fun ChatScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .windowInsetsPadding(
-                                    WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical),
-                                ),
-                        ) {
+                                 .fillMaxSize()
+                                 .windowInsetsPadding(
+                                     WindowInsets.safeDrawing.only(
+                                         if (isServerConnected) {
+                                             WindowInsetsSides.Vertical
+                                         } else {
+                                             WindowInsetsSides.Bottom
+                                         },
+                                     ),
+                                 ),
+                         ) {
                             SessionTerminalInline(
                                 emulator = viewModel.terminalEmulator,
                                 terminalVersion = terminalVersion,
@@ -2580,7 +2594,7 @@ fun ChatScreen(
                                                 ),
                                             ) {
                                                 Icon(
-                                                    Icons.Default.Refresh,
+                                                    Lucide.RefreshCw,
                                                     contentDescription = recoveryDescription,
                                                     modifier = Modifier.size(18.dp),
                                                 )
@@ -2672,7 +2686,7 @@ fun ChatScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Warning,
+                            imageVector = Lucide.TriangleAlert,
                             contentDescription = null,
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.error
@@ -2811,7 +2825,7 @@ fun ChatScreen(
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         Icon(
-                                            Icons.AutoMirrored.Filled.Undo,
+                                            undoIcon(),
                                             contentDescription = stringResource(R.string.chat_revert),
                                             modifier = Modifier.size(18.dp),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
@@ -2873,7 +2887,7 @@ fun ChatScreen(
                             }
                         }
 
-                        pendingInteractions.firstOrNull()?.let { interaction ->
+                        pendingInteractions.firstOrNull()?.takeIf { isServerConnected }?.let { interaction ->
                             item(key = "pending_${interaction::class.simpleName}_${interaction.sessionId}_${interaction.id}") {
                                 val position = stringResource(R.string.pending_request_position, 1, pendingInteractions.size)
                                 when (interaction) {
@@ -2951,7 +2965,7 @@ fun ChatScreen(
                             contentColor = MaterialTheme.colorScheme.onSurface
                         ) {
                             Icon(
-                                Icons.Default.KeyboardArrowDown,
+                                Lucide.ChevronDown,
                                 contentDescription = stringResource(R.string.chat_scroll_bottom),
                                 modifier = Modifier.size(20.dp)
                             )
@@ -3054,7 +3068,7 @@ fun ChatScreen(
                             modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
                         )
                         AttachmentSourceCard(
-                            icon = Icons.Default.Image,
+                            icon = Lucide.Image,
                             title = stringResource(R.string.chat_attach_photo),
                             description = stringResource(R.string.chat_attach_photo_hint),
                             onClick = {
@@ -3063,7 +3077,8 @@ fun ChatScreen(
                             },
                         )
                         AttachmentSourceCard(
-                            icon = Icons.AutoMirrored.Filled.InsertDriveFile,
+                            icon = Lucide.File,
+                            mirrorIconForRtl = true,
                             title = stringResource(R.string.chat_attach_device_file),
                             description = stringResource(R.string.chat_attach_device_file_hint),
                             onClick = {
@@ -3072,7 +3087,7 @@ fun ChatScreen(
                             },
                         )
                         AttachmentSourceCard(
-                            icon = Icons.Default.FolderOpen,
+                            icon = Lucide.FolderOpen,
                             title = stringResource(R.string.chat_attach_project_file),
                             description = stringResource(R.string.chat_attach_project_file_hint),
                             onClick = {
@@ -3168,6 +3183,7 @@ fun ChatScreen(
 @Composable
 private fun AttachmentSourceCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    mirrorIconForRtl: Boolean = false,
     title: String,
     description: String,
     onClick: () -> Unit,
@@ -3198,7 +3214,9 @@ private fun AttachmentSourceCard(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        modifier = Modifier.size(23.dp),
+                        modifier = Modifier
+                            .size(23.dp)
+                            .then(if (mirrorIconForRtl) Modifier.mirrorForRtl() else Modifier),
                         tint = if (isAmoled) {
                             MaterialTheme.colorScheme.primary
                         } else {
@@ -3224,42 +3242,10 @@ private fun AttachmentSourceCard(
                 )
             }
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                imageVector = forwardIcon(),
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun DisconnectedServerBanner() {
-    val isAmoled = isAmoledTheme()
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = if (isAmoled) Color.Black else MaterialTheme.colorScheme.errorContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = Icons.Default.CloudOff,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(17.dp),
-            )
-            Text(
-                text = stringResource(R.string.chat_server_disconnected),
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isAmoled) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onErrorContainer
-                },
             )
         }
     }
@@ -3379,7 +3365,7 @@ private fun ModelPickerDialog(
                 horizontalArrangement = Arrangement.spacedBy(9.dp),
             ) {
                 Icon(
-                    Icons.Default.Search,
+                    Lucide.Search,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -3412,7 +3398,7 @@ private fun ModelPickerDialog(
                         modifier = Modifier.size(34.dp),
                     ) {
                         Icon(
-                            Icons.Default.Close,
+                            Lucide.X,
                             contentDescription = stringResource(R.string.close),
                             modifier = Modifier.size(18.dp),
                         )
@@ -3504,7 +3490,7 @@ private fun ModelPickerDialog(
                             }
                             if (isSelected) {
                                 Icon(
-                                    Icons.Default.Check,
+                                    Lucide.Check,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
                                     tint = MaterialTheme.colorScheme.primary
@@ -3525,7 +3511,7 @@ private fun ModelPickerDialog(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Default.Tune,
+                Lucide.SlidersHorizontal,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -4765,7 +4751,7 @@ private fun ChatMessageBubble(
                                 )
                             } else {
                                 Icon(
-                                    imageVector = if (stepsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                    imageVector = if (stepsExpanded) Lucide.ChevronUp else Lucide.ChevronDown,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp),
                                     tint = textColor.copy(alpha = 0.5f)
@@ -4840,7 +4826,7 @@ private fun ChatMessageBubble(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.RateReview,
+                                imageVector = Lucide.MessageSquareText,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                                 tint = textColor.copy(alpha = 0.7f)
@@ -4990,7 +4976,7 @@ private fun MessageMetadataRow(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    Icons.AutoMirrored.Filled.Undo,
+                    undoIcon(),
                     contentDescription = stringResource(R.string.chat_revert),
                     modifier = Modifier.size(13.dp),
                     tint = textColor.copy(alpha = 0.58f),
@@ -5007,7 +4993,7 @@ private fun MessageMetadataRow(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    Icons.Default.ContentCopy,
+                    Lucide.Copy,
                     contentDescription = stringResource(R.string.chat_copy),
                     modifier = Modifier.size(13.dp),
                     tint = textColor.copy(alpha = 0.42f),
@@ -5102,7 +5088,7 @@ private fun RevertBanner(onRedo: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                Icons.AutoMirrored.Filled.Undo,
+                undoIcon(),
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
                 tint = if (isAmoled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onTertiaryContainer
@@ -5120,7 +5106,7 @@ private fun RevertBanner(onRedo: () -> Unit) {
                 )
             }
             Icon(
-                Icons.Default.Restore,
+                Lucide.History,
                 contentDescription = stringResource(R.string.chat_restore),
                 modifier = Modifier.size(20.dp),
                 tint = if (isAmoled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onTertiaryContainer
@@ -5379,7 +5365,7 @@ private fun MarkdownContent(
                             modifier = Modifier.size(36.dp),
                         ) {
                             Icon(
-                                Icons.Default.Fullscreen,
+                                Lucide.Maximize,
                                 contentDescription = stringResource(R.string.chat_image),
                                 modifier = Modifier.size(21.dp),
                                 tint = Color.White,
@@ -5616,7 +5602,7 @@ private fun ReasoningBlock(part: Part.Reasoning) {
             )
             if (hasReasoningBody) {
                 Icon(
-                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
                     contentDescription = stringResource(if (expanded) R.string.chat_collapse else R.string.chat_expand),
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
@@ -5689,10 +5675,10 @@ private fun ToolCallCard(tool: Part.Tool) {
                 ) {
                     Icon(
                         imageVector = when (tool.state) {
-                            is ToolState.Running -> Icons.Default.Sync
+                            is ToolState.Running -> Lucide.RefreshCw
                             is ToolState.Completed -> toolDisplay.icon
-                            is ToolState.Error -> Icons.Default.Error
-                            else -> Icons.Default.PlayArrow
+                            is ToolState.Error -> Lucide.CircleAlert
+                            else -> Lucide.Play
                         },
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
@@ -5719,7 +5705,7 @@ private fun ToolCallCard(tool: Part.Tool) {
                 // Expand indicator for completed/errored tools
                 if (tool.state is ToolState.Completed || tool.state is ToolState.Error) {
                     Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
                         contentDescription = if (expanded) stringResource(R.string.chat_collapse) else stringResource(R.string.chat_expand),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
@@ -5776,7 +5762,7 @@ private fun ToolCallCard(tool: Part.Tool) {
 private data class ToolDisplayInfo(
     val title: String,
     val subtitle: String? = null,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Default.Check,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector = Lucide.Check,
     val iconTint: Color? = null
 )
 
@@ -5807,21 +5793,21 @@ private fun resolveToolDisplay(
             ToolDisplayInfo(
                 title = serverTitle ?: stringResource(R.string.tool_read_file),
                 subtitle = shortPath ?: filePath,
-                icon = Icons.Default.Description
+                icon = Lucide.FileText
             )
         }
         "write" -> {
             ToolDisplayInfo(
                 title = serverTitle ?: stringResource(R.string.tool_write_file),
                 subtitle = shortPath ?: filePath,
-                icon = Icons.Default.EditNote
+                icon = Lucide.NotepadText
             )
         }
         "edit" -> {
             ToolDisplayInfo(
                 title = serverTitle ?: stringResource(R.string.tool_edit_file),
                 subtitle = shortPath ?: filePath,
-                icon = Icons.Default.Edit
+                icon = Lucide.Pencil
             )
         }
         "bash" -> {
@@ -5832,7 +5818,7 @@ private fun resolveToolDisplay(
             ToolDisplayInfo(
                 title = serverTitle ?: stringResource(R.string.tool_terminal),
                 subtitle = shortCmd,
-                icon = Icons.Default.Terminal
+                icon = Lucide.Terminal
             )
         }
         "glob" -> {
@@ -5840,7 +5826,7 @@ private fun resolveToolDisplay(
             ToolDisplayInfo(
                 title = serverTitle ?: stringResource(R.string.tool_find_files),
                 subtitle = pattern,
-                icon = Icons.Default.FolderOpen
+                icon = Lucide.FolderOpen
             )
         }
         "grep" -> {
@@ -5848,14 +5834,14 @@ private fun resolveToolDisplay(
             ToolDisplayInfo(
                 title = serverTitle ?: stringResource(R.string.tool_search_code),
                 subtitle = pattern,
-                icon = Icons.Default.Search
+                icon = Lucide.Search
             )
         }
         "list", "listDirectory" -> {
             ToolDisplayInfo(
                 title = serverTitle ?: stringResource(R.string.tool_list_directory),
                 subtitle = filePath,
-                icon = Icons.Default.Folder
+                icon = Lucide.Folder
             )
         }
         "webfetch" -> {
@@ -5866,7 +5852,7 @@ private fun resolveToolDisplay(
             ToolDisplayInfo(
                 title = serverTitle ?: stringResource(R.string.tool_fetch_url),
                 subtitle = shortUrl,
-                icon = Icons.Default.Language
+                icon = Lucide.Globe
             )
         }
         "task" -> {
@@ -5874,21 +5860,21 @@ private fun resolveToolDisplay(
             ToolDisplayInfo(
                 title = serverTitle ?: stringResource(R.string.tool_sub_agent),
                 subtitle = description,
-                icon = Icons.Default.AccountTree
+                icon = Lucide.Network
             )
         }
         "apply_patch" -> {
             ToolDisplayInfo(
                 title = serverTitle ?: stringResource(R.string.tool_apply_patch),
                 subtitle = shortPath,
-                icon = Icons.Default.Compare
+                icon = Lucide.GitCompareArrows
             )
         }
         else -> {
             ToolDisplayInfo(
                 title = serverTitle ?: toolName,
                 subtitle = null,
-                icon = Icons.Default.Build
+                icon = Lucide.Wrench
             )
         }
     }
@@ -5976,7 +5962,7 @@ private fun ApplyPatchToolCard(tool: Part.Tool) {
                     },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                Icon(Lucide.Wrench, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(3.dp))
                 Text(
                     text = buildString {
@@ -6006,14 +5992,14 @@ private fun ApplyPatchToolCard(tool: Part.Tool) {
                         modifier = Modifier.size(22.dp),
                     ) {
                         Icon(
-                            Icons.Default.ContentCopy,
+                            Lucide.Copy,
                             contentDescription = stringResource(R.string.chat_copy),
                             modifier = Modifier.size(14.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
                         )
                     }
                     Icon(
-                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
@@ -6170,7 +6156,7 @@ private fun EditToolCard(tool: Part.Tool) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = if (isError) Icons.Default.Error else Icons.Default.Edit,
+                        imageVector = if (isError) Lucide.CircleAlert else Lucide.Pencil,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
@@ -6216,14 +6202,14 @@ private fun EditToolCard(tool: Part.Tool) {
                             modifier = Modifier.size(22.dp),
                         ) {
                             Icon(
-                                Icons.Default.ContentCopy,
+                                Lucide.Copy,
                                 contentDescription = stringResource(R.string.chat_copy),
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
                             )
                         }
                         Icon(
-                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
@@ -6453,7 +6439,7 @@ private fun WriteToolCard(tool: Part.Tool) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = if (isError) Icons.Default.Error else Icons.Default.EditNote,
+                        imageVector = if (isError) Lucide.CircleAlert else Lucide.NotepadText,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
@@ -6483,7 +6469,7 @@ private fun WriteToolCard(tool: Part.Tool) {
                     )
                 } else if (hasContent) {
                     Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
@@ -6583,7 +6569,7 @@ private fun BashToolCard(tool: Part.Tool) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = if (isError) Icons.Default.Error else Icons.Default.Terminal,
+                        imageVector = if (isError) Lucide.CircleAlert else Lucide.Terminal,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
@@ -6621,7 +6607,7 @@ private fun BashToolCard(tool: Part.Tool) {
                                 modifier = Modifier.size(22.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.ContentCopy,
+                                    imageVector = Lucide.Copy,
                                     contentDescription = stringResource(R.string.chat_copy),
                                     modifier = Modifier.size(14.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
@@ -6629,7 +6615,7 @@ private fun BashToolCard(tool: Part.Tool) {
                             }
                         }
                         Icon(
-                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
@@ -6723,7 +6709,7 @@ private fun ReadToolCard(tool: Part.Tool) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = if (isError) Icons.Default.Error else Icons.Default.Description,
+                    imageVector = if (isError) Lucide.CircleAlert else Lucide.FileText,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
@@ -6766,7 +6752,7 @@ private fun ReadToolCard(tool: Part.Tool) {
                     )
                 } else if (hasContent) {
                     Icon(
-                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
@@ -6864,7 +6850,7 @@ private fun SearchToolCard(tool: Part.Tool) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Search,
+                        imageVector = Lucide.Search,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
@@ -6894,14 +6880,14 @@ private fun SearchToolCard(tool: Part.Tool) {
                             modifier = Modifier.size(22.dp),
                         ) {
                             Icon(
-                                Icons.Default.ContentCopy,
+                                Lucide.Copy,
                                 contentDescription = stringResource(R.string.chat_copy),
                                 modifier = Modifier.size(14.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
                             )
                         }
                         Icon(
-                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
@@ -7027,7 +7013,7 @@ private fun TaskToolCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AccountTree,
+                        imageVector = Lucide.Network,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
@@ -7058,14 +7044,14 @@ private fun TaskToolCard(
                     )
                 } else if (childSessionId != null) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        imageVector = forwardIcon(),
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
                     )
                 } else if (hasOutput) {
                     Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
@@ -7160,7 +7146,7 @@ private fun TodoListCard(tool: Part.Tool) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Checklist,
+                    imageVector = Lucide.ListChecks,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = if (completedCount == totalCount) {
@@ -7184,7 +7170,7 @@ private fun TodoListCard(tool: Part.Tool) {
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                     Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
                         contentDescription = if (expanded) stringResource(R.string.chat_collapse) else stringResource(R.string.chat_expand),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
@@ -7310,7 +7296,7 @@ private fun PatchCard(patch: Part.Patch) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        Icons.Default.Code,
+                        Lucide.Code,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
@@ -7324,7 +7310,7 @@ private fun PatchCard(patch: Part.Patch) {
                     )
                 }
                 Icon(
-                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
                     contentDescription = if (expanded) stringResource(R.string.chat_collapse) else stringResource(R.string.chat_expand),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
@@ -7395,7 +7381,7 @@ private fun ImageThumbnailRow(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        Icons.Default.BrokenImage,
+                        Lucide.ImageOff,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
@@ -7530,7 +7516,7 @@ private fun ImagePreviewDialog(
                     ) {
                         IconButton(onClick = onSave, modifier = Modifier.size(40.dp)) {
                             Icon(
-                                Icons.Default.Download,
+                                Lucide.Download,
                                 contentDescription = stringResource(R.string.chat_save_image),
                                 tint = actionTintColor,
                                 modifier = Modifier.size(22.dp),
@@ -7546,7 +7532,7 @@ private fun ImagePreviewDialog(
                 ) {
                     IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
                         Icon(
-                            Icons.Default.Close,
+                            Lucide.X,
                             contentDescription = stringResource(R.string.close),
                             tint = actionTintColor,
                             modifier = Modifier.size(22.dp),
@@ -7596,7 +7582,7 @@ private fun FileCardFallback(file: Part.File) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                Icons.Default.AttachFile,
+                Lucide.Paperclip,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -7670,7 +7656,7 @@ private fun PermissionCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Default.Security,
+                    Lucide.Shield,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = if (isAmoled) MaterialTheme.colorScheme.tertiary else contentColor
@@ -7782,7 +7768,7 @@ private fun RetryStatusBanner(retry: SessionStatus.Retry) {
             verticalAlignment = Alignment.Top,
         ) {
             Icon(
-                imageVector = Icons.Default.Refresh,
+                imageVector = Lucide.RefreshCw,
                 contentDescription = stringResource(R.string.sessions_retrying),
                 tint = MaterialTheme.colorScheme.error,
                 modifier = Modifier.size(18.dp),
@@ -7846,6 +7832,7 @@ private fun ChatInputBar(
     contextWindow: Int = 0,
     lastContextTokens: Int = 0,
     contextUsage: ContextUsageDetails = ContextUsageDetails(),
+    isServerConnected: Boolean = true,
 ) {
     val isAmoled = isAmoledTheme()
     val isShellMode = inputMode == ChatInputMode.SHELL
@@ -7866,7 +7853,11 @@ private fun ChatInputBar(
     val text = textFieldValue.text
     val showInlineAttach = text.isEmpty() && !isShellMode
     val hasDraft = text.isNotBlank() || attachments.isNotEmpty()
-    val action = composerAction(isBusy, isSending, hasDraft, isShellMode)
+    val action = if (isServerConnected) {
+        composerAction(isBusy, isSending, hasDraft, isShellMode)
+    } else {
+        ComposerAction.DISABLED
+    }
     val canSend = action == ComposerAction.SEND
     val retryStatus = sessionStatus as? SessionStatus.Retry
     var showContextDetails by remember { mutableStateOf(false) }
@@ -7993,7 +7984,7 @@ private fun ChatInputBar(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(
-                            imageVector = if (isDir) Icons.Default.Folder else Icons.Default.Description,
+                            imageVector = if (isDir) Lucide.Folder else Lucide.FileText,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
                             tint = if (isDir)
@@ -8177,7 +8168,7 @@ private fun ChatInputBar(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
                                 Icon(
-                                    Icons.Default.UnfoldMore,
+                                    Lucide.ChevronsUpDown,
                                     contentDescription = null,
                                     modifier = Modifier.size(14.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -8207,7 +8198,7 @@ private fun ChatInputBar(
                                         },
                                     )
                                     Icon(
-                                        Icons.Default.ArrowDropDown,
+                                        Lucide.ChevronDown,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -8225,7 +8216,7 @@ private fun ChatInputBar(
                                         text = { Text(stringResource(R.string.chat_default_variant)) },
                                         leadingIcon = {
                                             if (selectedVariant == null) {
-                                                Icon(Icons.Default.Check, contentDescription = null)
+                                                Icon(Lucide.Check, contentDescription = null)
                                             }
                                         },
                                         onClick = {
@@ -8238,7 +8229,7 @@ private fun ChatInputBar(
                                             text = { Text(variant.replaceFirstChar { it.uppercase() }) },
                                             leadingIcon = {
                                                 if (selectedVariant == variant) {
-                                                    Icon(Icons.Default.Check, contentDescription = null)
+                                                    Icon(Lucide.Check, contentDescription = null)
                                                 }
                                             },
                                             onClick = {
@@ -8313,10 +8304,10 @@ private fun ChatInputBar(
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         Icon(
-                                            imageVector = if (attachment.mime == "application/pdf") {
-                                                Icons.Default.PictureAsPdf
-                                            } else {
-                                                Icons.Default.Description
+                                             imageVector = if (attachment.mime == "application/pdf") {
+                                                 Lucide.FileType
+                                             } else {
+                                                 Lucide.FileText
                                             },
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
@@ -8350,7 +8341,7 @@ private fun ChatInputBar(
                             ) {
                                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                                     Icon(
-                                        Icons.Default.Close,
+                                        Lucide.X,
                                         contentDescription = stringResource(R.string.chat_remove),
                                         modifier = Modifier.size(12.dp),
                                         tint = MaterialTheme.colorScheme.onError
@@ -8416,7 +8407,7 @@ private fun ChatInputBar(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Terminal,
+                        imageVector = Lucide.Terminal,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.primary,
@@ -8517,7 +8508,7 @@ private fun ChatInputBar(
                                 modifier = Modifier.size(48.dp),
                             ) {
                                 Icon(
-                                    Icons.Default.AttachFile,
+                                    Lucide.Paperclip,
                                     contentDescription = stringResource(R.string.chat_attach),
                                     modifier = Modifier.size(24.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
@@ -8585,7 +8576,7 @@ private fun ChatInputBar(
                         )
                     } else if (action == ComposerAction.STOP) {
                         Icon(
-                            Icons.Default.Stop,
+                            Lucide.Square,
                             contentDescription = stringResource(R.string.chat_stop),
                             modifier = Modifier.size(20.dp),
                             tint = if (isAmoled) {
@@ -8596,13 +8587,13 @@ private fun ChatInputBar(
                         )
                     } else {
                         Icon(
-                            Icons.AutoMirrored.Filled.Send,
+                            Lucide.SendHorizontal,
                             contentDescription = if (isShellMode) {
                                 stringResource(R.string.chat_send_shell)
                             } else {
                                 stringResource(R.string.chat_send)
                             },
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(20.dp).mirrorForRtl(),
                             tint = if (canSend) {
                                 MaterialTheme.colorScheme.primary
                             } else if (isShellMode && isAmoled && !isSending) {
@@ -8770,7 +8761,7 @@ private fun QuestionCard(
             ) {
                 Icon(
                     @Suppress("DEPRECATION")
-                    Icons.Default.HelpOutline,
+                    Lucide.CircleHelp,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                     tint = accentColor
@@ -8884,7 +8875,7 @@ private fun QuestionCard(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Icon(
-                                    if (isSelected) Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
+                                    if (isSelected) Lucide.CircleDot else Lucide.Circle,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp),
                                     tint = if (isSelected) accentColor else accentColor.copy(alpha = 0.7f)
@@ -8926,7 +8917,7 @@ private fun QuestionCard(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.RadioButtonChecked,
+                                    Lucide.CircleDot,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp),
                                     tint = accentColor
@@ -8947,7 +8938,7 @@ private fun QuestionCard(
                                     modifier = Modifier.size(20.dp)
                                 ) {
                                     Icon(
-                                        Icons.Default.Close,
+                                        Lucide.X,
                                         contentDescription = stringResource(R.string.chat_clear),
                                         modifier = Modifier.size(16.dp),
                                         tint = accentColor.copy(alpha = 0.7f)
@@ -8975,7 +8966,7 @@ private fun QuestionCard(
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Icon(
-                                        Icons.Default.Edit,
+                                        Lucide.Pencil,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp),
                                         tint = accentColor.copy(alpha = 0.7f)
@@ -9025,14 +9016,14 @@ private fun QuestionCard(
                                             enabled = customText.isNotBlank() && !submitted
                                         ) {
                                             Icon(
-                                                Icons.AutoMirrored.Filled.Send,
+                                                Lucide.SendHorizontal,
                                                 contentDescription = stringResource(R.string.question_submit),
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(18.dp).mirrorForRtl()
                                             )
                                         }
                                         IconButton(onClick = { isEditingCustom = false; customText = "" }) {
                                             Icon(
-                                                Icons.Default.Close,
+                                                Lucide.X,
                                                 contentDescription = stringResource(R.string.question_cancel),
                                                 modifier = Modifier.size(18.dp)
                                             )

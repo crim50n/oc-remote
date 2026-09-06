@@ -1,5 +1,9 @@
 package dev.minios.ocremote.ui.screens.files
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.backIcon
+import dev.minios.ocremote.ui.components.mirrorForRtl
+
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,22 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
-import androidx.compose.material.icons.automirrored.filled.WrapText
-import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material.icons.filled.AudioFile
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.Preview
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.TableChart
-import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -80,6 +68,7 @@ import com.mikepenz.markdown.model.DefaultMarkdownTypography
 import com.mikepenz.markdown.model.MarkdownTypography
 import dev.minios.ocremote.R
 import dev.minios.ocremote.ui.components.AppLoadingEdge
+import dev.minios.ocremote.ui.components.ServerConnectionBanner
 import dev.minios.ocremote.ui.screens.chat.LocalCodeWordWrap
 import dev.minios.ocremote.ui.screens.chat.buildSafeHighlightedAnnotatedString
 import dev.minios.ocremote.ui.screens.chat.horizontallyScrollableMarkdownTable
@@ -94,6 +83,9 @@ import org.intellij.markdown.MarkdownTokenTypes
 @Composable
 fun WorkspaceFilesScreen(
     onNavigateBack: () -> Unit,
+    isServerConnected: Boolean = true,
+    isServerConnecting: Boolean = false,
+    onConnectServer: () -> Unit = {},
     viewModel: WorkspaceFilesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -161,7 +153,7 @@ fun WorkspaceFilesScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = navigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(backIcon(), contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -169,20 +161,21 @@ fun WorkspaceFilesScreen(
                     if (isTextPreview) {
                         IconButton(onClick = { viewModel.setWordWrap(!wordWrap) }) {
                             Icon(
-                                Icons.AutoMirrored.Filled.WrapText,
+                                Lucide.WrapText,
                                 contentDescription = stringResource(R.string.workspace_word_wrap),
-                                tint = if (wordWrap) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
+                                 tint = if (wordWrap) {
+                                     MaterialTheme.colorScheme.primary
+                                 } else {
+                                     MaterialTheme.colorScheme.onSurfaceVariant
+                                 },
+                                 modifier = Modifier.mirrorForRtl(),
                             )
                         }
                     }
                     if (isMarkdownPreview) {
                         IconButton(onClick = { renderMarkdown = !renderMarkdown }) {
                             Icon(
-                                imageVector = if (renderMarkdown) Icons.Default.Code else Icons.Default.Preview,
+                                imageVector = if (renderMarkdown) Lucide.Code else Lucide.ScanEye,
                                 contentDescription = stringResource(
                                     if (renderMarkdown) R.string.workspace_markdown_raw else R.string.workspace_markdown_preview,
                                 ),
@@ -191,7 +184,7 @@ fun WorkspaceFilesScreen(
                     }
                     if (preview != null && previewBytes != null) {
                         IconButton(onClick = { saveLauncher.launch(preview.node.name) }) {
-                            Icon(Icons.Default.Download, contentDescription = stringResource(R.string.workspace_download_file))
+                            Icon(Lucide.Download, contentDescription = stringResource(R.string.workspace_download_file))
                         }
                     }
                 },
@@ -199,7 +192,14 @@ fun WorkspaceFilesScreen(
             )
         },
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (!isServerConnected) {
+                ServerConnectionBanner(
+                    connecting = isServerConnecting,
+                    onConnect = onConnectServer,
+                )
+            }
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             when {
                 state.error != null -> {
                     Column(
@@ -211,7 +211,9 @@ fun WorkspaceFilesScreen(
                             text = state.error ?: stringResource(R.string.workspace_load_failed),
                             color = MaterialTheme.colorScheme.error,
                         )
-                        TextButton(onClick = viewModel::retry) { Text(stringResource(R.string.retry)) }
+                        TextButton(onClick = viewModel::retry, enabled = isServerConnected) {
+                            Text(stringResource(R.string.retry))
+                        }
                     }
                 }
                 state.preview != null -> WorkspaceFileContent(
@@ -246,15 +248,20 @@ fun WorkspaceFilesScreen(
                                 },
                                 leadingContent = {
                                     Icon(
-                                        imageVector = workspaceFileIcon(kind),
-                                        contentDescription = null,
-                                        tint = workspaceFileIconColor(kind),
+                                         imageVector = workspaceFileIcon(kind),
+                                         contentDescription = null,
+                                         tint = workspaceFileIconColor(kind),
+                                         modifier = if (kind == WorkspaceFileKind.Generic) {
+                                             Modifier.mirrorForRtl()
+                                         } else {
+                                             Modifier
+                                         },
                                     )
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .alpha(if (node.ignored) 0.55f else 1f)
-                                    .clickable { viewModel.open(node) },
+                                    .clickable(enabled = isServerConnected) { viewModel.open(node) },
                             )
                         }
                     }
@@ -267,6 +274,7 @@ fun WorkspaceFilesScreen(
                     modifier = Modifier.align(Alignment.TopCenter),
                 )
             }
+        }
         }
     }
 }
@@ -465,17 +473,17 @@ private fun MarkdownTypography.withInlineCodeSize(
 )
 
 private fun workspaceFileIcon(kind: WorkspaceFileKind): ImageVector = when (kind) {
-    WorkspaceFileKind.Directory -> Icons.Default.Folder
-    WorkspaceFileKind.Code -> Icons.Default.Code
-    WorkspaceFileKind.Config -> Icons.Default.Settings
-    WorkspaceFileKind.Image -> Icons.Default.Image
-    WorkspaceFileKind.Document -> Icons.Default.Description
-    WorkspaceFileKind.Pdf -> Icons.Default.PictureAsPdf
-    WorkspaceFileKind.Archive -> Icons.Default.Archive
-    WorkspaceFileKind.Audio -> Icons.Default.AudioFile
-    WorkspaceFileKind.Video -> Icons.Default.VideoFile
-    WorkspaceFileKind.Table -> Icons.Default.TableChart
-    WorkspaceFileKind.Generic -> Icons.AutoMirrored.Filled.InsertDriveFile
+    WorkspaceFileKind.Directory -> Lucide.Folder
+    WorkspaceFileKind.Code -> Lucide.Code
+    WorkspaceFileKind.Config -> Lucide.Settings
+    WorkspaceFileKind.Image -> Lucide.Image
+    WorkspaceFileKind.Document -> Lucide.FileText
+    WorkspaceFileKind.Pdf -> Lucide.FileType
+    WorkspaceFileKind.Archive -> Lucide.Archive
+    WorkspaceFileKind.Audio -> Lucide.FileAudio
+    WorkspaceFileKind.Video -> Lucide.FileVideo
+    WorkspaceFileKind.Table -> Lucide.Table
+    WorkspaceFileKind.Generic -> Lucide.File
 }
 
 @Composable

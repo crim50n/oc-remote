@@ -99,6 +99,7 @@ class MainActivity : ComponentActivity() {
      * Uses replay=1 so a cold-start deep-link is not lost before NavGraph starts collecting.
      */
     private val _deepLinkFlow = MutableSharedFlow<SessionDeepLink>(replay = 1)
+    private val _syncSettingsFlow = MutableSharedFlow<Unit>(replay = 1)
 
     /**
      * Shared flow for attachments received via ACTION_SEND / ACTION_SEND_MULTIPLE.
@@ -166,6 +167,7 @@ class MainActivity : ComponentActivity() {
         
         // Handle notification tap that launched the activity
         handleSessionIntent(intent)
+        handleSyncSettingsIntent(intent)
         // Handle attachments shared into the activity
         handleShareIntent(intent)
         
@@ -177,6 +179,7 @@ class MainActivity : ComponentActivity() {
             )
             val amoledDark by settingsRepository.amoledDark.collectAsState(initial = false)
             val connectedServerIds by serverConnectionStateRepository.connectedServerIds.collectAsState()
+            val connectingServerIds by serverConnectionStateRepository.connectingServerIds.collectAsState()
             
             // Determine if dark theme should be used
             val systemDarkTheme = isSystemInDarkTheme()
@@ -205,11 +208,13 @@ class MainActivity : ComponentActivity() {
                 ) {
                     NavGraph(
                         deepLinkFlow = _deepLinkFlow,
+                        syncSettingsFlow = _syncSettingsFlow,
                         sharedAttachmentsFlow = sharedAttachmentsFlow,
                         settingsRepository = settingsRepository,
                         serverRepository = serverRepository,
                         eventReducer = eventReducer,
                         connectedServerIds = connectedServerIds,
+                        connectingServerIds = connectingServerIds,
                     )
                 }
             }
@@ -225,6 +230,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         // Handle notification tap when activity is already running
         handleSessionIntent(intent)
+        handleSyncSettingsIntent(intent)
         // Handle attachments shared while the activity is already running
         handleShareIntent(intent)
     }
@@ -273,6 +279,10 @@ class MainActivity : ComponentActivity() {
                 )
             )
         }
+    }
+
+    private fun handleSyncSettingsIntent(intent: Intent?) {
+        if (intent?.action == ACTION_OPEN_SYNC_SETTINGS) _syncSettingsFlow.tryEmit(Unit)
     }
 
     /**
@@ -335,6 +345,8 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        const val ACTION_OPEN_SYNC_SETTINGS = "dev.minios.ocremote.OPEN_SYNC_SETTINGS"
+
         /** Parse BCP 47 tag (e.g. "pt-BR", "zh-CN", "en") into a [Locale]. */
         fun parseLocale(tag: String): Locale {
             val parts = tag.split("-")

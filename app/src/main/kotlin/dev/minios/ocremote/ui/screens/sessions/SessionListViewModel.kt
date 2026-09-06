@@ -12,6 +12,7 @@ import dev.minios.ocremote.data.api.ServerConnection
 import dev.minios.ocremote.data.repository.EventReducer
 import dev.minios.ocremote.data.repository.DirectoryScope
 import dev.minios.ocremote.data.repository.SettingsRepository
+import dev.minios.ocremote.data.repository.ServerConnectionStateRepository
 import dev.minios.ocremote.domain.model.Project
 import dev.minios.ocremote.domain.model.Session
 import dev.minios.ocremote.domain.model.SessionStatus
@@ -27,11 +28,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -160,6 +164,7 @@ class SessionListViewModel @Inject constructor(
     private val eventReducer: EventReducer,
     private val api: OpenCodeApi,
     private val settingsRepository: SettingsRepository,
+    private val connectionStateRepository: ServerConnectionStateRepository,
 ) : ViewModel() {
 
     val serverUrl: String = savedStateHandle.get<String>("serverUrl").orEmpty()
@@ -207,6 +212,8 @@ class SessionListViewModel @Inject constructor(
     private val _homeDir = MutableStateFlow<String?>(null)
     private val _selectedIds = MutableStateFlow<Set<String>>(emptySet())
     private val _navigateToSession = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    private var sessionLoadJob: Job? = null
+    private var homeDirectoryJob: Job? = null
     val navigateToSession: SharedFlow<String> = _navigateToSession.asSharedFlow()
 
     @Suppress("UNCHECKED_CAST")
@@ -280,15 +287,31 @@ class SessionListViewModel @Inject constructor(
     )
 
     init {
-        loadHomeDir()
-        loadSessions()
+        viewModelScope.launch {
+            connectionStateRepository.connectedServerIds
+                .map { serverId in it }
+                .distinctUntilChanged()
+                .collect { connected ->
+                    if (connected) {
+                        loadHomeDir()
+                        loadSessions()
+                    } else {
+                        sessionLoadJob?.cancel()
+                        homeDirectoryJob?.cancel()
+                        _isLoading.value = false
+                        _error.value = null
+                    }
+                }
+        }
         viewModelScope.launch {
             while (true) {
                 delay(5_000)
-                refreshSessionStatuses()
+                if (isServerConnected()) refreshSessionStatuses()
             }
         }
     }
+
+    private fun isServerConnected(): Boolean = serverId in connectionStateRepository.connectedServerIds.value
 
     fun setGroupSessionsByProject(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setGroupSessionsByProject(enabled) }
@@ -343,7 +366,9 @@ class SessionListViewModel @Inject constructor(
     }
 
     fun loadSessions() {
-        viewModelScope.launch {
+        if (!isServerConnected()) return
+        sessionLoadJob?.cancel()
+        sessionLoadJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
@@ -385,6 +410,7 @@ class SessionListViewModel @Inject constructor(
     }
 
     private suspend fun refreshSessionStatuses(projects: List<Project> = _projects.value) {
+        if (!isServerConnected()) return
         val directories: List<String?> = projects.map { it.worktree.takeIf(String::isNotBlank) }
             .ifEmpty { listOf(null) }
         val serverSessionIds = eventReducer.serverSessions.value[serverId].orEmpty()
@@ -405,6 +431,7 @@ class SessionListViewModel @Inject constructor(
     }
 
     private fun loadProjects() {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             try {
                 val projects = api.listProjects(conn)
@@ -418,12 +445,15 @@ class SessionListViewModel @Inject constructor(
     }
 
     private fun loadHomeDir() {
-        viewModelScope.launch {
+        if (!isServerConnected()) return
+        homeDirectoryJob?.cancel()
+        homeDirectoryJob = viewModelScope.launch {
             getHomeDirectory()
         }
     }
 
     fun createNewSession(directory: String? = null) {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             try {
                 val session = api.createSession(conn, directory = directory)
@@ -440,6 +470,7 @@ class SessionListViewModel @Inject constructor(
     }
 
     fun deleteSession(sessionId: String) {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             try {
                 val success = api.deleteSession(conn, sessionId)
@@ -477,6 +508,7 @@ class SessionListViewModel @Inject constructor(
     }
 
     fun deleteSelected() {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             val ids = _selectedIds.value
             if (ids.isEmpty()) return@launch
@@ -507,6 +539,7 @@ class SessionListViewModel @Inject constructor(
     }
 
     fun renameSession(sessionId: String, newTitle: String) {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             try {
                 api.updateSession(conn, sessionId, newTitle)
@@ -540,6 +573,7 @@ class SessionListViewModel @Inject constructor(
 
     /** List directories in a given path on the server. */
     suspend fun listDirectories(directory: String): List<FileNode> {
+        if (!isServerConnected()) return emptyList()
         return try {
             val nodes = api.listDirectory(conn, path = "", directory = directory)
             nodes.filter { it.type == "directory" }
@@ -552,6 +586,7 @@ class SessionListViewModel @Inject constructor(
 
     /** Search names fuzzily, but resolve typed absolute and home-relative paths like the WebUI. */
     suspend fun searchDirectories(query: String, directory: String): List<String> {
+        if (!isServerConnected()) return emptyList()
         val pathQuery = parseDirectoryPathQuery(query, directory)
         if (pathQuery != null) {
             val parentNodes = listDirectories(pathQuery.parent)
@@ -594,6 +629,7 @@ class SessionListViewModel @Inject constructor(
 
     /** Create a directory inside the currently browsed path. */
     suspend fun createDirectory(parentDirectory: String, folderName: String): Result<String> {
+        if (!isServerConnected()) return Result.failure(IllegalStateException("Server disconnected"))
         val sanitized = folderName.trim().trim('/').replace(Regex("/+"), "/")
         if (sanitized.isBlank() || sanitized == "." || sanitized == "..") {
             return Result.failure(IllegalArgumentException("Invalid folder name"))

@@ -1,5 +1,8 @@
 package dev.minios.ocremote.ui.navigation
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.mirrorForRtl
+
 import android.net.Uri
 import android.content.Intent
 import dev.minios.ocremote.logging.AppLogger as Log
@@ -11,9 +14,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +36,7 @@ import androidx.navigation.navArgument
 import dev.minios.ocremote.SessionDeepLink
 import dev.minios.ocremote.data.repository.EventReducer
 import dev.minios.ocremote.data.repository.ServerRepository
+import dev.minios.ocremote.data.repository.normalizeServerUrl
 import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.domain.model.Session
@@ -151,14 +152,26 @@ internal fun buildSharePickerItems(
 @Composable
 fun NavGraph(
     deepLinkFlow: MutableSharedFlow<SessionDeepLink>,
+    syncSettingsFlow: MutableSharedFlow<Unit>,
     sharedAttachmentsFlow: SharedFlow<List<Uri>>,
     settingsRepository: SettingsRepository,
     serverRepository: ServerRepository,
     eventReducer: EventReducer,
     connectedServerIds: Set<String>,
+    connectingServerIds: Set<String>,
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
+    fun connectServer(serverId: String, serverName: String, serverUrl: String, username: String, password: String) {
+        val intent = Intent(context, OpenCodeConnectionService::class.java).apply {
+            putExtra("server_id", serverId)
+            putExtra("server_name", serverName)
+            putExtra("server_url", serverUrl)
+            putExtra("server_username", username)
+            putExtra("server_password", password)
+        }
+        ContextCompat.startForegroundService(context, intent)
+    }
     
     // Use native UI by default (WebView is legacy)
     val useNativeUi = true
@@ -382,6 +395,13 @@ fun NavGraph(
             }
         }
     }
+
+    LaunchedEffect(Unit) {
+        syncSettingsFlow.collect {
+            syncSettingsFlow.resetReplayCache()
+            navController.navigate(Screen.SyncSettings.route) { launchSingleTop = true }
+        }
+    }
     
     NavHost(
         navController = navController,
@@ -469,7 +489,7 @@ fun NavGraph(
                 navArgument("username") { type = NavType.StringType },
                 navArgument("password") { type = NavType.StringType },
                 navArgument("serverName") { type = NavType.StringType },
-                navArgument("serverId") { type = NavType.StringType },
+                navArgument("serverId") { type = NavType.StringType; defaultValue = "" },
             )
         ) {
             val serverUrl = it.arguments?.getString("serverUrl").orEmpty()
@@ -478,6 +498,11 @@ fun NavGraph(
             val serverName = it.arguments?.getString("serverName").orEmpty()
             val serverId = it.arguments?.getString("serverId").orEmpty()
             ServerSettingsScreen(
+                isServerConnected = serverId in connectedServerIds,
+                isServerConnecting = serverId in connectingServerIds,
+                onConnectServer = {
+                    connectServer(serverId, serverName, serverUrl, username, password)
+                },
                 onNavigateBack = { navController.popBackStack() },
                 onOpenProviders = {
                     navController.navigate(
@@ -522,10 +547,20 @@ fun NavGraph(
                 navArgument("username") { type = NavType.StringType },
                 navArgument("password") { type = NavType.StringType },
                 navArgument("serverName") { type = NavType.StringType },
-                navArgument("serverId") { type = NavType.StringType },
+                navArgument("serverId") { type = NavType.StringType; defaultValue = "" },
             )
-        ) {
+        ) { backStackEntry ->
+            val serverUrl = backStackEntry.arguments?.getString("serverUrl").orEmpty()
+            val username = backStackEntry.arguments?.getString("username").orEmpty()
+            val password = backStackEntry.arguments?.getString("password").orEmpty()
+            val serverName = backStackEntry.arguments?.getString("serverName").orEmpty()
+            val serverId = backStackEntry.arguments?.getString("serverId").orEmpty()
             ServerProvidersScreen(
+                isServerConnected = serverId in connectedServerIds,
+                isServerConnecting = serverId in connectingServerIds,
+                onConnectServer = {
+                    connectServer(serverId, serverName, serverUrl, username, password)
+                },
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -539,8 +574,18 @@ fun NavGraph(
                 navArgument("serverName") { type = NavType.StringType },
                 navArgument("serverId") { type = NavType.StringType },
             )
-        ) {
+        ) { backStackEntry ->
+            val serverUrl = backStackEntry.arguments?.getString("serverUrl").orEmpty()
+            val username = backStackEntry.arguments?.getString("username").orEmpty()
+            val password = backStackEntry.arguments?.getString("password").orEmpty()
+            val serverName = backStackEntry.arguments?.getString("serverName").orEmpty()
+            val serverId = backStackEntry.arguments?.getString("serverId").orEmpty()
             ServerModelFilterScreen(
+                isServerConnected = serverId in connectedServerIds,
+                isServerConnecting = serverId in connectingServerIds,
+                onConnectServer = {
+                    connectServer(serverId, serverName, serverUrl, username, password)
+                },
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -554,8 +599,20 @@ fun NavGraph(
                 navArgument("serverName") { type = NavType.StringType },
                 navArgument("serverId") { type = NavType.StringType },
             )
-        ) {
-            ServerMcpScreen(onNavigateBack = { navController.popBackStack() })
+        ) { backStackEntry ->
+            val serverUrl = backStackEntry.arguments?.getString("serverUrl").orEmpty()
+            val username = backStackEntry.arguments?.getString("username").orEmpty()
+            val password = backStackEntry.arguments?.getString("password").orEmpty()
+            val serverName = backStackEntry.arguments?.getString("serverName").orEmpty()
+            val serverId = backStackEntry.arguments?.getString("serverId").orEmpty()
+            ServerMcpScreen(
+                isServerConnected = serverId in connectedServerIds,
+                isServerConnecting = serverId in connectingServerIds,
+                onConnectServer = {
+                    connectServer(serverId, serverName, serverUrl, username, password)
+                },
+                onNavigateBack = { navController.popBackStack() },
+            )
         }
 
         // ============ About Screen ============
@@ -598,12 +655,21 @@ fun NavGraph(
             val password = backStackEntry.arguments?.getString("password").orEmpty()
             val serverName = backStackEntry.arguments?.getString("serverName").orEmpty()
             val initialPath = backStackEntry.arguments?.getString("initialPath").orEmpty()
+            val resolvedServer = sharePickerServers.firstOrNull {
+                normalizeServerUrl(it.url) == normalizeServerUrl(serverUrl)
+            }
+            val effectiveServerId = resolvedServer?.id.orEmpty()
             
             WebViewScreen(
                 serverUrl = serverUrl,
                 username = username,
                 password = password,
                 serverName = serverName,
+                isServerConnected = effectiveServerId in connectedServerIds,
+                isServerConnecting = effectiveServerId in connectingServerIds,
+                onConnectServer = {
+                    connectServer(effectiveServerId, serverName, serverUrl, username, password)
+                },
                 initialPath = initialPath,
                 navigateUrlFlow = webViewNavigateFlow,
                 onNavigateBack = {
@@ -630,6 +696,11 @@ fun NavGraph(
             val serverId = backStackEntry.arguments?.getString("serverId").orEmpty()
 
             SessionListScreen(
+                isServerConnected = serverId in connectedServerIds,
+                isServerConnecting = serverId in connectingServerIds,
+                onConnectServer = {
+                    connectServer(serverId, serverName, serverUrl, username, password)
+                },
                 onNavigateToChat = { sessionId, openTerminal ->
                     navController.navigate(
                         Screen.Chat.createRoute(
@@ -755,6 +826,10 @@ fun NavGraph(
                 },
                 startInTerminalMode = openTerminal,
                 isServerConnected = serverId in connectedServerIds,
+                isServerConnecting = serverId in connectingServerIds,
+                onConnectServer = {
+                    connectServer(serverId, serverName, serverUrl, username, password)
+                },
             )
         }
 
@@ -766,8 +841,22 @@ fun NavGraph(
                 navArgument("password") { type = NavType.StringType },
                 navArgument("directory") { type = NavType.StringType },
             ),
-        ) {
-            WorkspaceFilesScreen(onNavigateBack = { navController.popBackStack() })
+        ) { backStackEntry ->
+            val serverUrl = backStackEntry.arguments?.getString("serverUrl").orEmpty()
+            val username = backStackEntry.arguments?.getString("username").orEmpty()
+            val password = backStackEntry.arguments?.getString("password").orEmpty()
+            val server = sharePickerServers.firstOrNull {
+                normalizeServerUrl(it.url) == normalizeServerUrl(serverUrl)
+            }
+            val effectiveServerId = server?.id.orEmpty()
+            WorkspaceFilesScreen(
+                isServerConnected = effectiveServerId in connectedServerIds,
+                isServerConnecting = effectiveServerId in connectingServerIds,
+                onConnectServer = {
+                    connectServer(effectiveServerId, server?.displayName.orEmpty(), serverUrl, username, password)
+                },
+                onNavigateBack = { navController.popBackStack() },
+            )
         }
     }
 }
@@ -866,7 +955,7 @@ private fun ShareTargetPickerDialog(
                         )
                     }
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                        Icon(Lucide.X, contentDescription = stringResource(R.string.close))
                     }
                 }
 
@@ -889,7 +978,7 @@ private fun ShareTargetPickerDialog(
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        Icons.Default.CloudOff,
+                                        Lucide.CloudOff,
                                         contentDescription = null,
                                         modifier = Modifier.size(30.dp),
                                         tint = if (isAmoled) {
@@ -919,7 +1008,7 @@ private fun ShareTargetPickerDialog(
                                     .padding(top = 4.dp),
                             ) {
                                 Icon(
-                                    imageVector = if (servers.isEmpty()) Icons.Default.Add else Icons.Default.Dns,
+                                    imageVector = if (servers.isEmpty()) Lucide.Plus else Lucide.Server,
                                     contentDescription = null,
                                 )
                                 Spacer(Modifier.width(8.dp))
@@ -943,9 +1032,9 @@ private fun ShareTargetPickerDialog(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Icon(
-                                    Icons.AutoMirrored.Filled.Chat,
+                                    Lucide.MessageCircle,
                                     contentDescription = null,
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier.size(32.dp).mirrorForRtl(),
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
                                 Text(
@@ -1012,9 +1101,9 @@ private fun ShareTargetPickerDialog(
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
                                                     Icon(
-                                                        Icons.AutoMirrored.Filled.Chat,
+                                                        Lucide.MessageCircle,
                                                         contentDescription = null,
-                                                        modifier = Modifier.size(20.dp),
+                                                        modifier = Modifier.size(20.dp).mirrorForRtl(),
                                                         tint = if (isAmoled) {
                                                             MaterialTheme.colorScheme.primary
                                                         } else {
@@ -1030,7 +1119,7 @@ private fun ShareTargetPickerDialog(
                                                 ) {
                                                     if (item.isFavorite) {
                                                         Icon(
-                                                            Icons.Default.Star,
+                                                            Lucide.Star,
                                                             contentDescription = stringResource(R.string.session_favorite),
                                                             modifier = Modifier.size(14.dp),
                                                             tint = MaterialTheme.colorScheme.primary,
@@ -1107,7 +1196,7 @@ private fun ShareTargetPickerDialog(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
                                     Icon(
-                                        Icons.Default.Add,
+                                        Lucide.Plus,
                                         contentDescription = null,
                                         modifier = Modifier.size(20.dp),
                                         tint = MaterialTheme.colorScheme.primary,

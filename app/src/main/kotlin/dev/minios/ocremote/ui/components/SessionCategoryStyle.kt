@@ -1,17 +1,7 @@
 package dev.minios.ocremote.ui.components
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Label
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.PriorityHigh
-import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Work
+import com.composables.icons.lucide.*
+
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -21,6 +11,9 @@ val SessionCategoryColorKeys = listOf(
 
 val SessionCategoryIconKeys = listOf(
     "work", "home", "bug", "idea", "research", "urgent", "code", "docs", "star", "build",
+    "personal", "team", "project", "calendar", "clock", "bookmark", "flag", "heart", "rocket",
+    "target", "security", "database", "server", "terminal", "git", "chat", "package", "layers",
+    "web", "notification", "private", "archive",
 )
 
 fun sessionCategoryColor(key: String): Color = when (key) {
@@ -36,15 +29,37 @@ fun sessionCategoryColor(key: String): Color = when (key) {
 }
 
 fun sessionCategoryIcon(key: String): ImageVector = when (key) {
-    "work" -> Icons.Default.Work
-    "home" -> Icons.Default.Home
-    "bug" -> Icons.Default.BugReport
-    "idea" -> Icons.Default.Lightbulb
-    "research" -> Icons.Default.Science
-    "urgent" -> Icons.Default.PriorityHigh
-    "code" -> Icons.Default.Code
-    "docs" -> Icons.Default.Description
-    "star" -> Icons.Default.Star
-    "build" -> Icons.Default.Build
-    else -> Icons.Default.Label
+    "work" -> Lucide.Briefcase
+    "home" -> Lucide.House
+    "bug" -> Lucide.Bug
+    "idea" -> Lucide.Lightbulb
+    "research" -> Lucide.FlaskConical
+    "urgent" -> Lucide.CircleAlert
+    "code" -> Lucide.Code
+    "docs" -> Lucide.FileText
+    "star" -> Lucide.Star
+    "build" -> Lucide.Wrench
+    "personal" -> Lucide.User
+    "team" -> Lucide.Users
+    "project" -> Lucide.FolderKanban
+    "calendar" -> Lucide.Calendar
+    "clock" -> Lucide.Clock
+    "bookmark" -> Lucide.Bookmark
+    "flag" -> Lucide.Flag
+    "heart" -> Lucide.Heart
+    "rocket" -> Lucide.Rocket
+    "target" -> Lucide.Target
+    "security" -> Lucide.Shield
+    "database" -> Lucide.Database
+    "server" -> Lucide.Server
+    "terminal" -> Lucide.Terminal
+    "git" -> Lucide.GitBranch
+    "chat" -> Lucide.MessageCircle
+    "package" -> Lucide.Package
+    "layers" -> Lucide.Layers
+    "web" -> Lucide.Globe
+    "notification" -> Lucide.Bell
+    "private" -> Lucide.Lock
+    "archive" -> Lucide.Archive
+    else -> Lucide.Tag
 }

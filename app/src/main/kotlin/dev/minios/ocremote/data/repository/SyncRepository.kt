@@ -18,12 +18,15 @@ import dev.minios.ocremote.data.sync.PasswordCrypto
 import dev.minios.ocremote.data.sync.PasswordSecrets
 import dev.minios.ocremote.data.sync.RemoteSyncFile
 import dev.minios.ocremote.data.sync.SyncDecision
+import dev.minios.ocremote.data.sync.SyncConflictNotifier
+import dev.minios.ocremote.data.sync.SyncConflictSummary
 import dev.minios.ocremote.data.sync.SyncPayload
 import dev.minios.ocremote.data.sync.SyncTransport
 import dev.minios.ocremote.data.sync.WebDavSyncTransport
 import dev.minios.ocremote.data.sync.decideBackupSync
 import dev.minios.ocremote.data.sync.decideSync
 import dev.minios.ocremote.data.sync.decodeSyncPayload
+import dev.minios.ocremote.data.sync.buildSyncConflictSummary
 import io.ktor.client.HttpClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -92,6 +95,7 @@ data class SyncState(
     val lastSyncTimestamp: Long? = null,
     val status: SyncStatus = SyncStatus.DISCONNECTED,
     val error: String? = null,
+    val conflictSummary: SyncConflictSummary? = null,
 ) {
     fun backendState(backend: SyncBackend): BackendSyncState = when (backend) {
         SyncBackend.GIST -> gistState
@@ -138,6 +142,7 @@ class SyncRepository @Inject constructor(
     private val secretStore: LocalSyncSecretStore,
     private val client: HttpClient,
     private val json: Json,
+    private val conflictNotifier: SyncConflictNotifier,
     @ApplicationContext private val context: Context,
 ) {
     private val syncMutex = Mutex()
@@ -194,7 +199,11 @@ class SyncRepository @Inject constructor(
             secretStore.put(LocalSyncSecretStore.SecretKey.SYNC_PASSPHRASE, null)
         }
 
+        var conflictCleared = false
         dataStore.edit { preferences ->
+            val previousPrimary = runCatching {
+                SyncBackend.valueOf(preferences[PRIMARY_BACKEND] ?: SyncBackend.NONE.name)
+            }.getOrDefault(SyncBackend.NONE)
             val gistIdentityChanged = targetIdentityChanged(preferences, SyncBackend.GIST, config.gist)
             val webDavIdentityChanged = targetIdentityChanged(preferences, SyncBackend.WEBDAV, config.webDav)
             val documentIdentityChanged = targetIdentityChanged(preferences, SyncBackend.DOCUMENT, config.document)
@@ -229,7 +238,15 @@ class SyncRepository @Inject constructor(
             }
             if (passphraseChanged) preferences.remove(LOCAL_HASH)
             removeLegacyConfig(preferences)
+            if (
+                previousPrimary != config.primaryBackend || gistIdentityChanged ||
+                webDavIdentityChanged || documentIdentityChanged
+            ) {
+                preferences.remove(CONFLICT_SUMMARY)
+                conflictCleared = true
+            }
         }
+        if (conflictCleared) conflictNotifier.cancel()
         if (
             previousDocumentEndpoint.isNotBlank() &&
             previousDocumentEndpoint != config.document.endpoint.trim()
@@ -273,8 +290,17 @@ class SyncRepository @Inject constructor(
                 )
 
                 SyncDecision.CONFLICT -> {
-                    saveBackendStatus(primary, BackendSyncStatus.CONFLICT)
-                    saveStatus(SyncStatus.CONFLICT, "Local and primary sync data both need a choice")
+                    val remotePayload = decodePayload(remote!!.content)
+                    val summaryTimestamp = System.currentTimeMillis()
+                    val summary = buildSyncConflictSummary(
+                        local = local.copy(generation = current.generation, updatedAt = summaryTimestamp),
+                        remote = remotePayload,
+                        identity = "$primary\u0000$localHash\u0000${remoteMarker.orEmpty()}\u0000${storedMarker.orEmpty()}",
+                        json = json,
+                        now = summaryTimestamp,
+                    )
+                    saveConflict(primary, summary)
+                    if (current.conflictSummary?.id != summary.id) conflictNotifier.notifyConflict()
                     return@withLock decision
                 }
             }
@@ -283,8 +309,13 @@ class SyncRepository @Inject constructor(
             saveStatus(if (backupHealthy) SyncStatus.IDLE else SyncStatus.PARTIAL)
             decision
         } catch (e: Exception) {
-            saveBackendStatus(primary, BackendSyncStatus.ERROR, e.message ?: "Sync failed")
-            saveStatus(SyncStatus.ERROR, e.message ?: "Sync failed")
+            if (current.conflictSummary != null) {
+                saveBackendStatus(primary, BackendSyncStatus.CONFLICT, e.message ?: "Sync failed")
+                saveStatus(SyncStatus.CONFLICT, e.message ?: "Sync failed")
+            } else {
+                saveBackendStatus(primary, BackendSyncStatus.ERROR, e.message ?: "Sync failed")
+                saveStatus(SyncStatus.ERROR, e.message ?: "Sync failed")
+            }
             throw e
         }
     }
@@ -304,8 +335,13 @@ class SyncRepository @Inject constructor(
             val backupHealthy = reconcileOtherBackends(current.config, primary, canonical, force = true)
             saveStatus(if (backupHealthy) SyncStatus.IDLE else SyncStatus.PARTIAL)
         } catch (e: Exception) {
-            saveBackendStatus(primary, BackendSyncStatus.ERROR, e.message ?: "Sync failed")
-            saveStatus(SyncStatus.ERROR, e.message ?: "Sync failed")
+            if (current.conflictSummary != null) {
+                saveBackendStatus(primary, BackendSyncStatus.CONFLICT, e.message ?: "Sync failed")
+                saveStatus(SyncStatus.CONFLICT, e.message ?: "Sync failed")
+            } else {
+                saveBackendStatus(primary, BackendSyncStatus.ERROR, e.message ?: "Sync failed")
+                saveStatus(SyncStatus.ERROR, e.message ?: "Sync failed")
+            }
             throw e
         }
     }
@@ -324,8 +360,13 @@ class SyncRepository @Inject constructor(
             val othersHealthy = reconcileOtherBackends(current.config, selected, canonical, force = true)
             saveStatus(if (othersHealthy) SyncStatus.IDLE else SyncStatus.PARTIAL)
         } catch (e: Exception) {
-            saveBackendStatus(selected, BackendSyncStatus.ERROR, e.message ?: "Sync failed")
-            saveStatus(SyncStatus.ERROR, e.message ?: "Sync failed")
+            if (current.conflictSummary != null) {
+                saveBackendStatus(selected, BackendSyncStatus.CONFLICT, e.message ?: "Sync failed")
+                saveStatus(SyncStatus.CONFLICT, e.message ?: "Sync failed")
+            } else {
+                saveBackendStatus(selected, BackendSyncStatus.ERROR, e.message ?: "Sync failed")
+                saveStatus(SyncStatus.ERROR, e.message ?: "Sync failed")
+            }
             throw e
         }
     }
@@ -343,6 +384,7 @@ class SyncRepository @Inject constructor(
             preferences.remove(LAST_SYNC)
             preferences.remove(STATUS)
             preferences.remove(ERROR)
+            preferences.remove(CONFLICT_SUMMARY)
             SyncBackend.entries.filterNot { it == SyncBackend.NONE }.forEach { backend ->
                 preferences.remove(targetEnabledKey(backend))
                 preferences.remove(targetEndpointKey(backend))
@@ -355,6 +397,7 @@ class SyncRepository @Inject constructor(
         documentUri?.let { uri ->
             releaseDocumentPermission(uri)
         }
+        conflictNotifier.cancel()
     }
 
     private suspend fun uploadPrimary(
@@ -572,6 +615,18 @@ class SyncRepository @Inject constructor(
             preferences[GENERATION] = canonical.generation
             preferences[LAST_SYNC] = System.currentTimeMillis()
             preferences.remove(ERROR)
+            preferences.remove(CONFLICT_SUMMARY)
+        }
+        conflictNotifier.cancel()
+    }
+
+    private suspend fun saveConflict(backend: SyncBackend, summary: SyncConflictSummary) {
+        dataStore.edit { preferences ->
+            preferences[backendStatusKey(backend)] = BackendSyncStatus.CONFLICT.name
+            preferences.remove(backendErrorKey(backend))
+            preferences[STATUS] = SyncStatus.CONFLICT.name
+            preferences[ERROR] = "Local and primary sync data both need a choice"
+            preferences[CONFLICT_SUMMARY] = json.encodeToString(SyncConflictSummary.serializer(), summary)
         }
     }
 
@@ -708,6 +763,9 @@ class SyncRepository @Inject constructor(
                 })
             }.getOrDefault(SyncStatus.DISCONNECTED),
             error = preferences[ERROR],
+            conflictSummary = preferences[CONFLICT_SUMMARY]?.let { encoded ->
+                runCatching { json.decodeFromString(SyncConflictSummary.serializer(), encoded) }.getOrNull()
+            },
         )
     }
 
@@ -757,7 +815,8 @@ class SyncRepository @Inject constructor(
             }
         }
         return preferences[targetEnabledKey(backend)] != target.enabled ||
-            preferences[targetEndpointKey(backend)].orEmpty() != target.endpoint.trim()
+            preferences[targetEndpointKey(backend)].orEmpty() != target.endpoint.trim() ||
+            preferences[targetUsernameKey(backend)].orEmpty() != target.username.trim()
     }
 
     private fun writeTargetConfig(
@@ -853,6 +912,7 @@ class SyncRepository @Inject constructor(
         val LAST_SYNC = longPreferencesKey("sync_last_timestamp_v1")
         val STATUS = stringPreferencesKey("sync_status")
         val ERROR = stringPreferencesKey("sync_error")
+        val CONFLICT_SUMMARY = stringPreferencesKey("sync_conflict_summary")
 
         val LEGACY_BACKEND = stringPreferencesKey("sync_backend")
         val LEGACY_ENDPOINT = stringPreferencesKey("sync_endpoint")

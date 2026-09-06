@@ -717,4 +717,24 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="workspace_markdown_preview">Formatiertes Markdown anzeigen</string>
     <string name="workspace_markdown_raw">Markdown-Quelltext anzeigen</string>
     <string name="chat_server_disconnected">Serververbindung getrennt</string>
+    <string name="diagnostics_export_count">Zu sendende Nachrichten</string>
+    <string name="diagnostics_export_count_value">Neueste %1$d Nachrichten</string>
+    <string name="notification_channel_sync">Einstellungen synchronisieren</string>
+    <string name="notification_channel_sync_desc">Benachrichtigungen, wenn synchronisierte Einstellungen Ihre Auswahl erfordern</string>
+    <string name="sync_conflict_settings_warning">Synchronisierungskonflikt — tippen zum Überprüfen</string>
+    <string name="sync_conflict_notification_title">Konflikt bei Einstellungen-Sync</string>
+    <string name="sync_conflict_notification_text">Lokale und entfernte Einstellungen wurden geändert. Tippen Sie, um zu vergleichen und eine Version auszuwählen.</string>
+    <string name="sync_conflict_differences">So unterscheiden sich die Kopien</string>
+    <string name="sync_conflict_local_snapshot">Lokal: %1$s · Generation %2$d</string>
+    <string name="sync_conflict_remote_snapshot">Entfernt: %1$s · Generation %2$d</string>
+    <string name="sync_conflict_area_settings">Einstellungen</string>
+    <string name="sync_conflict_area_servers">Server</string>
+    <string name="sync_conflict_area_categories">Kategorien</string>
+    <string name="sync_conflict_area_assignments">Kategoriezuweisungen</string>
+    <string name="sync_conflict_area_favorites">Favoriten</string>
+    <string name="sync_conflict_area_hidden_models">Ausgeblendete Modelle</string>
+    <string name="sync_conflict_changed_values">%1$s: %2$d Werte unterscheiden sich</string>
+    <string name="sync_conflict_item_counts">%1$s: lokal %2$d · entfernt %3$d</string>
+    <string name="sync_conflict_passwords_hidden">Verschlüsselte Passwörter sind ausgeblendet und werden nicht verglichen.</string>
+    <string name="sync_conflict_comparison_limit">Die App kann die beiden aktuellen Kopien vergleichen, aber nicht feststellen, auf welcher Seite jeder Wert geändert wurde.</string>
 </resources>

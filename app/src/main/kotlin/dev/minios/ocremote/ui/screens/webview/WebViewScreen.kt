@@ -19,7 +19,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import kotlinx.coroutines.flow.SharedFlow
+import dev.minios.ocremote.ui.components.ServerConnectionBanner
 
 /**
  * WebView Screen - loads the remote OpenCode Web UI
@@ -43,6 +46,9 @@ fun WebViewScreen(
     serverName: String,
     initialPath: String = "",
     navigateUrlFlow: SharedFlow<String>? = null,
+    isServerConnected: Boolean = true,
+    isServerConnecting: Boolean = false,
+    onConnectServer: () -> Unit = {},
     onNavigateBack: () -> Unit
 ) {
     // Build the full URL: serverUrl + initialPath (for session deep-links)
@@ -58,6 +64,10 @@ fun WebViewScreen(
     var webView by remember { mutableStateOf<WebView?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
+    var hasLoadedAnyUrl by remember(fullUrl) { mutableStateOf(false) }
+    var needsOnlineReload by remember(fullUrl) { mutableStateOf(true) }
+    var reconnectUrl by remember(fullUrl) { mutableStateOf(fullUrl) }
+    val currentServerConnected by rememberUpdatedState(isServerConnected)
 
     // File chooser support for <input type="file"> in WebView
     var fileChooserCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
@@ -81,22 +91,55 @@ fun WebViewScreen(
     }
     
     // Listen for navigation events from deep-links (notification taps while WebView is open)
-    LaunchedEffect(navigateUrlFlow) {
+    LaunchedEffect(navigateUrlFlow, isServerConnected) {
         navigateUrlFlow?.collect { newUrl ->
+            if (!isServerConnected) return@collect
             Log.i("WebViewScreen", "Deep-link navigation received: $newUrl")
             webView?.let { wv ->
                 val headers = authHeader?.let { mapOf("Authorization" to it) } ?: emptyMap()
+                reconnectUrl = newUrl
+                needsOnlineReload = true
                 wv.loadUrl(newUrl, headers)
+                hasLoadedAnyUrl = true
             }
         }
     }
 
     // Refresh handler
     fun refresh() {
+        if (!isServerConnected) return
         webView?.let { wv ->
             isRefreshing = true
             val headers = authHeader?.let { mapOf("Authorization" to it) } ?: emptyMap()
+            reconnectUrl = serverUrl
+            needsOnlineReload = true
             wv.loadUrl(serverUrl, headers)
+            hasLoadedAnyUrl = true
+        }
+    }
+
+    LaunchedEffect(isServerConnected, webView, fullUrl, authHeader) {
+        val currentWebView = webView ?: return@LaunchedEffect
+        if (isServerConnected) {
+            currentWebView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+            currentWebView.resumeTimers()
+            currentWebView.onResume()
+            if (needsOnlineReload) {
+                currentWebView.loadUrl(reconnectUrl, authHeader?.let { mapOf("Authorization" to it) }.orEmpty())
+                hasLoadedAnyUrl = true
+            }
+        } else {
+            if (!hasLoadedAnyUrl) {
+                currentWebView.settings.cacheMode = WebSettings.LOAD_CACHE_ONLY
+                currentWebView.loadUrl(fullUrl, authHeader?.let { mapOf("Authorization" to it) }.orEmpty())
+                hasLoadedAnyUrl = true
+            } else {
+                currentWebView.stopLoading()
+            }
+            currentWebView.onPause()
+            currentWebView.pauseTimers()
+            isLoading = false
+            isRefreshing = false
         }
     }
 
@@ -109,19 +152,24 @@ fun WebViewScreen(
         }
     }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
     ) {
+        if (!isServerConnected) {
+            ServerConnectionBanner(connecting = isServerConnecting, onConnect = onConnectServer)
+        }
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
         SwipeRefresh(
             state = rememberSwipeRefreshState(isRefreshing),
-            onRefresh = { refresh() }
+            onRefresh = { refresh() },
+            swipeEnabled = isServerConnected,
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()  // Add padding for status bar
                     .navigationBarsPadding()  // Add padding for navigation bar
                     .imePadding()  // Shrink when keyboard appears
             ) {
@@ -159,11 +207,14 @@ fun WebViewScreen(
                         webViewClient = object : WebViewClient() {
                             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                                 Log.d("WebViewScreen", "Page load started")
+                                url?.let { reconnectUrl = it }
+                                if (currentServerConnected) needsOnlineReload = true
                                 isLoading = true
                             }
 
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 Log.d("WebViewScreen", "Page load finished")
+                                if (currentServerConnected) needsOnlineReload = false
                                 isLoading = false
                                 isRefreshing = false
                             }
@@ -239,15 +290,23 @@ fun WebViewScreen(
                         }
                     }
 
-                    // Load the full URL (with session path if deep-linked)
-                    val headers = authHeader?.let { mapOf("Authorization" to it) } ?: emptyMap()
-                    wv.loadUrl(fullUrl, headers)
-
                     webView = wv
                     wv
                 },
                 update = { /* WebView state is managed internally */ }
             )
+
+            if (!isServerConnected) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {},
+                        ),
+                )
+            }
 
             // Loading indicator overlay
             if (isLoading) {
@@ -260,6 +319,7 @@ fun WebViewScreen(
                 )
             }
         }
+    }
     }
     }
 }

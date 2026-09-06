@@ -1,5 +1,9 @@
 package dev.minios.ocremote.ui.screens.home
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.forwardChevronIcon
+import dev.minios.ocremote.ui.components.mirrorForRtl
+
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -13,19 +17,19 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -42,6 +46,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.core.content.ContextCompat
 import dev.minios.ocremote.R
 import dev.minios.ocremote.data.repository.LocalServerManager
+import dev.minios.ocremote.data.repository.normalizeServerUrl
 import dev.minios.ocremote.domain.model.ServerConfig
 import dev.minios.ocremote.ui.screens.settings.LocalServerLaunchOptionsDialog
 import dev.minios.ocremote.ui.theme.StatusConnected
@@ -68,6 +73,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
+
+internal fun moveServerByKey(
+    servers: List<ServerConfig>,
+    fromKey: Any?,
+    toKey: Any?,
+): List<ServerConfig> {
+    val from = servers.indexOfFirst { serverReorderKey(it.id) == fromKey }
+    val to = servers.indexOfFirst { serverReorderKey(it.id) == toKey }
+    if (from !in servers.indices || to !in servers.indices || from == to) return servers
+    return servers.toMutableList().apply { add(to, removeAt(from)) }
+}
+
+internal fun serverReorderKey(serverId: String): String = "server:$serverId"
 
 /** Pulsing dots loading indicator — 3 dots that scale up/down in sequence. */
 @Composable
@@ -137,6 +157,22 @@ fun HomeScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val launchInstaller = rememberUpdateInstallLauncher(viewModel::installerLaunched)
+    val localServerUrl = remember { normalizeServerUrl(LocalServerManager.LOCAL_SERVER_URL) }
+    val localServer = uiState.servers.firstOrNull { normalizeServerUrl(it.url) == localServerUrl }
+    val remoteServers = uiState.servers.filterNot { normalizeServerUrl(it.url) == localServerUrl }
+    val listState = rememberLazyListState()
+    val haptic = LocalHapticFeedback.current
+    var draggedServers by remember { mutableStateOf<List<ServerConfig>?>(null) }
+    var originalDragServerIds by remember { mutableStateOf<List<String>>(emptyList()) }
+    val visibleRemoteServers = draggedServers ?: remoteServers
+    val reorderableState = rememberReorderableLazyListState(
+        lazyListState = listState,
+        scrollThreshold = 72.dp,
+    ) { from, to ->
+        val current = draggedServers ?: return@rememberReorderableLazyListState
+        val reordered = moveServerByKey(current, from.key, to.key)
+        if (reordered !== current) draggedServers = reordered
+    }
 
     val readyUpdate = uiState.updateState as? UpdateState.ReadyToInstall
     LaunchedEffect(readyUpdate?.apkPath) {
@@ -217,13 +253,13 @@ fun HomeScreen(
                 title = { Text(stringResource(R.string.home_title)) },
                 actions = {
                     IconButton(onClick = { viewModel.showAddServerDialog() }) {
-                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.home_add_server))
+                        Icon(Lucide.Plus, contentDescription = stringResource(R.string.home_add_server))
                     }
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title))
+                        Icon(Lucide.Settings, contentDescription = stringResource(R.string.settings_title))
                     }
                     IconButton(onClick = onNavigateToAbout) {
-                        Icon(Icons.Default.Info, contentDescription = stringResource(R.string.about_title))
+                        Icon(Lucide.Info, contentDescription = stringResource(R.string.about_title))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -247,10 +283,8 @@ fun HomeScreen(
                     )
                 }
                 else -> {
-                    val localServer = uiState.servers.firstOrNull { it.url == LocalServerManager.LOCAL_SERVER_URL }
-                    val remoteServers = uiState.servers.filterNot { it.url == LocalServerManager.LOCAL_SERVER_URL }
-
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -359,7 +393,7 @@ fun HomeScreen(
                             }
                         }
 
-                        if (remoteServers.isEmpty()) {
+                        if (visibleRemoteServers.isEmpty()) {
                             item(key = "__empty_servers") {
                                 val hasLocalCard = uiState.showLocalRuntime
                                 EmptyServersView(
@@ -373,36 +407,66 @@ fun HomeScreen(
                             }
                         }
 
-                        items(remoteServers, key = { it.id }) { server ->
-                            ServerCard(
-                                server = server,
-                                isConnected = server.id in uiState.connectedServerIds,
-                                isConnecting = server.id in uiState.connectingServerIds,
-                                connectionError = uiState.connectionErrors[server.id],
-                                showServerSettings = server.id in uiState.serverSettingsReadyIds,
-                                onConnect = { requestNotificationPermissionAndConnect(server.id) },
-                                onDisconnect = { viewModel.disconnectFromServer(server.id) },
-                                onOpenSessions = {
-                                    onNavigateToSessions(
-                                        server.url,
-                                        server.username,
-                                        server.password ?: "",
-                                        server.displayName,
-                                        server.id
-                                    )
-                                },
-                                onServerSettings = {
-                                    onNavigateToServerSettings(
-                                        server.url,
-                                        server.username,
-                                        server.password ?: "",
-                                        server.displayName,
-                                        server.id
-                                    )
-                                },
-                                onEdit = { viewModel.showEditServerDialog(server) },
-                                onDelete = { viewModel.deleteServer(server.id) }
-                            )
+                        itemsIndexed(
+                            visibleRemoteServers,
+                            key = { _, server -> serverReorderKey(server.id) },
+                        ) { _, server ->
+                            ReorderableItem(reorderableState, key = serverReorderKey(server.id)) { isDragged ->
+                                val interactionSource = remember(server.id) { MutableInteractionSource() }
+                                ServerCard(
+                                    modifier = Modifier
+                                        .longPressDraggableHandle(
+                                            interactionSource = interactionSource,
+                                            onDragStarted = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                originalDragServerIds = remoteServers.map(ServerConfig::id)
+                                                draggedServers = remoteServers
+                                            },
+                                            onDragStopped = {
+                                                val reorderedIds = draggedServers.orEmpty().map(ServerConfig::id)
+                                                if (reorderedIds.isNotEmpty() && reorderedIds != originalDragServerIds) {
+                                                    viewModel.setServerOrder(originalDragServerIds, reorderedIds)
+                                                }
+                                                draggedServers = null
+                                                originalDragServerIds = emptyList()
+                                            },
+                                        )
+                                        .graphicsLayer {
+                                            if (isDragged) {
+                                                scaleX = 1.015f
+                                                scaleY = 1.015f
+                                                shadowElevation = 8.dp.toPx()
+                                            }
+                                        },
+                                    server = server,
+                                    isConnected = server.id in uiState.connectedServerIds,
+                                    isConnecting = server.id in uiState.connectingServerIds,
+                                    connectionError = uiState.connectionErrors[server.id],
+                                    showServerSettings = server.id in uiState.serverSettingsReadyIds,
+                                    onConnect = { requestNotificationPermissionAndConnect(server.id) },
+                                    onDisconnect = { viewModel.disconnectFromServer(server.id) },
+                                    onOpenSessions = {
+                                        onNavigateToSessions(
+                                            server.url,
+                                            server.username,
+                                            server.password ?: "",
+                                            server.displayName,
+                                            server.id
+                                        )
+                                    },
+                                    onServerSettings = {
+                                        onNavigateToServerSettings(
+                                            server.url,
+                                            server.username,
+                                            server.password ?: "",
+                                            server.displayName,
+                                            server.id
+                                        )
+                                    },
+                                    onEdit = { viewModel.showEditServerDialog(server) },
+                                    onDelete = { viewModel.deleteServer(server.id) },
+                                )
+                            }
                         }
                     }
                 }
@@ -469,7 +533,7 @@ private fun FavoritesCard(onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(
-                Icons.Default.Star,
+                Lucide.Star,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
             )
@@ -479,7 +543,7 @@ private fun FavoritesCard(onClick: () -> Unit) {
                 style = MaterialTheme.typography.titleMedium,
             )
             Icon(
-                Icons.Default.ChevronRight,
+                forwardChevronIcon(),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -514,7 +578,7 @@ private fun UpdateAvailableCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Default.SystemUpdate,
+                Lucide.Download,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
             )
@@ -659,7 +723,7 @@ private fun LocalRuntimeCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onOpenLocalLaunchOptions) {
                         Icon(
-                            Icons.Default.Tune,
+                            Lucide.SlidersHorizontal,
                             contentDescription = stringResource(R.string.home_local_launch_options),
                             tint = cardContentColor,
                         )
@@ -667,7 +731,7 @@ private fun LocalRuntimeCard(
                     if (showLocalServerSettings) {
                         IconButton(onClick = onOpenLocalServerSettings) {
                             Icon(
-                                Icons.Default.Settings,
+                                Lucide.Settings,
                                 contentDescription = stringResource(R.string.settings_title),
                                 tint = cardContentColor,
                             )
@@ -705,7 +769,7 @@ private fun LocalRuntimeCard(
                     modifier = Modifier.fillMaxWidth(),
                     outlined = true,
                 ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null)
+                    Icon(Lucide.Copy, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.home_local_copy_fix_command))
                 }
@@ -717,7 +781,7 @@ private fun LocalRuntimeCard(
                     modifier = Modifier.fillMaxWidth(),
                     outlined = true,
                 ) {
-                    Icon(Icons.Default.OpenInNew, contentDescription = null)
+                    Icon(Lucide.ExternalLink, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.home_local_open_termux_overlay_settings))
                 }
@@ -732,7 +796,7 @@ private fun LocalRuntimeCard(
                         modifier = Modifier.fillMaxWidth(),
                         outlined = true,
                     ) {
-                        Icon(Icons.Default.Download, contentDescription = null)
+                        Icon(Lucide.Download, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.home_local_install_termux))
                     }
@@ -749,7 +813,7 @@ private fun LocalRuntimeCard(
                         onClick = onSetup,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Lucide.Wrench, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.home_local_setup))
                     }
@@ -759,7 +823,7 @@ private fun LocalRuntimeCard(
                         modifier = Modifier.fillMaxWidth(),
                         outlined = true,
                     ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Lucide.Play, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.home_local_start))
                     }
@@ -783,7 +847,11 @@ private fun LocalRuntimeCard(
                                 onClick = onOpenLocalSessions,
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
+                                Icon(
+                                    Lucide.MessageCircle,
+                                    contentDescription = null,
+                                    modifier = Modifier.mirrorForRtl(),
+                                )
                                 Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.home_local_open_sessions))
                             }
@@ -819,7 +887,7 @@ private fun LocalRuntimeCard(
                             onClick = onStart,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Lucide.Play, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.home_local_start))
                         }
@@ -829,7 +897,7 @@ private fun LocalRuntimeCard(
                             modifier = Modifier.fillMaxWidth(),
                             outlined = true,
                         ) {
-                            Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Lucide.Wrench, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.home_local_setup))
                         }
@@ -860,7 +928,11 @@ private fun LocalRuntimeCard(
                     modifier = Modifier.fillMaxWidth(),
                     outlined = true,
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
+                    Icon(
+                        Lucide.MessageCircle,
+                        contentDescription = null,
+                        modifier = Modifier.mirrorForRtl(),
+                    )
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.home_local_open_sessions))
                 }
@@ -883,7 +955,7 @@ private fun EmptyServersView(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Add,
+                imageVector = Lucide.Plus,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
@@ -895,7 +967,7 @@ private fun EmptyServersView(
                 textAlign = TextAlign.Center
             )
             AppPrimaryButton(onClick = onAddServer) {
-                Icon(Icons.Default.Add, contentDescription = null)
+                Icon(Lucide.Plus, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.home_add_server))
             }
@@ -906,6 +978,7 @@ private fun EmptyServersView(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ServerCard(
+    modifier: Modifier = Modifier,
     server: ServerConfig,
     isConnected: Boolean,
     isConnecting: Boolean,
@@ -916,7 +989,7 @@ private fun ServerCard(
     onOpenSessions: () -> Unit,
     onServerSettings: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -933,7 +1006,7 @@ private fun ServerCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = AppCardShape,
         colors = CardDefaults.cardColors(
             containerColor = cardContainerColor
@@ -983,12 +1056,12 @@ private fun ServerCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (showServerSettings) {
                         IconButton(onClick = onServerSettings) {
-                            Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.server_settings_title))
+                            Icon(Lucide.Settings, contentDescription = stringResource(R.string.server_settings_title))
                         }
                     }
                     Box {
                         IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                            Icon(Lucide.EllipsisVertical, contentDescription = stringResource(R.string.more_options))
                         }
                         DropdownMenu(
                             expanded = showMenu,
@@ -1003,7 +1076,7 @@ private fun ServerCard(
                                     onEdit()
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Edit, contentDescription = null)
+                                    Icon(Lucide.Pencil, contentDescription = null)
                                 }
                             )
                             DropdownMenuItem(
@@ -1019,7 +1092,7 @@ private fun ServerCard(
                                 },
                                 leadingIcon = {
                                     Icon(
-                                        Icons.Default.Delete,
+                                        Lucide.Trash2,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.error,
                                     )
@@ -1049,7 +1122,11 @@ private fun ServerCard(
                         onClick = onOpenSessions,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(
+                            Lucide.MessageCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp).mirrorForRtl(),
+                        )
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.sessions_title), maxLines = 1)
                     }
@@ -1066,7 +1143,7 @@ private fun ServerCard(
                         destructive = true,
                         outlined = true,
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Lucide.X, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.home_disconnect), maxLines = 1)
                     }
@@ -1087,7 +1164,7 @@ private fun ServerCard(
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.home_connecting))
                     } else {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Lucide.Play, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.home_connect))
                     }
@@ -1155,7 +1232,7 @@ private fun BatteryOptimizationBanner(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.BatteryAlert,
+                imageVector = Lucide.BatteryWarning,
                 contentDescription = null,
                 tint = if (isAmoled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.size(24.dp)

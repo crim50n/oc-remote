@@ -717,4 +717,24 @@
     <string name="workspace_markdown_preview">서식 있는 Markdown 보기</string>
     <string name="workspace_markdown_raw">Markdown 원본 보기</string>
     <string name="chat_server_disconnected">서버 연결이 끊어졌습니다</string>
+    <string name="diagnostics_export_count">보낼 메시지</string>
+    <string name="diagnostics_export_count_value">최근 %1$d개의 메시지</string>
+    <string name="notification_channel_sync">설정 동기화</string>
+    <string name="notification_channel_sync_desc">동기화된 설정에 선택이 필요할 때 알림</string>
+    <string name="sync_conflict_settings_warning">동기화 충돌 — 검토하려면 탭하세요</string>
+    <string name="sync_conflict_notification_title">설정 동기화 충돌</string>
+    <string name="sync_conflict_notification_text">로컬 및 원격 설정이 변경되었습니다. 비교 후 버전을 선택하려면 탭하세요.</string>
+    <string name="sync_conflict_differences">복사본의 차이점</string>
+    <string name="sync_conflict_local_snapshot">로컬: %1$s · 세대 %2$d</string>
+    <string name="sync_conflict_remote_snapshot">원격: %1$s · 세대 %2$d</string>
+    <string name="sync_conflict_area_settings">설정</string>
+    <string name="sync_conflict_area_servers">서버</string>
+    <string name="sync_conflict_area_categories">카테고리</string>
+    <string name="sync_conflict_area_assignments">카테고리 할당</string>
+    <string name="sync_conflict_area_favorites">즐겨찾기</string>
+    <string name="sync_conflict_area_hidden_models">숨김 모델</string>
+    <string name="sync_conflict_changed_values">%1$s: %2$d개의 값이 다릅니다</string>
+    <string name="sync_conflict_item_counts">%1$s: 로컬 %2$d · 원격 %3$d</string>
+    <string name="sync_conflict_passwords_hidden">암호화된 비밀번호는 숨겨져 있으며 비교되지 않습니다.</string>
+    <string name="sync_conflict_comparison_limit">앱에서 현재 두 복사본을 비교할 수 있지만, 각 값이 어느 쪽에서 변경되었는지는 확인할 수 없습니다.</string>
 </resources>

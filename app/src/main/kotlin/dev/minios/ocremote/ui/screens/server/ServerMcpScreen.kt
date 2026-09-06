@@ -1,5 +1,8 @@
 package dev.minios.ocremote.ui.screens.server
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.backIcon
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -12,9 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -49,11 +49,15 @@ import dev.minios.ocremote.R
 import dev.minios.ocremote.ui.components.AppCardShape
 import dev.minios.ocremote.ui.components.appAmoledBorder
 import dev.minios.ocremote.ui.components.isAmoledTheme
+import dev.minios.ocremote.ui.components.ServerConnectionBanner
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServerMcpScreen(
     onNavigateBack: () -> Unit,
+    isServerConnected: Boolean = true,
+    isServerConnecting: Boolean = false,
+    onConnectServer: () -> Unit = {},
     viewModel: ServerMcpViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -66,7 +70,7 @@ fun ServerMcpScreen(
     }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
+            if (event == Lifecycle.Event.ON_RESUME && isServerConnected) viewModel.refresh()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -79,22 +83,26 @@ fun ServerMcpScreen(
                 title = { Text(stringResource(R.string.server_mcp_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(backIcon(), contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::refresh, enabled = !state.isLoading) {
-                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.server_mcp_refresh))
+                    IconButton(onClick = viewModel::refresh, enabled = isServerConnected && !state.isLoading) {
+                        Icon(Lucide.RefreshCw, contentDescription = stringResource(R.string.server_mcp_refresh))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
             )
         },
     ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        if (!isServerConnected) {
+            ServerConnectionBanner(connecting = isServerConnecting, onConnect = onConnectServer)
+        }
         when {
             state.isLoading && state.servers.isEmpty() -> {
                 Column(
-                    modifier = Modifier.fillMaxSize().padding(padding),
+                    modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
@@ -106,7 +114,7 @@ fun ServerMcpScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.surface)
-                        .padding(padding),
+                        .weight(1f),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -149,10 +157,12 @@ fun ServerMcpScreen(
                             onConnect = { viewModel.connect(server.name) },
                             onDisconnect = { viewModel.disconnect(server.name) },
                             onAuthenticate = { viewModel.authenticate(server.name) },
+                            enabled = isServerConnected,
                         )
                     }
                 }
             }
+        }
         }
     }
 }
@@ -165,6 +175,7 @@ private fun McpServerCard(
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onAuthenticate: () -> Unit,
+    enabled: Boolean,
 ) {
     Card(
         shape = AppCardShape,
@@ -199,13 +210,13 @@ private fun McpServerCard(
             }
             if (!loading) {
                 when (server.status) {
-                    "connected" -> OutlinedButton(onClick = onDisconnect) {
+                    "connected" -> OutlinedButton(onClick = onDisconnect, enabled = enabled) {
                         Text(stringResource(R.string.server_mcp_disconnect))
                     }
-                    "needs_auth", "needs_client_registration" -> Button(onClick = onAuthenticate) {
+                    "needs_auth", "needs_client_registration" -> Button(onClick = onAuthenticate, enabled = enabled) {
                         Text(stringResource(R.string.server_mcp_authenticate))
                     }
-                    else -> Button(onClick = onConnect) {
+                    else -> Button(onClick = onConnect, enabled = enabled) {
                         Text(stringResource(R.string.server_mcp_connect))
                     }
                 }

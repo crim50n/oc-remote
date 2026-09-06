@@ -1,5 +1,8 @@
 package dev.minios.ocremote.ui.screens.settings
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.backIcon
+
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -22,14 +25,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CloudSync
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.InsertDriveFile
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,6 +40,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -70,6 +66,8 @@ import dev.minios.ocremote.data.repository.BackendSyncState
 import dev.minios.ocremote.data.repository.BackendSyncStatus
 import dev.minios.ocremote.data.repository.SyncBackend
 import dev.minios.ocremote.data.repository.SyncStatus
+import dev.minios.ocremote.data.sync.SyncConflictArea
+import dev.minios.ocremote.data.sync.SyncConflictSummary
 import dev.minios.ocremote.ui.components.AppCardShape
 import dev.minios.ocremote.ui.components.AppDialog
 import dev.minios.ocremote.ui.components.AppPrimaryButton
@@ -185,7 +183,7 @@ fun SyncSettingsScreen(
                 title = { Text(stringResource(R.string.sync_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(backIcon(), contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -211,7 +209,7 @@ fun SyncSettingsScreen(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.sync_automatic)) },
                 supportingContent = { Text(stringResource(R.string.sync_automatic_desc)) },
-                leadingContent = { Icon(Icons.Default.CloudSync, contentDescription = null) },
+                leadingContent = { Icon(Lucide.CloudCog, contentDescription = null) },
                 trailingContent = {
                     Switch(checked = autoSync, onCheckedChange = { autoSync = it }, colors = switchColors)
                 },
@@ -220,7 +218,7 @@ fun SyncSettingsScreen(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.sync_encrypted_passwords)) },
                 supportingContent = { Text(stringResource(R.string.sync_encrypted_passwords_desc)) },
-                leadingContent = { Icon(Icons.Default.Lock, contentDescription = null) },
+                leadingContent = { Icon(Lucide.Lock, contentDescription = null) },
                 trailingContent = {
                     Switch(
                         checked = includePasswords,
@@ -306,7 +304,7 @@ fun SyncSettingsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Icon(Icons.Default.Link, contentDescription = null)
+                                Icon(Lucide.ExternalLink, contentDescription = null)
                                 Text(
                                     stringResource(R.string.sync_open_gist),
                                     color = MaterialTheme.colorScheme.primary,
@@ -366,7 +364,7 @@ fun SyncSettingsScreen(
                                     Text(documentName.ifBlank { stringResource(R.string.sync_document_selected) })
                                 },
                                 supportingContent = { Text(stringResource(R.string.sync_document_access_persisted)) },
-                                leadingContent = { Icon(Icons.Default.InsertDriveFile, contentDescription = null) },
+                                leadingContent = { Icon(Lucide.FileJson2, contentDescription = null) },
                             )
                         } else {
                             Text(
@@ -437,6 +435,9 @@ fun SyncSettingsScreen(
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                 )
+                state.conflictSummary?.let { summary ->
+                    SyncConflictDetails(summary)
+                }
                 AppSecondaryButton(
                     onClick = { showVersionDialog = true },
                     modifier = Modifier.fillMaxWidth(),
@@ -501,7 +502,7 @@ fun SyncSettingsScreen(
                         Spacer(Modifier.padding(horizontal = 4.dp))
                         Text(stringResource(R.string.sync_status_syncing))
                     } else {
-                        Icon(Icons.Default.Sync, contentDescription = null)
+                        Icon(Lucide.RefreshCw, contentDescription = null)
                         Spacer(Modifier.padding(horizontal = 4.dp))
                         Text(stringResource(R.string.sync_synchronize_changes))
                     }
@@ -577,6 +578,76 @@ fun SyncSettingsScreen(
 }
 
 @Composable
+private fun SyncConflictDetails(summary: SyncConflictSummary) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = AppCardShape,
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.35f)),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(stringResource(R.string.sync_conflict_differences), style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(
+                    R.string.sync_conflict_local_snapshot,
+                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(summary.localUpdatedAt)),
+                    summary.localGeneration,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                stringResource(
+                    R.string.sync_conflict_remote_snapshot,
+                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(summary.remoteUpdatedAt)),
+                    summary.remoteGeneration,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            summary.differences.forEach { difference ->
+                val area = stringResource(
+                    when (difference.area) {
+                        SyncConflictArea.SETTINGS -> R.string.sync_conflict_area_settings
+                        SyncConflictArea.SERVERS -> R.string.sync_conflict_area_servers
+                        SyncConflictArea.CATEGORIES -> R.string.sync_conflict_area_categories
+                        SyncConflictArea.CATEGORY_ASSIGNMENTS -> R.string.sync_conflict_area_assignments
+                        SyncConflictArea.FAVORITES -> R.string.sync_conflict_area_favorites
+                        SyncConflictArea.HIDDEN_MODELS -> R.string.sync_conflict_area_hidden_models
+                    },
+                )
+                Text(
+                    text = if (difference.changedCount != null) {
+                        stringResource(R.string.sync_conflict_changed_values, area, difference.changedCount)
+                    } else {
+                        stringResource(
+                            R.string.sync_conflict_item_counts,
+                            area,
+                            difference.localCount,
+                            difference.remoteCount,
+                        )
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (summary.encryptedPasswordsHidden) {
+                Text(
+                    stringResource(R.string.sync_conflict_passwords_hidden),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                stringResource(R.string.sync_conflict_comparison_limit),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
 private fun SyncBackendCard(
     title: String,
     state: BackendSyncState,
@@ -601,7 +672,7 @@ private fun SyncBackendCard(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Storage, contentDescription = null)
+                Icon(Lucide.Database, contentDescription = null)
                 Text(
                     text = title,
                     modifier = Modifier

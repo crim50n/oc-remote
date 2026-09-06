@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.minios.ocremote.data.api.McpStatus
 import dev.minios.ocremote.data.api.OpenCodeApi
 import dev.minios.ocremote.data.api.ServerConnection
+import dev.minios.ocremote.data.repository.ServerConnectionStateRepository
 import dev.minios.ocremote.logging.AppLogger as Log
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +16,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 private const val TAG = "ServerMcpViewModel"
@@ -41,7 +46,9 @@ internal fun mcpItems(statuses: Map<String, McpStatus>): List<McpServerItem> = s
 class ServerMcpViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val api: OpenCodeApi,
+    private val connectionStateRepository: ServerConnectionStateRepository,
 ) : ViewModel() {
+    private val serverId = savedStateHandle.get<String>("serverId").orEmpty()
     private val conn = ServerConnection.from(
         savedStateHandle.get<String>("serverUrl").orEmpty(),
         savedStateHandle.get<String>("username").orEmpty(),
@@ -53,13 +60,29 @@ class ServerMcpViewModel @Inject constructor(
 
     private val _authorizationUrls = MutableSharedFlow<String>()
     val authorizationUrls: SharedFlow<String> = _authorizationUrls.asSharedFlow()
+    private var refreshJob: Job? = null
 
     init {
-        refresh()
+        viewModelScope.launch {
+            connectionStateRepository.connectedServerIds
+                .map { serverId in it }
+                .distinctUntilChanged()
+                .collect { connected ->
+                    if (connected) refresh()
+                    else {
+                        refreshJob?.cancel()
+                        _uiState.update { it.copy(isLoading = false, loadingName = null, error = null) }
+                    }
+                }
+        }
     }
 
+    private fun isServerConnected(): Boolean = serverId in connectionStateRepository.connectedServerIds.value
+
     fun refresh() {
-        viewModelScope.launch {
+        if (!isServerConnected()) return
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 _uiState.update {
@@ -69,6 +92,7 @@ class ServerMcpViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to load MCP status", e)
                 _uiState.update { it.copy(isLoading = false, error = e.message ?: "Failed to load MCP status") }
             }
@@ -80,6 +104,7 @@ class ServerMcpViewModel @Inject constructor(
     fun disconnect(name: String) = updateConnection(name, connect = false)
 
     private fun updateConnection(name: String, connect: Boolean) {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             _uiState.update { it.copy(loadingName = name, error = null) }
             try {
@@ -98,6 +123,7 @@ class ServerMcpViewModel @Inject constructor(
     }
 
     fun authenticate(name: String) {
+        if (!isServerConnected()) return
         viewModelScope.launch {
             _uiState.update { it.copy(loadingName = name, error = null) }
             try {

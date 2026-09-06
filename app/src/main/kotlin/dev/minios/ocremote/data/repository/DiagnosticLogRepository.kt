@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import android.content.Context
 import android.database.sqlite.SQLiteException
@@ -38,9 +39,15 @@ class DiagnosticLogRepository @Inject constructor(
     private var database = DiagnosticLogDatabase(context, json)
     private val logKey = stringPreferencesKey("diagnostic_log")
     private val logLevelKey = stringPreferencesKey("diagnostic_log_level")
+    private val exportEntryLimitKey = intPreferencesKey("diagnostic_export_entry_limit")
     private val _entries = MutableStateFlow<List<DiagnosticLogEntry>>(emptyList())
 
     val logLevel: Flow<String> = dataStore.data.map { it[logLevelKey] ?: "INFO" }
+    val exportEntryLimit: Flow<Int> = dataStore.data.map { preferences ->
+        preferences[exportEntryLimitKey]
+            ?.takeIf(EXPORT_ENTRY_LIMITS::contains)
+            ?: DEFAULT_EXPORT_ENTRY_LIMIT
+    }
 
     val entries: Flow<List<DiagnosticLogEntry>> = _entries.asStateFlow()
 
@@ -92,6 +99,12 @@ class DiagnosticLogRepository @Inject constructor(
         dataStore.edit { it[logLevelKey] = level.takeIf { value -> value in LOG_LEVELS } ?: "INFO" }
     }
 
+    suspend fun setExportEntryLimit(limit: Int) {
+        dataStore.edit {
+            it[exportEntryLimitKey] = limit.takeIf(EXPORT_ENTRY_LIMITS::contains) ?: DEFAULT_EXPORT_ENTRY_LIMIT
+        }
+    }
+
     internal fun logLevelFrom(preferences: Preferences): String = preferences[logLevelKey] ?: "INFO"
 
     internal fun applyLogLevelTo(preferences: MutablePreferences, level: String?) {
@@ -102,8 +115,13 @@ class DiagnosticLogRepository @Inject constructor(
 
     companion object {
         val LOG_LEVELS = listOf("ERROR", "WARN", "INFO", "DEBUG")
+        val EXPORT_ENTRY_LIMITS = listOf(100, 250, 500, 1000)
+        const val DEFAULT_EXPORT_ENTRY_LIMIT = 1000
 
-        fun export(entries: List<DiagnosticLogEntry>): String = entries.map(::sanitizeEntry).joinToString("\n\n") { entry ->
+        fun export(
+            entries: List<DiagnosticLogEntry>,
+            limit: Int = DEFAULT_EXPORT_ENTRY_LIMIT,
+        ): String = entries.takeLast(limit.coerceAtLeast(0)).map(::sanitizeEntry).joinToString("\n\n") { entry ->
             buildString {
                 append(java.time.Instant.ofEpochMilli(entry.timestamp))
                 append(" [${entry.level}] ${entry.category}: ${entry.message}")

@@ -717,4 +717,24 @@
     <string name="workspace_markdown_preview">Markdownをフォーマット表示</string>
     <string name="workspace_markdown_raw">Markdownソースを表示</string>
     <string name="chat_server_disconnected">サーバーが切断されました</string>
+    <string name="diagnostics_export_count">送信するメッセージ</string>
+    <string name="diagnostics_export_count_value">最新の%1$d件のメッセージ</string>
+    <string name="notification_channel_sync">設定の同期</string>
+    <string name="notification_channel_sync_desc">同期された設定に選択が必要な場合に通知</string>
+    <string name="sync_conflict_settings_warning">同期の衝突 — タップして確認</string>
+    <string name="sync_conflict_notification_title">設定の同期衝突</string>
+    <string name="sync_conflict_notification_text">ローカルとリモートの設定が変更されました。タップして比較し、バージョンを選択してください。</string>
+    <string name="sync_conflict_differences">コピーの違い</string>
+    <string name="sync_conflict_local_snapshot">ローカル: %1$s · 世代 %2$d</string>
+    <string name="sync_conflict_remote_snapshot">リモート: %1$s · 世代 %2$d</string>
+    <string name="sync_conflict_area_settings">設定</string>
+    <string name="sync_conflict_area_servers">サーバー</string>
+    <string name="sync_conflict_area_categories">カテゴリ</string>
+    <string name="sync_conflict_area_assignments">カテゴリの割り当て</string>
+    <string name="sync_conflict_area_favorites">お気に入り</string>
+    <string name="sync_conflict_area_hidden_models">非表示モデル</string>
+    <string name="sync_conflict_changed_values">%1$s: %2$d 件の値が異なります</string>
+    <string name="sync_conflict_item_counts">%1$s: ローカル %2$d · リモート %3$d</string>
+    <string name="sync_conflict_passwords_hidden">暗号化されたパスワードは非表示となり、比較されません。</string>
+    <string name="sync_conflict_comparison_limit">アプリは現在の2つのコピーを比較できますが、どちら側で値が変更されたかは判別できません。</string>
 </resources>

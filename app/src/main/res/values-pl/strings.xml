@@ -717,4 +717,24 @@ Tokeny: ~%4$d -&gt; ~%5$d</string>
     <string name="workspace_markdown_preview">Pokaż sformatowany Markdown</string>
     <string name="workspace_markdown_raw">Pokaż źródło Markdown</string>
     <string name="chat_server_disconnected">Serwer rozłączony</string>
+    <string name="diagnostics_export_count">Wiadomości do wysłania</string>
+    <string name="diagnostics_export_count_value">Ostatnie %1$d wiadomości</string>
+    <string name="notification_channel_sync">Synchronizacja ustawień</string>
+    <string name="notification_channel_sync_desc">Powiadomienia, gdy zsynchronizowane ustawienia wymagają Twojego wyboru</string>
+    <string name="sync_conflict_settings_warning">Konflikt synchronizacji — stuknij, aby przejrzeć</string>
+    <string name="sync_conflict_notification_title">Konflikt synchronizacji ustawień</string>
+    <string name="sync_conflict_notification_text">Lokalne i zdalne ustawienia zostały zmienione. Stuknij, aby porównać i wybrać wersję.</string>
+    <string name="sync_conflict_differences">Jak różnią się kopie</string>
+    <string name="sync_conflict_local_snapshot">Lokalnie: %1$s · generacja %2$d</string>
+    <string name="sync_conflict_remote_snapshot">Zdalnie: %1$s · generacja %2$d</string>
+    <string name="sync_conflict_area_settings">Ustawienia</string>
+    <string name="sync_conflict_area_servers">Serwery</string>
+    <string name="sync_conflict_area_categories">Kategorie</string>
+    <string name="sync_conflict_area_assignments">Przypisania kategorii</string>
+    <string name="sync_conflict_area_favorites">Ulubione</string>
+    <string name="sync_conflict_area_hidden_models">Ukryte modele</string>
+    <string name="sync_conflict_changed_values">%1$s: %2$d wartości się różni</string>
+    <string name="sync_conflict_item_counts">%1$s: lokalnie %2$d · zdalnie %3$d</string>
+    <string name="sync_conflict_passwords_hidden">Zaszyfrowane hasła są ukryte i nie są porównywane.</string>
+    <string name="sync_conflict_comparison_limit">Aplikacja może porównać dwie bieżące kopie, ale nie może ustalić, po której stronie zmieniono każdą wartość.</string>
 </resources>

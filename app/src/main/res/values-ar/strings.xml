@@ -717,4 +717,24 @@
     <string name="workspace_markdown_preview">عرض Markdown منسق</string>
     <string name="workspace_markdown_raw">عرض مصدر Markdown</string>
     <string name="chat_server_disconnected">تم قطع الاتصال بالخادم</string>
+    <string name="diagnostics_export_count">الرسائل المراد إرسالها</string>
+    <string name="diagnostics_export_count_value">أحدث %1$d رسالة</string>
+    <string name="notification_channel_sync">مزامنة الإعدادات</string>
+    <string name="notification_channel_sync_desc">تنبيهات عند الحاجة لاختيارك في إعدادات المزامنة</string>
+    <string name="sync_conflict_settings_warning">تعارض في المزامنة — اضغط للمراجعة</string>
+    <string name="sync_conflict_notification_title">تعارض في مزامنة الإعدادات</string>
+    <string name="sync_conflict_notification_text">تم تعديل الإعدادات المحلية والبعيدة. اضغط للمقارنة واختيار النسخة.</string>
+    <string name="sync_conflict_differences">كيف تختلف النسخ</string>
+    <string name="sync_conflict_local_snapshot">محلي: %1$s · الجيل %2$d</string>
+    <string name="sync_conflict_remote_snapshot">بعيد: %1$s · الجيل %2$d</string>
+    <string name="sync_conflict_area_settings">الإعدادات</string>
+    <string name="sync_conflict_area_servers">الخوادم</string>
+    <string name="sync_conflict_area_categories">الفئات</string>
+    <string name="sync_conflict_area_assignments">تعيينات الفئات</string>
+    <string name="sync_conflict_area_favorites">المفضلة</string>
+    <string name="sync_conflict_area_hidden_models">النماذج المخفية</string>
+    <string name="sync_conflict_changed_values">%1$s: يوجد %2$d اختلافات</string>
+    <string name="sync_conflict_item_counts">%1$s: محلي %2$d · بعيد %3$d</string>
+    <string name="sync_conflict_passwords_hidden">كلمات المرور المشفرة مخفية ولا تتم مقارنتها.</string>
+    <string name="sync_conflict_comparison_limit">يمكن للتطبيق مقارنة النسختين الحاليتين، لكنه لا يستطيع تحديد أي جانب تم تغيير كل قيمة فيه.</string>
 </resources>

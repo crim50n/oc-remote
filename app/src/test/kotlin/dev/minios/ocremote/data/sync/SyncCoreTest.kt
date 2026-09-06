@@ -258,4 +258,35 @@ class SyncCoreTest {
         assertEquals(NetworkType.CONNECTED, requiredNetworkType(SyncBackend.GIST))
         assertEquals(NetworkType.CONNECTED, requiredNetworkType(SyncBackend.WEBDAV))
     }
+
+    @Test
+    fun conflictSummaryReportsSafeGroupedDifferences() {
+        val local = SyncPayload(
+            generation = 2,
+            updatedAt = 100,
+            settings = SyncSettings(appTheme = "dark"),
+            servers = listOf(SyncServer("local", "https://local.example")),
+            encryptedSecrets = PasswordCrypto.encrypt("local-password".toByteArray(), "passphrase".toCharArray()),
+        )
+        val remote = SyncPayload(
+            generation = 3,
+            updatedAt = 200,
+            settings = SyncSettings(appTheme = "light"),
+            servers = listOf(
+                SyncServer("local", "https://local.example"),
+                SyncServer("remote", "https://remote.example"),
+            ),
+        )
+
+        val summary = buildSyncConflictSummary(local, remote, "identity", Json, now = 300)
+
+        assertEquals(300, summary.detectedAt)
+        assertEquals(2, summary.localGeneration)
+        assertEquals(3, summary.remoteGeneration)
+        assertTrue(summary.encryptedPasswordsHidden)
+        assertEquals(1, summary.differences.single { it.area == SyncConflictArea.SETTINGS }.changedCount)
+        assertEquals(1, summary.differences.single { it.area == SyncConflictArea.SERVERS }.localCount)
+        assertEquals(2, summary.differences.single { it.area == SyncConflictArea.SERVERS }.remoteCount)
+        assertFalse(Json.encodeToString(summary).contains("local-password"))
+    }
 }

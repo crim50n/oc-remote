@@ -10,8 +10,14 @@ import javax.inject.Singleton
 class ServerConnectionStateRepository @Inject constructor() {
     private val _connectedServerIds = MutableStateFlow<Set<String>>(emptySet())
     val connectedServerIds: StateFlow<Set<String>> = _connectedServerIds.asStateFlow()
+    private val _connectingServerIds = MutableStateFlow<Set<String>>(emptySet())
+    val connectingServerIds: StateFlow<Set<String>> = _connectingServerIds.asStateFlow()
 
     fun updateConnectedServerIds(serverIds: Set<String>) {
         _connectedServerIds.value = serverIds
+    }
+
+    fun updateConnectingServerIds(serverIds: Set<String>) {
+        _connectingServerIds.value = serverIds
     }
 }

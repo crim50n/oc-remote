@@ -76,6 +76,8 @@
     <string name="diagnostics_clear_confirm_title">Clear diagnostics?</string>
     <string name="diagnostics_clear_confirm_message">All collected diagnostic events will be permanently deleted.</string>
     <string name="diagnostics_log_level">Logging level</string>
+    <string name="diagnostics_export_count">Messages to send</string>
+    <string name="diagnostics_export_count_value">Latest %1$d messages</string>
     <string name="diagnostics_level_error">Errors only</string>
     <string name="diagnostics_level_warn">Warnings and errors</string>
     <string name="diagnostics_level_info">Info, warnings, and errors</string>
@@ -563,6 +565,8 @@
     <!-- Notifications -->
     <string name="notification_channel_connection">OpenCode Connection</string>
     <string name="notification_channel_connection_desc">Persistent connection to OpenCode server</string>
+    <string name="notification_channel_sync">Settings sync</string>
+    <string name="notification_channel_sync_desc">Alerts when synchronized settings require your choice</string>
     <string name="notification_channel_tasks">Task Notifications</string>
     <string name="notification_channel_tasks_desc">Notifications when OpenCode tasks are completed</string>
     <string name="notification_channel_tasks_silent">Task Notifications (Silent)</string>
@@ -725,6 +729,22 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_status_syncing">Syncing</string>
     <string name="sync_status_saving">Saving</string>
     <string name="sync_status_conflict">Conflict</string>
+    <string name="sync_conflict_settings_warning">Sync conflict — tap to review</string>
+    <string name="sync_conflict_notification_title">Settings sync conflict</string>
+    <string name="sync_conflict_notification_text">Local and remote settings changed. Tap to compare and choose a version.</string>
+    <string name="sync_conflict_differences">How the copies differ</string>
+    <string name="sync_conflict_local_snapshot">Local: %1$s · generation %2$d</string>
+    <string name="sync_conflict_remote_snapshot">Remote: %1$s · generation %2$d</string>
+    <string name="sync_conflict_area_settings">Settings</string>
+    <string name="sync_conflict_area_servers">Servers</string>
+    <string name="sync_conflict_area_categories">Categories</string>
+    <string name="sync_conflict_area_assignments">Category assignments</string>
+    <string name="sync_conflict_area_favorites">Favorites</string>
+    <string name="sync_conflict_area_hidden_models">Hidden models</string>
+    <string name="sync_conflict_changed_values">%1$s: %2$d values differ</string>
+    <string name="sync_conflict_item_counts">%1$s: local %2$d · remote %3$d</string>
+    <string name="sync_conflict_passwords_hidden">Encrypted passwords are hidden and are not compared.</string>
+    <string name="sync_conflict_comparison_limit">The app can compare the two current copies, but cannot determine which side changed each value.</string>
     <string name="sync_status_partial">Backup needs attention</string>
     <string name="sync_status_error">Error</string>
     <string name="sync_backend_status">Storage status: %1$s</string>

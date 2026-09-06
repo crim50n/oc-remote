@@ -717,4 +717,24 @@
     <string name="workspace_markdown_preview">显示格式化的 Markdown</string>
     <string name="workspace_markdown_raw">显示 Markdown 源码</string>
     <string name="chat_server_disconnected">服务器已断开连接</string>
+    <string name="diagnostics_export_count">待发送消息</string>
+    <string name="diagnostics_export_count_value">最新 %1$d 条消息</string>
+    <string name="notification_channel_sync">设置同步</string>
+    <string name="notification_channel_sync_desc">同步设置需要您选择时提醒</string>
+    <string name="sync_conflict_settings_warning">同步冲突 — 点击查看</string>
+    <string name="sync_conflict_notification_title">设置同步冲突</string>
+    <string name="sync_conflict_notification_text">本地和远程设置已更改。点击对比并选择一个版本。</string>
+    <string name="sync_conflict_differences">副本差异</string>
+    <string name="sync_conflict_local_snapshot">本地：%1$s · 版本 %2$d</string>
+    <string name="sync_conflict_remote_snapshot">远程：%1$s · 版本 %2$d</string>
+    <string name="sync_conflict_area_settings">设置</string>
+    <string name="sync_conflict_area_servers">服务器</string>
+    <string name="sync_conflict_area_categories">分类</string>
+    <string name="sync_conflict_area_assignments">分类分配</string>
+    <string name="sync_conflict_area_favorites">收藏夹</string>
+    <string name="sync_conflict_area_hidden_models">隐藏模型</string>
+    <string name="sync_conflict_changed_values">%1$s：%2$d 个值不同</string>
+    <string name="sync_conflict_item_counts">%1$s：本地 %2$d · 远程 %3$d</string>
+    <string name="sync_conflict_passwords_hidden">已加密密码被隐藏，无法对比。</string>
+    <string name="sync_conflict_comparison_limit">应用可以对比当前两个副本，但无法判断每个值是在哪一端更改的。</string>
 </resources>

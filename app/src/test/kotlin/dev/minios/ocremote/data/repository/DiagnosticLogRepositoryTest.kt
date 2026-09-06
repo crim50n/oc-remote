@@ -70,6 +70,19 @@ class DiagnosticLogRepositoryTest {
     }
 
     @Test
+    fun exportIncludesOnlyNewestRequestedEntries() {
+        val entries = (1L..5L).map { timestamp ->
+            DiagnosticLogEntry(timestamp, "INFO", "Test", "entry-$timestamp")
+        }
+
+        val exported = DiagnosticLogRepository.export(entries, limit = 2)
+
+        assertFalse(exported.contains("entry-3"))
+        assertTrue(exported.contains("entry-4"))
+        assertTrue(exported.contains("entry-5"))
+    }
+
+    @Test
     fun sanitizerBoundsEachField() {
         assertEquals(1000, DiagnosticLogRepository.sanitize("x".repeat(2000)).length)
     }

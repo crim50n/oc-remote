@@ -1,17 +1,14 @@
 package dev.minios.ocremote.ui.screens.about
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.backIcon
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.OpenInNew
-import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -62,7 +59,7 @@ fun AboutScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
+                            backIcon(),
                             contentDescription = stringResource(R.string.back),
                         )
                     }
@@ -147,7 +144,7 @@ fun AboutScreen(
                             },
                         )
                     },
-                    leadingContent = { Icon(Icons.Default.SystemUpdate, contentDescription = null) },
+                    leadingContent = { Icon(Lucide.Download, contentDescription = null) },
                     trailingContent = {
                         if (updateState == UpdateState.Checking) {
                             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -247,11 +244,11 @@ fun AboutScreen(
                         Text(githubUrl, style = MaterialTheme.typography.bodySmall)
                     },
                     leadingContent = {
-                        Icon(Icons.Default.Code, contentDescription = null)
+                        Icon(Lucide.Code, contentDescription = null)
                     },
                     trailingContent = {
                         Icon(
-                            Icons.Default.OpenInNew,
+                            Lucide.ExternalLink,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -275,11 +272,11 @@ fun AboutScreen(
                         Text(opencodeUrl, style = MaterialTheme.typography.bodySmall)
                     },
                     leadingContent = {
-                        Icon(Icons.Default.Code, contentDescription = null)
+                        Icon(Lucide.Code, contentDescription = null)
                     },
                     trailingContent = {
                         Icon(
-                            Icons.Default.OpenInNew,
+                            Lucide.ExternalLink,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -303,7 +300,7 @@ fun AboutScreen(
                         Text(stringResource(R.string.about_license_value))
                     },
                     leadingContent = {
-                        Icon(Icons.Default.Description, contentDescription = null)
+                        Icon(Lucide.FileText, contentDescription = null)
                     },
                     colors = itemColors,
                 )

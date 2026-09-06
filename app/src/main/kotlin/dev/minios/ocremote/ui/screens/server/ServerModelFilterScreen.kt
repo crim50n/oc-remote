@@ -1,5 +1,8 @@
 package dev.minios.ocremote.ui.screens.server
 
+import com.composables.icons.lucide.*
+import dev.minios.ocremote.ui.components.backIcon
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,11 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,11 +48,21 @@ import dev.minios.ocremote.ui.components.AppPrimaryButton
 import dev.minios.ocremote.ui.components.AppSearchShape
 import dev.minios.ocremote.ui.components.appAmoledBorder
 import dev.minios.ocremote.ui.components.isAmoledTheme
+import dev.minios.ocremote.ui.components.ServerConnectionBanner
+
+internal fun shouldShowInitialModelLoading(
+    isServerConnected: Boolean,
+    isLoading: Boolean,
+    hasLoadedProviders: Boolean,
+): Boolean = isServerConnected && (isLoading || !hasLoadedProviders)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServerModelFilterScreen(
     onNavigateBack: () -> Unit,
+    isServerConnected: Boolean = true,
+    isServerConnecting: Boolean = false,
+    onConnectServer: () -> Unit = {},
     viewModel: ServerSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -79,7 +87,7 @@ fun ServerModelFilterScreen(
                 title = { Text(stringResource(R.string.server_settings_models)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(backIcon(), contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -93,20 +101,23 @@ fun ServerModelFilterScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(padding)
-                .padding(horizontal = 16.dp)
         ) {
+            if (!isServerConnected) {
+                ServerConnectionBanner(connecting = isServerConnecting, onConnect = onConnectServer)
+            }
+            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             OutlinedTextField(
                 value = search,
                 onValueChange = { search = it },
                 modifier = Modifier.fillMaxWidth(),
                 shape = AppSearchShape,
                 leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = null)
+                    Icon(Lucide.Search, contentDescription = null)
                 },
                 trailingIcon = if (search.isNotEmpty()) {
                     {
                         IconButton(onClick = { search = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                            Icon(Lucide.X, contentDescription = stringResource(R.string.close))
                         }
                     }
                 } else null,
@@ -121,7 +132,11 @@ fun ServerModelFilterScreen(
             Spacer(Modifier.height(8.dp))
 
             when {
-                uiState.isLoading -> {
+                shouldShowInitialModelLoading(
+                    isServerConnected = isServerConnected,
+                    isLoading = uiState.isLoading,
+                    hasLoadedProviders = uiState.hasLoadedProviders,
+                ) -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(stringResource(R.string.loading))
                     }
@@ -130,11 +145,14 @@ fun ServerModelFilterScreen(
                 uiState.error != null -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                            Icon(Lucide.TriangleAlert, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                             Spacer(Modifier.height(8.dp))
                             Text(uiState.error ?: stringResource(R.string.server_settings_load_error))
                             Spacer(Modifier.height(8.dp))
-                            AppPrimaryButton(onClick = { viewModel.loadProviders() }) {
+                            AppPrimaryButton(
+                                onClick = { viewModel.loadProviders() },
+                                enabled = isServerConnected,
+                            ) {
                                 Text(stringResource(R.string.retry))
                             }
                         }
@@ -211,6 +229,7 @@ fun ServerModelFilterScreen(
                         }
                     }
                 }
+            }
             }
         }
     }

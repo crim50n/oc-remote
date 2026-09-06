@@ -717,4 +717,24 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="workspace_markdown_preview">Mostra Markdown formattato</string>
     <string name="workspace_markdown_raw">Mostra sorgente Markdown</string>
     <string name="chat_server_disconnected">Server disconnesso</string>
+    <string name="diagnostics_export_count">Messaggi da inviare</string>
+    <string name="diagnostics_export_count_value">Ultimi %1$d messaggi</string>
+    <string name="notification_channel_sync">Sincronizzazione impostazioni</string>
+    <string name="notification_channel_sync_desc">Avvisi quando le impostazioni sincronizzate richiedono una tua scelta</string>
+    <string name="sync_conflict_settings_warning">Conflitto di sincronizzazione — tocca per esaminare</string>
+    <string name="sync_conflict_notification_title">Conflitto nella sincronizzazione delle impostazioni</string>
+    <string name="sync_conflict_notification_text">Impostazioni locali e remote modificate. Tocca per confrontare e scegliere una versione.</string>
+    <string name="sync_conflict_differences">Come differiscono le copie</string>
+    <string name="sync_conflict_local_snapshot">Locale: %1$s · generazione %2$d</string>
+    <string name="sync_conflict_remote_snapshot">Remoto: %1$s · generazione %2$d</string>
+    <string name="sync_conflict_area_settings">Impostazioni</string>
+    <string name="sync_conflict_area_servers">Server</string>
+    <string name="sync_conflict_area_categories">Categorie</string>
+    <string name="sync_conflict_area_assignments">Assegnazioni categorie</string>
+    <string name="sync_conflict_area_favorites">Preferiti</string>
+    <string name="sync_conflict_area_hidden_models">Modelli nascosti</string>
+    <string name="sync_conflict_changed_values">%1$s: %2$d valori diversi</string>
+    <string name="sync_conflict_item_counts">%1$s: locale %2$d · remoto %3$d</string>
+    <string name="sync_conflict_passwords_hidden">Le password criptate sono nascoste e non vengono confrontate.</string>
+    <string name="sync_conflict_comparison_limit">L\'app può confrontare le due copie attuali, ma non può determinare quale lato abbia modificato ogni valore.</string>
 </resources>
