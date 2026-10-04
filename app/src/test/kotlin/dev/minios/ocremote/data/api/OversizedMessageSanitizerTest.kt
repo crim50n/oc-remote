@@ -14,6 +14,18 @@ import java.io.StringWriter
 
 class OversizedMessageSanitizerTest {
     @Test
+    fun preservesV2EnvelopeWhileOmittingNestedFilePayloads() {
+        val input = """{"data":[{"id":"msg_1","type":"user","text":"kept","files":[{"mime":"image/png","data":"oversized-base64"}]}],"cursor":{"next":"older"}}"""
+        val output = StringWriter()
+        transformMessageJson(StringReader(input), output, omitPayloadFields = true, preserveEnvelopeData = true)
+        val page = Json.parseToJsonElement(output.toString()).jsonObject
+        val message = page["data"]!!.jsonArray.single().jsonObject
+        assertEquals("kept", message["text"]!!.jsonPrimitive.content)
+        assertEquals("", message["files"]!!.jsonArray.single().jsonObject["data"]!!.jsonPrimitive.content)
+        assertEquals("older", page["cursor"]!!.jsonObject["next"]!!.jsonPrimitive.content)
+    }
+
+    @Test
     fun preservesStructureAndIdentifiersButOmitsPayloadStrings() {
         val input = """[{"info":{"id":"msg-1","sessionID":"ses-1","role":"assistant","tokens":{"input":10,"output":42}},"parts":[{"id":"part-1","sessionID":"ses-1","messageID":"msg-1","type":"tool","tool":"task","state":{"status":"completed","output":"huge output","title":"Custom agent","metadata":{"sessionId":"child-1","description":"Short description","diff":"huge diff"}}}]}]"""
         val output = StringWriter()

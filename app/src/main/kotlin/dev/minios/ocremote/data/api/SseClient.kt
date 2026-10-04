@@ -68,7 +68,13 @@ class SseClient @Inject constructor(
         directory: String? = null,
         onOpen: suspend () -> Unit = {},
     ): Flow<ScopedSseEvent> = flow {
-        val sseUrl = "${conn.baseUrl}/global/event"
+        val protocol = try {
+            ServerProtocolRegistry.resolve(httpClient, json, conn)
+        } catch (error: ServerAuthenticationException) {
+            throw SseAuthException("Authentication failed (${error.statusCode})")
+        }
+        val sseUrl = "${conn.baseUrl}${sseEventPath(protocol)}"
+        val toolNames = mutableMapOf<String, String>()
         Log.i(TAG, "Connecting to global SSE (auth=${conn.authHeader != null})")
 
         val statement = httpClient.prepareGet(sseUrl) {
@@ -87,9 +93,9 @@ class SseClient @Inject constructor(
             val statusCode = response.status.value
             Log.i(TAG, "SSE response: status=$statusCode, contentType=${response.headers["content-type"]}")
 
-            if (statusCode == 401) {
-                Log.e(TAG, "SSE auth failed (401). Check username/password.")
-                throw SseAuthException("Authentication failed (401)")
+            if (statusCode == 401 || statusCode == 403) {
+                Log.e(TAG, "SSE authentication failed ($statusCode).")
+                throw SseAuthException("Authentication failed ($statusCode)")
             }
 
             if (statusCode !in 200..299) {
@@ -113,12 +119,12 @@ class SseClient @Inject constructor(
                         throw SseConnectionException("SSE stream timed out")
                     }
                 decoder.accept(line)?.let { data ->
-                    eventCount += processFrame(data) { emit(it) }
+                    eventCount += processFrame(data, toolNames) { emit(it) }
                 }
             }
 
             decoder.finish()?.let { data ->
-                eventCount += processFrame(data) { emit(it) }
+                eventCount += processFrame(data, toolNames) { emit(it) }
             }
 
             if (currentCoroutineContext().isActive) {
@@ -129,9 +135,13 @@ class SseClient @Inject constructor(
         }
     }
 
-    private suspend fun processFrame(data: String, emitEvent: suspend (ScopedSseEvent) -> Unit): Int {
+    private suspend fun processFrame(
+        data: String,
+        toolNames: MutableMap<String, String>,
+        emitEvent: suspend (ScopedSseEvent) -> Unit,
+    ): Int {
         return try {
-            val event = parseEvent(data) ?: return 0
+            val event = parseEvent(data, toolNames) ?: return 0
             if (event.event !is SseEvent.ServerHeartbeat) {
                 if (BuildConfig.DEBUG && !isHighFrequencySseEvent(event.event)) {
                     Log.d(TAG, "Event: ${event.event::class.simpleName}")
@@ -150,24 +160,34 @@ class SseClient @Inject constructor(
      * Global endpoint wraps events: {directory, payload: {type, properties}}
      * Per-instance endpoint sends directly: {type, properties}
      */
-    private fun parseEvent(data: String): ScopedSseEvent? {
+    internal fun parseEvent(
+        data: String,
+        toolNames: MutableMap<String, String> = mutableMapOf(),
+    ): ScopedSseEvent? {
         val root = json.parseToJsonElement(data).jsonObject
 
         val payload = root["payload"]?.jsonObject ?: root
         val type = payload["type"]?.jsonPrimitive?.content ?: return null
         val properties = sseEventData(payload)
-        val directory = root["directory"]?.jsonPrimitive?.contentOrNull
+        val location = payload["location"] as? JsonObject
+        val directory = location?.get("directory")?.jsonPrimitive?.contentOrNull
+            ?: root["directory"]?.jsonPrimitive?.contentOrNull
+        val workspace = location?.get("workspaceID")?.jsonPrimitive?.contentOrNull
+            ?: root["workspace"]?.jsonPrimitive?.contentOrNull
 
         return ScopedSseEvent(
-            event = parseEventByType(
+            event = (if (payload["data"] is JsonObject && payload["properties"] == null) {
+                parseV2SseEvent(payload, json, toolNames)
+            } else null) ?: parseEventByType(
                 type,
                 properties,
                 directory,
-                root["workspace"]?.jsonPrimitive?.contentOrNull,
+                workspace,
             ) ?: return null,
             directory = directory,
-            projectId = root["project"]?.jsonPrimitive?.contentOrNull,
-            workspaceId = root["workspace"]?.jsonPrimitive?.contentOrNull,
+            projectId = properties["projectID"]?.jsonPrimitive?.contentOrNull
+                ?: root["project"]?.jsonPrimitive?.contentOrNull,
+            workspaceId = workspace,
             eventId = payload["id"]?.jsonPrimitive?.contentOrNull,
             durableSeq = payload["durable"]?.jsonObject?.get("seq")?.jsonPrimitive?.longOrNull,
         )
@@ -592,10 +612,170 @@ class SseClient @Inject constructor(
         this[key]?.jsonPrimitive?.content ?: default
 }
 
+internal fun sseEventPath(protocol: ServerProtocol): String = when (protocol) {
+    ServerProtocol.V1 -> "/global/event"
+    ServerProtocol.V2 -> "/api/event"
+}
+
+/** Adapts the released v2 event contract to the reducer's stable internal events. */
+internal fun parseV2SseEvent(
+    payload: JsonObject,
+    json: Json,
+    toolNames: MutableMap<String, String> = mutableMapOf(),
+): SseEvent? {
+    val type = payload["type"]?.jsonPrimitive?.contentOrNull ?: return null
+    val data = payload["data"] as? JsonObject ?: return null
+    fun str(key: String) = data[key]?.jsonPrimitive?.contentOrNull.orEmpty()
+    fun obj(key: String) = data[key] as? JsonObject ?: JsonObject(emptyMap())
+    val sessionId = str("sessionID")
+    val messageId = str("assistantMessageID")
+    val timestamp = data["started"]?.jsonPrimitive?.longOrNull
+        ?: payload["created"]?.jsonPrimitive?.longOrNull ?: 0L
+    val ordinal = data["ordinal"]?.jsonPrimitive?.intOrNull ?: 0
+    val textId = "$messageId:text:$ordinal"
+    val reasoningId = "$messageId:reasoning:$ordinal"
+    val callId = str("id")
+    val toolKey = "$sessionId:$messageId:$callId"
+    return when (type) {
+        "server.connected" -> SseEvent.ServerConnected
+        "location.shutdown" -> SseEvent.ServerInstanceDisposed(
+            (payload["location"] as? JsonObject)?.get("directory")?.jsonPrimitive?.contentOrNull.orEmpty(),
+        )
+        "session.created" -> {
+            val info = JsonObject(data + mapOf(
+                "id" to JsonPrimitive(sessionId),
+                "created" to JsonPrimitive(timestamp),
+            ))
+            SseEvent.SessionCreated(V2Protocol.session(json, info))
+        }
+        "session.deleted" -> SseEvent.SessionDeleted(V2Protocol.session(json,
+            JsonObject(data + mapOf("id" to JsonPrimitive(sessionId), "created" to JsonPrimitive(timestamp))),
+        ))
+        "session.renamed" -> SseEvent.SessionRenamed(sessionId, str("title"))
+        "session.moved" -> SseEvent.SessionMoved(
+            sessionId,
+            obj("location")["directory"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+            obj("location")["workspaceID"]?.jsonPrimitive?.contentOrNull,
+            str("projectID"),
+        )
+        "session.status" -> SseEvent.SessionStatus(sessionId, V2Protocol.sessionStatus(obj("status")))
+        "session.execution.started" -> SseEvent.SessionStatus(sessionId, SessionStatus.Busy)
+        "session.execution.succeeded", "session.execution.interrupted", "session.idle" ->
+            SseEvent.SessionIdle(sessionId)
+        "session.execution.failed" -> parseSessionError(data, json)
+        "session.retry.scheduled" -> SseEvent.SessionStatus(sessionId, SessionStatus.Retry(
+            attempt = data["attempt"]?.jsonPrimitive?.intOrNull ?: 0,
+            message = obj("error")["message"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+            next = data["at"]?.jsonPrimitive?.longOrNull ?: 0,
+        ))
+        "session.compaction.ended" -> SseEvent.SessionCompacted(sessionId)
+        "session.shell.started" -> {
+            val shell = obj("shell")
+            val eventId = payload["id"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            SseEvent.NextShellStarted(
+                sessionId = sessionId,
+                messageId = eventId.replaceFirst(Regex("^evt_"), "msg_"),
+                callId = shell["id"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                command = shell["command"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                timestamp = timestamp,
+                standalone = true,
+                metadata = JsonObject(shell.filterKeys { it in setOf("status", "exit") }),
+            )
+        }
+        "session.shell.ended" -> {
+            val shell = obj("shell")
+            SseEvent.NextShellEnded(
+                sessionId, shell["id"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                obj("output")["output"]?.jsonPrimitive?.contentOrNull.orEmpty(), timestamp,
+                metadata = JsonObject(shell.filterKeys { it in setOf("status", "exit") } +
+                    mapOf("output" to obj("output"))),
+            )
+        }
+        "session.message.content.updated" -> {
+            val info = JsonObject(data + mapOf("id" to JsonPrimitive(str("messageID")),
+                "type" to JsonPrimitive("assistant")))
+            val message = V2Protocol.message(json, info, sessionId) ?: return null
+            SseEvent.MessageContentUpdated(sessionId, message.info.id, message.parts)
+        }
+        "session.step.started" -> {
+            val model = obj("model")
+            SseEvent.NextStepStarted(sessionId, messageId, str("agent"),
+                JsonObject(model + mapOf("modelID" to (model["id"] ?: JsonPrimitive("")))), timestamp)
+        }
+        "session.step.ended" -> SseEvent.NextStepEnded(
+            sessionId, messageId, str("finish"), data["cost"]?.jsonPrimitive?.doubleOrNull ?: 0.0,
+            obj("tokens"), timestamp,
+        )
+        "session.step.failed" -> {
+            val error = obj("error")
+            SseEvent.NextStepFailed(sessionId, messageId, buildJsonObject {
+                put("name", error["type"] ?: JsonPrimitive("Error"))
+                put("data", error)
+            }, timestamp)
+        }
+        "session.text.started" -> SseEvent.NextTextStarted(sessionId, messageId, textId, timestamp)
+        "session.text.delta" -> SseEvent.NextTextDelta(sessionId, messageId, textId, str("delta"))
+        "session.text.ended" -> SseEvent.NextTextEnded(sessionId, messageId, textId, str("text"), timestamp)
+        "session.reasoning.started" -> SseEvent.NextReasoningStarted(sessionId, messageId, reasoningId, timestamp)
+        "session.reasoning.delta" -> SseEvent.NextReasoningDelta(sessionId, messageId, reasoningId, str("delta"))
+        "session.reasoning.ended" -> SseEvent.NextReasoningEnded(sessionId, messageId, reasoningId, str("text"), timestamp)
+        "session.tool.input.started" -> {
+            toolNames[toolKey] = str("name")
+            SseEvent.NextToolInputStarted(sessionId, messageId, callId, str("name"), timestamp)
+        }
+        "session.tool.input.delta" -> SseEvent.NextToolInputDelta(sessionId, messageId, callId, str("delta"))
+        "session.tool.input.ended" -> SseEvent.NextToolInputEnded(sessionId, messageId, callId, str("text"))
+        "session.tool.called" -> SseEvent.NextToolCalled(
+            sessionId, messageId, callId, toolNames[toolKey].orEmpty(), obj("input"), timestamp,
+        )
+        "session.tool.progress" -> SseEvent.NextToolProgress(
+            sessionId, messageId, callId, obj("metadata"), JsonArray(emptyList()), timestamp,
+        )
+        "session.tool.success" -> {
+            toolNames.remove(toolKey)
+            SseEvent.NextToolSuccess(sessionId, messageId, callId, obj("metadata"),
+                data["content"] ?: JsonArray(emptyList()), timestamp)
+        }
+        "session.tool.failed" -> {
+            toolNames.remove(toolKey)
+            SseEvent.NextToolFailed(sessionId, messageId, callId, obj("error"), timestamp,
+                structured = data["metadata"], content = data["content"])
+        }
+        "session.inbox.enqueued" -> {
+            val item = obj("item")
+            if (item["type"]?.jsonPrimitive?.contentOrNull != "user") return null
+            SseEvent.PromptEnqueued(sessionId, str("inboxID"),
+                item["delivery"]?.jsonPrimitive?.contentOrNull.orEmpty(), item["payload"], timestamp)
+        }
+        "session.inbox.delivered" -> SseEvent.PromptDelivered(sessionId, str("inboxID"))
+        "session.inbox.cancelled" -> SseEvent.PromptCancelled(sessionId, str("inboxID"))
+        "permission.asked" -> V2Protocol.permission(json, data).let { request ->
+            SseEvent.PermissionAsked(request.id, request.sessionId, request.permission, request.patterns,
+                request.metadata, request.always, request.tool)
+        }
+        "permission.replied" -> SseEvent.PermissionReplied(sessionId, str("requestID"))
+        "form.created" -> V2Protocol.question(json, obj("form"))?.let { request ->
+            SseEvent.QuestionAsked(request.id, request.sessionId, request.questions.map { question ->
+                SseEvent.QuestionAsked.Question(question.header, question.question, question.multiple,
+                    question.custom, question.options.map { SseEvent.QuestionAsked.Option(it.label, it.description, it.value) },
+                    question.key)
+            }, request.tool)
+        }
+        "form.replied" -> SseEvent.QuestionReplied(sessionId, callId)
+        "form.cancelled" -> SseEvent.QuestionRejected(sessionId, callId)
+        else -> null
+    }
+}
+
 internal fun parseSessionError(props: JsonObject, json: Json): SseEvent.SessionError {
     val sessionId = props["sessionID"]?.jsonPrimitive?.contentOrNull
     val error = when (val value = props["error"]) {
-        is JsonObject -> json.decodeFromJsonElement<Message.Assistant.ErrorInfo>(value)
+        is JsonObject -> if (value["name"] == null && value["message"] != null) {
+            Message.Assistant.ErrorInfo(
+                name = value["type"]?.jsonPrimitive?.contentOrNull ?: "Error",
+                data = value,
+            )
+        } else json.decodeFromJsonElement<Message.Assistant.ErrorInfo>(value)
         is JsonPrimitive -> Message.Assistant.ErrorInfo(name = value.content)
         else -> Message.Assistant.ErrorInfo(name = "Unknown error")
     }

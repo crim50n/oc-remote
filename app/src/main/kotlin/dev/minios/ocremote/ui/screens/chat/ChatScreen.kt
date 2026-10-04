@@ -1894,6 +1894,7 @@ fun ChatScreen(
                             if (uiState.shareUrl != null) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.cmd_unshare)) },
+                                    enabled = uiState.serverSupportsSharing,
                                     onClick = {
                                         showMenu = false
                                         viewModel.unshareSession { ok ->
@@ -1911,6 +1912,7 @@ fun ChatScreen(
                             } else {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.menu_share_session)) },
+                                    enabled = uiState.serverSupportsSharing,
                                     onClick = {
                                         showMenu = false
                                         viewModel.shareSession { url ->

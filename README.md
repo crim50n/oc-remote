@@ -146,6 +146,33 @@ opencode serve --port 4096 --hostname 0.0.0.0
 
 ## Building
 
+### OpenCode version compatibility
+
+Version `1.10.2-v2` negotiates the server API automatically and supports both V1 and
+the released OpenCode V2 HTTP contract (`@opencode/client` 2.0.22). V2 support covers
+sessions, paginated history, prompts and attachments, live events, permissions,
+basic forms, providers, workspace files, and terminal connections.
+
+Session sharing, text search, and edits to global model/provider defaults have no
+equivalent in this V2 API. Use the server configuration for those defaults. Forms
+with conditional, hidden, or external fields and MCP authentication that needs a
+form require the OpenCode web client. The existing Termux setup still installs V1;
+this update does not migrate on-device OpenCode installations.
+
+Compatibility is covered by HTTP fixtures and event/model regression tests.
+Large V2 catalogs are parsed as a bounded stream, retaining only fields used by
+the native UI. Catalog consumers share model instances to avoid duplicate memory use.
+Installation, launch, authenticated V2 API activity, the event stream, and automated
+navigation passed on an Android 16 device. A live Qwen 3.7 Flash prompt was persisted,
+but the server reported insufficient quota/credits and produced no assistant text;
+successful model response generation remains unverified.
+
+Live model instrumentation requires explicit `serverUrl` and `requestedModel`
+arguments; read-only diagnostics require `serverUrl`. Without their required
+arguments, those tests are skipped and do not create sessions or use model quota.
+Physical navigation requires an unlocked device. Credentials are read only inside
+the target app; test diagnostics omit response contents and authentication data.
+
 ### Android Studio
 
 1. Open the project
@@ -160,6 +187,13 @@ opencode serve --port 4096 --hostname 0.0.0.0
 
 # Install on connected device
 adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+The debug APK uses `dev.minios.ocremote.debug` and appears as **OC Remote Dev**, so
+it can be installed alongside the official release. Run the local checks with:
+
+```bash
+./gradlew testDebugUnitTest lintDebug assembleDebug
 ```
 
 ## Trademark and branding

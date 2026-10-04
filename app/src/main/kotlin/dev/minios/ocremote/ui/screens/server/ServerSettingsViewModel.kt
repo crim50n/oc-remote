@@ -263,7 +263,7 @@ class ServerSettingsViewModel @Inject constructor(
                 }
                 // Ensure provider is enabled after successful connect
                 val disabled = _config.value.disabledProviders.toSet() - providerId
-                api.updateGlobalConfig(conn, ServerConfigPatch(disabledProviders = disabled.toList().sorted()))
+                if (!_config.value.readOnly) api.updateGlobalConfig(conn, ServerConfigPatch(disabledProviders = disabled.toList().sorted()))
                 _config.value = api.getGlobalConfig(conn)
                 loadProviders()
             } catch (e: Exception) {
@@ -341,7 +341,7 @@ class ServerSettingsViewModel @Inject constructor(
                     return@launch
                 }
                 val disabled = _config.value.disabledProviders.toSet() - pending.providerId
-                api.updateGlobalConfig(conn, ServerConfigPatch(disabledProviders = disabled.toList().sorted()))
+                if (!_config.value.readOnly) api.updateGlobalConfig(conn, ServerConfigPatch(disabledProviders = disabled.toList().sorted()))
                 _config.value = api.getGlobalConfig(conn)
                 _uiState.update { it.copy(pendingOauth = null) }
                 loadProviders()
