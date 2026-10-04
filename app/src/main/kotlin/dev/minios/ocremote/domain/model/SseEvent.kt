@@ -46,6 +46,17 @@ sealed class SseEvent {
     data class SessionUpdated(val info: Session) : SseEvent()
 
     @Serializable
+    data class SessionRenamed(val sessionId: String, val title: String) : SseEvent()
+
+    @Serializable
+    data class SessionMoved(
+        val sessionId: String,
+        val directory: String,
+        val workspaceId: String? = null,
+        val projectId: String = "",
+    ) : SseEvent()
+
+    @Serializable
     data class SessionDeleted(val info: Session) : SseEvent()
 
     @Serializable
@@ -89,6 +100,21 @@ sealed class SseEvent {
         val prompt: JsonElement? = null,
         val timestamp: Long = 0,
     ) : SseEvent()
+
+    @Serializable
+    data class PromptEnqueued(
+        val sessionId: String,
+        val messageId: String,
+        val delivery: String,
+        val prompt: JsonElement? = null,
+        val timestamp: Long = 0,
+    ) : SseEvent()
+
+    @Serializable
+    data class PromptDelivered(val sessionId: String, val messageId: String) : SseEvent()
+
+    @Serializable
+    data class PromptCancelled(val sessionId: String, val messageId: String) : SseEvent()
 
     @Serializable
     data class NextStepStarted(
@@ -136,10 +162,18 @@ sealed class SseEvent {
         val callId: String,
         val command: String,
         val timestamp: Long,
+        val standalone: Boolean = false,
+        val metadata: JsonElement? = null,
     ) : SseEvent()
 
     @Serializable
-    data class NextShellEnded(val sessionId: String, val callId: String, val output: String, val timestamp: Long) : SseEvent()
+    data class NextShellEnded(
+        val sessionId: String,
+        val callId: String,
+        val output: String,
+        val timestamp: Long,
+        val metadata: JsonElement? = null,
+    ) : SseEvent()
 
     @Serializable
     data class NextTextStarted(val sessionId: String, val messageId: String, val textId: String, val timestamp: Long) : SseEvent()
@@ -221,11 +255,20 @@ sealed class SseEvent {
         val callId: String,
         val error: JsonElement,
         val timestamp: Long,
+        val structured: JsonElement? = null,
+        val content: JsonElement? = null,
     ) : SseEvent()
 
     // Message events
     @Serializable
     data class MessageUpdated(val info: Message) : SseEvent()
+
+    @Serializable
+    data class MessageContentUpdated(
+        val sessionId: String,
+        val messageId: String,
+        val parts: List<Part>,
+    ) : SseEvent()
 
     @Serializable
     data class MessageRemoved(
@@ -285,13 +328,15 @@ sealed class SseEvent {
             val question: String,
             val multiple: Boolean = false,
             val custom: Boolean = true,
-            val options: List<Option>
+            val options: List<Option>,
+            val key: String? = null,
         )
 
         @Serializable
         data class Option(
             val label: String,
-            val description: String
+            val description: String,
+            val value: String? = null,
         )
     }
 
@@ -368,7 +413,8 @@ data class Project(
     val name: String? = null,
     val path: String = "", // legacy, may be absent
     val vcs: String? = null,
-    val directory: String? = null
+    val directory: String? = null,
+    val sandboxes: List<String> = emptyList()
 ) {
     /** Display name: explicit name, or last path segment of worktree, or id */
     val displayName: String

@@ -15,6 +15,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -128,6 +130,18 @@ class EventReducer @Inject constructor() {
             
             is SseEvent.SessionCreated -> handleSessionCreated(event, serverId)
             is SseEvent.SessionUpdated -> handleSessionUpdated(event, serverId)
+            is SseEvent.SessionRenamed -> _sessions.update { sessions ->
+                sessions.map { if (it.id == event.sessionId) it.copy(title = event.title) else it }
+            }
+            is SseEvent.SessionMoved -> _sessions.update { sessions ->
+                sessions.map {
+                    if (it.id == event.sessionId) it.copy(
+                        directory = event.directory,
+                        workspaceId = event.workspaceId,
+                        projectId = event.projectId.ifBlank { it.projectId },
+                    ) else it
+                }
+            }
             is SseEvent.SessionDeleted -> handleSessionDeleted(event)
             is SseEvent.SessionStatus -> handleSessionStatus(event, serverId)
             is SseEvent.SessionIdle -> handleSessionIdle(event, serverId)
@@ -138,6 +152,22 @@ class EventReducer @Inject constructor() {
                 it + (event.messageId to PromptDeliveryInfo(event.sessionId, PromptDeliveryState.ADMITTED))
             }
             is SseEvent.Prompted -> handleNextPrompted(event, serverId)
+            is SseEvent.PromptEnqueued -> handleNextPrompted(
+                SseEvent.Prompted(event.sessionId, event.messageId, event.delivery, event.prompt, event.timestamp),
+                serverId,
+                PromptDeliveryState.ADMITTED,
+                useV2Parts = true,
+            )
+            is SseEvent.PromptDelivered -> {
+                trackSession(serverId, event.sessionId)
+                _promptDeliveries.update {
+                    it + (event.messageId to PromptDeliveryInfo(event.sessionId, PromptDeliveryState.PROMOTED))
+                }
+            }
+            is SseEvent.PromptCancelled -> {
+                handleMessageRemoved(SseEvent.MessageRemoved(event.sessionId, event.messageId))
+                _promptDeliveries.update { it - event.messageId }
+            }
             is SseEvent.NextStepStarted -> handleNextStepStarted(event, serverId)
             is SseEvent.NextStepEnded -> handleNextStepEnded(event)
             is SseEvent.NextStepFailed -> handleNextStepFailed(event)
@@ -172,7 +202,7 @@ class EventReducer @Inject constructor() {
                 "${event.messageId}-synthetic", event.sessionId, event.messageId, event.text, synthetic = true,
                 time = Part.Text.Time(event.timestamp, event.timestamp),
             )))
-            is SseEvent.NextShellStarted -> handleNextShellStarted(event)
+            is SseEvent.NextShellStarted -> handleNextShellStarted(event, serverId)
             is SseEvent.NextShellEnded -> handleNextShellEnded(event)
             is SseEvent.NextTextStarted -> handleMessagePartUpdated(SseEvent.MessagePartUpdated(
                 Part.Text(event.textId, event.sessionId, event.messageId, time = Part.Text.Time(event.timestamp)),
@@ -201,6 +231,15 @@ class EventReducer @Inject constructor() {
             is SseEvent.NextToolFailed -> handleNextToolFailed(event)
             
             is SseEvent.MessageUpdated -> handleMessageUpdated(event)
+            is SseEvent.MessageContentUpdated -> {
+                if (!isMessageRemoved(event.messageId)) {
+                    trackSession(serverId, event.sessionId)
+                    synchronized(deltaLock) {
+                        pendingDeltas.keys.removeAll { it.messageId == event.messageId }
+                    }
+                    _parts.update { it + (event.messageId to event.parts) }
+                }
+            }
             is SseEvent.MessageRemoved -> handleMessageRemoved(event)
             
             is SseEvent.MessagePartUpdated -> handleMessagePartUpdated(event)
@@ -246,10 +285,15 @@ class EventReducer @Inject constructor() {
         }
     }
 
-    private fun handleNextPrompted(event: SseEvent.Prompted, serverId: String) {
+    private fun handleNextPrompted(
+        event: SseEvent.Prompted,
+        serverId: String,
+        deliveryState: PromptDeliveryState = PromptDeliveryState.PROMOTED,
+        useV2Parts: Boolean = false,
+    ) {
         trackSession(serverId, event.sessionId)
         _promptDeliveries.update {
-            it + (event.messageId to PromptDeliveryInfo(event.sessionId, PromptDeliveryState.PROMOTED))
+            it + (event.messageId to PromptDeliveryInfo(event.sessionId, deliveryState))
         }
         val timestamp = event.timestamp.takeIf { it > 0 } ?: System.currentTimeMillis()
         handleMessageUpdated(SseEvent.MessageUpdated(Message.User(
@@ -260,7 +304,7 @@ class EventReducer @Inject constructor() {
         val prompt = event.prompt?.jsonObject ?: return
         prompt["text"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }?.let { text ->
             handleMessagePartUpdated(SseEvent.MessagePartUpdated(Part.Text(
-                id = "${event.messageId}-prompt",
+                id = if (useV2Parts) "${event.messageId}:text:0" else "${event.messageId}-prompt",
                 sessionId = event.sessionId,
                 messageId = event.messageId,
                 text = text,
@@ -269,13 +313,18 @@ class EventReducer @Inject constructor() {
         }
         prompt["files"]?.jsonArray?.forEachIndexed { index, element ->
             val file = element.jsonObject
+            val mime = if (useV2Parts) file["mime"]?.jsonPrimitive?.contentOrNull
+                ?: "application/octet-stream" else "application/octet-stream"
+            val data = if (useV2Parts) file["data"]?.jsonPrimitive?.contentOrNull else null
+            val uri = if (useV2Parts) file["source"]?.jsonObject?.get("uri")?.jsonPrimitive?.contentOrNull
+                else file["uri"]?.jsonPrimitive?.contentOrNull
             handleMessagePartUpdated(SseEvent.MessagePartUpdated(Part.File(
-                id = "${event.messageId}-file-$index",
+                id = if (useV2Parts) "${event.messageId}:file:$index" else "${event.messageId}-file-$index",
                 sessionId = event.sessionId,
                 messageId = event.messageId,
-                mime = "application/octet-stream",
+                mime = mime,
                 filename = file["name"]?.jsonPrimitive?.contentOrNull,
-                url = file["uri"]?.jsonPrimitive?.contentOrNull,
+                url = data?.let { "data:$mime;base64,$it" } ?: uri,
                 source = file["source"],
             )))
         }
@@ -347,7 +396,16 @@ class EventReducer @Inject constructor() {
         }
     }
 
-    private fun handleNextShellStarted(event: SseEvent.NextShellStarted) {
+    private fun handleNextShellStarted(event: SseEvent.NextShellStarted, serverId: String) {
+        if (event.standalone) {
+            trackSession(serverId, event.sessionId)
+            handleMessageUpdated(SseEvent.MessageUpdated(Message.Assistant(
+                id = event.messageId,
+                sessionId = event.sessionId,
+                time = TimeInfo(event.timestamp),
+                parentId = "",
+            )))
+        }
         handleMessagePartUpdated(SseEvent.MessagePartUpdated(Part.Tool(
             id = event.callId,
             sessionId = event.sessionId,
@@ -356,6 +414,8 @@ class EventReducer @Inject constructor() {
             tool = "bash",
             state = ToolState.Running(
                 input = mapOf("command" to JsonPrimitive(event.command)),
+                title = event.command.takeIf { event.standalone },
+                metadata = (event.metadata as? JsonObject),
                 time = ToolState.Running.Time(event.timestamp),
             ),
         )))
@@ -371,9 +431,17 @@ class EventReducer @Inject constructor() {
             state = ToolState.Completed(
                 input = running.input,
                 output = event.output,
+                title = running.title,
+                metadata = running.metadata.orEmpty() + (event.metadata as? JsonObject).orEmpty(),
                 time = ToolState.Completed.Time(running.time?.start ?: event.timestamp, event.timestamp),
             ),
         )))
+        if (event.metadata != null) {
+            updateMessage(event.sessionId, existing.messageId) { message ->
+                if (message is Message.Assistant) message.copy(time = message.time.copy(completed = event.timestamp))
+                else message
+            }
+        }
     }
 
     private fun findToolPart(messageId: String, callId: String): Part.Tool? =
@@ -421,7 +489,7 @@ class EventReducer @Inject constructor() {
             sessionId = event.sessionId,
             messageId = event.messageId,
             callId = event.callId,
-            tool = event.tool,
+            tool = event.tool.ifBlank { existing?.tool.orEmpty() },
             state = ToolState.Running(
                 input = event.input.jsonObject,
                 title = running?.title,
@@ -489,7 +557,18 @@ class EventReducer @Inject constructor() {
     private fun handleNextToolFailed(event: SseEvent.NextToolFailed) {
         val existing = findToolPart(event.messageId, event.callId) ?: return
         val running = existing.state as? ToolState.Running
-        val input = running?.input ?: (existing.state as? ToolState.Pending)?.input.orEmpty()
+        val input = when (val state = existing.state) {
+            is ToolState.Pending -> state.input
+            is ToolState.Running -> state.input
+            is ToolState.Completed -> state.input
+            is ToolState.Error -> state.input
+        }
+        val metadata = when (val state = existing.state) {
+            is ToolState.Running -> state.metadata
+            is ToolState.Completed -> state.metadata
+            is ToolState.Error -> state.metadata
+            is ToolState.Pending -> null
+        }.orEmpty() + (event.structured as? JsonObject).orEmpty()
         val errorObject = event.error.jsonObject
         val error = errorObject["message"]?.jsonPrimitive?.contentOrNull
             ?: errorObject["data"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull
@@ -498,10 +577,24 @@ class EventReducer @Inject constructor() {
             state = ToolState.Error(
                 input = input,
                 error = error,
-                metadata = running?.metadata,
+                metadata = metadata,
                 time = ToolState.Error.Time(running?.time?.start ?: event.timestamp, event.timestamp),
             ),
         )))
+        (event.content as? JsonArray)?.forEachIndexed { index, item ->
+            val content = item as? JsonObject ?: return@forEachIndexed
+            val id = "${event.callId}:output:$index"
+            val part = when (content["type"]?.jsonPrimitive?.contentOrNull) {
+                "text" -> Part.Text(id, event.sessionId, event.messageId,
+                    content["text"]?.jsonPrimitive?.contentOrNull.orEmpty())
+                "file" -> Part.File(id, event.sessionId, event.messageId,
+                    content["mime"]?.jsonPrimitive?.contentOrNull ?: "application/octet-stream",
+                    content["name"]?.jsonPrimitive?.contentOrNull,
+                    content["uri"]?.jsonPrimitive?.contentOrNull, content)
+                else -> null
+            }
+            part?.let { handleMessagePartUpdated(SseEvent.MessagePartUpdated(it)) }
+        }
     }
     
     private fun handleSessionUpdated(event: SseEvent.SessionUpdated, serverId: String) {

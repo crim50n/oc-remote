@@ -72,6 +72,7 @@ internal fun descendantSessionIds(sessions: List<Session>, rootSessionId: String
 }
 
 data class ChatUiState(
+    val serverSupportsSharing: Boolean = true,
     val sessionTitle: String = "",
     val sessionLoaded: Boolean = false,
     val parentSessionId: String? = null,
@@ -522,6 +523,8 @@ class ChatViewModel @Inject constructor(
         val availableVariants = currentModel?.variants?.keys?.toList() ?: emptyList()
 
         ChatUiState(
+            serverSupportsSharing = dev.minios.ocremote.data.api.ServerProtocolRegistry.knownProtocol(conn) !=
+                dev.minios.ocremote.data.api.ServerProtocol.V2,
             sessionTitle = session?.title ?: "Chat",
             sessionLoaded = session != null,
             parentSessionId = session?.parentId,
@@ -1194,7 +1197,9 @@ class ChatViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send message", e)
                 _error.value = e.message ?: "Failed to send message"
-                val definiteHttpFailure = e is RuntimeException && e.message?.startsWith("prompt_async failed:") == true
+                val definiteHttpFailure = e is dev.minios.ocremote.data.api.ServerAuthenticationException ||
+                    (e is dev.minios.ocremote.data.api.OpenCodeHttpException && e.statusCode in 400..499) ||
+                    (e is RuntimeException && e.message?.startsWith("prompt_async failed:") == true)
                 if (definiteHttpFailure) {
                     eventReducer.updateSessionStatus(sessionId, SessionStatus.Idle)
                     pendingPromptRepository.remove(messageId)
