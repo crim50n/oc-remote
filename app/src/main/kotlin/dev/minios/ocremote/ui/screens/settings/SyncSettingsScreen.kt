@@ -615,6 +615,7 @@ private fun SyncConflictDetails(summary: SyncConflictSummary) {
                         SyncConflictArea.CATEGORY_ASSIGNMENTS -> R.string.sync_conflict_area_assignments
                         SyncConflictArea.FAVORITES -> R.string.sync_conflict_area_favorites
                         SyncConflictArea.HIDDEN_MODELS -> R.string.sync_conflict_area_hidden_models
+                        SyncConflictArea.PASSWORDS -> R.string.sync_conflict_area_passwords
                     },
                 )
                 Text(

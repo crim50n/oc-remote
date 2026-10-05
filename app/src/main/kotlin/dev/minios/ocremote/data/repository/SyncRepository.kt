@@ -20,8 +20,12 @@ import dev.minios.ocremote.data.sync.RemoteSyncFile
 import dev.minios.ocremote.data.sync.SyncDecision
 import dev.minios.ocremote.data.sync.SyncConflictNotifier
 import dev.minios.ocremote.data.sync.SyncConflictSummary
+import dev.minios.ocremote.data.sync.SyncConflictPreference
+import dev.minios.ocremote.data.sync.SemanticSyncData
 import dev.minios.ocremote.data.sync.SyncPayload
 import dev.minios.ocremote.data.sync.SyncTransport
+import dev.minios.ocremote.data.sync.canonicalizeSyncData
+import dev.minios.ocremote.data.sync.mergeSyncData
 import dev.minios.ocremote.data.sync.WebDavSyncTransport
 import dev.minios.ocremote.data.sync.decideBackupSync
 import dev.minios.ocremote.data.sync.decideSync
@@ -236,13 +240,17 @@ class SyncRepository @Inject constructor(
             if (overallStatus == SyncStatus.IDLE) {
                 preferences.remove(ERROR)
             }
-            if (passphraseChanged) preferences.remove(LOCAL_HASH)
+            if (passphraseChanged) {
+                preferences.remove(LOCAL_HASH)
+                preferences.remove(BASELINE_PAYLOAD)
+            }
             removeLegacyConfig(preferences)
             if (
                 previousPrimary != config.primaryBackend || gistIdentityChanged ||
                 webDavIdentityChanged || documentIdentityChanged
             ) {
                 preferences.remove(CONFLICT_SUMMARY)
+                preferences.remove(BASELINE_PAYLOAD)
                 conflictCleared = true
             }
         }
@@ -261,47 +269,132 @@ class SyncRepository @Inject constructor(
         saveStatus(SyncStatus.SYNCING)
         saveBackendStatus(primary, BackendSyncStatus.SYNCING)
         try {
-            val local = snapshot(current.config.includeEncryptedPasswords)
-            val localHash = localPayloadHash(local, current.config.includeEncryptedPasswords)
+            val includePasswords = current.config.includeEncryptedPasswords
+            val local = snapshot(includePasswords)
+            val localData = semanticData(local, fallback = null, includePasswords = includePasswords)
+            val localHash = semanticHash(localData, includePasswords)
             val primaryTransport = transport(primary, current.config.target(primary))
             val remote = primaryTransport.read()
             val primaryState = current.backendState(primary)
             val remoteContentHash = remote?.content?.let(::contentHash)
             val storedMarker = primaryState.remoteRevision ?: primaryState.acknowledgedContentHash
             val remoteMarker = remote?.revision ?: remoteContentHash
-            val decision = decideSync(
-                remoteExists = remote != null,
-                storedRevision = storedMarker,
-                remoteRevision = remoteMarker,
-                storedLocalHash = current.lastLocalPayloadHash,
-                localHash = localHash,
-            )
-            val canonical = when (decision) {
-                SyncDecision.MISSING_UPLOAD,
-                SyncDecision.PUSH_LOCAL,
-                -> uploadPrimary(current, primaryTransport, remote, local, localHash)
-
-                SyncDecision.PULL_REMOTE -> importPrimary(current, remote!!)
-                SyncDecision.UP_TO_DATE -> CanonicalSync(
-                    content = remote!!.content,
-                    localHash = localHash,
-                    generation = decodePayload(remote.content).generation,
-                    remote = remote,
+            val decision: SyncDecision
+            val canonical: CanonicalSync
+            if (remote == null) {
+                decision = SyncDecision.MISSING_UPLOAD
+                canonical = uploadSemantic(current, primaryTransport, null, localData, includePasswords)
+            } else {
+                val remotePayload = decodePayload(remote.content)
+                val baselineData = loadBaseline(includePasswords)
+                val remoteData = semanticData(
+                    remotePayload,
+                    fallback = baselineData ?: localData,
+                    includePasswords = includePasswords,
                 )
-
-                SyncDecision.CONFLICT -> {
-                    val remotePayload = decodePayload(remote!!.content)
-                    val summaryTimestamp = System.currentTimeMillis()
-                    val summary = buildSyncConflictSummary(
-                        local = local.copy(generation = current.generation, updatedAt = summaryTimestamp),
-                        remote = remotePayload,
-                        identity = "$primary\u0000$localHash\u0000${remoteMarker.orEmpty()}\u0000${storedMarker.orEmpty()}",
-                        json = json,
-                        now = summaryTimestamp,
+                if (localData == remoteData) {
+                    decision = SyncDecision.UP_TO_DATE
+                    canonical = acceptRemote(
+                        current,
+                        primaryTransport,
+                        remote,
+                        remotePayload,
+                        localData,
+                        includePasswords,
                     )
-                    saveConflict(primary, summary)
-                    if (current.conflictSummary?.id != summary.id) conflictNotifier.notifyConflict()
-                    return@withLock decision
+                } else if (baselineData == null) {
+                    decision = decideSync(
+                        remoteExists = true,
+                        storedRevision = storedMarker,
+                        remoteRevision = remoteMarker,
+                        storedLocalHash = current.lastLocalPayloadHash,
+                        localHash = localPayloadHash(local, includePasswords),
+                    )
+                    canonical = when (decision) {
+                        SyncDecision.PULL_REMOTE -> {
+                            applySemanticPreservingConcurrent(localData, remoteData, includePasswords)
+                            acceptRemote(
+                                current,
+                                primaryTransport,
+                                remote,
+                                remotePayload,
+                                remoteData,
+                                includePasswords,
+                            )
+                        }
+                        SyncDecision.PUSH_LOCAL -> uploadSemantic(
+                            current,
+                            primaryTransport,
+                            remote,
+                            localData,
+                            includePasswords,
+                        )
+                        SyncDecision.CONFLICT -> {
+                            saveSyncConflict(
+                                current = current,
+                                primary = primary,
+                                local = localData,
+                                remote = remoteData,
+                                remotePayload = remotePayload,
+                                localHash = localHash,
+                                remoteMarker = remoteMarker,
+                                storedMarker = storedMarker,
+                            )
+                            return@withLock decision
+                        }
+                        SyncDecision.UP_TO_DATE -> acceptRemote(
+                            current,
+                            primaryTransport,
+                            remote,
+                            remotePayload,
+                            remoteData,
+                            includePasswords,
+                        )
+                        SyncDecision.MISSING_UPLOAD -> error("Remote sync data unexpectedly disappeared")
+                    }
+                } else {
+                    val merged = mergeSyncData(baselineData, localData, remoteData, json)
+                    if (merged.hasConflicts) {
+                        decision = SyncDecision.CONFLICT
+                        saveSyncConflict(
+                            current = current,
+                            primary = primary,
+                            local = localData,
+                            remote = remoteData,
+                            remotePayload = remotePayload,
+                            localHash = localHash,
+                            remoteMarker = remoteMarker,
+                            storedMarker = storedMarker,
+                            conflictCounts = merged.conflictCounts,
+                        )
+                        return@withLock decision
+                    }
+                    if (merged.data == remoteData) {
+                        decision = if (localData == remoteData) SyncDecision.UP_TO_DATE else SyncDecision.PULL_REMOTE
+                        if (localData != merged.data) {
+                            applySemanticPreservingConcurrent(localData, merged.data, includePasswords)
+                        }
+                        canonical = acceptRemote(
+                            current,
+                            primaryTransport,
+                            remote,
+                            remotePayload,
+                            merged.data,
+                            includePasswords,
+                        )
+                    } else {
+                        decision = SyncDecision.PUSH_LOCAL
+                        canonical = uploadSemantic(
+                            current,
+                            primaryTransport,
+                            remote,
+                            merged.data,
+                            includePasswords,
+                        )
+                        if (localData != merged.data) {
+                            applySemanticPreservingConcurrent(localData, merged.data, includePasswords)
+                        }
+                    }
                 }
             }
             saveCanonical(primary, canonical)
@@ -326,11 +419,28 @@ class SyncRepository @Inject constructor(
         saveStatus(SyncStatus.SYNCING)
         saveBackendStatus(primary, BackendSyncStatus.SYNCING)
         try {
-            val local = snapshot(current.config.includeEncryptedPasswords)
-            val localHash = localPayloadHash(local, current.config.includeEncryptedPasswords)
+            val includePasswords = current.config.includeEncryptedPasswords
+            val local = snapshot(includePasswords)
+            val localData = semanticData(local, fallback = null, includePasswords = includePasswords)
             val transport = transport(primary, current.config.target(primary))
             val remote = transport.read()
-            val canonical = uploadPrimary(current, transport, remote, local, localHash)
+            val baselineData = loadBaseline(includePasswords)
+            val resolvedData = if (remote != null && baselineData != null) {
+                val remoteData = semanticData(decodePayload(remote.content), baselineData, includePasswords)
+                mergeSyncData(
+                    baselineData,
+                    localData,
+                    remoteData,
+                    json,
+                    SyncConflictPreference.LOCAL,
+                ).data
+            } else {
+                localData
+            }
+            val canonical = uploadSemantic(current, transport, remote, resolvedData, includePasswords)
+            if (resolvedData != localData) {
+                applySemanticPreservingConcurrent(localData, resolvedData, includePasswords)
+            }
             saveCanonical(primary, canonical)
             val backupHealthy = reconcileOtherBackends(current.config, primary, canonical, force = true)
             saveStatus(if (backupHealthy) SyncStatus.IDLE else SyncStatus.PARTIAL)
@@ -355,7 +465,35 @@ class SyncRepository @Inject constructor(
         try {
             val sourceTransport = transport(selected, current.config.target(selected))
             val remote = sourceTransport.read() ?: throw IllegalStateException("No remote sync file exists")
-            val canonical = importPrimary(current, remote)
+            val includePasswords = current.config.includeEncryptedPasswords
+            val localData = semanticData(snapshot(includePasswords), null, includePasswords)
+            val remotePayload = decodePayload(remote.content)
+            val baselineData = loadBaseline(includePasswords)
+            val remoteData = semanticData(remotePayload, baselineData ?: localData, includePasswords)
+            val resolvedData = if (baselineData != null) {
+                mergeSyncData(
+                    baselineData,
+                    localData,
+                    remoteData,
+                    json,
+                    SyncConflictPreference.REMOTE,
+                ).data
+            } else {
+                remoteData
+            }
+            val canonical = if (resolvedData == remoteData) {
+                acceptRemote(
+                    current,
+                    sourceTransport,
+                    remote,
+                    remotePayload,
+                    resolvedData,
+                    includePasswords,
+                )
+            } else {
+                uploadSemantic(current, sourceTransport, remote, resolvedData, includePasswords)
+            }
+            applySemanticPreservingConcurrent(localData, resolvedData, includePasswords)
             saveCanonical(selected, canonical)
             val othersHealthy = reconcileOtherBackends(current.config, selected, canonical, force = true)
             saveStatus(if (othersHealthy) SyncStatus.IDLE else SyncStatus.PARTIAL)
@@ -385,6 +523,7 @@ class SyncRepository @Inject constructor(
             preferences.remove(STATUS)
             preferences.remove(ERROR)
             preferences.remove(CONFLICT_SUMMARY)
+            preferences.remove(BASELINE_PAYLOAD)
             SyncBackend.entries.filterNot { it == SyncBackend.NONE }.forEach { backend ->
                 preferences.remove(targetEnabledKey(backend))
                 preferences.remove(targetEndpointKey(backend))
@@ -400,70 +539,214 @@ class SyncRepository @Inject constructor(
         conflictNotifier.cancel()
     }
 
-    private suspend fun uploadPrimary(
+    private suspend fun uploadSemantic(
         current: SyncState,
         transport: SyncTransport,
         remote: RemoteSyncFile?,
-        local: SyncPayload,
-        localHash: String,
+        data: SemanticSyncData,
+        includePasswords: Boolean,
     ): CanonicalSync {
-        val generation = current.generation + 1
-        val payload = local.copy(
+        val remoteGeneration = remote?.content?.let(::decodePayload)?.generation ?: 0
+        val generation = maxOf(current.generation, remoteGeneration) + 1
+        val payload = encodeSemanticPayload(
+            data = data,
             generation = generation,
-            parentGeneration = current.generation.takeIf { it > 0 },
+            parentGeneration = remoteGeneration.takeIf { it > 0 } ?: current.generation.takeIf { it > 0 },
             updatedAt = System.currentTimeMillis(),
             writerDeviceId = ensureDeviceId(),
+            includePasswords = includePasswords,
         )
         val content = json.encodeToString(payload)
         val verified = writeAndVerify(transport, content, remote)
-        return CanonicalSync(content, localHash, generation, verified)
+        return CanonicalSync(
+            content = content,
+            localHash = semanticHash(data, includePasswords),
+            generation = generation,
+            remote = verified,
+            baselineContent = content,
+        )
     }
 
-    private suspend fun importPrimary(
-        current: SyncState,
+    private fun canonicalFromRemote(
         remote: RemoteSyncFile,
+        remotePayload: SyncPayload,
+        data: SemanticSyncData,
+        includePasswords: Boolean,
     ): CanonicalSync {
-        val payload = decodePayload(remote.content)
-        val passwords = if (current.config.includeEncryptedPasswords) {
-            decryptPasswords(payload.encryptedSecrets)
-        } else {
-            emptyMap()
-        }
-        dataStore.edit { preferences ->
-            val serverIdMapping = serverRepository.importSyncServersTo(
-                preferences,
-                payload.servers,
-                passwords,
-            )
-            settingsRepository.applySyncSettingsTo(
-                preferences,
-                payload.settings,
-                payload.sessionCategories,
-            )
-            settingsRepository.applySyncSessionCategoryAssignmentsTo(
-                preferences,
-                payload.sessionCategoryAssignments,
-                serverIdMapping,
-            )
-            settingsRepository.applySyncSessionCollectionsTo(
-                preferences = preferences,
-                favoriteSessionIds = payload.favoriteSessionIds,
-                crossServerFavoriteOrder = payload.crossServerFavoriteOrder,
-                favoriteSessionSnapshots = payload.favoriteSessionSnapshots,
-                hiddenModels = payload.hiddenModels,
-                serverIdMapping = serverIdMapping,
-            )
-            diagnosticLogRepository.applyLogLevelTo(preferences, payload.settings.diagnosticLogLevel)
-        }
-        settingsRepository.updateSynchronousLocale(payload.settings.appLanguage)
+        val baselinePayload = encodeSemanticPayload(
+            data = data,
+            generation = remotePayload.generation,
+            parentGeneration = remotePayload.parentGeneration,
+            updatedAt = remotePayload.updatedAt,
+            writerDeviceId = remotePayload.writerDeviceId,
+            includePasswords = includePasswords,
+        )
         return CanonicalSync(
             content = remote.content,
-            // Hash the selected remote data, not a post-import snapshot that could include
-            // concurrent local edits. Such edits must remain pending for the next upload.
-            localHash = localPayloadHash(payload, current.config.includeEncryptedPasswords),
-            generation = payload.generation,
+            localHash = semanticHash(data, includePasswords),
+            generation = remotePayload.generation,
             remote = remote,
+            baselineContent = json.encodeToString(baselinePayload),
         )
+    }
+
+    private suspend fun acceptRemote(
+        current: SyncState,
+        transport: SyncTransport,
+        remote: RemoteSyncFile,
+        remotePayload: SyncPayload,
+        data: SemanticSyncData,
+        includePasswords: Boolean,
+    ): CanonicalSync = if (requiresMaterialization(remotePayload, includePasswords)) {
+        uploadSemantic(current, transport, remote, data, includePasswords)
+    } else {
+        canonicalFromRemote(remote, remotePayload, data, includePasswords)
+    }
+
+    private fun requiresMaterialization(payload: SyncPayload, includePasswords: Boolean): Boolean =
+        payload.favoriteSessionIds == null ||
+            payload.crossServerFavoriteOrder == null ||
+            payload.favoriteSessionSnapshots == null ||
+            payload.hiddenModels == null ||
+            payload.settings.hideToolDetails == null ||
+            payload.settings.showLocalRuntime == null ||
+            payload.settings.diagnosticLogLevel == null ||
+            payload.settings.showTerminalPanelHint == null ||
+            (includePasswords && payload.passwordsIncluded != true)
+
+    private suspend fun applySemanticPreservingConcurrent(
+        expectedLocal: SemanticSyncData,
+        accepted: SemanticSyncData,
+        includePasswords: Boolean,
+    ) {
+        lateinit var applied: SemanticSyncData
+        dataStore.edit { preferences ->
+            val current = semanticSnapshotFrom(preferences, includePasswords)
+            applied = if (current == expectedLocal) {
+                accepted
+            } else {
+                mergeSyncData(
+                    expectedLocal,
+                    current,
+                    accepted,
+                    json,
+                    SyncConflictPreference.LOCAL,
+                ).data
+            }
+            applySemanticTo(preferences, applied, includePasswords)
+        }
+        settingsRepository.updateSynchronousLocale(applied.payload.settings.appLanguage)
+    }
+
+    private fun applySemanticTo(
+        preferences: androidx.datastore.preferences.core.MutablePreferences,
+        data: SemanticSyncData,
+        includePasswords: Boolean,
+    ) {
+        val serverIdMapping = serverRepository.replaceSyncServersTo(
+            preferences,
+            data.payload.servers,
+            data.passwords,
+            passwordsAuthoritative = includePasswords,
+        )
+        settingsRepository.applySyncSettingsTo(
+            preferences,
+            data.payload.settings,
+            data.payload.sessionCategories,
+        )
+        settingsRepository.applySyncSessionCategoryAssignmentsTo(
+            preferences,
+            data.payload.servers.associate { server ->
+                server.id to data.payload.sessionCategoryAssignments[server.id].orEmpty()
+            },
+            serverIdMapping,
+        )
+        settingsRepository.applySyncSessionCollectionsTo(
+            preferences = preferences,
+            favoriteSessionIds = data.payload.favoriteSessionIds,
+            crossServerFavoriteOrder = data.payload.crossServerFavoriteOrder,
+            favoriteSessionSnapshots = data.payload.favoriteSessionSnapshots,
+            hiddenModels = data.payload.hiddenModels,
+            serverIdMapping = serverIdMapping,
+        )
+        diagnosticLogRepository.applyLogLevelTo(preferences, data.payload.settings.diagnosticLogLevel)
+    }
+
+    private fun semanticData(
+        payload: SyncPayload,
+        fallback: SemanticSyncData?,
+        includePasswords: Boolean,
+    ): SemanticSyncData {
+        val passwords = if (includePasswords) decryptPasswords(payload.encryptedSecrets) else emptyMap()
+        return canonicalizeSyncData(payload, passwords, fallback)
+    }
+
+    private fun encodeSemanticPayload(
+        data: SemanticSyncData,
+        generation: Long,
+        parentGeneration: Long?,
+        updatedAt: Long,
+        writerDeviceId: String,
+        includePasswords: Boolean,
+    ): SyncPayload {
+        val encrypted = if (includePasswords) {
+            encryptPasswords(data.passwords)
+        } else {
+            null
+        }
+        return data.payload.copy(
+            generation = generation,
+            parentGeneration = parentGeneration,
+            updatedAt = updatedAt,
+            writerDeviceId = writerDeviceId,
+            passwordsIncluded = includePasswords,
+            encryptedSecrets = encrypted,
+        )
+    }
+
+    private fun encryptPasswords(passwords: Map<String, String>): EncryptedSecrets {
+        val passphrase = secretStore.get(LocalSyncSecretStore.SecretKey.SYNC_PASSPHRASE)
+            ?: throw IllegalStateException("A sync passphrase is required to include passwords")
+        val chars = passphrase.toCharArray()
+        return try {
+            PasswordCrypto.encrypt(json.encodeToString(PasswordSecrets(passwords)).toByteArray(), chars)
+        } finally {
+            chars.fill('\u0000')
+        }
+    }
+
+    private suspend fun loadBaseline(includePasswords: Boolean): SemanticSyncData? {
+        val content = dataStore.data.first()[BASELINE_PAYLOAD] ?: return null
+        return runCatching {
+            semanticData(decodePayload(content), fallback = null, includePasswords = includePasswords)
+        }.getOrNull()
+    }
+
+    private suspend fun saveSyncConflict(
+        current: SyncState,
+        primary: SyncBackend,
+        local: SemanticSyncData,
+        remote: SemanticSyncData,
+        remotePayload: SyncPayload,
+        localHash: String,
+        remoteMarker: String?,
+        storedMarker: String?,
+        conflictCounts: Map<dev.minios.ocremote.data.sync.SyncConflictArea, Int>? = null,
+    ) {
+        val summaryTimestamp = System.currentTimeMillis()
+        val summary = buildSyncConflictSummary(
+            local = local.payload.copy(generation = current.generation, updatedAt = summaryTimestamp),
+            remote = remote.payload.copy(
+                generation = remotePayload.generation,
+                updatedAt = remotePayload.updatedAt,
+            ),
+            identity = "$primary\u0000$localHash\u0000${remoteMarker.orEmpty()}\u0000${storedMarker.orEmpty()}",
+            json = json,
+            now = summaryTimestamp,
+            conflictCounts = conflictCounts,
+        )
+        saveConflict(primary, summary)
+        if (current.conflictSummary?.id != summary.id) conflictNotifier.notifyConflict()
     }
 
     private suspend fun reconcileOtherBackends(
@@ -529,6 +812,15 @@ class SyncRepository @Inject constructor(
 
     private suspend fun snapshot(includePasswords: Boolean): SyncPayload {
         val preferences = dataStore.data.first()
+        val semantic = semanticSnapshotFrom(preferences, includePasswords)
+        val encrypted = if (includePasswords) encryptPasswords(semantic.passwords) else null
+        return semantic.payload.copy(passwordsIncluded = includePasswords, encryptedSecrets = encrypted)
+    }
+
+    private fun semanticSnapshotFrom(
+        preferences: Preferences,
+        includePasswords: Boolean,
+    ): SemanticSyncData {
         val servers = serverRepository.syncServersSnapshotFrom(preferences)
         val serverIds = servers.map { it.id }
         val passwords = if (includePasswords) {
@@ -538,17 +830,7 @@ class SyncRepository @Inject constructor(
         } else {
             emptyMap()
         }
-        val encrypted = if (passwords.isEmpty()) null else {
-            val passphrase = secretStore.get(LocalSyncSecretStore.SecretKey.SYNC_PASSPHRASE)
-                ?: throw IllegalStateException("A sync passphrase is required to include passwords")
-            val chars = passphrase.toCharArray()
-            try {
-                PasswordCrypto.encrypt(json.encodeToString(PasswordSecrets(passwords)).toByteArray(), chars)
-            } finally {
-                chars.fill('\u0000')
-            }
-        }
-        return SyncPayload(
+        val payload = SyncPayload(
             settings = settingsRepository.syncSettingsSnapshotFrom(preferences).copy(
                 diagnosticLogLevel = diagnosticLogRepository.logLevelFrom(preferences),
             ),
@@ -562,8 +844,9 @@ class SyncRepository @Inject constructor(
             favoriteSessionSnapshots = settingsRepository.syncFavoriteSessionSnapshotsFrom(preferences, serverIds),
             hiddenModels = settingsRepository.syncHiddenModelsFrom(preferences, serverIds),
             servers = servers,
-            encryptedSecrets = encrypted,
+            passwordsIncluded = includePasswords,
         )
+        return canonicalizeSyncData(payload, passwords)
     }
 
     private fun decodePayload(content: String): SyncPayload {
@@ -612,6 +895,7 @@ class SyncRepository @Inject constructor(
         dataStore.edit { preferences ->
             writeBackendSuccess(preferences, backend, canonical.remote)
             preferences[LOCAL_HASH] = canonical.localHash
+            preferences[BASELINE_PAYLOAD] = canonical.baselineContent
             preferences[GENERATION] = canonical.generation
             preferences[LAST_SYNC] = System.currentTimeMillis()
             preferences.remove(ERROR)
@@ -692,6 +976,18 @@ class SyncRepository @Inject constructor(
             ),
         ) + "\u0002passwords=$includePasswords\u0002" + passwordFingerprint
         return contentHash(canonical)
+    }
+
+    private fun semanticHash(data: SemanticSyncData, includePasswords: Boolean): String {
+        val passwordFingerprint = if (includePasswords) {
+            data.passwords.toSortedMap().entries.joinToString("\u0001") { (id, password) -> "$id\u0000$password" }
+        } else {
+            "excluded"
+        }
+        return contentHash(
+            json.encodeToString(data.payload.copy(encryptedSecrets = null)) +
+                "\u0002passwords=$includePasswords\u0002$passwordFingerprint",
+        )
     }
 
     private fun contentHash(content: String): String = MessageDigest.getInstance("SHA-256")
@@ -899,6 +1195,7 @@ class SyncRepository @Inject constructor(
         val localHash: String,
         val generation: Long,
         val remote: RemoteSyncFile,
+        val baselineContent: String,
     )
 
     private companion object {
@@ -913,6 +1210,7 @@ class SyncRepository @Inject constructor(
         val STATUS = stringPreferencesKey("sync_status")
         val ERROR = stringPreferencesKey("sync_error")
         val CONFLICT_SUMMARY = stringPreferencesKey("sync_conflict_summary")
+        val BASELINE_PAYLOAD = stringPreferencesKey("sync_semantic_baseline_v1")
 
         val LEGACY_BACKEND = stringPreferencesKey("sync_backend")
         val LEGACY_ENDPOINT = stringPreferencesKey("sync_endpoint")

@@ -646,7 +646,6 @@ Tokeny: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_status_conflict">Konflikt</string>
     <string name="sync_status_error">Błąd</string>
     <string name="sync_last_sync">Ostatnia synchronizacja: %1$s</string>
-    <string name="sync_conflict_desc">Zarówno lokalne, jak i zdalne ustawienia zostały zmienione. Wybierz, którą kopię zachować.</string>
     <string name="sync_use_remote">Użyj zdalnej</string>
     <string name="sync_keep_local">Zachowaj lokalną</string>
     <string name="sync_connect">Połącz i synchronizuj</string>
@@ -657,11 +656,9 @@ Tokeny: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_credential_stored">Zapisano bezpiecznie; wprowadź nową wartość, aby ją zastąpić</string>
     <string name="sync_credential_stored_short">Zapisano bezpiecznie</string>
     <string name="sync_choose_version">Wybierz wersję synchronizacji</string>
-    <string name="sync_choose_version_desc">Wymuś skopiowanie danych z chmury na to urządzenie lub nadpisz dane w chmurze ustawieniami z tego urządzenia.</string>
     <string name="sync_status_saving">Zapisywanie</string>
     <string name="sync_save_connection">Zapisz połączenie</string>
     <string name="sync_synchronize_changes">Synchronizuj zmiany</string>
-    <string name="sync_direction_desc">Zmiany tylko lokalne są przesyłane, a zmiany tylko zdalne są pobierane. Jeśli obie kopie zostały zmodyfikowane, zostaniesz zapytany, którą zachować.</string>
     <string name="settings_haptic_strength">Siła wibracji</string>
     <string name="settings_haptic_strength_light">Słaba</string>
     <string name="settings_haptic_strength_medium">Średnia</string>
@@ -723,7 +720,6 @@ Tokeny: ~%4$d -&gt; ~%5$d</string>
     <string name="notification_channel_sync_desc">Powiadomienia, gdy zsynchronizowane ustawienia wymagają Twojego wyboru</string>
     <string name="sync_conflict_settings_warning">Konflikt synchronizacji — stuknij, aby przejrzeć</string>
     <string name="sync_conflict_notification_title">Konflikt synchronizacji ustawień</string>
-    <string name="sync_conflict_notification_text">Lokalne i zdalne ustawienia zostały zmienione. Stuknij, aby porównać i wybrać wersję.</string>
     <string name="sync_conflict_differences">Jak różnią się kopie</string>
     <string name="sync_conflict_local_snapshot">Lokalnie: %1$s · generacja %2$d</string>
     <string name="sync_conflict_remote_snapshot">Zdalnie: %1$s · generacja %2$d</string>
@@ -735,6 +731,13 @@ Tokeny: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_conflict_area_hidden_models">Ukryte modele</string>
     <string name="sync_conflict_changed_values">%1$s: %2$d wartości się różni</string>
     <string name="sync_conflict_item_counts">%1$s: lokalnie %2$d · zdalnie %3$d</string>
-    <string name="sync_conflict_passwords_hidden">Zaszyfrowane hasła są ukryte i nie są porównywane.</string>
-    <string name="sync_conflict_comparison_limit">Aplikacja może porównać dwie bieżące kopie, ale nie może ustalić, po której stronie zmieniono każdą wartość.</string>
+    <string name="settings_hide_tool_details">Ukryj szczegóły narzędzia</string>
+    <string name="settings_hide_tool_details_desc">Pokaż tylko nagłówki narzędzi, aby zmniejszyć użycie pamięci</string>
+    <string name="sync_conflict_area_passwords">Zaszyfrowane hasła</string>
+    <string name="sync_conflict_passwords_hidden">Zaszyfrowane wartości haseł są porównywane, ale pozostają ukryte.</string>
+    <string name="sync_conflict_notification_text">Te same ustawienia zostały zmienione w różny sposób. Stuknij, aby przejrzeć konflikty.</string>
+    <string name="sync_conflict_comparison_limit">Wyświetlane są tylko nakładające się zmiany. Niezwiązane zmiany są scalane automatycznie.</string>
+    <string name="sync_conflict_desc">Te same wartości zostały zmienione inaczej na obu urządzeniach. Wybierz, która wersja ma zostać zachowana dla tych konfliktów.</string>
+    <string name="sync_choose_version_desc">Wybierz wartości lokalne lub zdalne dla konfliktów. Niezwiązane zmiany z obu kopii zostaną zachowane.</string>
+    <string name="sync_direction_desc">Zmiany lokalne i zdalne są scalane automatycznie. Pytanie pojawi się tylko wtedy, gdy ta sama wartość została zmieniona inaczej.</string>
 </resources>

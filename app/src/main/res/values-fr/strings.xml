@@ -646,7 +646,6 @@ Jetons : ~%4$d -&gt; ~%5$d</string>
     <string name="sync_status_conflict">Conflit</string>
     <string name="sync_status_error">Erreur</string>
     <string name="sync_last_sync">Dernière synchronisation : %1$s</string>
-    <string name="sync_conflict_desc">Les paramètres locaux et distants ont été modifiés. Choisissez la copie à conserver.</string>
     <string name="sync_use_remote">Utiliser la version distante</string>
     <string name="sync_keep_local">Conserver la version locale</string>
     <string name="sync_connect">Connecter et synchroniser</string>
@@ -657,11 +656,9 @@ Jetons : ~%4$d -&gt; ~%5$d</string>
     <string name="sync_credential_stored">Enregistré en toute sécurité ; saisissez une nouvelle valeur pour la remplacer</string>
     <string name="sync_credential_stored_short">Enregistré en toute sécurité</string>
     <string name="sync_choose_version">Choisir la version de synchronisation</string>
-    <string name="sync_choose_version_desc">Forcer la copie distante sur cet appareil, ou écraser le stockage distant avec les paramètres de cet appareil.</string>
     <string name="sync_status_saving">Enregistrement</string>
     <string name="sync_save_connection">Enregistrer la connexion</string>
     <string name="sync_synchronize_changes">Synchroniser les modifications</string>
-    <string name="sync_direction_desc">Les modifications locales sont envoyées, celles à distance sont téléchargées. Si les deux copies ont été modifiées, vous devrez choisir laquelle conserver.</string>
     <string name="settings_haptic_strength">Intensité haptique</string>
     <string name="settings_haptic_strength_light">Faible</string>
     <string name="settings_haptic_strength_medium">Moyenne</string>
@@ -723,7 +720,6 @@ Jetons : ~%4$d -&gt; ~%5$d</string>
     <string name="notification_channel_sync_desc">Alertes lorsque la synchronisation des paramètres nécessite votre choix</string>
     <string name="sync_conflict_settings_warning">Conflit de synchronisation — appuyez pour examiner</string>
     <string name="sync_conflict_notification_title">Conflit de synchronisation des paramètres</string>
-    <string name="sync_conflict_notification_text">Les paramètres locaux et distants ont été modifiés. Appuyez pour comparer et choisir une version.</string>
     <string name="sync_conflict_differences">Différences entre les copies</string>
     <string name="sync_conflict_local_snapshot">Local : %1$s · génération %2$d</string>
     <string name="sync_conflict_remote_snapshot">Distant : %1$s · génération %2$d</string>
@@ -735,6 +731,13 @@ Jetons : ~%4$d -&gt; ~%5$d</string>
     <string name="sync_conflict_area_hidden_models">Modèles masqués</string>
     <string name="sync_conflict_changed_values">%1$s : %2$d valeurs différentes</string>
     <string name="sync_conflict_item_counts">%1$s : local %2$d · distant %3$d</string>
-    <string name="sync_conflict_passwords_hidden">Les mots de passe chiffrés sont masqués et ne sont pas comparés.</string>
-    <string name="sync_conflict_comparison_limit">L’application peut comparer les deux copies actuelles, mais ne peut pas déterminer de quel côté chaque valeur a été modifiée.</string>
+    <string name="settings_hide_tool_details">Masquer les détails de l’outil</string>
+    <string name="settings_hide_tool_details_desc">Afficher uniquement les en-têtes des outils pour réduire l’utilisation de la mémoire</string>
+    <string name="sync_conflict_area_passwords">Mots de passe chiffrés</string>
+    <string name="sync_conflict_passwords_hidden">Les valeurs de mot de passe chiffrées sont comparées mais restent masquées.</string>
+    <string name="sync_conflict_notification_text">Les mêmes paramètres ont été modifiés différemment. Touchez pour examiner les conflits.</string>
+    <string name="sync_conflict_comparison_limit">Seuls les changements qui se chevauchent sont affichés. Les modifications sans lien sont fusionnées automatiquement.</string>
+    <string name="sync_conflict_desc">Les mêmes valeurs ont été modifiées différemment sur les deux appareils. Choisissez quelle version doit prévaloir pour ces conflits.</string>
+    <string name="sync_choose_version_desc">Choisissez les valeurs locales ou distantes pour les conflits. Les modifications sans lien des deux copies sont conservées.</string>
+    <string name="sync_direction_desc">Les modifications locales et distantes sont fusionnées automatiquement. Vous ne serez sollicité que si la même valeur a été modifiée différemment.</string>
 </resources>

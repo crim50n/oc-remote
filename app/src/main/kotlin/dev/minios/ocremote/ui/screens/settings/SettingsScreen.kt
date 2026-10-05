@@ -77,6 +77,7 @@ fun SettingsScreen(
     val amoledDark by viewModel.amoledDark.collectAsState()
     val compactMessages by viewModel.compactMessages.collectAsState()
     val collapseTools by viewModel.collapseTools.collectAsState()
+    val hideToolDetails by viewModel.hideToolDetails.collectAsState()
     val expandReasoning by viewModel.expandReasoning.collectAsState()
     val showTurnDividers by viewModel.showTurnDividers.collectAsState()
     val hapticFeedback by viewModel.hapticFeedback.collectAsState()
@@ -395,6 +396,24 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { viewModel.setCodeWordWrap(!codeWordWrap) }
             )
 
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_hide_tool_details)) },
+                supportingContent = { Text(stringResource(R.string.settings_hide_tool_details_desc)) },
+                leadingContent = {
+                    Icon(Lucide.EyeOff, contentDescription = null)
+                },
+                trailingContent = {
+                    Switch(
+                        checked = hideToolDetails,
+                        onCheckedChange = viewModel::setHideToolDetails,
+                        colors = switchColors,
+                    )
+                },
+                modifier = Modifier.clickable {
+                    viewModel.setHideToolDetails(!hideToolDetails)
+                },
+            )
+
             // Auto-expand tool results
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_auto_expand_tools)) },
@@ -406,10 +425,13 @@ fun SettingsScreen(
                     Switch(
                         checked = collapseTools,
                         onCheckedChange = { viewModel.setCollapseTools(it) },
+                        enabled = !hideToolDetails,
                         colors = switchColors
                     )
                 },
-                modifier = Modifier.clickable { viewModel.setCollapseTools(!collapseTools) }
+                modifier = Modifier.clickable(enabled = !hideToolDetails) {
+                    viewModel.setCollapseTools(!collapseTools)
+                }
             )
 
             ListItem(

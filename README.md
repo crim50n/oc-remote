@@ -102,6 +102,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Code word wrap** — toggle horizontal scrolling vs. word wrap in code blocks and tool outputs
 - **Compact messages** — reduce spacing between messages for denser layout
 - **Auto-expand tool results** — show tool card contents expanded by default
+- **Memory-saving tool cards** — optionally show only tool headers without rendering command output, file listings, diffs, or other expandable details
 - **History preload target** — configure how many recent messages to load per session after the newest 10 appear (25–200)
 - **Recent directories** — choose how many projects appear in the quick new-session dialog (5–50, default 20)
 - **Reasoning display** — optionally auto-expand reasoning and show dividers between messages in one response
@@ -112,7 +113,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **Silent notifications** — suppress sound and vibration for task notifications
 - **Image optimization controls** — tune max image side (keep original or 720–2560 px) and WebP quality for attachments
 - **Diagnostics** — inspect privacy-sanitized logs by severity, choose the latest 100–1,000 messages to export, and copy, share, or clear them without ADB
-- **Settings sync** — synchronize preferences, ordered remote servers, categories, assignments, Favorites, and hidden models through GitHub Gist, WebDAV, or an Android document provider; conflicts persist with grouped local/remote comparisons, appear in Settings, and can trigger a notification, while credentials and local runtime configuration remain device-specific
+- **Settings sync** — synchronize preferences, ordered remote servers, categories, assignments, Favorites, and hidden models through GitHub Gist, WebDAV, or an Android document provider; independent changes merge automatically, while overlapping conflicts offer local/remote choices that retain unrelated changes. Server passwords can be included with passphrase encryption; sync credentials and local runtime configuration remain device-specific
 - **Secure in-app updates** — automatic daily discovery plus manual checks from About; GitHub Release APKs are downloaded in-app, verified by SHA-256, package/version, and signing certificate, then handed to Android's system installer
 
 ### Connection

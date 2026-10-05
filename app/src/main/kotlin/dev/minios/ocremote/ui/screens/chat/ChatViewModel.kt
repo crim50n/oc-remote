@@ -319,6 +319,9 @@ class ChatViewModel @Inject constructor(
     val collapseTools = settingsRepository.collapseTools.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), false
     )
+    val hideToolDetails = settingsRepository.hideToolDetails.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), true
+    )
     val expandReasoning = settingsRepository.expandReasoning.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), false
     )

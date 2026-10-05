@@ -105,6 +105,59 @@ internal fun mergeSyncServers(
     return ServerMergeResult(reorderPortableServers(mergedServers, remoteOrder), idMapping)
 }
 
+internal fun replaceSyncServers(
+    current: List<ServerConfig>,
+    remote: List<SyncServer>,
+    passwords: Map<String, String>,
+    passwordsAuthoritative: Boolean = false,
+    idGenerator: () -> String = { UUID.randomUUID().toString() },
+): ServerMergeResult {
+    val portableRemote = remote.filter { isPortableSyncServerUrl(it.url) }
+    require(portableRemote.map(SyncServer::id).distinct().size == portableRemote.size) {
+        "Sync data contains duplicate server IDs"
+    }
+    require(portableRemote.map { normalizeServerUrl(it.url) }.distinct().size == portableRemote.size) {
+        "Sync data contains duplicate server URLs"
+    }
+    val currentPortable = current.filter { isPortableSyncServerUrl(it.url) }
+    require(currentPortable.map { normalizeServerUrl(it.url) }.distinct().size == currentPortable.size) {
+        "Local data contains duplicate server URLs"
+    }
+    val currentByUrl = currentPortable.associateBy { normalizeServerUrl(it.url) }
+    val usedIds = current.filterNot { isPortableSyncServerUrl(it.url) }.mapTo(mutableSetOf()) { it.id }
+    val idMapping = mutableMapOf<String, String>()
+    val replacement = portableRemote.map { source ->
+        val normalized = normalizeServerUrl(source.url)
+        val existing = currentByUrl[normalized]
+        val id = existing?.id ?: source.id.takeIf { it !in usedIds } ?: idGenerator()
+        usedIds += id
+        idMapping[source.id] = id
+        if (existing != null) {
+            existing.copy(
+                url = normalized,
+                name = source.name,
+                username = source.username,
+                autoConnect = source.autoConnect,
+                password = if (passwordsAuthoritative) passwords[source.id] else passwords[source.id] ?: existing.password,
+            )
+        } else {
+            ServerConfig(id, normalized, source.username, passwords[source.id], source.name, source.autoConnect)
+        }
+    }
+    val iterator = replacement.iterator()
+    val servers = buildList {
+        current.forEach { server ->
+            if (isPortableSyncServerUrl(server.url)) {
+                if (iterator.hasNext()) add(iterator.next())
+            } else {
+                add(server)
+            }
+        }
+        while (iterator.hasNext()) add(iterator.next())
+    }
+    return ServerMergeResult(servers, idMapping)
+}
+
 data class LocalServerUpsertResult(
     val server: ServerConfig,
     val removedServerIds: List<String>,
@@ -338,6 +391,17 @@ class ServerRepository @Inject constructor(
         passwords: Map<String, String>,
     ): Map<String, String> {
         val result = mergeSyncServers(readServers(preferences), remote, passwords)
+        preferences[serversKey] = json.encodeToString(result.servers)
+        return result.idMapping
+    }
+
+    internal fun replaceSyncServersTo(
+        preferences: MutablePreferences,
+        remote: List<SyncServer>,
+        passwords: Map<String, String>,
+        passwordsAuthoritative: Boolean,
+    ): Map<String, String> {
+        val result = replaceSyncServers(readServers(preferences), remote, passwords, passwordsAuthoritative)
         preferences[serversKey] = json.encodeToString(result.servers)
         return result.idMapping
     }

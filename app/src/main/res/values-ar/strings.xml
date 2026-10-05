@@ -646,7 +646,6 @@
     <string name="sync_status_conflict">تعارض</string>
     <string name="sync_status_error">خطأ</string>
     <string name="sync_last_sync">آخر مزامنة: %1$s</string>
-    <string name="sync_conflict_desc">تم تعديل الإعدادات محليًا وعن بُعد. اختر أي نسخة تريد الاحتفاظ بها.</string>
     <string name="sync_use_remote">استخدم النسخة البعيدة</string>
     <string name="sync_keep_local">احتفظ بالنسخة المحلية</string>
     <string name="sync_connect">اتصل وقم بالمزامنة</string>
@@ -657,11 +656,9 @@
     <string name="sync_credential_stored">محفوظ بأمان؛ أدخل قيمة جديدة لاستبدالها</string>
     <string name="sync_credential_stored_short">محفوظ بأمان</string>
     <string name="sync_choose_version">اختر إصدار المزامنة</string>
-    <string name="sync_choose_version_desc">فرض النسخة البعيدة على هذا الجهاز، أو استبدال التخزين البعيد بإعدادات هذا الجهاز.</string>
     <string name="sync_status_saving">جارٍ الحفظ</string>
     <string name="sync_save_connection">حفظ الاتصال</string>
     <string name="sync_synchronize_changes">مزامنة التغييرات</string>
-    <string name="sync_direction_desc">يتم رفع التغييرات المحلية فقط، وتنزيل التغييرات البعيدة فقط. إذا تم تعديل النسختين، سيتم سؤالك عن النسخة التي ترغب في الاحتفاظ بها.</string>
     <string name="settings_haptic_strength">قوة الاهتزاز</string>
     <string name="settings_haptic_strength_light">خفيف</string>
     <string name="settings_haptic_strength_medium">متوسط</string>
@@ -723,7 +720,6 @@
     <string name="notification_channel_sync_desc">تنبيهات عند الحاجة لاختيارك في إعدادات المزامنة</string>
     <string name="sync_conflict_settings_warning">تعارض في المزامنة — اضغط للمراجعة</string>
     <string name="sync_conflict_notification_title">تعارض في مزامنة الإعدادات</string>
-    <string name="sync_conflict_notification_text">تم تعديل الإعدادات المحلية والبعيدة. اضغط للمقارنة واختيار النسخة.</string>
     <string name="sync_conflict_differences">كيف تختلف النسخ</string>
     <string name="sync_conflict_local_snapshot">محلي: %1$s · الجيل %2$d</string>
     <string name="sync_conflict_remote_snapshot">بعيد: %1$s · الجيل %2$d</string>
@@ -735,6 +731,13 @@
     <string name="sync_conflict_area_hidden_models">النماذج المخفية</string>
     <string name="sync_conflict_changed_values">%1$s: يوجد %2$d اختلافات</string>
     <string name="sync_conflict_item_counts">%1$s: محلي %2$d · بعيد %3$d</string>
-    <string name="sync_conflict_passwords_hidden">كلمات المرور المشفرة مخفية ولا تتم مقارنتها.</string>
-    <string name="sync_conflict_comparison_limit">يمكن للتطبيق مقارنة النسختين الحاليتين، لكنه لا يستطيع تحديد أي جانب تم تغيير كل قيمة فيه.</string>
+    <string name="settings_hide_tool_details">إخفاء تفاصيل الأداة</string>
+    <string name="settings_hide_tool_details_desc">عرض رؤوس الأدوات فقط لتقليل استهلاك الذاكرة</string>
+    <string name="sync_conflict_area_passwords">كلمات المرور المشفرة</string>
+    <string name="sync_conflict_passwords_hidden">يتم مقارنة قيم كلمات المرور المشفرة لكنها تظل مخفية.</string>
+    <string name="sync_conflict_notification_text">تم تعديل نفس الإعدادات بشكل مختلف. اضغط لمراجعة التعارضات.</string>
+    <string name="sync_conflict_comparison_limit">يتم عرض التغييرات المتداخلة فقط. يتم دمج التغييرات غير المرتبطة تلقائيًا.</string>
+    <string name="sync_conflict_desc">تم تغيير نفس القيم بشكل مختلف على كلا الجهازين. اختر أي جهة تفضل لحل هذه التعارضات.</string>
+    <string name="sync_choose_version_desc">اختر القيم المحلية أو البعيدة لحل التعارضات. سيتم الاحتفاظ بالتغييرات غير المرتبطة من كلا النسختين.</string>
+    <string name="sync_direction_desc">يتم دمج التغييرات المحلية والبعيدة تلقائيًا. سيتم سؤالك فقط عندما يتم تغيير نفس القيمة بشكل مختلف.</string>
 </resources>

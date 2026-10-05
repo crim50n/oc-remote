@@ -227,6 +227,9 @@ val LocalCompactMessages = compositionLocalOf { false }
 /** Whether tool cards are collapsed by default. */
 val LocalCollapseTools = compositionLocalOf { false }
 
+/** When enabled, tool cards render only lightweight headers without expandable output. */
+val LocalHideToolDetails = compositionLocalOf { false }
+
 val LocalExpandReasoning = compositionLocalOf { false }
 
 val LocalShowTurnDividers = compositionLocalOf { true }
@@ -1097,6 +1100,7 @@ fun ChatScreen(
     val confirmBeforeSend by viewModel.confirmBeforeSend.collectAsState()
     val compactMessages by viewModel.compactMessages.collectAsState()
     val collapseTools by viewModel.collapseTools.collectAsState()
+    val hideToolDetails by viewModel.hideToolDetails.collectAsState()
     val expandReasoning by viewModel.expandReasoning.collectAsState()
     val showTurnDividers by viewModel.showTurnDividers.collectAsState()
     val hapticEnabled by viewModel.hapticFeedback.collectAsState()
@@ -1642,6 +1646,7 @@ fun ChatScreen(
         LocalCodeWordWrap provides codeWordWrap,
         LocalCompactMessages provides compactMessages,
         LocalCollapseTools provides collapseTools,
+        LocalHideToolDetails provides hideToolDetails,
         LocalExpandReasoning provides expandReasoning,
         LocalShowTurnDividers provides showTurnDividers,
         LocalHapticFeedbackEnabled provides AppHapticConfig(
@@ -5139,10 +5144,17 @@ private fun PartContent(
             }
         }
         is Part.Tool -> {
+            val hideToolDetails = LocalHideToolDetails.current
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 // todoread parts are filtered out entirely (WebUI convention)
                 if (part.tool == "todoread") {
                     // skip
+                } else if (hideToolDetails) {
+                    ToolCallCard(
+                        tool = part,
+                        detailsEnabled = false,
+                        onNavigateToChildSession = onNavigateToChildSession,
+                    )
                 } else if (part.tool == "todowrite") {
                     TodoListCard(tool = part)
                 } else {
@@ -5157,21 +5169,23 @@ private fun PartContent(
                         else -> ToolCallCard(tool = part)
                     }
                 }
-                val attachments = (part.state as? ToolState.Completed)?.attachments.orEmpty()
-                    .mapIndexed { index, attachment ->
-                        Part.File(
-                            id = attachment.id.ifBlank { "${part.id}-attachment-$index" },
-                            sessionId = attachment.sessionId.ifBlank { part.sessionId },
-                            messageId = attachment.messageId.ifBlank { part.messageId },
-                            mime = attachment.mime,
-                            filename = attachment.filename,
-                            url = attachment.url ?: attachment.data,
-                            source = attachment.source,
-                        )
-                    }
-                val images = attachments.filter { it.mime.startsWith("image/") && !it.url.isNullOrBlank() }
-                if (images.isNotEmpty()) ImageThumbnailRow(images)
-                attachments.filterNot { it in images }.forEach { FileCard(it) }
+                if (!hideToolDetails) {
+                    val attachments = (part.state as? ToolState.Completed)?.attachments.orEmpty()
+                        .mapIndexed { index, attachment ->
+                            Part.File(
+                                id = attachment.id.ifBlank { "${part.id}-attachment-$index" },
+                                sessionId = attachment.sessionId.ifBlank { part.sessionId },
+                                messageId = attachment.messageId.ifBlank { part.messageId },
+                                mime = attachment.mime,
+                                filename = attachment.filename,
+                                url = attachment.url ?: attachment.data,
+                                source = attachment.source,
+                            )
+                        }
+                    val images = attachments.filter { it.mime.startsWith("image/") && !it.url.isNullOrBlank() }
+                    if (images.isNotEmpty()) ImageThumbnailRow(images)
+                    attachments.filterNot { it in images }.forEach { FileCard(it) }
+                }
             }
         }
         is Part.StepStart -> {
@@ -5181,7 +5195,10 @@ private fun PartContent(
             // Token/cost info hidden from message bubbles (WebUI convention)
         }
         is Part.Patch -> {
-            PatchCard(patch = part)
+            PatchCard(
+                patch = part,
+                detailsEnabled = !LocalHideToolDetails.current,
+            )
         }
         is Part.File -> {
             FileCard(file = part)
@@ -5620,7 +5637,11 @@ private fun ReasoningBlock(part: Part.Reasoning) {
 }
 
 @Composable
-private fun ToolCallCard(tool: Part.Tool) {
+private fun ToolCallCard(
+    tool: Part.Tool,
+    detailsEnabled: Boolean = true,
+    onNavigateToChildSession: (String) -> Unit = {},
+) {
     val isAmoled = isAmoledTheme()
     val stateColor = when (tool.state) {
         is ToolState.Pending -> MaterialTheme.colorScheme.outline
@@ -5643,7 +5664,17 @@ private fun ToolCallCard(tool: Part.Tool) {
     val autoExpand = LocalCollapseTools.current
     val hapticView = LocalView.current
     val hapticOn = LocalHapticFeedbackEnabled.current
-    var expanded by remember(autoExpand) { mutableStateOf(autoExpand) }
+    var expanded by remember(autoExpand, detailsEnabled) { mutableStateOf(detailsEnabled && autoExpand) }
+    val childSessionId = if (tool.tool == "task") {
+        when (val state = tool.state) {
+            is ToolState.Running -> state.metadata
+            is ToolState.Completed -> state.metadata
+            is ToolState.Error -> state.metadata
+            is ToolState.Pending -> null
+        }?.get("sessionId")?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+    } else {
+        null
+    }
 
     Surface(
         shape = RoundedCornerShape(8.dp),
@@ -5658,12 +5689,19 @@ private fun ToolCallCard(tool: Part.Tool) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .let { mod ->
-                        if (tool.state is ToolState.Completed || tool.state is ToolState.Error) {
-                            mod.expandableToolHeader(expanded) {
+                        when {
+                            !detailsEnabled && childSessionId != null -> mod.clickable {
                                 performHaptic(hapticView, hapticOn)
-                                expanded = !expanded
+                                onNavigateToChildSession(childSessionId)
                             }
-                        } else mod
+                            detailsEnabled && (tool.state is ToolState.Completed || tool.state is ToolState.Error) -> {
+                                mod.expandableToolHeader(expanded) {
+                                    performHaptic(hapticView, hapticOn)
+                                    expanded = !expanded
+                                }
+                            }
+                            else -> mod
+                        }
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -5703,25 +5741,32 @@ private fun ToolCallCard(tool: Part.Tool) {
                     }
                 }
                 // Expand indicator for completed/errored tools
-                if (tool.state is ToolState.Completed || tool.state is ToolState.Error) {
-                    Icon(
-                        imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
-                        contentDescription = if (expanded) stringResource(R.string.chat_collapse) else stringResource(R.string.chat_expand),
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    )
-                } else if (tool.state is ToolState.Running) {
+                if (tool.state is ToolState.Running) {
                     PulsingDotsIndicator(
                         modifier = Modifier.padding(end = 2.dp),
                         dotSize = 5.dp,
                         dotSpacing = 3.dp,
                         color = stateColor
                     )
+                } else if (!detailsEnabled && childSessionId != null) {
+                    Icon(
+                        imageVector = forwardIcon(),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
+                    )
+                } else if (detailsEnabled && (tool.state is ToolState.Completed || tool.state is ToolState.Error)) {
+                    Icon(
+                        imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
+                        contentDescription = if (expanded) stringResource(R.string.chat_collapse) else stringResource(R.string.chat_expand),
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
                 }
             }
 
             // Expandable details
-            AnimatedVisibility(visible = expanded) {
+            AnimatedVisibility(visible = detailsEnabled && expanded) {
                 Column(
                     modifier = Modifier.padding(top = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -5861,6 +5906,13 @@ private fun resolveToolDisplay(
                 title = serverTitle ?: stringResource(R.string.tool_sub_agent),
                 subtitle = description,
                 icon = Lucide.Network
+            )
+        }
+        "todowrite" -> {
+            ToolDisplayInfo(
+                title = serverTitle ?: stringResource(R.string.chat_tasks_label),
+                subtitle = null,
+                icon = Lucide.ListChecks,
             )
         }
         "apply_patch" -> {
@@ -7264,12 +7316,15 @@ private fun StepFinishInfo(step: Part.StepFinish) {
 }
 
 @Composable
-private fun PatchCard(patch: Part.Patch) {
+private fun PatchCard(
+    patch: Part.Patch,
+    detailsEnabled: Boolean = true,
+) {
     val isAmoled = isAmoledTheme()
     val autoExpand = LocalCollapseTools.current
     val hapticView = LocalView.current
     val hapticOn = LocalHapticFeedbackEnabled.current
-    var expanded by remember(autoExpand) { mutableStateOf(autoExpand) }
+    var expanded by remember(autoExpand, detailsEnabled) { mutableStateOf(detailsEnabled && autoExpand) }
 
     Surface(
         shape = RoundedCornerShape(8.dp),
@@ -7283,9 +7338,15 @@ private fun PatchCard(patch: Part.Patch) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .expandableToolHeader(expanded) {
-                        performHaptic(hapticView, hapticOn)
-                        expanded = !expanded
+                    .let { modifier ->
+                        if (detailsEnabled) {
+                            modifier.expandableToolHeader(expanded) {
+                                performHaptic(hapticView, hapticOn)
+                                expanded = !expanded
+                            }
+                        } else {
+                            modifier
+                        }
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -7309,16 +7370,18 @@ private fun PatchCard(patch: Part.Patch) {
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
-                Icon(
-                    imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
-                    contentDescription = if (expanded) stringResource(R.string.chat_collapse) else stringResource(R.string.chat_expand),
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                )
+                if (detailsEnabled) {
+                    Icon(
+                        imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
+                        contentDescription = if (expanded) stringResource(R.string.chat_collapse) else stringResource(R.string.chat_expand),
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
+                }
             }
 
             // Expanded file list
-            AnimatedVisibility(visible = expanded) {
+            AnimatedVisibility(visible = detailsEnabled && expanded) {
                 Column(
                     modifier = Modifier.padding(top = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)

@@ -23,6 +23,7 @@ data class SyncPayload(
     val favoriteSessionSnapshots: Map<String, FavoriteSessionSnapshot>? = null,
     val hiddenModels: Map<String, Set<String>>? = null,
     val servers: List<SyncServer> = emptyList(),
+    val passwordsIncluded: Boolean? = null,
     val encryptedSecrets: EncryptedSecrets? = null,
 ) {
     companion object {
@@ -46,6 +47,7 @@ data class SyncSettings(
     val amoledDark: Boolean = false,
     val compactMessages: Boolean = false,
     val collapseTools: Boolean = false,
+    val hideToolDetails: Boolean? = null,
     val expandReasoning: Boolean = false,
     val showTurnDividers: Boolean = true,
     val groupSessionsByProject: Boolean = false,

@@ -646,7 +646,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_status_conflict">Konflikt</string>
     <string name="sync_status_error">Fehler</string>
     <string name="sync_last_sync">Letzte Synchronisierung: %1$s</string>
-    <string name="sync_conflict_desc">Sowohl lokale als auch entfernte Einstellungen wurden geändert. Wählen Sie aus, welche Kopie behalten werden soll.</string>
     <string name="sync_use_remote">Remote verwenden</string>
     <string name="sync_keep_local">Lokal behalten</string>
     <string name="sync_connect">Verbinden und synchronisieren</string>
@@ -657,11 +656,9 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_credential_stored">Sicher gespeichert; geben Sie einen neuen Wert ein, um ihn zu ersetzen</string>
     <string name="sync_credential_stored_short">Sicher gespeichert</string>
     <string name="sync_choose_version">Synchronisationsversion auswählen</string>
-    <string name="sync_choose_version_desc">Erzwingen Sie die Übernahme der entfernten Kopie auf dieses Gerät oder überschreiben Sie den entfernten Speicher mit den Einstellungen dieses Geräts.</string>
     <string name="sync_status_saving">Speichern</string>
     <string name="sync_save_connection">Verbindung speichern</string>
     <string name="sync_synchronize_changes">Änderungen synchronisieren</string>
-    <string name="sync_direction_desc">Lokale Änderungen werden hochgeladen, entfernte Änderungen werden heruntergeladen. Wenn beide Kopien geändert wurden, wirst du gefragt, welche behalten werden soll.</string>
     <string name="settings_haptic_strength">Haptische Stärke</string>
     <string name="settings_haptic_strength_light">Leicht</string>
     <string name="settings_haptic_strength_medium">Mittel</string>
@@ -723,7 +720,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="notification_channel_sync_desc">Benachrichtigungen, wenn synchronisierte Einstellungen Ihre Auswahl erfordern</string>
     <string name="sync_conflict_settings_warning">Synchronisierungskonflikt — tippen zum Überprüfen</string>
     <string name="sync_conflict_notification_title">Konflikt bei Einstellungen-Sync</string>
-    <string name="sync_conflict_notification_text">Lokale und entfernte Einstellungen wurden geändert. Tippen Sie, um zu vergleichen und eine Version auszuwählen.</string>
     <string name="sync_conflict_differences">So unterscheiden sich die Kopien</string>
     <string name="sync_conflict_local_snapshot">Lokal: %1$s · Generation %2$d</string>
     <string name="sync_conflict_remote_snapshot">Entfernt: %1$s · Generation %2$d</string>
@@ -735,6 +731,13 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_conflict_area_hidden_models">Ausgeblendete Modelle</string>
     <string name="sync_conflict_changed_values">%1$s: %2$d Werte unterscheiden sich</string>
     <string name="sync_conflict_item_counts">%1$s: lokal %2$d · entfernt %3$d</string>
-    <string name="sync_conflict_passwords_hidden">Verschlüsselte Passwörter sind ausgeblendet und werden nicht verglichen.</string>
-    <string name="sync_conflict_comparison_limit">Die App kann die beiden aktuellen Kopien vergleichen, aber nicht feststellen, auf welcher Seite jeder Wert geändert wurde.</string>
+    <string name="settings_hide_tool_details">Werkzeugdetails ausblenden</string>
+    <string name="settings_hide_tool_details_desc">Nur Werkzeugüberschriften anzeigen, um den Speicherverbrauch zu reduzieren</string>
+    <string name="sync_conflict_area_passwords">Verschlüsselte Passwörter</string>
+    <string name="sync_conflict_passwords_hidden">Verschlüsselte Passwortwerte werden verglichen, bleiben jedoch verborgen.</string>
+    <string name="sync_conflict_notification_text">Die gleichen Einstellungen wurden unterschiedlich geändert. Tippe, um die Konflikte zu überprüfen.</string>
+    <string name="sync_conflict_comparison_limit">Nur sich überschneidende Änderungen werden angezeigt. Unabhängige Änderungen werden automatisch zusammengeführt.</string>
+    <string name="sync_conflict_desc">Die gleichen Werte wurden auf beiden Geräten unterschiedlich geändert. Wähle aus, welche Seite bei diesen Konflikten gewinnt.</string>
+    <string name="sync_choose_version_desc">Wähle für Konflikte lokale oder entfernte Werte aus. Unabhängige Änderungen aus beiden Kopien bleiben erhalten.</string>
+    <string name="sync_direction_desc">Lokale und entfernte Änderungen werden automatisch zusammengeführt. Du wirst nur gefragt, wenn sich derselbe Wert unterschiedlich geändert hat.</string>
 </resources>

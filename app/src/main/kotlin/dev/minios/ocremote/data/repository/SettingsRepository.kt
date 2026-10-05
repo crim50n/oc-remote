@@ -54,6 +54,7 @@ class SettingsRepository @Inject constructor(
         private val AMOLED_DARK_KEY = booleanPreferencesKey("amoled_dark")
         private val COMPACT_MESSAGES_KEY = booleanPreferencesKey("compact_messages")
         private val COLLAPSE_TOOLS_KEY = booleanPreferencesKey("collapse_tools")
+        private val HIDE_TOOL_DETAILS_KEY = booleanPreferencesKey("hide_tool_details")
         private val EXPAND_REASONING_KEY = booleanPreferencesKey("expand_reasoning")
         private val SHOW_TURN_DIVIDERS_KEY = booleanPreferencesKey("show_turn_dividers")
         private val GROUP_SESSIONS_BY_PROJECT_KEY = booleanPreferencesKey("group_sessions_by_project")
@@ -460,6 +461,17 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    /** Whether tool cards omit their expandable details to reduce rendering memory. Default: false. */
+    val hideToolDetails: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[HIDE_TOOL_DETAILS_KEY] ?: false
+    }
+
+    suspend fun setHideToolDetails(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[HIDE_TOOL_DETAILS_KEY] = enabled
+        }
+    }
+
     val expandReasoning: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[EXPAND_REASONING_KEY] ?: false
     }
@@ -840,6 +852,7 @@ class SettingsRepository @Inject constructor(
             amoledDark = preferences[AMOLED_DARK_KEY] ?: false,
             compactMessages = preferences[COMPACT_MESSAGES_KEY] ?: false,
             collapseTools = preferences[COLLAPSE_TOOLS_KEY] ?: false,
+            hideToolDetails = preferences[HIDE_TOOL_DETAILS_KEY] ?: false,
             expandReasoning = preferences[EXPAND_REASONING_KEY] ?: false,
             showTurnDividers = preferences[SHOW_TURN_DIVIDERS_KEY] ?: true,
             groupSessionsByProject = preferences[GROUP_SESSIONS_BY_PROJECT_KEY] ?: false,
@@ -965,6 +978,7 @@ class SettingsRepository @Inject constructor(
         preferences[AMOLED_DARK_KEY] = settings.amoledDark
         preferences[COMPACT_MESSAGES_KEY] = settings.compactMessages
         preferences[COLLAPSE_TOOLS_KEY] = settings.collapseTools
+        settings.hideToolDetails?.let { preferences[HIDE_TOOL_DETAILS_KEY] = it }
         preferences[EXPAND_REASONING_KEY] = settings.expandReasoning
         preferences[SHOW_TURN_DIVIDERS_KEY] = settings.showTurnDividers
         preferences[GROUP_SESSIONS_BY_PROJECT_KEY] = settings.groupSessionsByProject
@@ -993,9 +1007,10 @@ class SettingsRepository @Inject constructor(
         assignments: Map<String, Map<String, String>>,
         serverIdMapping: Map<String, String>,
     ) {
-        assignments.forEach { (remoteServerId, values) ->
-            val localServerId = serverIdMapping[remoteServerId] ?: return@forEach
-            preferences[serverSessionCategoryKey(localServerId)] = json.encodeToString(values)
+        serverIdMapping.forEach { (remoteServerId, localServerId) ->
+            preferences[serverSessionCategoryKey(localServerId)] = json.encodeToString(
+                assignments[remoteServerId].orEmpty(),
+            )
         }
     }
 

@@ -652,7 +652,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_status_conflict">Konflik</string>
     <string name="sync_status_error">Kesalahan</string>
     <string name="sync_last_sync">Sinkronisasi terakhir: %1$s</string>
-    <string name="sync_conflict_desc">Pengaturan lokal dan jarak jauh sama-sama berubah. Pilih salinan mana yang ingin dipertahankan.</string>
     <string name="sync_use_remote">Gunakan jarak jauh</string>
     <string name="sync_keep_local">Pertahankan lokal</string>
     <string name="sync_connect">Hubungkan dan sinkronkan</string>
@@ -663,11 +662,9 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_credential_stored">Tersimpan dengan aman; masukkan nilai baru untuk menggantinya</string>
     <string name="sync_credential_stored_short">Tersimpan dengan aman</string>
     <string name="sync_choose_version">Pilih versi sinkronisasi</string>
-    <string name="sync_choose_version_desc">Paksa salinan jarak jauh ke perangkat ini, atau timpa penyimpanan jarak jauh dengan pengaturan perangkat ini.</string>
     <string name="sync_status_saving">Menyimpan</string>
     <string name="sync_save_connection">Simpan koneksi</string>
     <string name="sync_synchronize_changes">Sinkronkan perubahan</string>
-    <string name="sync_direction_desc">Perubahan hanya di lokal akan diunggah; perubahan hanya di server akan diunduh. Jika kedua salinan berubah, Anda akan diminta memilih mana yang ingin disimpan.</string>
     <string name="settings_haptic_strength">Kekuatan haptik</string>
     <string name="settings_haptic_strength_light">Ringan</string>
     <string name="settings_haptic_strength_medium">Sedang</string>
@@ -729,7 +726,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="notification_channel_sync_desc">Peringatan saat pengaturan yang disinkronkan memerlukan pilihan Anda</string>
     <string name="sync_conflict_settings_warning">Konflik sinkronisasi — ketuk untuk meninjau</string>
     <string name="sync_conflict_notification_title">Konflik sinkronisasi pengaturan</string>
-    <string name="sync_conflict_notification_text">Pengaturan lokal dan jarak jauh telah berubah. Ketuk untuk membandingkan dan pilih versi.</string>
     <string name="sync_conflict_differences">Perbedaan antara salinan</string>
     <string name="sync_conflict_local_snapshot">Lokal: %1$s · generasi %2$d</string>
     <string name="sync_conflict_remote_snapshot">Jarak jauh: %1$s · generasi %2$d</string>
@@ -741,6 +737,13 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_conflict_area_hidden_models">Model tersembunyi</string>
     <string name="sync_conflict_changed_values">%1$s: %2$d nilai berbeda</string>
     <string name="sync_conflict_item_counts">%1$s: lokal %2$d · jarak jauh %3$d</string>
-    <string name="sync_conflict_passwords_hidden">Kata sandi terenkripsi disembunyikan dan tidak dibandingkan.</string>
-    <string name="sync_conflict_comparison_limit">Aplikasi dapat membandingkan dua salinan saat ini, tetapi tidak dapat menentukan sisi mana yang mengubah setiap nilai.</string>
+    <string name="settings_hide_tool_details">Sembunyikan detail alat</string>
+    <string name="settings_hide_tool_details_desc">Tampilkan hanya header alat untuk mengurangi penggunaan memori</string>
+    <string name="sync_conflict_area_passwords">Kata sandi terenkripsi</string>
+    <string name="sync_conflict_passwords_hidden">Nilai sandi terenkripsi dibandingkan tetapi tetap tersembunyi.</string>
+    <string name="sync_conflict_notification_text">Pengaturan yang sama diubah secara berbeda. Ketuk untuk meninjau konflik.</string>
+    <string name="sync_conflict_comparison_limit">Hanya perubahan yang tumpang tindih yang ditampilkan. Perubahan yang tidak terkait digabungkan secara otomatis.</string>
+    <string name="sync_conflict_desc">Nilai yang sama diubah secara berbeda di kedua perangkat. Pilih sisi mana yang akan digunakan untuk konflik tersebut.</string>
+    <string name="sync_choose_version_desc">Pilih nilai lokal atau jarak jauh untuk konflik. Perubahan yang tidak terkait dari kedua salinan akan tetap dipertahankan.</string>
+    <string name="sync_direction_desc">Perubahan lokal dan jarak jauh digabungkan secara otomatis. Anda hanya akan diminta memilih jika nilai yang sama diubah secara berbeda.</string>
 </resources>

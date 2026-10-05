@@ -5,6 +5,7 @@ import dev.minios.ocremote.domain.model.ServerConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -136,6 +137,22 @@ class ServerRepositoryMergeTest {
     }
 
     @Test
+    fun `authoritative password replacement applies deletion`() {
+        val current = listOf(
+            ServerConfig(id = "local", url = "https://example.test", password = "old-secret"),
+        )
+
+        val result = replaceSyncServers(
+            current = current,
+            remote = listOf(SyncServer("remote", "https://example.test")),
+            passwords = emptyMap(),
+            passwordsAuthoritative = true,
+        )
+
+        assertNull(result.servers.single().password)
+    }
+
+    @Test
     fun `sync import ignores local runtime server from older payload`() {
         val currentLocal = ServerConfig(
             id = "local-device",
@@ -254,5 +271,48 @@ class ServerRepositoryMergeTest {
             current,
             reorderPortableServers(current, listOf("other", "duplicate")),
         )
+    }
+
+    @Test
+    fun `sync replacement removes missing portable servers and preserves runtime`() {
+        val removed = ServerConfig(id = "removed", url = "https://removed.example")
+        val runtime = ServerConfig(id = "runtime", url = LocalServerManager.LOCAL_SERVER_URL)
+        val retained = ServerConfig(
+            id = "retained",
+            url = "https://retained.example",
+            password = "local-password",
+            isHealthy = true,
+        )
+
+        val result = replaceSyncServers(
+            current = listOf(removed, runtime, retained),
+            remote = listOf(
+                SyncServer(
+                    id = "remote-retained",
+                    url = "https://retained.example/",
+                    name = "Remote name",
+                ),
+            ),
+            passwords = emptyMap(),
+        )
+
+        assertEquals(listOf("retained", "runtime"), result.servers.map(ServerConfig::id))
+        assertEquals("local-password", result.servers.first().password)
+        assertTrue(result.servers.first().isHealthy)
+        assertEquals("retained", result.idMapping["remote-retained"])
+    }
+
+    @Test
+    fun `sync replacement rejects duplicate normalized URLs`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            replaceSyncServers(
+                current = emptyList(),
+                remote = listOf(
+                    SyncServer("one", "https://duplicate.example"),
+                    SyncServer("two", "https://duplicate.example/"),
+                ),
+                passwords = emptyMap(),
+            )
+        }
     }
 }

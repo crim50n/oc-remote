@@ -646,7 +646,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_status_conflict">Çakışma</string>
     <string name="sync_status_error">Hata</string>
     <string name="sync_last_sync">Son senkronizasyon: %1$s</string>
-    <string name="sync_conflict_desc">Hem yerel hem de uzak ayarlar değiştirildi. Hangi kopyayı saklayacağınızı seçin.</string>
     <string name="sync_use_remote">Uzaktakini kullan</string>
     <string name="sync_keep_local">Yereldekini koru</string>
     <string name="sync_connect">Bağlan ve senkronize et</string>
@@ -657,11 +656,9 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_credential_stored">Güvenli bir şekilde saklandı; değiştirmek için yeni bir değer girin</string>
     <string name="sync_credential_stored_short">Güvenli bir şekilde saklandı</string>
     <string name="sync_choose_version">Senkronizasyon sürümünü seç</string>
-    <string name="sync_choose_version_desc">Uzaktaki kopyayı bu cihaza zorla aktarın veya bu cihazın ayarlarıyla uzaktaki depolamayı üzerine yazın.</string>
     <string name="sync_status_saving">Kaydediliyor</string>
     <string name="sync_save_connection">Bağlantıyı kaydet</string>
     <string name="sync_synchronize_changes">Değişiklikleri senkronize et</string>
-    <string name="sync_direction_desc">Yalnızca yerel değişiklikler yüklenir; yalnızca uzaktaki değişiklikler indirilir. Her iki kopyada da değişiklik varsa, hangisini koruyacağınız sorulur.</string>
     <string name="settings_haptic_strength">Dokunsal güç</string>
     <string name="settings_haptic_strength_light">Hafif</string>
     <string name="settings_haptic_strength_medium">Orta</string>
@@ -723,7 +720,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="notification_channel_sync_desc">Senkronize edilen ayarlar seçiminizi gerektirdiğinde uyarılar</string>
     <string name="sync_conflict_settings_warning">Senkronizasyon çakışması — incelemek için dokunun</string>
     <string name="sync_conflict_notification_title">Ayar senkronizasyonu çakışması</string>
-    <string name="sync_conflict_notification_text">Yerel ve uzaktaki ayarlar değişti. Karşılaştırmak ve bir sürüm seçmek için dokunun.</string>
     <string name="sync_conflict_differences">Kopyalar arasındaki farklar</string>
     <string name="sync_conflict_local_snapshot">Yerel: %1$s · nesil %2$d</string>
     <string name="sync_conflict_remote_snapshot">Uzak: %1$s · nesil %2$d</string>
@@ -735,6 +731,13 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_conflict_area_hidden_models">Gizli modeller</string>
     <string name="sync_conflict_changed_values">%1$s: %2$d değer farklı</string>
     <string name="sync_conflict_item_counts">%1$s: yerel %2$d · uzak %3$d</string>
-    <string name="sync_conflict_passwords_hidden">Şifrelenmiş parolalar gizlidir ve karşılaştırılmaz.</string>
-    <string name="sync_conflict_comparison_limit">Uygulama mevcut iki kopyayı karşılaştırabilir, ancak her bir değerin hangi tarafta değiştiğini belirleyemez.</string>
+    <string name="settings_hide_tool_details">Araç detaylarını gizle</string>
+    <string name="settings_hide_tool_details_desc">Bellek kullanımını azaltmak için yalnızca araç başlıklarını göster</string>
+    <string name="sync_conflict_area_passwords">Şifrelenmiş parolalar</string>
+    <string name="sync_conflict_passwords_hidden">Şifrelenmiş parola değerleri karşılaştırılır ancak gizli kalır.</string>
+    <string name="sync_conflict_notification_text">Aynı ayarlar farklı şekilde değiştirildi. Çakışmaları incelemek için dokunun.</string>
+    <string name="sync_conflict_comparison_limit">Yalnızca çakışan değişiklikler listelenir. İlgisiz değişiklikler otomatik olarak birleştirilir.</string>
+    <string name="sync_conflict_desc">Her iki cihazda da aynı değerler farklı şekilde değiştirildi. Bu çakışmalar için hangi tarafın kazanacağını seçin.</string>
+    <string name="sync_choose_version_desc">Çakışmalar için yerel veya uzak değerleri seçin. Her iki kopyadaki ilgisiz değişiklikler korunur.</string>
+    <string name="sync_direction_desc">Yerel ve uzak değişiklikler otomatik olarak birleştirilir. Sadece aynı değer farklı şekilde değiştiğinde size sorulacaktır.</string>
 </resources>

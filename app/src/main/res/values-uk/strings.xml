@@ -646,7 +646,6 @@
     <string name="sync_status_conflict">Конфлікт</string>
     <string name="sync_status_error">Помилка</string>
     <string name="sync_last_sync">Остання синхронізація: %1$s</string>
-    <string name="sync_conflict_desc">І локальні, і віддалені налаштування були змінені. Виберіть, яку копію зберегти.</string>
     <string name="sync_use_remote">Використати віддалену</string>
     <string name="sync_keep_local">Залишити локальну</string>
     <string name="sync_connect">Підключити та синхронізувати</string>
@@ -657,11 +656,9 @@
     <string name="sync_credential_stored">Збережено безпечно; введіть нове значення, щоб замінити його</string>
     <string name="sync_credential_stored_short">Збережено безпечно</string>
     <string name="sync_choose_version">Виберіть версію синхронізації</string>
-    <string name="sync_choose_version_desc">Примусово застосувати віддалену копію на цьому пристрої або перезаписати віддалене сховище налаштуваннями цього пристрою.</string>
     <string name="sync_status_saving">Збереження</string>
     <string name="sync_save_connection">Зберегти підключення</string>
     <string name="sync_synchronize_changes">Синхронізувати зміни</string>
-    <string name="sync_direction_desc">Локальні зміни завантажуються на сервер, віддалені — завантажуються на пристрій. Якщо обидві копії змінено, вам буде запропоновано вибрати, яку залишити.</string>
     <string name="settings_haptic_strength">Сила вібрації</string>
     <string name="settings_haptic_strength_light">Слабка</string>
     <string name="settings_haptic_strength_medium">Середня</string>
@@ -723,7 +720,6 @@
     <string name="notification_channel_sync_desc">Сповіщення, коли синхронізовані налаштування потребують вашого вибору</string>
     <string name="sync_conflict_settings_warning">Конфлікт синхронізації — торкніться, щоб переглянути</string>
     <string name="sync_conflict_notification_title">Конфлікт синхронізації налаштувань</string>
-    <string name="sync_conflict_notification_text">Локальні та віддалені налаштування змінено. Торкніться, щоб порівняти та вибрати версію.</string>
     <string name="sync_conflict_differences">У чому різниця між копіями</string>
     <string name="sync_conflict_local_snapshot">Локально: %1$s · покоління %2$d</string>
     <string name="sync_conflict_remote_snapshot">Віддалено: %1$s · покоління %2$d</string>
@@ -735,6 +731,13 @@
     <string name="sync_conflict_area_hidden_models">Приховані моделі</string>
     <string name="sync_conflict_changed_values">%1$s: відрізняється %2$d значень</string>
     <string name="sync_conflict_item_counts">%1$s: локально %2$d · віддалено %3$d</string>
-    <string name="sync_conflict_passwords_hidden">Зашифровані паролі приховані та не порівнюються.</string>
-    <string name="sync_conflict_comparison_limit">Додаток може порівняти дві поточні копії, але не може визначити, з якого боку змінено кожне значення.</string>
+    <string name="settings_hide_tool_details">Сховати деталі інструмента</string>
+    <string name="settings_hide_tool_details_desc">Показувати лише заголовки інструментів для зменшення використання пам’яті</string>
+    <string name="sync_conflict_area_passwords">Зашифровані паролі</string>
+    <string name="sync_conflict_passwords_hidden">Зашифровані значення паролів порівнюються, але залишаються прихованими.</string>
+    <string name="sync_conflict_notification_text">Ті самі налаштування змінено по-різному. Торкніться, щоб переглянути конфлікти.</string>
+    <string name="sync_conflict_comparison_limit">Показано лише конфліктні зміни. Незалежні зміни об’єднуються автоматично.</string>
+    <string name="sync_conflict_desc">Ті самі значення змінено по-різному на обох пристроях. Виберіть, яка версія має перевагу для цих конфліктів.</string>
+    <string name="sync_choose_version_desc">Виберіть локальні або віддалені значення для конфліктів. Незалежні зміни з обох копій зберігаються.</string>
+    <string name="sync_direction_desc">Локальні та віддалені зміни об’єднуються автоматично. Вас запитають лише тоді, коли те саме значення змінено по-різному.</string>
 </resources>

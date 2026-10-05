@@ -14,6 +14,7 @@ enum class SyncConflictArea {
     CATEGORY_ASSIGNMENTS,
     FAVORITES,
     HIDDEN_MODELS,
+    PASSWORDS,
 }
 
 @Serializable
@@ -42,8 +43,9 @@ internal fun buildSyncConflictSummary(
     identity: String,
     json: Json,
     now: Long = System.currentTimeMillis(),
+    conflictCounts: Map<SyncConflictArea, Int>? = null,
 ): SyncConflictSummary {
-    val differences = buildList {
+    val allDifferences = buildList {
         val localSettings = json.encodeToJsonElement(local.settings).jsonObject
         val remoteSettings = json.encodeToJsonElement(remote.settings).jsonObject
         val changedSettings = (localSettings.keys + remoteSettings.keys).count {
@@ -88,6 +90,15 @@ internal fun buildSyncConflictSummary(
             remote.hiddenModels.orEmpty().values.sumOf(Set<String>::size),
         )
     }
+    val differences = if (conflictCounts == null) {
+        allDifferences
+    } else {
+        conflictCounts.map { (area, count) ->
+            allDifferences.firstOrNull { it.area == area }
+                ?.copy(changedCount = count)
+                ?: SyncConflictDifference(area, count, count, count)
+        }
+    }
     val id = MessageDigest.getInstance("SHA-256")
         .digest(identity.toByteArray())
         .joinToString("") { "%02x".format(it) }
@@ -99,7 +110,8 @@ internal fun buildSyncConflictSummary(
         localGeneration = local.generation,
         remoteGeneration = remote.generation,
         differences = differences,
-        encryptedPasswordsHidden = local.encryptedSecrets != null || remote.encryptedSecrets != null,
+        encryptedPasswordsHidden = local.encryptedSecrets != null || remote.encryptedSecrets != null ||
+            conflictCounts?.containsKey(SyncConflictArea.PASSWORDS) == true,
     )
 }
 

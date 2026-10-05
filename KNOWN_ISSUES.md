@@ -130,3 +130,9 @@ Track open bugs here. Remove items once they are fixed and verified on device.
 
 - Web fetch tool cards used the translation/languages icon after the Lucide migration. They now use
   the globe icon, but the corrected rendering still needs device verification (`ChatScreen.kt`).
+
+- Settings sync treated any simultaneous local/remote marker change as a whole-copy conflict, even
+  when values were semantically equal or different items changed independently. Sync now compares a
+  canonical three-way baseline, normalizes server IDs by URL, and merges non-overlapping changes,
+  but multi-device convergence and conflict resolution still need physical verification
+  (`SyncRepository.kt` and `SyncMerge.kt`).

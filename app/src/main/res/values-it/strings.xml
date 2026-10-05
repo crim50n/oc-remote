@@ -646,7 +646,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_status_conflict">Conflitto</string>
     <string name="sync_status_error">Errore</string>
     <string name="sync_last_sync">Ultima sincronizzazione: %1$s</string>
-    <string name="sync_conflict_desc">Sia le impostazioni locali che quelle remote sono state modificate. Scegli quale copia mantenere.</string>
     <string name="sync_use_remote">Usa remoto</string>
     <string name="sync_keep_local">Mantieni locale</string>
     <string name="sync_connect">Connetti e sincronizza</string>
@@ -657,11 +656,9 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_credential_stored">Salvato in modo sicuro; inserisci un nuovo valore per sostituirlo</string>
     <string name="sync_credential_stored_short">Salvato in modo sicuro</string>
     <string name="sync_choose_version">Scegli la versione di sincronizzazione</string>
-    <string name="sync_choose_version_desc">Forza la copia remota su questo dispositivo oppure sovrascrivi l’archivio remoto con le impostazioni di questo dispositivo.</string>
     <string name="sync_status_saving">Salvataggio</string>
     <string name="sync_save_connection">Salva connessione</string>
     <string name="sync_synchronize_changes">Sincronizza modifiche</string>
-    <string name="sync_direction_desc">Le modifiche solo locali vengono caricate; quelle solo remote vengono scaricate. Se entrambe le copie sono state modificate, ti verrà chiesto quale mantenere.</string>
     <string name="settings_haptic_strength">Intensità aptica</string>
     <string name="settings_haptic_strength_light">Leggera</string>
     <string name="settings_haptic_strength_medium">Media</string>
@@ -723,7 +720,6 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="notification_channel_sync_desc">Avvisi quando le impostazioni sincronizzate richiedono una tua scelta</string>
     <string name="sync_conflict_settings_warning">Conflitto di sincronizzazione — tocca per esaminare</string>
     <string name="sync_conflict_notification_title">Conflitto nella sincronizzazione delle impostazioni</string>
-    <string name="sync_conflict_notification_text">Impostazioni locali e remote modificate. Tocca per confrontare e scegliere una versione.</string>
     <string name="sync_conflict_differences">Come differiscono le copie</string>
     <string name="sync_conflict_local_snapshot">Locale: %1$s · generazione %2$d</string>
     <string name="sync_conflict_remote_snapshot">Remoto: %1$s · generazione %2$d</string>
@@ -735,6 +731,13 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_conflict_area_hidden_models">Modelli nascosti</string>
     <string name="sync_conflict_changed_values">%1$s: %2$d valori diversi</string>
     <string name="sync_conflict_item_counts">%1$s: locale %2$d · remoto %3$d</string>
-    <string name="sync_conflict_passwords_hidden">Le password criptate sono nascoste e non vengono confrontate.</string>
-    <string name="sync_conflict_comparison_limit">L\'app può confrontare le due copie attuali, ma non può determinare quale lato abbia modificato ogni valore.</string>
+    <string name="settings_hide_tool_details">Nascondi dettagli dello strumento</string>
+    <string name="settings_hide_tool_details_desc">Mostra solo le intestazioni degli strumenti per ridurre l’uso della memoria</string>
+    <string name="sync_conflict_area_passwords">Password crittografate</string>
+    <string name="sync_conflict_passwords_hidden">I valori delle password crittografate vengono confrontati ma restano nascosti.</string>
+    <string name="sync_conflict_notification_text">Le stesse impostazioni sono state modificate in modo diverso. Tocca per esaminare i conflitti.</string>
+    <string name="sync_conflict_comparison_limit">Sono elencate solo le modifiche sovrapposte. Le modifiche non correlate vengono unite automaticamente.</string>
+    <string name="sync_conflict_desc">Gli stessi valori sono stati modificati in modo diverso su entrambi i dispositivi. Scegli quale versione deve prevalere per questi conflitti.</string>
+    <string name="sync_choose_version_desc">Scegli valori locali o remoti per i conflitti. Le modifiche non correlate di entrambe le copie vengono mantenute.</string>
+    <string name="sync_direction_desc">Le modifiche locali e remote vengono unite automaticamente. Ti verrà chiesto solo quando lo stesso valore è stato modificato in modo diverso.</string>
 </resources>

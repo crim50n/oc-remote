@@ -101,6 +101,12 @@ class SettingsViewModel @Inject constructor(
         initialValue = false
     )
 
+    val hideToolDetails = settingsRepository.hideToolDetails.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false,
+    )
+
     val expandReasoning = settingsRepository.expandReasoning.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -320,6 +326,12 @@ class SettingsViewModel @Inject constructor(
     fun setCollapseTools(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setCollapseTools(enabled)
+        }
+    }
+
+    fun setHideToolDetails(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setHideToolDetails(enabled)
         }
     }
 

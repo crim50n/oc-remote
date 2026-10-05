@@ -15,6 +15,9 @@ object PasswordCrypto {
     private const val SALT_BYTES = 16
     private const val IV_BYTES = 12
     private const val KEY_BITS = 256
+    private const val MIN_ITERATIONS = 100_000
+    private const val MAX_ITERATIONS = 1_000_000
+    private const val MAX_CIPHERTEXT_BASE64_CHARS = 1_500_000
 
     fun encrypt(plaintext: ByteArray, passphrase: CharArray): EncryptedSecrets {
         val salt = ByteArray(SALT_BYTES).also(SecureRandom()::nextBytes)
@@ -36,9 +39,13 @@ object PasswordCrypto {
         require(envelope.algorithm == "AES-256-GCM" && envelope.kdf == "PBKDF2WithHmacSHA256") {
             "Unsupported encrypted secrets format"
         }
+        require(envelope.iterations in MIN_ITERATIONS..MAX_ITERATIONS) { "Invalid encrypted secrets iterations" }
+        require(envelope.salt.length <= 64 && envelope.iv.length <= 64) { "Invalid encrypted secrets parameters" }
+        require(envelope.ciphertext.length <= MAX_CIPHERTEXT_BASE64_CHARS) { "Encrypted secrets are too large" }
         val salt = Base64.getDecoder().decode(envelope.salt)
         val iv = Base64.getDecoder().decode(envelope.iv)
         val ciphertext = Base64.getDecoder().decode(envelope.ciphertext)
+        require(salt.size == SALT_BYTES && iv.size == IV_BYTES) { "Invalid encrypted secrets parameters" }
         return try {
             Cipher.getInstance("AES/GCM/NoPadding").run {
                 init(Cipher.DECRYPT_MODE, deriveKey(passphrase, salt, envelope.iterations), GCMParameterSpec(128, iv))

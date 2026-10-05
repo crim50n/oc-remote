@@ -35,6 +35,15 @@ class SyncCoreTest {
     }
 
     @Test
+    fun passwordCryptoRejectsUnboundedWorkFactor() {
+        val envelope = PasswordCrypto.encrypt("secret".toByteArray(), "correct".toCharArray())
+
+        assertThrows(IllegalArgumentException::class.java) {
+            PasswordCrypto.decrypt(envelope.copy(iterations = Int.MAX_VALUE), "correct".toCharArray())
+        }
+    }
+
+    @Test
     fun payloadDoesNotContainPlaintextPasswords() {
         val password = "super-secret-password"
         val encrypted = PasswordCrypto.encrypt(password.toByteArray(), "passphrase".toCharArray())
@@ -125,6 +134,7 @@ class SyncCoreTest {
                 showLocalRuntime = false,
                 diagnosticLogLevel = "DEBUG",
                 showTerminalPanelHint = false,
+                hideToolDetails = true,
             ),
         )
 
@@ -143,6 +153,7 @@ class SyncCoreTest {
         assertEquals(false, restored.settings.showLocalRuntime)
         assertEquals("DEBUG", restored.settings.diagnosticLogLevel)
         assertEquals(false, restored.settings.showTerminalPanelHint)
+        assertEquals(true, restored.settings.hideToolDetails)
         assertTrue(restored.sessionCategories.isEmpty())
     }
 
@@ -157,6 +168,8 @@ class SyncCoreTest {
         assertEquals(null, payload.settings.showLocalRuntime)
         assertEquals(null, payload.settings.diagnosticLogLevel)
         assertEquals(null, payload.settings.showTerminalPanelHint)
+        assertEquals(null, payload.settings.hideToolDetails)
+        assertEquals(null, payload.passwordsIncluded)
     }
 
     @Test

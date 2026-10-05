@@ -646,7 +646,6 @@
     <string name="sync_status_conflict">コンフリクト</string>
     <string name="sync_status_error">エラー</string>
     <string name="sync_last_sync">最終同期: %1$s</string>
-    <string name="sync_conflict_desc">ローカルとリモートの両方で設定が変更されました。どちらを保持するか選択してください。</string>
     <string name="sync_use_remote">リモートを使用</string>
     <string name="sync_keep_local">ローカルを保持</string>
     <string name="sync_connect">接続して同期</string>
@@ -657,11 +656,9 @@
     <string name="sync_credential_stored">安全に保存されています。新しい値を入力すると上書きされます</string>
     <string name="sync_credential_stored_short">安全に保存されています</string>
     <string name="sync_choose_version">同期バージョンを選択</string>
-    <string name="sync_choose_version_desc">リモートのコピーをこの端末に強制的に適用するか、この端末の設定でリモートストレージを上書きします。</string>
     <string name="sync_status_saving">保存中</string>
     <string name="sync_save_connection">接続を保存</string>
     <string name="sync_synchronize_changes">変更を同期</string>
-    <string name="sync_direction_desc">ローカルのみの変更はアップロードされ、リモートのみの変更はダウンロードされます。両方に変更があった場合は、どちらを保持するか確認されます。</string>
     <string name="settings_haptic_strength">触覚の強さ</string>
     <string name="settings_haptic_strength_light">弱い</string>
     <string name="settings_haptic_strength_medium">普通</string>
@@ -723,7 +720,6 @@
     <string name="notification_channel_sync_desc">同期された設定に選択が必要な場合に通知</string>
     <string name="sync_conflict_settings_warning">同期の衝突 — タップして確認</string>
     <string name="sync_conflict_notification_title">設定の同期衝突</string>
-    <string name="sync_conflict_notification_text">ローカルとリモートの設定が変更されました。タップして比較し、バージョンを選択してください。</string>
     <string name="sync_conflict_differences">コピーの違い</string>
     <string name="sync_conflict_local_snapshot">ローカル: %1$s · 世代 %2$d</string>
     <string name="sync_conflict_remote_snapshot">リモート: %1$s · 世代 %2$d</string>
@@ -735,6 +731,13 @@
     <string name="sync_conflict_area_hidden_models">非表示モデル</string>
     <string name="sync_conflict_changed_values">%1$s: %2$d 件の値が異なります</string>
     <string name="sync_conflict_item_counts">%1$s: ローカル %2$d · リモート %3$d</string>
-    <string name="sync_conflict_passwords_hidden">暗号化されたパスワードは非表示となり、比較されません。</string>
-    <string name="sync_conflict_comparison_limit">アプリは現在の2つのコピーを比較できますが、どちら側で値が変更されたかは判別できません。</string>
+    <string name="settings_hide_tool_details">ツールの詳細を非表示</string>
+    <string name="settings_hide_tool_details_desc">メモリ使用量を抑えるため、ツールのヘッダーのみ表示</string>
+    <string name="sync_conflict_area_passwords">暗号化されたパスワード</string>
+    <string name="sync_conflict_passwords_hidden">暗号化されたパスワード値は比較されますが、表示されません。</string>
+    <string name="sync_conflict_notification_text">同じ設定が異なる内容で変更されています。タップして競合を確認してください。</string>
+    <string name="sync_conflict_comparison_limit">重複している変更のみが表示されます。関係のない変更は自動的に統合されます。</string>
+    <string name="sync_conflict_desc">両方のデバイスで同じ値が異なる内容に変更されています。どちらの内容を優先するか選択してください。</string>
+    <string name="sync_choose_version_desc">競合する値について、ローカルまたはリモートのどちらを使用するか選択してください。関係のない変更は両方とも保持されます。</string>
+    <string name="sync_direction_desc">ローカルとリモートの変更は自動的に統合されます。同じ値が異なる内容に変更された場合のみ確認が求められます。</string>
 </resources>

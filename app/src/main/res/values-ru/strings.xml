@@ -647,7 +647,6 @@
     <string name="sync_status_conflict">Конфликт</string>
     <string name="sync_status_error">Ошибка</string>
     <string name="sync_last_sync">Последняя синхронизация: %1$s</string>
-    <string name="sync_conflict_desc">Изменены и локальные, и удалённые настройки. Выберите, какую копию сохранить.</string>
     <string name="sync_use_remote">Использовать удалённую</string>
     <string name="sync_keep_local">Сохранить локальную</string>
     <string name="sync_connect">Подключиться и синхронизировать</string>
@@ -658,11 +657,9 @@
     <string name="sync_credential_stored">Надёжно сохранено; введите новое значение для замены</string>
     <string name="sync_credential_stored_short">Надёжно сохранено</string>
     <string name="sync_choose_version">Выберите версию синхронизации</string>
-    <string name="sync_choose_version_desc">Принудительно скопировать удалённую версию на это устройство или перезаписать удалённое хранилище настройками этого устройства.</string>
     <string name="sync_status_saving">Сохранение</string>
     <string name="sync_save_connection">Сохранить подключение</string>
     <string name="sync_synchronize_changes">Синхронизировать изменения</string>
-    <string name="sync_direction_desc">Локальные изменения будут загружены, а удалённые — скачаны. Если изменения есть в обеих копиях, вам будет предложено выбрать, какую сохранить.</string>
     <string name="settings_haptic_strength">Сила вибрации</string>
     <string name="settings_haptic_strength_light">Слабая</string>
     <string name="settings_haptic_strength_medium">Средняя</string>
@@ -724,7 +721,6 @@
     <string name="notification_channel_sync_desc">Уведомления, когда синхронизированные настройки требуют вашего выбора</string>
     <string name="sync_conflict_settings_warning">Конфликт синхронизации — нажмите для просмотра</string>
     <string name="sync_conflict_notification_title">Конфликт синхронизации настроек</string>
-    <string name="sync_conflict_notification_text">Локальные и удалённые настройки изменены. Нажмите, чтобы сравнить и выбрать версию.</string>
     <string name="sync_conflict_differences">В чём различия копий</string>
     <string name="sync_conflict_local_snapshot">Локально: %1$s · поколение %2$d</string>
     <string name="sync_conflict_remote_snapshot">Удалённо: %1$s · поколение %2$d</string>
@@ -736,6 +732,13 @@
     <string name="sync_conflict_area_hidden_models">Скрытые модели</string>
     <string name="sync_conflict_changed_values">%1$s: отличаются %2$d значений</string>
     <string name="sync_conflict_item_counts">%1$s: локально %2$d · удалённо %3$d</string>
-    <string name="sync_conflict_passwords_hidden">Зашифрованные пароли скрыты и не сравниваются.</string>
-    <string name="sync_conflict_comparison_limit">Приложение может сравнить две текущие копии, но не может определить, с какой стороны изменено каждое значение.</string>
+    <string name="settings_hide_tool_details">Скрыть детали инструмента</string>
+    <string name="settings_hide_tool_details_desc">Показывать только заголовки инструментов для снижения использования памяти</string>
+    <string name="sync_conflict_area_passwords">Зашифрованные пароли</string>
+    <string name="sync_conflict_passwords_hidden">Зашифрованные значения паролей сравниваются, но остаются скрытыми.</string>
+    <string name="sync_conflict_notification_text">Одни и те же настройки были изменены по-разному. Нажмите, чтобы просмотреть конфликты.</string>
+    <string name="sync_conflict_comparison_limit">Показаны только пересекающиеся изменения. Несвязанные изменения объединяются автоматически.</string>
+    <string name="sync_conflict_desc">Одни и те же значения были изменены по-разному на обоих устройствах. Выберите, какая версия должна остаться для этих конфликтов.</string>
+    <string name="sync_choose_version_desc">Выберите локальные или удалённые значения для конфликтов. Несвязанные изменения из обеих копий сохраняются.</string>
+    <string name="sync_direction_desc">Локальные и удалённые изменения объединяются автоматически. Вопрос появится только если одно и то же значение изменено по-разному.</string>
 </resources>
