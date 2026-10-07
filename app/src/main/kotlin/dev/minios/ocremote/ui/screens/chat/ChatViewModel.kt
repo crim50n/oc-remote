@@ -1153,10 +1153,10 @@ class ChatViewModel @Inject constructor(
         if (_isSending.value) return false
         _isSending.value = true
 
-        val model = if (_selectedProviderId.value != null && _selectedModelId.value != null) {
-            ModelSelection(_selectedProviderId.value!!, _selectedModelId.value!!)
-        } else {
-            null
+        val model = uiState.value.selectedProviderId?.let { providerId ->
+            uiState.value.selectedModelId?.let { modelId ->
+                ModelSelection(providerId, modelId)
+            }
         }
         val messageId = MessageIdGenerator.next()
         val draftSnapshot = Draft(
@@ -1734,12 +1734,11 @@ class ChatViewModel @Inject constructor(
         }
         viewModelScope.launch {
             try {
-                val model = if (_selectedProviderId.value != null && _selectedModelId.value != null) {
-                    ModelSelection(
-                        providerId = _selectedProviderId.value!!,
-                        modelId = _selectedModelId.value!!
-                    )
-                } else null
+                val model = uiState.value.selectedProviderId?.let { providerId ->
+                    uiState.value.selectedModelId?.let { modelId ->
+                        ModelSelection(providerId, modelId)
+                    }
+                }
                 val ok = api.runShellCommand(
                     conn = conn,
                     sessionId = sessionId,
