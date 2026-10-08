@@ -58,6 +58,86 @@ class SessionProjectGroupingTest {
     }
 
     @Test
+    fun globalSessionWithKnownProjectDirectoryGroupsByProject() {
+        val projects = listOf(
+            Project(id = "global", worktree = "/", name = "Global"),
+            Project(id = "project-a", worktree = "/home/user/projects/foo", name = "Foo"),
+        )
+
+        val group = buildProjectSessionGroups(
+            listOf(item("session", "/home/user/projects/foo", projectId = "global")),
+            projects,
+            "/home/user",
+            emptyMap(),
+            "server",
+        ).single()
+
+        assertEquals("project-a", group.projectId)
+        assertEquals("Foo", group.projectName)
+    }
+
+    @Test
+    fun globalSessionsInUnknownDirectoriesBecomeSeparateGroups() {
+        val projects = listOf(
+            Project(id = "global", worktree = "/", name = "Global"),
+        )
+
+        val groups = buildProjectSessionGroups(
+            listOf(
+                item("one", "/srv/alpha", projectId = "global", updated = 2),
+                item("two", "/srv/beta", projectId = "global", updated = 1),
+            ),
+            projects,
+            null,
+            emptyMap(),
+            "server",
+        )
+
+        assertEquals(listOf("/srv/alpha", "/srv/beta"), groups.map { it.directory })
+        assertEquals(listOf("directory:/srv/alpha", "directory:/srv/beta"), groups.map { it.projectId })
+    }
+
+    @Test
+    fun globalSessionsPreferMostSpecificNonGlobalProjectOverGlobalRoot() {
+        val projects = listOf(
+            Project(id = "global", worktree = "/", name = "Global"),
+            Project(id = "repo", worktree = "/repo", name = "Root"),
+            Project(id = "nested", worktree = "/repo/apps/mobile", name = "Mobile"),
+        )
+
+        val group = buildProjectSessionGroups(
+            listOf(item("session", "/repo/apps/mobile/src", projectId = "global")),
+            projects,
+            null,
+            emptyMap(),
+            "server",
+        ).single()
+
+        assertEquals("nested", group.projectId)
+        assertEquals("Mobile", group.projectName)
+    }
+
+    @Test
+    fun nonGlobalProjectIdStillTakesPrecedenceOverDirectory() {
+        val projects = listOf(
+            Project(id = "project", worktree = "/repo", name = "Repository"),
+            Project(id = "other", worktree = "/elsewhere", name = "Elsewhere"),
+        )
+
+        val group = buildProjectSessionGroups(
+            listOf(item("session", "/elsewhere/nested", projectId = "project")),
+            projects,
+            null,
+            emptyMap(),
+            "server",
+        ).single()
+
+        assertEquals("project", group.projectId)
+        assertEquals("Repository", group.projectName)
+        assertEquals("/repo", group.directory)
+    }
+
+    @Test
     fun favoriteSessionsLeadAndRespectExplicitOrder() {
         val sorted = sortSessionItems(
             listOf(
