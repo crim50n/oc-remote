@@ -40,6 +40,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "SessionListViewModel"
+
+/** OpenCode's catch-all project id; not authoritative for grouping. */
 private const val GLOBAL_PROJECT_ID = "global"
 
 data class SessionListUiState(
