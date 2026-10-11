@@ -74,7 +74,7 @@ class SseClient @Inject constructor(
         val statement = httpClient.prepareGet(sseUrl) {
             conn.authHeader?.let { header("Authorization", it) }
             header("Accept", "text/event-stream")
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
 
             timeout {
                 requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS

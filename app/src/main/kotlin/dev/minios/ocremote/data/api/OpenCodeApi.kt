@@ -165,7 +165,7 @@ class OpenCodeApi @Inject constructor(
     suspend fun listSessions(conn: ServerConnection, directory: String? = null): List<Session> {
         return httpClient.get("${conn.baseUrl}/session") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
             parameter("roots", "true")
         }.body()
     }
@@ -176,7 +176,7 @@ class OpenCodeApi @Inject constructor(
     ): Map<String, SessionStatus> {
         val payload: JsonObject = httpClient.get("${conn.baseUrl}/session/status") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
         }.body()
         return payload.mapValues { (_, value) ->
             val status = value.jsonObject
@@ -195,7 +195,7 @@ class OpenCodeApi @Inject constructor(
     suspend fun getSession(conn: ServerConnection, sessionId: String, directory: String? = null): Session {
         return httpClient.get("${conn.baseUrl}/session/$sessionId") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
         }.body()
     }
 
@@ -206,7 +206,7 @@ class OpenCodeApi @Inject constructor(
     ): List<Session> {
         return httpClient.get("${conn.baseUrl}/session/$sessionId/children") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
         }.body()
     }
 
@@ -224,7 +224,7 @@ class OpenCodeApi @Inject constructor(
         }
         return httpClient.post("${conn.baseUrl}/session") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
             contentType(ContentType.Application.Json)
             setBody(body)
         }.body()
@@ -248,7 +248,7 @@ class OpenCodeApi @Inject constructor(
     suspend fun abortSession(conn: ServerConnection, sessionId: String, directory: String? = null): Boolean {
         val response = httpClient.post("${conn.baseUrl}/session/$sessionId/abort") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
         }
         return response.status.isSuccess()
     }
@@ -348,7 +348,7 @@ class OpenCodeApi @Inject constructor(
     ): Boolean {
         val response = httpClient.post("${conn.baseUrl}/session/$sessionId/command") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
             contentType(ContentType.Application.Json)
             setBody(mapOf("command" to command, "arguments" to arguments))
         }
@@ -369,7 +369,7 @@ class OpenCodeApi @Inject constructor(
     ): Boolean {
         val response = httpClient.post("${conn.baseUrl}/session/$sessionId/shell") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
             contentType(ContentType.Application.Json)
             setBody(
                 ShellRequest(
@@ -393,7 +393,7 @@ class OpenCodeApi @Inject constructor(
         }
         val response = httpClient.post("${conn.baseUrl}/pty") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
             contentType(ContentType.Application.Json)
             setBody(PtyCreateRequest(title = title, cwd = cwd))
         }
@@ -484,7 +484,7 @@ class OpenCodeApi @Inject constructor(
         }
         val response = httpClient.put("${conn.baseUrl}/pty/$ptyId") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
             contentType(ContentType.Application.Json)
             setBody(body)
         }
@@ -509,7 +509,7 @@ class OpenCodeApi @Inject constructor(
             method = HttpMethod.Get
             url("$wsBase/pty/$ptyId/connect?cursor=$cursor")
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
         }
         return PtySocket(session)
     }
@@ -550,7 +550,7 @@ class OpenCodeApi @Inject constructor(
             conn.authHeader?.let { header("Authorization", it) }
             limit?.let { parameter("limit", it) }
             before?.let { parameter("before", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
         }
         val contentLength = response.contentLength()
         if (contentLength != null && contentLength > maxResponseBytes && limit != null && limit > 1) {
@@ -692,7 +692,7 @@ class OpenCodeApi @Inject constructor(
     ) {
         val response = httpClient.post("${conn.baseUrl}/session/$sessionId/prompt_async") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
             contentType(ContentType.Application.Json)
             setBody(PromptRequest(
                 messageId = messageId,
@@ -780,7 +780,7 @@ class OpenCodeApi @Inject constructor(
         }
         val result = httpClient.post("${conn.baseUrl}/permission/$requestId/reply") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
             contentType(ContentType.Application.Json)
             setBody(body)
         }
@@ -794,7 +794,7 @@ class OpenCodeApi @Inject constructor(
     suspend fun listPendingPermissions(conn: ServerConnection, directory: String? = null): List<PermissionRequest> {
         return httpClient.get("${conn.baseUrl}/permission") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
         }.body()
     }
 
@@ -852,7 +852,7 @@ class OpenCodeApi @Inject constructor(
         val bodyJson = json.encodeToString(QuestionReplyBody.serializer(), QuestionReplyBody(answers = answers))
         val result = httpClient.post(url) {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
             setBody(io.ktor.http.content.TextContent(bodyJson, ContentType.Application.Json))
         }
         Log.i(
@@ -874,7 +874,7 @@ class OpenCodeApi @Inject constructor(
         val url = "${conn.baseUrl}/question/$requestId/reject"
         val result = httpClient.post(url) {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
         }
         Log.i(TAG, "Question reject: request=$requestId status=${result.status.value}")
         return result.status.isSuccess()
@@ -887,7 +887,7 @@ class OpenCodeApi @Inject constructor(
     suspend fun listPendingQuestions(conn: ServerConnection, directory: String? = null): List<QuestionRequest> {
         val response = httpClient.get("${conn.baseUrl}/question") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let { header("x-opencode-directory", it) }
+            directoryHeader(directory)
         }
         Log.i(TAG, "Pending questions request: status=${response.status.value}")
         return response.body()
@@ -1099,8 +1099,8 @@ class OpenCodeApi @Inject constructor(
             conn.authHeader?.let { header("Authorization", it) }
             directory?.let {
                 parameter("directory", it)
-                header("x-opencode-directory", it)
             }
+            directoryHeader(directory)
             parameter("query", query)
             type?.let { parameter("type", it) }
             limit?.let { parameter("limit", it) }
@@ -1113,8 +1113,8 @@ class OpenCodeApi @Inject constructor(
             conn.authHeader?.let { header("Authorization", it) }
             directory?.let {
                 parameter("directory", it)
-                header("x-opencode-directory", it)
             }
+            directoryHeader(directory)
             parameter("path", path)
         }.body()
     }
@@ -1124,8 +1124,8 @@ class OpenCodeApi @Inject constructor(
             conn.authHeader?.let { header("Authorization", it) }
             directory?.let {
                 parameter("directory", it)
-                header("x-opencode-directory", it)
             }
+            directoryHeader(directory)
             parameter("path", path)
         }.body()
     }
