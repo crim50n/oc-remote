@@ -41,6 +41,9 @@ import javax.inject.Inject
 
 private const val TAG = "SessionListViewModel"
 
+/** OpenCode's catch-all project id; not authoritative for grouping. */
+private const val GLOBAL_PROJECT_ID = "global"
+
 data class SessionListUiState(
     val sessionGroups: List<ProjectSessionGroup> = emptyList(),
     val projects: List<Project> = emptyList(),
@@ -80,9 +83,15 @@ internal fun buildProjectSessionGroups(
         }
     }
     fun projectFor(session: Session): Project? {
-        projects.firstOrNull { it.id.isNotBlank() && it.id == session.projectId }?.let { return it }
+        // OpenCode assigns projectId "global" to sessions whose real project is only
+        // known via their directory, so treat it as non-authoritative and group by path.
+        val isGlobalSession = session.projectId == GLOBAL_PROJECT_ID
+        if (!isGlobalSession) {
+            projects.firstOrNull { it.id.isNotBlank() && it.id == session.projectId }?.let { return it }
+        }
         val directory = normalized(session.directory)
         return projects
+            .filter { project -> !isGlobalSession || project.id != GLOBAL_PROJECT_ID }
             .filter { project ->
                 val root = normalized(project.worktree.ifBlank { project.path })
                 directory == root || directory.startsWith("$root/")
