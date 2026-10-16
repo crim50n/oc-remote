@@ -1975,7 +1975,7 @@ fun ChatScreen(
                 val provider = uiState.providers.find { it.id == uiState.selectedProviderId }
                 val model = provider?.models?.get(uiState.selectedModelId)
                 model?.name ?: uiState.selectedModelId ?: ""
-            } else ""
+            } else if (uiState.providers.isNotEmpty()) stringResource(R.string.chat_select_model) else ""
             val hasRunningTool = uiState.messages.any { message ->
                 message.parts.any { part -> part is Part.Tool && part.state is ToolState.Running }
             }

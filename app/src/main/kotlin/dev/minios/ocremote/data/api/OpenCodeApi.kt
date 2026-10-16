@@ -154,9 +154,10 @@ class OpenCodeApi @Inject constructor(
      * GET /agent
      * Returns agents filtered to primary/visible ones for the mode selector.
      */
-    suspend fun listAgents(conn: ServerConnection): List<AgentInfo> {
+    suspend fun listAgents(conn: ServerConnection, directory: String? = null): List<AgentInfo> {
         return httpClient.get("${conn.baseUrl}/agent") {
             conn.authHeader?.let { header("Authorization", it) }
+            directoryHeader(directory)
         }.body()
     }
 
@@ -899,9 +900,10 @@ class OpenCodeApi @Inject constructor(
      * Get available providers and models.
      * GET /config/providers
      */
-    suspend fun getProviders(conn: ServerConnection): ProvidersResponse {
+    suspend fun getProviders(conn: ServerConnection, directory: String? = null): ProvidersResponse {
         return httpClient.get("${conn.baseUrl}/config/providers") {
             conn.authHeader?.let { header("Authorization", it) }
+            directoryHeader(directory)
         }.body()
     }
 
@@ -1022,9 +1024,10 @@ class OpenCodeApi @Inject constructor(
      * Get current server config.
      * GET /config
      */
-    suspend fun getConfig(conn: ServerConnection): ServerConfigResponse {
+    suspend fun getConfig(conn: ServerConnection, directory: String? = null): ServerConfigResponse {
         return httpClient.get("${conn.baseUrl}/config") {
             conn.authHeader?.let { header("Authorization", it) }
+            directoryHeader(directory)
         }.body()
     }
 
@@ -1532,7 +1535,8 @@ data class AgentInfo(
     val description: String? = null,
     val mode: String = "primary", // "primary", "subagent", "all"
     val hidden: Boolean = false,
-    val color: String? = null
+    val color: String? = null,
+    val model: ModelSelection? = null,
 )
 
 // ============ Command DTOs ============

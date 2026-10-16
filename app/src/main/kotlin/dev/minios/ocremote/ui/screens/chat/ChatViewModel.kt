@@ -260,10 +260,14 @@ class ChatViewModel @Inject constructor(
     private val _providers = MutableStateFlow<List<ProviderInfo>>(emptyList())
     private val _hiddenModels = MutableStateFlow<Set<String>>(emptySet())
     private val _defaultModels = MutableStateFlow<Map<String, String>>(emptyMap())
-    private val _selectedProviderId = MutableStateFlow<String?>(null)
-    private val _selectedModelId = MutableStateFlow<String?>(null)
-    // Track if the model was explicitly selected by the user to avoid overwriting it with defaults/history
-    private var isModelExplicitlySelected = false
+    private val _selectedModel = MutableStateFlow<ModelSelection?>(null)
+    private val _configuredModel = MutableStateFlow<ModelSelection?>(null)
+    private val _modelDefaultsReady = MutableStateFlow(false)
+    private var hiddenModelsLoaded = false
+    private var configLoaded = false
+    private var agentsLoaded = false
+    private var providersLoaded = false
+    private val _historyComplete = MutableStateFlow(false)
     /** The directory of this session's project — sent as x-opencode-directory so the server resolves the correct project context. */
     private var sessionDirectory: String? = eventReducer.sessions.value
         .firstOrNull { it.id == sessionId }
@@ -369,8 +373,8 @@ class ChatViewModel @Inject constructor(
         _isLoading,
         _error,
         _isSending,
-        _selectedProviderId,
-        _selectedModelId,
+        _selectedModel,
+        _configuredModel,
         _allProviders,
         _providers,
         _defaultModels,
@@ -382,6 +386,9 @@ class ChatViewModel @Inject constructor(
         _isLoadingOlder,
         _pendingPrompts,
         eventReducer.promptDeliveries,
+        _hiddenModels,
+        _modelDefaultsReady,
+        _historyComplete,
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val allSessions = args[0] as List<Session>
@@ -392,8 +399,8 @@ class ChatViewModel @Inject constructor(
         val loading = args[5] as Boolean
         val error = args[6] as String?
         val sending = args[7] as Boolean
-        val selProviderId = args[8] as String?
-        val selModelId = args[9] as String?
+        val selectedModel = args[8] as ModelSelection?
+        val configuredModel = args[9] as ModelSelection?
         val allProviders = args[10] as List<ProviderInfo>
         val providers = args[11] as List<ProviderInfo>
         val defaultModels = args[12] as Map<String, String>
@@ -408,6 +415,9 @@ class ChatViewModel @Inject constructor(
         val isLoadingOlder = args[18] as Boolean
         val pendingPrompts = args[19] as List<PendingPromptRecord>
         val promptDeliveries = args[20] as Map<String, PromptDeliveryInfo>
+        val hiddenModels = args[21] as Set<String>
+        val defaultsReady = args[22] as Boolean
+        val historyComplete = args[23] as Boolean
         fun deliveryFor(messageId: String) = when (promptDeliveries[messageId]?.state) {
             PromptDeliveryState.PROMOTED -> MessageDelivery.PROMOTED
             else -> MessageDelivery.QUEUED
@@ -444,41 +454,30 @@ class ChatViewModel @Inject constructor(
             )
         }
 
-        // Resolve model: explicit selection > last user message's model > provider default
-        var effectiveProviderId = selProviderId
-        var effectiveModelId = selModelId
-
-        // If no explicit selection, try to resolve from history
-        if (!isModelExplicitlySelected) {
-             val lastUserWithModel = sessionMessages
-                .filterIsInstance<Message.User>()
-                .lastOrNull { it.model != null }
-             if (lastUserWithModel?.model != null) {
-                 effectiveProviderId = lastUserWithModel.model.providerId
-                 effectiveModelId = lastUserWithModel.model.modelId
-             } else if (effectiveModelId == null && defaultModels.isNotEmpty()) {
-                 // Fallback to default if nothing in history and nothing selected
-                 val entry = defaultModels.entries.first()
-                 effectiveProviderId = entry.key
-                 effectiveModelId = entry.value
-             }
-        }
-
         // Resolve agent from last user message if not explicitly changed
         val effectiveAgent = if (!isAgentExplicitlySelected) {
-            val lastUserAgent = sessionMessages
+            val lastUserAgent = modelSelectionHistory(sessionMessages, revertState)
                 .filterIsInstance<Message.User>()
-                .lastOrNull { it.agent != null }
+                .filter { it.agent != null }
+                .maxByOrNull { it.time.created }
                 ?.agent
             lastUserAgent ?: selectedAgent
         } else {
             selectedAgent
         }
 
-        // Keep raw state in sync so sendParts()/runShellCommand() always use the displayed value
-        if (effectiveAgent != selectedAgent && !isAgentExplicitlySelected) {
-            _selectedAgent.value = effectiveAgent to false
-        }
+        val effectiveModel = resolveChatModelSelection(
+            selected = selectedModel,
+            messages = sessionMessages,
+            configuredModel = configuredModel,
+            agentModel = agents.firstOrNull { it.name == effectiveAgent }?.model,
+            providers = providers,
+            catalogLoaded = allProviders.any { it.models.isNotEmpty() },
+            hasHiddenModels = hiddenModels.isNotEmpty(),
+            defaultsReady = defaultsReady,
+            revert = revertState,
+            historyComplete = historyComplete,
+        )
 
         // Compute cost/token totals from assistant messages
         val assistantMessages = sessionMessages.filterIsInstance<Message.Assistant>()
@@ -506,21 +505,8 @@ class ChatViewModel @Inject constructor(
             assistantMessages = assistantMessages.size,
         )
 
-        // Resolve available variants for the currently selected model.
-        // If selected model is no longer visible (filtered out), fall back to first visible model.
-        var currentModel = if (effectiveProviderId != null && effectiveModelId != null) {
-            providers.find { it.id == effectiveProviderId }
-                ?.models?.get(effectiveModelId)
-        } else null
-        if (currentModel == null) {
-            val firstProvider = providers.firstOrNull()
-            val firstModel = firstProvider?.models?.values?.firstOrNull()
-            if (firstProvider != null && firstModel != null) {
-                effectiveProviderId = firstProvider.id
-                effectiveModelId = firstModel.id
-                currentModel = firstModel
-            }
-        }
+        val currentModel = providers.find { it.id == effectiveModel?.providerId }
+            ?.models?.get(effectiveModel?.modelId)
         // Match the Web UI by preserving the variant order supplied by the server.
         val availableVariants = currentModel?.variants?.keys?.toList() ?: emptyList()
 
@@ -539,8 +525,8 @@ class ChatViewModel @Inject constructor(
             providers = providers,
             hasServerModelCatalog = allProviders.any { it.models.isNotEmpty() },
             defaultModels = defaultModels,
-            selectedProviderId = effectiveProviderId,
-            selectedModelId = effectiveModelId,
+            selectedProviderId = effectiveModel?.providerId,
+            selectedModelId = effectiveModel?.modelId,
             totalCost = totalCost,
             totalInputTokens = totalInputTokens,
             totalOutputTokens = totalOutputTokens,
@@ -597,7 +583,9 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.hiddenModels(serverId).collect { hidden ->
                 _hiddenModels.value = hidden
+                hiddenModelsLoaded = true
                 applyProviderFilter()
+                _modelDefaultsReady.value = providersLoaded && configLoaded && agentsLoaded
             }
         }
 
@@ -615,6 +603,10 @@ class ChatViewModel @Inject constructor(
                 .collectLatest { connected ->
                     terminalWorkspace.setServerAvailable(connected)
                     if (connected) {
+                        _modelDefaultsReady.value = false
+                        configLoaded = false
+                        agentsLoaded = false
+                        providersLoaded = false
                         loadSession()
                         loadMessages()
                         loadPendingRequests()
@@ -697,6 +689,7 @@ class ChatViewModel @Inject constructor(
     fun loadMessages() {
         if (!isServerConnected()) return
         messageLoadJob?.cancel()
+        _historyComplete.value = false
         messageLoadJob = viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -716,6 +709,7 @@ class ChatViewModel @Inject constructor(
 
                 olderMessagesCursor = nextCursor
                 eventReducer.mergeMessages(sessionId, messages)
+                _historyComplete.value = firstPage.nextCursor == null
                 reconcilePendingPrompts(
                     authoritative = messages,
                     minimumAgeMs = 10_000L,
@@ -760,6 +754,7 @@ class ChatViewModel @Inject constructor(
                     messages += olderPage.messages
                     knownIds += olderPage.messages.map { it.info.id }
                     eventReducer.mergeMessages(sessionId, olderPage.messages)
+                    _historyComplete.value = olderPage.nextCursor == null
                     if (needsRevertHistory) recoveryPages++
                     nextCursor = olderPage.nextCursor?.takeUnless { it == requestedCursor }
                     olderMessagesCursor = nextCursor
@@ -792,6 +787,7 @@ class ChatViewModel @Inject constructor(
                         val messages = page.messages
                         olderMessagesCursor = page.nextCursor
                         eventReducer.mergeMessages(sessionId, messages)
+                        _historyComplete.value = page.nextCursor == null
                         _hasOlderMessages.value = page.nextCursor != null
                         if (BuildConfig.DEBUG) Log.d(TAG, "Retry succeeded: loaded ${messages.size} messages (limit=$currentMessageLimit)")
                     } catch (retryEx: Exception) {
@@ -849,6 +845,7 @@ class ChatViewModel @Inject constructor(
                         directory = sessionDirectory,
                     )
                     messages += page.messages
+                    _historyComplete.value = page.nextCursor == null
                     knownIds += page.messages.map { it.info.id }
                     recoveryPages++
                     nextCursor = page.nextCursor?.takeUnless { it == requestedCursor }
@@ -946,14 +943,22 @@ class ChatViewModel @Inject constructor(
 
     private suspend fun loadProviders() {
         try {
-            val response = api.getProviders(conn)
+            val response = api.getProviders(conn, sessionDirectory)
             _allProviders.value = response.providers
             applyProviderFilter()
             _defaultModels.value = response.default
+            providersLoaded = true
             if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${response.providers.size} providers, defaults: ${response.default}")
         } catch (e: Exception) {
             e.rethrowCancellation()
             Log.e(TAG, "Failed to load providers", e)
+        }
+        try {
+            _configuredModel.value = configuredModelSelection(api.getConfig(conn, sessionDirectory).model)
+            configLoaded = true
+        } catch (e: Exception) {
+            e.rethrowCancellation()
+            Log.e(TAG, "Failed to load configured chat model", e)
         }
     }
 
@@ -973,8 +978,10 @@ class ChatViewModel @Inject constructor(
 
     private suspend fun loadAgents() {
         try {
-            val agents = api.listAgents(conn)
+            val agents = api.listAgents(conn, sessionDirectory)
             _agents.value = agents
+            agentsLoaded = true
+            _modelDefaultsReady.value = providersLoaded && configLoaded && hiddenModelsLoaded
             if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${agents.size} agents: ${agents.map { it.name }}")
         } catch (e: Exception) {
             e.rethrowCancellation()
@@ -998,15 +1005,42 @@ class ChatViewModel @Inject constructor(
     }
 
     fun selectVariant(name: String?) {
-        _selectedVariant.value = name?.takeIf { it in uiState.value.variantNames }
+        val model = currentModelSelection()
+        val variants = _providers.value.firstOrNull { it.id == model?.providerId }
+            ?.models?.get(model?.modelId)?.variants.orEmpty()
+        _selectedVariant.value = name?.takeIf { it in variants }
     }
 
     fun selectModel(providerId: String, modelId: String) {
-        _selectedProviderId.value = providerId
-        _selectedModelId.value = modelId
         _selectedVariant.value = null
-        isModelExplicitlySelected = true
+        _selectedModel.value = ModelSelection(providerId, modelId)
     }
+
+    private fun currentAgentSelection(): String {
+        val (selected, explicit) = _selectedAgent.value
+        val revert = eventReducer.sessions.value.firstOrNull { it.id == sessionId }?.revert
+        return if (explicit) selected else modelSelectionHistory(
+            eventReducer.messages.value[sessionId].orEmpty(),
+            revert,
+        )
+            .filterIsInstance<Message.User>()
+            .filter { it.agent != null }
+            .maxByOrNull { it.time.created }?.agent ?: selected
+    }
+
+    private fun currentModelSelection(agent: String = currentAgentSelection()): ModelSelection? =
+        resolveChatModelSelection(
+            selected = _selectedModel.value,
+            messages = eventReducer.messages.value[sessionId].orEmpty(),
+            configuredModel = _configuredModel.value,
+            agentModel = _agents.value.firstOrNull { it.name == agent }?.model,
+            providers = _providers.value,
+            catalogLoaded = _allProviders.value.any { it.models.isNotEmpty() },
+            hasHiddenModels = _hiddenModels.value.isNotEmpty(),
+            defaultsReady = _modelDefaultsReady.value,
+            revert = eventReducer.sessions.value.firstOrNull { it.id == sessionId }?.revert,
+            historyComplete = _historyComplete.value,
+        )
 
     // ============ @ File Mention Search ============
 
@@ -1153,10 +1187,11 @@ class ChatViewModel @Inject constructor(
         if (_isSending.value) return false
         _isSending.value = true
 
-        val model = if (_selectedProviderId.value != null && _selectedModelId.value != null) {
-            ModelSelection(_selectedProviderId.value!!, _selectedModelId.value!!)
-        } else {
-            null
+        val agent = currentAgentSelection()
+        val model = currentModelSelection(agent)
+        val variant = _selectedVariant.value?.takeIf {
+            it in _providers.value.firstOrNull { provider -> provider.id == model?.providerId }
+                ?.models?.get(model?.modelId)?.variants.orEmpty()
         }
         val messageId = MessageIdGenerator.next()
         val draftSnapshot = Draft(
@@ -1171,8 +1206,8 @@ class ChatViewModel @Inject constructor(
             sessionId = sessionId,
             parts = parts,
             model = model,
-            agent = uiState.value.selectedAgent,
-            variant = _selectedVariant.value,
+            agent = agent,
+            variant = variant,
             directory = sessionDirectory,
             createdAt = System.currentTimeMillis(),
         )
@@ -1187,8 +1222,8 @@ class ChatViewModel @Inject constructor(
                     messageId = messageId,
                     parts = parts,
                     model = model,
-                    agent = uiState.value.selectedAgent,
-                    variant = _selectedVariant.value,
+                    agent = agent,
+                    variant = variant,
                     directory = sessionDirectory
                 )
                 eventReducer.updateSessionStatus(sessionId, SessionStatus.Busy)
@@ -1444,15 +1479,13 @@ class ChatViewModel @Inject constructor(
         }
         viewModelScope.launch {
             try {
-                val state = uiState.value
-                val providerId = state.selectedProviderId
-                val modelId = state.selectedModelId
-                if (providerId == null || modelId == null) {
+                val model = currentModelSelection()
+                if (model == null) {
                     Log.e(TAG, "Cannot compact: no model selected")
                     onResult(false)
                     return@launch
                 }
-                api.summarizeSession(conn, sessionId, providerId, modelId)
+                api.summarizeSession(conn, sessionId, model.providerId, model.modelId)
                 if (BuildConfig.DEBUG) Log.d(TAG, "Compacted session $sessionId")
                 onResult(true)
             } catch (e: Exception) {
@@ -1732,19 +1765,15 @@ class ChatViewModel @Inject constructor(
             onResult(false)
             return
         }
+        val agent = currentAgentSelection()
+        val model = currentModelSelection(agent)
         viewModelScope.launch {
             try {
-                val model = if (_selectedProviderId.value != null && _selectedModelId.value != null) {
-                    ModelSelection(
-                        providerId = _selectedProviderId.value!!,
-                        modelId = _selectedModelId.value!!
-                    )
-                } else null
                 val ok = api.runShellCommand(
                     conn = conn,
                     sessionId = sessionId,
                     command = trimmed,
-                    agent = uiState.value.selectedAgent,
+                    agent = agent,
                     model = model,
                     directory = sessionDirectory
                 )

@@ -6,6 +6,11 @@ Track open bugs here. Remove items once they are fixed and verified on device.
 
 ## Open
 
+- The first chat prompt could use a hidden server-default model instead of the model shown by the
+  selector (#41). UI, prompts, shell commands, and compaction now share model resolution from
+  explicit selection, agent configuration, history, project configuration, and visible models,
+  but first-message routing still needs device verification (`ChatModelSelection.kt` and `ChatViewModel.kt`).
+
 - Settings sync previously imported settings, servers, and category assignments through separate
   DataStore edits. Import and upload snapshots are now atomic, but the fix still needs cross-device
   verification (`SyncRepository.kt` around lines 350-375).
