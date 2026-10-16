@@ -740,4 +740,5 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_conflict_desc">Her iki cihazda da aynı değerler farklı şekilde değiştirildi. Bu çakışmalar için hangi tarafın kazanacağını seçin.</string>
     <string name="sync_choose_version_desc">Çakışmalar için yerel veya uzak değerleri seçin. Her iki kopyadaki ilgisiz değişiklikler korunur.</string>
     <string name="sync_direction_desc">Yerel ve uzak değişiklikler otomatik olarak birleştirilir. Sadece aynı değer farklı şekilde değiştiğinde size sorulacaktır.</string>
+    <string name="question_unsupported_form">Bu form Android uygulamasında desteklenmiyor. İncelemek ve yanıtlamak için web istemcisini açın.</string>
 </resources>

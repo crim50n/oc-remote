@@ -125,6 +125,7 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 - **SSE event stream** — real-time session status, permissions, questions
 - **WebSocket transport** — used for terminal PTY streams
 - **Auto-reconnect** — exponential backoff starting at 1s, with max delay based on reconnect mode (5s/30s/60s)
+- **Cancel connection attempts** — cancel an in-progress health check or connection without waiting for an unreachable host
 - **Connection-aware screens** — disconnected and reconnecting banners span chat, sessions, terminal, files, WebView, provider/model, and MCP screens, with cached content retained and network actions paused until reconnect
 - **Background service** — foreground service keeps connections alive when app is minimized
 
@@ -132,6 +133,13 @@ Android client for [OpenCode](https://github.com/anomalyco/opencode) servers wit
 
 - Android 8.0+ (API 26)
 - OpenCode server accessible over the network
+
+### OpenCode API Compatibility
+
+The client detects OpenCode V1 and V2 per connection. V2 integration targets the published
+`@opencode/cli` 2.0.30 contract and preserves V1 support. V2 configuration writes, session sharing,
+and native MCP OAuth are unavailable; unsupported forms offer a web-client fallback. End-to-end
+device verification is still pending. See [compatibility notes](OPENCODE_V2_COMPATIBILITY.md).
 
 ## Setup
 

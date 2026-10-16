@@ -408,6 +408,7 @@
     <string name="question_submit">Submit</string>
     <string name="question_cancel">Cancel</string>
     <string name="question_custom_answer">Type your own answer</string>
+    <string name="question_unsupported_form">This form is not supported in the Android app. Open the web client to review and answer it.</string>
     
     <!-- Settings -->
     <string name="settings_title">Settings</string>

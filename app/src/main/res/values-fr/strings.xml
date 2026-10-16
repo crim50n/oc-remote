@@ -740,4 +740,5 @@ Jetons : ~%4$d -&gt; ~%5$d</string>
     <string name="sync_conflict_desc">Les mêmes valeurs ont été modifiées différemment sur les deux appareils. Choisissez quelle version doit prévaloir pour ces conflits.</string>
     <string name="sync_choose_version_desc">Choisissez les valeurs locales ou distantes pour les conflits. Les modifications sans lien des deux copies sont conservées.</string>
     <string name="sync_direction_desc">Les modifications locales et distantes sont fusionnées automatiquement. Vous ne serez sollicité que si la même valeur a été modifiée différemment.</string>
+    <string name="question_unsupported_form">Ce formulaire n’est pas pris en charge dans l’application Android. Ouvrez le client web pour le consulter et y répondre.</string>
 </resources>

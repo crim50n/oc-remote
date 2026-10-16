@@ -263,7 +263,11 @@ class HomeViewModel @Inject constructor(
             launch {
                 service.connectingServerIds.collect { ids ->
                     if (BuildConfig.DEBUG) Log.d(TAG, "Service connecting server IDs changed: $ids")
-                    _uiState.update { it.copy(connectingServerIds = ids) }
+                    _uiState.update { state ->
+                        state.copy(connectingServerIds = (
+                            ids + connectionAttemptJobs.filterValues { it.isActive }.keys
+                        ) - service.connectedServerIds.value)
+                    }
                 }
             }
         }
@@ -905,6 +909,7 @@ class HomeViewModel @Inject constructor(
             it.copy(
                 connectedServerIds = it.connectedServerIds - serverId,
                 connectingServerIds = it.connectingServerIds - serverId,
+                connectionErrors = it.connectionErrors - serverId,
             )
         }
     }

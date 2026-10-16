@@ -740,4 +740,5 @@
     <string name="sync_conflict_desc">両方のデバイスで同じ値が異なる内容に変更されています。どちらの内容を優先するか選択してください。</string>
     <string name="sync_choose_version_desc">競合する値について、ローカルまたはリモートのどちらを使用するか選択してください。関係のない変更は両方とも保持されます。</string>
     <string name="sync_direction_desc">ローカルとリモートの変更は自動的に統合されます。同じ値が異なる内容に変更された場合のみ確認が求められます。</string>
+    <string name="question_unsupported_form">このフォームはAndroidアプリでは対応していません。内容を確認して回答するにはWebクライアントを開いてください。</string>
 </resources>

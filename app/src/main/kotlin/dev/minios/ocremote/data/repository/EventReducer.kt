@@ -15,6 +15,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,6 +39,16 @@ data class DirectoryScope(val serverId: String, val directory: String, val works
 
 enum class PromptDeliveryState { ADMITTED, PROMOTED }
 data class PromptDeliveryInfo(val sessionId: String, val state: PromptDeliveryState)
+enum class V2InboxState { QUEUED, DELIVERED, CANCELLED }
+/** Retains admission payload/time after delivery or cancellation; missing admission leaves these null/zero. */
+data class V2InboxInfo(
+    val sessionId: String,
+    val state: V2InboxState,
+    val delivery: String? = null,
+    val payload: kotlinx.serialization.json.JsonElement? = null,
+    val timestamp: Long = 0,
+    val itemType: String? = null,
+)
 data class WorkspaceScope(val serverId: String, val workspaceId: String)
 
 /**
@@ -55,6 +67,8 @@ data class WorkspaceScope(val serverId: String, val workspaceId: String)
 class EventReducer @Inject constructor() {
     private val pendingLock = Any()
     private var pendingRevision = 0L
+    private val v2InboxLock = Any()
+    private var v2InboxRevision = 0L
     private val deltaLock = Any()
     private val pendingDeltas = LinkedHashMap<PendingDeltaKey, StringBuilder>()
     private val removedMessageLock = Any()
@@ -99,6 +113,10 @@ class EventReducer @Inject constructor() {
     private val _promptDeliveries = MutableStateFlow<Map<String, PromptDeliveryInfo>>(emptyMap())
     val promptDeliveries: StateFlow<Map<String, PromptDeliveryInfo>> = _promptDeliveries.asStateFlow()
 
+    /** Inbox ID -> lifecycle, separate from confirmed transcript and legacy prompt admission. */
+    private val _v2Inbox = MutableStateFlow<Map<String, V2InboxInfo>>(emptyMap())
+    val v2Inbox: StateFlow<Map<String, V2InboxInfo>> = _v2Inbox.asStateFlow()
+
     private val _workspaceStatuses = MutableStateFlow<Map<WorkspaceScope, String>>(emptyMap())
     val workspaceStatuses: StateFlow<Map<WorkspaceScope, String>> = _workspaceStatuses.asStateFlow()
     
@@ -128,16 +146,96 @@ class EventReducer @Inject constructor() {
             
             is SseEvent.SessionCreated -> handleSessionCreated(event, serverId)
             is SseEvent.SessionUpdated -> handleSessionUpdated(event, serverId)
+            is SseEvent.SessionAgentSelected -> updateSessionSelection(serverId, event.sessionId, event.timestamp) {
+                it.copy(agent = event.agent)
+            }
+            is SseEvent.SessionModelSelected -> updateSessionSelection(serverId, event.sessionId, event.timestamp) {
+                it.copy(model = event.model)
+            }
+            is SseEvent.SessionRevertStaged -> updateSessionSelection(serverId, event.sessionId, event.timestamp) {
+                it.copy(revert = event.revert)
+            }
+            is SseEvent.SessionRevertCleared -> updateSessionSelection(serverId, event.sessionId, event.timestamp) {
+                it.copy(revert = null)
+            }
+            is SseEvent.SessionRevertCommitted -> {
+                updateSessionSelection(serverId, event.sessionId, event.timestamp) { it.copy(revert = null) }
+                val messages = _messages.value[event.sessionId].orEmpty()
+                val boundary = messages.indexOfFirst { it.id == event.to }
+                // Missing boundaries and inbox sequence pruning require authoritative reconciliation.
+                if (boundary >= 0) messages.drop(boundary).forEach {
+                    handleMessageRemoved(SseEvent.MessageRemoved(event.sessionId, it.id))
+                }
+            }
+            is SseEvent.SessionRenamed -> _sessions.update { sessions ->
+                sessions.map { if (it.id == event.sessionId) it.copy(title = event.title) else it }
+            }
+            is SseEvent.SessionMoved -> _sessions.update { sessions ->
+                sessions.map {
+                    if (it.id == event.sessionId) it.copy(
+                        directory = event.directory,
+                        workspaceId = event.workspaceId,
+                        projectId = event.projectId.ifBlank { it.projectId },
+                    ) else it
+                }
+            }
             is SseEvent.SessionDeleted -> handleSessionDeleted(event)
             is SseEvent.SessionStatus -> handleSessionStatus(event, serverId)
             is SseEvent.SessionIdle -> handleSessionIdle(event, serverId)
             is SseEvent.SessionCompacted -> Unit
             is SseEvent.SessionDiff -> handleSessionDiff(event)
             is SseEvent.SessionError -> handleSessionError(event)
-            is SseEvent.PromptAdmitted -> _promptDeliveries.update {
-                it + (event.messageId to PromptDeliveryInfo(event.sessionId, PromptDeliveryState.ADMITTED))
+            is SseEvent.PromptAdmitted -> {
+                trackSession(serverId, event.sessionId)
+                _promptDeliveries.update {
+                    it + (event.messageId to PromptDeliveryInfo(event.sessionId, PromptDeliveryState.ADMITTED))
+                }
             }
             is SseEvent.Prompted -> handleNextPrompted(event, serverId)
+            is SseEvent.PromptEnqueued -> synchronized(v2InboxLock) {
+                v2InboxRevision++
+                trackSession(serverId, event.sessionId)
+                _v2Inbox.update { current ->
+                    val previous = current[event.messageId]
+                    if (previous != null && previous.state != V2InboxState.QUEUED) current
+                    else current + (event.messageId to V2InboxInfo(event.sessionId, V2InboxState.QUEUED,
+                        event.delivery, event.prompt, event.timestamp, event.itemType))
+                }
+                if (event.itemType == "user" && _v2Inbox.value[event.messageId]?.state == V2InboxState.QUEUED) _promptDeliveries.update {
+                    it + (event.messageId to PromptDeliveryInfo(event.sessionId, PromptDeliveryState.ADMITTED))
+                }
+            }
+            is SseEvent.PromptDelivered -> synchronized(v2InboxLock) {
+                v2InboxRevision++
+                trackSession(serverId, event.sessionId)
+                _v2Inbox.update {
+                    val previous = it[event.messageId]
+                    it + (event.messageId to (previous?.copy(state = V2InboxState.DELIVERED)
+                        ?: V2InboxInfo(event.sessionId, V2InboxState.DELIVERED)))
+                }
+                if (_v2Inbox.value[event.messageId]?.itemType in listOf(null, "user")) _promptDeliveries.update {
+                    it + (event.messageId to PromptDeliveryInfo(event.sessionId, PromptDeliveryState.PROMOTED))
+                }
+            }
+            is SseEvent.PromptCancelled -> synchronized(v2InboxLock) {
+                v2InboxRevision++
+                trackSession(serverId, event.sessionId)
+                _v2Inbox.update {
+                    val previous = it[event.messageId]
+                    it + (event.messageId to (previous?.copy(state = V2InboxState.CANCELLED)
+                        ?: V2InboxInfo(event.sessionId, V2InboxState.CANCELLED)))
+                }
+                _promptDeliveries.update { it - event.messageId }
+            }
+            is SseEvent.InboxDeliveryChanged -> synchronized(v2InboxLock) {
+                v2InboxRevision++
+                trackSession(serverId, event.sessionId)
+                _v2Inbox.update { current ->
+                    val previous = current[event.inboxId] ?: return@update current
+                    if (previous.state != V2InboxState.QUEUED) current
+                    else current + (event.inboxId to previous.copy(delivery = event.delivery))
+                }
+            }
             is SseEvent.NextStepStarted -> handleNextStepStarted(event, serverId)
             is SseEvent.NextStepEnded -> handleNextStepEnded(event)
             is SseEvent.NextStepFailed -> handleNextStepFailed(event)
@@ -172,7 +270,7 @@ class EventReducer @Inject constructor() {
                 "${event.messageId}-synthetic", event.sessionId, event.messageId, event.text, synthetic = true,
                 time = Part.Text.Time(event.timestamp, event.timestamp),
             )))
-            is SseEvent.NextShellStarted -> handleNextShellStarted(event)
+            is SseEvent.NextShellStarted -> handleNextShellStarted(event, serverId)
             is SseEvent.NextShellEnded -> handleNextShellEnded(event)
             is SseEvent.NextTextStarted -> handleMessagePartUpdated(SseEvent.MessagePartUpdated(
                 Part.Text(event.textId, event.sessionId, event.messageId, time = Part.Text.Time(event.timestamp)),
@@ -182,7 +280,7 @@ class EventReducer @Inject constructor() {
             ))
             is SseEvent.NextTextEnded -> handleMessagePartUpdated(SseEvent.MessagePartUpdated(
                 Part.Text(event.textId, event.sessionId, event.messageId, event.text, time = Part.Text.Time(event.timestamp, event.timestamp)),
-            ))
+            ), authoritative = true)
             is SseEvent.NextReasoningStarted -> handleMessagePartUpdated(SseEvent.MessagePartUpdated(
                 Part.Reasoning(event.reasoningId, event.sessionId, event.messageId, time = Part.Reasoning.Time(event.timestamp)),
             ))
@@ -191,7 +289,7 @@ class EventReducer @Inject constructor() {
             ))
             is SseEvent.NextReasoningEnded -> handleMessagePartUpdated(SseEvent.MessagePartUpdated(
                 Part.Reasoning(event.reasoningId, event.sessionId, event.messageId, event.text, time = Part.Reasoning.Time(event.timestamp, event.timestamp)),
-            ))
+            ), authoritative = true)
             is SseEvent.NextToolInputStarted -> handleNextToolInputStarted(event)
             is SseEvent.NextToolInputDelta -> handleNextToolInputDelta(event)
             is SseEvent.NextToolInputEnded -> handleNextToolInputEnded(event)
@@ -201,6 +299,15 @@ class EventReducer @Inject constructor() {
             is SseEvent.NextToolFailed -> handleNextToolFailed(event)
             
             is SseEvent.MessageUpdated -> handleMessageUpdated(event)
+            is SseEvent.MessageContentUpdated -> {
+                if (!isMessageRemoved(event.messageId)) {
+                    trackSession(serverId, event.sessionId)
+                    synchronized(deltaLock) {
+                        pendingDeltas.keys.removeAll { it.messageId == event.messageId }
+                    }
+                    _parts.update { it + (event.messageId to event.parts) }
+                }
+            }
             is SseEvent.MessageRemoved -> handleMessageRemoved(event)
             
             is SseEvent.MessagePartUpdated -> handleMessagePartUpdated(event)
@@ -234,6 +341,22 @@ class EventReducer @Inject constructor() {
     }
     
     // ============ Session Events ============
+
+    private fun updateSessionSelection(
+        serverId: String,
+        sessionId: String,
+        timestamp: Long,
+        transform: (Session) -> Session,
+    ) {
+        trackSession(serverId, sessionId)
+        _sessions.update { sessions ->
+            sessions.map {
+                if (it.id != sessionId) it else transform(it).let { updated ->
+                    updated.copy(time = updated.time.copy(updated = maxOf(updated.time.updated, timestamp)))
+                }
+            }.sortedByDescending { it.time.updated }
+        }
+    }
     
     private fun handleSessionCreated(event: SseEvent.SessionCreated, serverId: String) {
         trackSession(serverId, event.info.id)
@@ -246,7 +369,10 @@ class EventReducer @Inject constructor() {
         }
     }
 
-    private fun handleNextPrompted(event: SseEvent.Prompted, serverId: String) {
+    private fun handleNextPrompted(
+        event: SseEvent.Prompted,
+        serverId: String,
+    ) {
         trackSession(serverId, event.sessionId)
         _promptDeliveries.update {
             it + (event.messageId to PromptDeliveryInfo(event.sessionId, PromptDeliveryState.PROMOTED))
@@ -347,7 +473,16 @@ class EventReducer @Inject constructor() {
         }
     }
 
-    private fun handleNextShellStarted(event: SseEvent.NextShellStarted) {
+    private fun handleNextShellStarted(event: SseEvent.NextShellStarted, serverId: String) {
+        if (event.standalone) {
+            trackSession(serverId, event.sessionId)
+            handleMessageUpdated(SseEvent.MessageUpdated(Message.Assistant(
+                id = event.messageId,
+                sessionId = event.sessionId,
+                time = TimeInfo(event.timestamp),
+                parentId = "",
+            )))
+        }
         handleMessagePartUpdated(SseEvent.MessagePartUpdated(Part.Tool(
             id = event.callId,
             sessionId = event.sessionId,
@@ -356,6 +491,8 @@ class EventReducer @Inject constructor() {
             tool = "bash",
             state = ToolState.Running(
                 input = mapOf("command" to JsonPrimitive(event.command)),
+                title = event.command.takeIf { event.standalone },
+                metadata = (event.metadata as? JsonObject),
                 time = ToolState.Running.Time(event.timestamp),
             ),
         )))
@@ -371,9 +508,17 @@ class EventReducer @Inject constructor() {
             state = ToolState.Completed(
                 input = running.input,
                 output = event.output,
+                title = running.title,
+                metadata = running.metadata.orEmpty() + (event.metadata as? JsonObject).orEmpty(),
                 time = ToolState.Completed.Time(running.time?.start ?: event.timestamp, event.timestamp),
             ),
         )))
+        if (event.metadata != null) {
+            updateMessage(event.sessionId, existing.messageId) { message ->
+                if (message is Message.Assistant) message.copy(time = message.time.copy(completed = event.timestamp))
+                else message
+            }
+        }
     }
 
     private fun findToolPart(messageId: String, callId: String): Part.Tool? =
@@ -421,7 +566,7 @@ class EventReducer @Inject constructor() {
             sessionId = event.sessionId,
             messageId = event.messageId,
             callId = event.callId,
-            tool = event.tool,
+            tool = event.tool.ifBlank { existing?.tool.orEmpty() },
             state = ToolState.Running(
                 input = event.input.jsonObject,
                 title = running?.title,
@@ -489,7 +634,18 @@ class EventReducer @Inject constructor() {
     private fun handleNextToolFailed(event: SseEvent.NextToolFailed) {
         val existing = findToolPart(event.messageId, event.callId) ?: return
         val running = existing.state as? ToolState.Running
-        val input = running?.input ?: (existing.state as? ToolState.Pending)?.input.orEmpty()
+        val input = when (val state = existing.state) {
+            is ToolState.Pending -> state.input
+            is ToolState.Running -> state.input
+            is ToolState.Completed -> state.input
+            is ToolState.Error -> state.input
+        }
+        val metadata = when (val state = existing.state) {
+            is ToolState.Running -> state.metadata
+            is ToolState.Completed -> state.metadata
+            is ToolState.Error -> state.metadata
+            is ToolState.Pending -> null
+        }.orEmpty() + (event.structured as? JsonObject).orEmpty()
         val errorObject = event.error.jsonObject
         val error = errorObject["message"]?.jsonPrimitive?.contentOrNull
             ?: errorObject["data"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull
@@ -498,10 +654,24 @@ class EventReducer @Inject constructor() {
             state = ToolState.Error(
                 input = input,
                 error = error,
-                metadata = running?.metadata,
+                metadata = metadata,
                 time = ToolState.Error.Time(running?.time?.start ?: event.timestamp, event.timestamp),
             ),
         )))
+        (event.content as? JsonArray)?.forEachIndexed { index, item ->
+            val content = item as? JsonObject ?: return@forEachIndexed
+            val id = "${event.callId}:output:$index"
+            val part = when (content["type"]?.jsonPrimitive?.contentOrNull) {
+                "text" -> Part.Text(id, event.sessionId, event.messageId,
+                    content["text"]?.jsonPrimitive?.contentOrNull.orEmpty())
+                "file" -> Part.File(id, event.sessionId, event.messageId,
+                    content["mime"]?.jsonPrimitive?.contentOrNull ?: "application/octet-stream",
+                    content["name"]?.jsonPrimitive?.contentOrNull,
+                    content["uri"]?.jsonPrimitive?.contentOrNull, content)
+                else -> null
+            }
+            part?.let { handleMessagePartUpdated(SseEvent.MessagePartUpdated(it)) }
+        }
     }
     
     private fun handleSessionUpdated(event: SseEvent.SessionUpdated, serverId: String) {
@@ -543,11 +713,18 @@ class EventReducer @Inject constructor() {
         _sessions.update { it.filter { session -> session.id != sessionId } }
         _sessionStatuses.update { it - sessionId }
         _messages.update { it - sessionId }
-        _parts.update { current -> current.filterKeys { it !in messageIds } }
+        _parts.update { current ->
+            current.filter { (messageId, parts) -> messageId !in messageIds && parts.none { it.sessionId == sessionId } }
+        }
         _sessionDiffs.update { it - sessionId }
         _sessionErrors.update { it - sessionId }
         removePendingForSessions(setOf(sessionId))
         _todos.update { it - sessionId }
+        synchronized(v2InboxLock) {
+            _promptDeliveries.update { current -> current.filterValues { it.sessionId != sessionId } }
+            _v2Inbox.update { current -> current.filterValues { it.sessionId != sessionId } }
+            v2InboxRevision++
+        }
         synchronized(deltaLock) {
             pendingDeltas.keys.removeAll { it.sessionId == sessionId }
         }
@@ -622,12 +799,12 @@ class EventReducer @Inject constructor() {
     
     // ============ Part Events ============
     
-    private fun handleMessagePartUpdated(event: SseEvent.MessagePartUpdated) {
+    private fun handleMessagePartUpdated(event: SseEvent.MessagePartUpdated, authoritative: Boolean = false) {
         val messageId = event.part.messageId
         if (isMessageRemoved(messageId)) return
         val key = PendingDeltaKey(event.part.sessionId, messageId, event.part.id)
         val buffered = synchronized(deltaLock) { pendingDeltas.remove(key)?.toString().orEmpty() }
-        val updatedPart = if (buffered.isNotEmpty()) {
+        val updatedPart = if (!authoritative && buffered.isNotEmpty()) {
             applyTextDelta(event.part, buffered)
         } else {
             event.part
@@ -869,6 +1046,35 @@ class EventReducer @Inject constructor() {
         }
     }
     
+    /** Capture before fetching the REST inbox so any intervening lifecycle event rejects the result. */
+    fun captureV2InboxRevision(): Long = synchronized(v2InboxLock) { v2InboxRevision }
+
+    fun reconcileV2Inbox(
+        sessionId: String,
+        items: Map<String, V2InboxInfo>,
+        expectedRevision: Long,
+    ): Boolean = synchronized(v2InboxLock) {
+        if (v2InboxRevision != expectedRevision) return@synchronized false
+        val previous = _v2Inbox.value
+        val retained = previous.filterValues { it.sessionId != sessionId || it.state != V2InboxState.QUEUED }
+        // Terminal entries are tombstones: even a fresh REST response must not requeue them.
+        val queued = items.filter { (id, info) ->
+            info.sessionId == sessionId && info.state == V2InboxState.QUEUED && id !in retained
+        }
+        _v2Inbox.value = retained + queued
+        _promptDeliveries.update { current ->
+            current.filterNot { (id, info) ->
+                info.sessionId == sessionId && info.state == PromptDeliveryState.ADMITTED &&
+                    previous[id]?.let { it.sessionId == sessionId && it.state == V2InboxState.QUEUED } == true
+            } + queued.filterValues { it.itemType == "user" }.mapValues { (id, info) ->
+                current[id]?.takeIf { it.state == PromptDeliveryState.PROMOTED }
+                    ?: PromptDeliveryInfo(info.sessionId, PromptDeliveryState.ADMITTED)
+            }
+        }
+        v2InboxRevision++
+        true
+    }
+
     // ============ Batch Updates ============
     
     /**
@@ -974,7 +1180,11 @@ class EventReducer @Inject constructor() {
         _todos.value = emptyMap()
         _vcsBranches.value = emptyMap()
         _projectInfo.value = emptyMap()
-        _promptDeliveries.value = emptyMap()
+        synchronized(v2InboxLock) {
+            _promptDeliveries.value = emptyMap()
+            _v2Inbox.value = emptyMap()
+            v2InboxRevision++
+        }
         _workspaceStatuses.value = emptyMap()
     }
     
@@ -984,10 +1194,6 @@ class EventReducer @Inject constructor() {
      */
     fun clearForServer(serverId: String) {
         val sessionIds = _serverSessions.value[serverId] ?: emptySet()
-        if (sessionIds.isEmpty()) {
-            _serverSessions.update { it - serverId }
-            return
-        }
         
         // Remove the server's session tracking
         _serverSessions.update { it - serverId }
@@ -999,7 +1205,11 @@ class EventReducer @Inject constructor() {
         _sessionErrors.update { it - sessionIds }
         removePendingForSessions(sessionIds)
         _todos.update { it - sessionIds }
-        _promptDeliveries.update { current -> current.filterValues { it.sessionId !in sessionIds } }
+        synchronized(v2InboxLock) {
+            _promptDeliveries.update { current -> current.filterValues { it.sessionId !in sessionIds } }
+            _v2Inbox.update { current -> current.filterValues { it.sessionId !in sessionIds } }
+            v2InboxRevision++
+        }
         _vcsBranches.update { current -> current.filterKeys { it.serverId != serverId } }
         _projectInfo.update { current -> current.filterKeys { it.serverId != serverId } }
         _workspaceStatuses.update { current -> current.filterKeys { it.serverId != serverId } }
@@ -1012,7 +1222,9 @@ class EventReducer @Inject constructor() {
             .map { it.id }
             .toSet()
         _messages.update { it - sessionIds }
-        _parts.update { it - messageIds }
+        _parts.update { current ->
+            current.filter { (messageId, parts) -> messageId !in messageIds && parts.none { it.sessionId in sessionIds } }
+        }
         synchronized(deltaLock) {
             pendingDeltas.keys.removeAll { it.sessionId in sessionIds }
         }
@@ -1024,7 +1236,13 @@ class EventReducer @Inject constructor() {
     /** Clear connection-scoped state without erasing persisted session history. */
     fun clearTransientForServer(serverId: String) {
         val sessionIds = _serverSessions.value[serverId].orEmpty()
-        _pendingInteractions.update { interactions -> interactions.filterNot { it.sessionId in sessionIds } }
+        removePendingForSessions(sessionIds)
+        synchronized(v2InboxLock) {
+            _promptDeliveries.update { current -> current.filterValues { it.sessionId !in sessionIds } }
+            _v2Inbox.update { current -> current.filterValues { it.sessionId !in sessionIds } }
+            v2InboxRevision++
+        }
+        synchronized(deltaLock) { pendingDeltas.keys.removeAll { it.sessionId in sessionIds } }
         _sessionStatuses.update { statuses ->
             statuses.mapValues { (sessionId, status) ->
                 if (sessionId in sessionIds && status !is SessionStatus.Idle) SessionStatus.Idle else status

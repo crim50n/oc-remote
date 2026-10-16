@@ -15,6 +15,11 @@ import dev.minios.ocremote.data.api.OpenCodeApi
 import dev.minios.ocremote.data.api.PromptPart
 import dev.minios.ocremote.data.api.ProviderInfo
 import dev.minios.ocremote.data.api.ServerConnection
+import dev.minios.ocremote.data.api.ServerProtocol
+import dev.minios.ocremote.data.api.ServerProtocolRegistry
+import dev.minios.ocremote.data.api.V2InboxItem
+import dev.minios.ocremote.data.repository.V2InboxInfo
+import dev.minios.ocremote.data.repository.V2InboxState
 import dev.minios.ocremote.data.repository.DraftRepository
 import dev.minios.ocremote.data.repository.Draft
 import dev.minios.ocremote.data.repository.EventReducer
@@ -41,6 +46,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
 import javax.inject.Inject
 
 private const val TAG = "ChatViewModel"
@@ -72,6 +78,7 @@ internal fun descendantSessionIds(sessions: List<Session>, rootSessionId: String
 }
 
 data class ChatUiState(
+    val serverSupportsSharing: Boolean = true,
     val sessionTitle: String = "",
     val sessionLoaded: Boolean = false,
     val parentSessionId: String? = null,
@@ -249,6 +256,7 @@ class ChatViewModel @Inject constructor(
     val sessionId: String = savedStateHandle.get<String>("sessionId").orEmpty()
 
     private val conn = ServerConnection.from(serverUrl, username, password.ifEmpty { null })
+    private fun isV2Connection() = ServerProtocolRegistry.knownProtocol(conn) == ServerProtocol.V2
     private fun isServerConnected(): Boolean = serverId in connectionStateRepository.connectedServerIds.value
 
     private val _isLoading = MutableStateFlow(true)
@@ -279,7 +287,7 @@ class ChatViewModel @Inject constructor(
     private val _agents = MutableStateFlow<List<AgentInfo>>(emptyList())
     /** Pair(agentName, explicitlySelected) — using a single flow avoids race between flag and value */
     private val _selectedAgent = MutableStateFlow("build" to false)
-    private val _selectedVariant = MutableStateFlow<String?>(null)
+    private val _selectedVariant = MutableStateFlow<Pair<String?, Boolean>>(null to false)
     private val _commands = MutableStateFlow<List<CommandInfo>>(emptyList())
     private val terminalWorkspace = ServerTerminalRegistry.workspaceFor(serverId, api, conn)
     val terminalTabs: StateFlow<List<TerminalTabUi>> = terminalWorkspace.tabList
@@ -409,7 +417,7 @@ class ChatViewModel @Inject constructor(
         val agentSelection = args[14] as Pair<String, Boolean>
         val selectedAgent = agentSelection.first
         val isAgentExplicitlySelected = agentSelection.second
-        val selectedVariant = args[15] as String?
+        val variantSelection = args[15] as Pair<String?, Boolean>
         val commands = args[16] as List<CommandInfo>
         val hasOlderMessages = args[17] as Boolean
         val isLoadingOlder = args[18] as Boolean
@@ -461,7 +469,7 @@ class ChatViewModel @Inject constructor(
                 .filter { it.agent != null }
                 .maxByOrNull { it.time.created }
                 ?.agent
-            lastUserAgent ?: selectedAgent
+            session?.agent ?: lastUserAgent ?: selectedAgent
         } else {
             selectedAgent
         }
@@ -477,6 +485,7 @@ class ChatViewModel @Inject constructor(
             defaultsReady = defaultsReady,
             revert = revertState,
             historyComplete = historyComplete,
+            sessionModel = session?.model,
         )
 
         // Compute cost/token totals from assistant messages
@@ -511,6 +520,8 @@ class ChatViewModel @Inject constructor(
         val availableVariants = currentModel?.variants?.keys?.toList() ?: emptyList()
 
         ChatUiState(
+            serverSupportsSharing = dev.minios.ocremote.data.api.ServerProtocolRegistry.knownProtocol(conn) !=
+                dev.minios.ocremote.data.api.ServerProtocol.V2,
             sessionTitle = session?.title ?: "Chat",
             sessionLoaded = session != null,
             parentSessionId = session?.parentId,
@@ -533,7 +544,9 @@ class ChatViewModel @Inject constructor(
             agents = agents.filter { it.mode != "subagent" && !it.hidden },
             selectedAgent = effectiveAgent,
             variantNames = availableVariants,
-            selectedVariant = if (selectedVariant != null && selectedVariant in availableVariants) selectedVariant else null,
+            selectedVariant = (if (variantSelection.second) variantSelection.first
+                else if (selectedModel == null) session?.model?.variant else null)
+                ?.takeIf { it in availableVariants },
             commands = commands,
             hasOlderMessages = hasOlderMessages,
             isLoadingOlder = isLoadingOlder,
@@ -551,15 +564,32 @@ class ChatViewModel @Inject constructor(
     init {
         _pendingPrompts.value = pendingPromptRepository.getForSession(sessionId)
         viewModelScope.launch {
-            eventReducer.messages.collect { messagesBySession ->
+            combine(eventReducer.messages, eventReducer.v2Inbox) { messages, inbox -> messages to inbox }
+                .collect { (messagesBySession, inbox) ->
                 val confirmedIds = messagesBySession[sessionId].orEmpty().mapTo(mutableSetOf()) { it.id }
+                val cancelledIds = inbox.filterValues {
+                    it.sessionId == sessionId && it.state == V2InboxState.CANCELLED
+                }.keys
                 val confirmedPending = _pendingPrompts.value.filter {
-                    it.messageId in confirmedIds
+                    it.messageId in confirmedIds || it.messageId in cancelledIds
                 }
                 if (confirmedPending.isNotEmpty()) {
                     val reconciledIds = confirmedPending.mapTo(mutableSetOf()) { it.messageId }
                     confirmedPending.forEach { pendingPromptRepository.remove(it.messageId) }
                     _pendingPrompts.value = _pendingPrompts.value.filterNot { it.messageId in reconciledIds }
+                }
+                val knownIds = _pendingPrompts.value.mapTo(mutableSetOf()) { it.messageId }
+                val restored = inbox.mapNotNull { (id, item) ->
+                    if (item.sessionId != sessionId || item.state != V2InboxState.QUEUED ||
+                        id in confirmedIds || id in knownIds || item.payload == null
+                    ) return@mapNotNull null
+                    val payload = item.payload as? JsonObject ?: return@mapNotNull null
+                    V2InboxItem(id, sessionId, item.itemType.orEmpty(), payload,
+                        item.delivery ?: "queue", TimeInfo(item.timestamp)).toPendingPromptRecord()
+                }
+                if (restored.isNotEmpty()) {
+                    restored.forEach(pendingPromptRepository::save)
+                    _pendingPrompts.value = (_pendingPrompts.value + restored).sortedBy { it.createdAt }
                 }
             }
         }
@@ -576,7 +606,7 @@ class ChatViewModel @Inject constructor(
                 _selectedAgent.value = draft.selectedAgent to true
             }
             if (!draft.selectedVariant.isNullOrBlank()) {
-                _selectedVariant.value = draft.selectedVariant
+                _selectedVariant.value = draft.selectedVariant to true
             }
         }
 
@@ -608,6 +638,7 @@ class ChatViewModel @Inject constructor(
                         agentsLoaded = false
                         providersLoaded = false
                         loadSession()
+                        reconcileV2Inbox()
                         loadMessages()
                         loadPendingRequests()
                         loadProviders()
@@ -624,10 +655,37 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             while (true) {
                 delay(3_000)
-                if (isServerConnected()) reconcileActiveStatus()
+                if (isServerConnected()) {
+                    if (isV2Connection()) {
+                        reconcileV2Inbox()
+                        loadPendingRequests()
+                    }
+                    reconcileActiveStatus()
+                }
             }
         }
 
+    }
+
+    private suspend fun reconcileV2Inbox() {
+        if (!isV2Connection()) return
+        try {
+            val revision = eventReducer.captureV2InboxRevision()
+            val session = api.getSession(conn, sessionId, sessionDirectory)
+            val inbox = api.listSessionInbox(conn, sessionId)
+            eventReducer.upsertSession(serverId, session)
+            eventReducer.reconcileV2Inbox(
+                sessionId,
+                inbox.associate { item ->
+                    item.id to V2InboxInfo(item.sessionId, V2InboxState.QUEUED, item.delivery,
+                        item.payload, item.time.created, item.type)
+                },
+                revision,
+            )
+        } catch (e: Exception) {
+            e.rethrowCancellation()
+            Log.e(TAG, "Failed to reconcile v2 session inbox", e)
+        }
     }
 
     private suspend fun reconcileActiveStatus() {
@@ -637,11 +695,12 @@ class ChatViewModel @Inject constructor(
                 part is Part.Tool && part.state is ToolState.Running
             }
         }
-        if (localStatus !is SessionStatus.Busy && !hasRunningTool) return
+        val hasPending = _pendingPrompts.value.isNotEmpty()
+        if (localStatus !is SessionStatus.Busy && !hasRunningTool && !hasPending) return
 
         try {
             val remoteStatus = api.listSessionStatuses(conn, sessionDirectory)[sessionId] ?: SessionStatus.Idle
-            if (remoteStatus is SessionStatus.Idle && (localStatus !is SessionStatus.Idle || hasRunningTool)) {
+            if (hasPending || remoteStatus is SessionStatus.Idle && (localStatus !is SessionStatus.Idle || hasRunningTool)) {
                 val messages = api.listMessages(conn, sessionId, limit = 50, directory = sessionDirectory)
                 eventReducer.mergeMessages(sessionId, messages)
             }
@@ -1008,17 +1067,19 @@ class ChatViewModel @Inject constructor(
         val model = currentModelSelection()
         val variants = _providers.value.firstOrNull { it.id == model?.providerId }
             ?.models?.get(model?.modelId)?.variants.orEmpty()
-        _selectedVariant.value = name?.takeIf { it in variants }
+        _selectedVariant.value = name?.takeIf { it in variants } to true
     }
 
     fun selectModel(providerId: String, modelId: String) {
-        _selectedVariant.value = null
+        _selectedVariant.value = null to false
         _selectedModel.value = ModelSelection(providerId, modelId)
     }
 
     private fun currentAgentSelection(): String {
         val (selected, explicit) = _selectedAgent.value
-        val revert = eventReducer.sessions.value.firstOrNull { it.id == sessionId }?.revert
+        val session = eventReducer.sessions.value.firstOrNull { it.id == sessionId }
+        if (!explicit && session?.agent != null) return session.agent
+        val revert = session?.revert
         return if (explicit) selected else modelSelectionHistory(
             eventReducer.messages.value[sessionId].orEmpty(),
             revert,
@@ -1040,6 +1101,7 @@ class ChatViewModel @Inject constructor(
             defaultsReady = _modelDefaultsReady.value,
             revert = eventReducer.sessions.value.firstOrNull { it.id == sessionId }?.revert,
             historyComplete = _historyComplete.value,
+            sessionModel = eventReducer.sessions.value.firstOrNull { it.id == sessionId }?.model,
         )
 
     // ============ @ File Mention Search ============
@@ -1149,7 +1211,7 @@ class ChatViewModel @Inject constructor(
             imageUris = _draftAttachmentUris.value,
             confirmedFilePaths = _confirmedFilePaths.value.toList(),
             selectedAgent = agentPair.first.takeIf { agentPair.second },
-            selectedVariant = _selectedVariant.value
+            selectedVariant = _selectedVariant.value.first
         )
         draftRepository.saveDraft(sessionId, draft)
     }
@@ -1189,7 +1251,11 @@ class ChatViewModel @Inject constructor(
 
         val agent = currentAgentSelection()
         val model = currentModelSelection(agent)
-        val variant = _selectedVariant.value?.takeIf {
+        val requestModel = if (isV2Connection() && _selectedModel.value == null && !_selectedVariant.value.second) null else model
+        val requestAgent = if (isV2Connection() && !_selectedAgent.value.second) null else agent
+        val variant = (if (_selectedVariant.value.second) _selectedVariant.value.first
+            else if (_selectedModel.value == null) eventReducer.sessions.value.firstOrNull { it.id == sessionId }?.model?.variant
+            else null)?.takeIf {
             it in _providers.value.firstOrNull { provider -> provider.id == model?.providerId }
                 ?.models?.get(model?.modelId)?.variants.orEmpty()
         }
@@ -1199,7 +1265,7 @@ class ChatViewModel @Inject constructor(
             imageUris = _draftAttachmentUris.value,
             confirmedFilePaths = _confirmedFilePaths.value.toList(),
             selectedAgent = _selectedAgent.value.first.takeIf { _selectedAgent.value.second },
-            selectedVariant = _selectedVariant.value,
+            selectedVariant = _selectedVariant.value.first,
         )
         val pending = PendingPromptRecord(
             messageId = messageId,
@@ -1221,18 +1287,21 @@ class ChatViewModel @Inject constructor(
                     sessionId = sessionId,
                     messageId = messageId,
                     parts = parts,
-                    model = model,
-                    agent = agent,
+                    model = requestModel,
+                    agent = requestAgent,
                     variant = variant,
                     directory = sessionDirectory
                 )
                 eventReducer.updateSessionStatus(sessionId, SessionStatus.Busy)
+                reconcileV2Inbox()
                 if (BuildConfig.DEBUG) Log.d(TAG, "Sent prompt to session $sessionId (${parts.size} parts)")
                 reconcilePendingMessage(messageId)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send message", e)
                 _error.value = e.message ?: "Failed to send message"
-                val definiteHttpFailure = e is RuntimeException && e.message?.startsWith("prompt_async failed:") == true
+                val definiteHttpFailure = e is dev.minios.ocremote.data.api.ServerAuthenticationException ||
+                    (e is dev.minios.ocremote.data.api.OpenCodeHttpException && e.statusCode in 400..499) ||
+                    (e is RuntimeException && e.message?.startsWith("prompt_async failed:") == true)
                 if (definiteHttpFailure) {
                     eventReducer.updateSessionStatus(sessionId, SessionStatus.Idle)
                     pendingPromptRepository.remove(messageId)
@@ -1269,6 +1338,8 @@ class ChatViewModel @Inject constructor(
     }
 
     private fun reconcilePendingPrompts(authoritative: List<MessageWithParts>, minimumAgeMs: Long) {
+        // Absence from transcript does not disprove durable admission to the V2 inbox.
+        if (isV2Connection()) return
         val staleIds = missingPendingPromptIds(
             pending = _pendingPrompts.value,
             authoritative = authoritative,
@@ -1651,7 +1722,7 @@ class ChatViewModel @Inject constructor(
         }
         viewModelScope.launch {
             try {
-                api.unrevertSession(conn, sessionId)
+                eventReducer.upsertSession(serverId, api.unrevertSession(conn, sessionId))
                 if (BuildConfig.DEBUG) Log.d(TAG, "Unreverted session $sessionId")
                 onResult(true)
             } catch (e: Exception) {

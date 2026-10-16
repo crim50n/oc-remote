@@ -62,6 +62,7 @@ data class ServerSettingsUiState(
     val hasLoadedProviders: Boolean = false,
     val error: String? = null,
     val oauthProxyHint: Boolean = false,
+    val readOnly: Boolean = true,
 )
 
 data class PendingOauth(
@@ -120,7 +121,8 @@ class ServerSettingsViewModel @Inject constructor(
     private val _providerCatalog = MutableStateFlow<List<ProviderInfo>>(emptyList())
     private val _providerConnected = MutableStateFlow<Set<String>>(emptySet())
     private val _agents = MutableStateFlow<List<AgentInfo>>(emptyList())
-    private val _config = MutableStateFlow(ServerConfigResponse())
+    // Fail closed until the server's configuration capabilities have loaded.
+    private val _config = MutableStateFlow(ServerConfigResponse(readOnly = true))
     private val _authMethods = MutableStateFlow<Map<String, List<ProviderAuthMethod>>>(emptyMap())
     private val _hiddenModels = MutableStateFlow<Set<String>>(emptySet())
     private val _uiState = MutableStateFlow(ServerSettingsUiState(serverName = serverName, isLoading = true))
@@ -230,8 +232,9 @@ class ServerSettingsViewModel @Inject constructor(
     }
 
     fun setProviderEnabled(providerId: String, enabled: Boolean) {
-        if (!isServerConnected()) return
+        if (!isServerConnected() || _config.value.readOnly) return
         viewModelScope.launch {
+            if (!isServerConnected() || _config.value.readOnly) return@launch
             val before = _config.value
             val current = before.disabledProviders.toSet()
             val next = if (enabled) current - providerId else current + providerId
@@ -263,7 +266,7 @@ class ServerSettingsViewModel @Inject constructor(
                 }
                 // Ensure provider is enabled after successful connect
                 val disabled = _config.value.disabledProviders.toSet() - providerId
-                api.updateGlobalConfig(conn, ServerConfigPatch(disabledProviders = disabled.toList().sorted()))
+                if (!_config.value.readOnly) api.updateGlobalConfig(conn, ServerConfigPatch(disabledProviders = disabled.toList().sorted()))
                 _config.value = api.getGlobalConfig(conn)
                 loadProviders()
             } catch (e: Exception) {
@@ -341,7 +344,7 @@ class ServerSettingsViewModel @Inject constructor(
                     return@launch
                 }
                 val disabled = _config.value.disabledProviders.toSet() - pending.providerId
-                api.updateGlobalConfig(conn, ServerConfigPatch(disabledProviders = disabled.toList().sorted()))
+                if (!_config.value.readOnly) api.updateGlobalConfig(conn, ServerConfigPatch(disabledProviders = disabled.toList().sorted()))
                 _config.value = api.getGlobalConfig(conn)
                 _uiState.update { it.copy(pendingOauth = null) }
                 loadProviders()
@@ -429,27 +432,28 @@ class ServerSettingsViewModel @Inject constructor(
     }
 
     fun setDefaultModel(model: String?) {
-        if (!isServerConnected()) return
+        if (!isServerConnected() || _config.value.readOnly) return
         viewModelScope.launch {
             updateConfigPatch(ServerConfigPatch(model = model))
         }
     }
 
     fun setSmallModel(model: String?) {
-        if (!isServerConnected()) return
+        if (!isServerConnected() || _config.value.readOnly) return
         viewModelScope.launch {
             updateConfigPatch(ServerConfigPatch(smallModel = model))
         }
     }
 
     fun setDefaultAgent(agent: String?) {
-        if (!isServerConnected()) return
+        if (!isServerConnected() || _config.value.readOnly) return
         viewModelScope.launch {
             updateConfigPatch(ServerConfigPatch(defaultAgent = agent))
         }
     }
 
     private suspend fun updateConfigPatch(patch: ServerConfigPatch) {
+        if (!isServerConnected() || _config.value.readOnly) return
         val before = _config.value
         try {
             api.updateGlobalConfig(conn, patch)
@@ -539,6 +543,7 @@ class ServerSettingsViewModel @Inject constructor(
                 selectedModel = _config.value.model,
                 selectedSmallModel = _config.value.smallModel,
                 selectedDefaultAgent = _config.value.defaultAgent,
+                readOnly = _config.value.readOnly,
                 groups = groups,
                 authMethods = _authMethods.value,
                 pendingOauth = it.pendingOauth,

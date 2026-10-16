@@ -21,8 +21,17 @@ data class Session(
     val summary: Summary? = null,
     val share: Share? = null,
     val permission: List<PermissionRule>? = null,
-    val revert: Revert? = null
+    val revert: Revert? = null,
+    val agent: String? = null,
+    val model: Model? = null,
 ) {
+    @Serializable
+    data class Model(
+        val id: String,
+        @SerialName("providerID") val providerId: String,
+        val variant: String? = null,
+    )
+
     @Serializable
     data class Time(
         val created: Long,
@@ -47,7 +56,17 @@ data class Session(
         @SerialName("messageID") val messageId: String,
         @SerialName("partID") val partId: String? = null,
         val snapshot: String? = null,
-        val diff: String? = null
+        val diff: String? = null,
+        val files: List<RevertFile>? = null,
+    )
+
+    @Serializable
+    data class RevertFile(
+        val file: String,
+        val status: String,
+        val additions: Int,
+        val deletions: Int,
+        val patch: String,
     )
 
     @Serializable

@@ -9,10 +9,81 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.Reader
 import java.io.StringReader
 import java.io.StringWriter
 
 class OversizedMessageSanitizerTest {
+    @Test
+    fun skipsV2ToolContentBeforeMaterializingTextAndPreservesChatAndEnvelope() {
+        val prefix = """{"data":[{"id":"msg_1","role":"assistant","content":[{"type":"text","text":"assistant kept"},{"id":"tool_1","type":"tool","state":{"content":[{"text":""""
+        val suffix = """","type":"text"},{"type":"image","data":"inline-base64"}],"status":"completed","input":{"command":"ls"},"metadata":{"sessionId":"child"}}}]},{"role":"user","content":[{"type":"text","text":"user kept"}]}],"cursor":{"next":"older","previous":null},"location":{"directory":"/work"}}"""
+        val output = StringWriter()
+
+        transformMessageJson(repeatedPayload(prefix, suffix), output,
+            omitPayloadFields = true, preserveEnvelopeData = true)
+
+        val expected = """{"data":[{"id":"msg_1","role":"assistant","content":[{"type":"text","text":"assistant kept"},{"id":"tool_1","type":"tool","state":{"content":[],"status":"completed","input":{"command":"ls"},"metadata":{"sessionId":"child"}}}]},{"role":"user","content":[{"type":"text","text":"user kept"}]}],"cursor":{"next":"older","previous":null},"location":{"directory":"/work"}}"""
+        assertEquals(Json.parseToJsonElement(expected), Json.parseToJsonElement(output.toString()))
+    }
+
+    @Test
+    fun skipsLargeV2ImagePayloadsWithoutCachingOrLosingUserText() {
+        for (field in listOf("data", "url")) {
+            val prefix = """{"data":[{"type":"user","text":"kept","files":[{"mime":"image/png","$field":""""
+            val suffix = """"}]}],"cursor":{"next":"older"}}"""
+            val output = StringWriter()
+            transformMessageJson(repeatedPayload(prefix, suffix), output,
+                omitPayloadFields = true, preserveEnvelopeData = true,
+                cacheImageDataUrl = { error("Omitted images must not be materialized for caching") })
+            val expected = """{"data":[{"type":"user","text":"kept","files":[{"mime":"image/png","$field":""}]}],"cursor":{"next":"older"}}"""
+            assertEquals(Json.parseToJsonElement(expected), Json.parseToJsonElement(output.toString()))
+        }
+    }
+
+    @Test
+    fun preservesV2ToolContentWhenPayloadOmissionIsDisabled() {
+        val input = """{"data":[{"content":[{"type":"tool","state":{"content":[{"type":"text","text":"normal output"}]}}]}]}"""
+        val output = StringWriter()
+        transformMessageJson(input.reader(), output, omitPayloadFields = false, preserveEnvelopeData = true)
+        assertEquals(Json.parseToJsonElement(input), Json.parseToJsonElement(output.toString()))
+    }
+
+    // Generate a large wire literal without allocating it in the test fixture itself.
+    private fun repeatedPayload(prefix: String, suffix: String): Reader = object : Reader() {
+        private val payloadChars = 16 * 1024 * 1024
+        private var position = 0
+
+        override fun read(buffer: CharArray, offset: Int, length: Int): Int {
+            if (length == 0) return 0
+            val count = minOf(length, prefix.length + payloadChars + suffix.length - position)
+            if (count == 0) return -1
+            repeat(count) { index ->
+                buffer[offset + index] = when {
+                    position < prefix.length -> prefix[position]
+                    position < prefix.length + payloadChars -> 'x'
+                    else -> suffix[position - prefix.length - payloadChars]
+                }
+                position++
+            }
+            return count
+        }
+
+        override fun close() = Unit
+    }
+
+    @Test
+    fun preservesV2EnvelopeWhileOmittingNestedFilePayloads() {
+        val input = """{"data":[{"id":"msg_1","type":"user","text":"kept","files":[{"mime":"image/png","data":"oversized-base64"}]}],"cursor":{"next":"older"}}"""
+        val output = StringWriter()
+        transformMessageJson(StringReader(input), output, omitPayloadFields = true, preserveEnvelopeData = true)
+        val page = Json.parseToJsonElement(output.toString()).jsonObject
+        val message = page["data"]!!.jsonArray.single().jsonObject
+        assertEquals("kept", message["text"]!!.jsonPrimitive.content)
+        assertEquals("", message["files"]!!.jsonArray.single().jsonObject["data"]!!.jsonPrimitive.content)
+        assertEquals("older", page["cursor"]!!.jsonObject["next"]!!.jsonPrimitive.content)
+    }
+
     @Test
     fun preservesStructureAndIdentifiersButOmitsPayloadStrings() {
         val input = """[{"info":{"id":"msg-1","sessionID":"ses-1","role":"assistant","tokens":{"input":10,"output":42}},"parts":[{"id":"part-1","sessionID":"ses-1","messageID":"msg-1","type":"tool","tool":"task","state":{"status":"completed","output":"huge output","title":"Custom agent","metadata":{"sessionId":"child-1","description":"Short description","diff":"huge diff"}}}]}]"""

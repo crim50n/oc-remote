@@ -1899,6 +1899,7 @@ fun ChatScreen(
                             if (uiState.shareUrl != null) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.cmd_unshare)) },
+                                    enabled = uiState.serverSupportsSharing,
                                     onClick = {
                                         showMenu = false
                                         viewModel.unshareSession { ok ->
@@ -1916,6 +1917,7 @@ fun ChatScreen(
                             } else {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.menu_share_session)) },
+                                    enabled = uiState.serverSupportsSharing,
                                     onClick = {
                                         showMenu = false
                                         viewModel.shareSession { url ->
@@ -2914,7 +2916,45 @@ fun ChatScreen(
                                             }
                                         },
                                     )
-                                    is PendingInteraction.Question -> QuestionCard(
+                                    is PendingInteraction.Question -> if (interaction.request.questions.isEmpty()) {
+                                        Card(
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = if (isAmoledTheme()) Color.Black else MaterialTheme.colorScheme.surfaceVariant,
+                                            ),
+                                            border = if (isAmoledTheme()) BorderStroke(
+                                                1.dp,
+                                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+                                            ) else null,
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(12.dp),
+                                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                ) {
+                                                    Text(
+                                                        stringResource(R.string.chat_question_label),
+                                                        style = MaterialTheme.typography.titleSmall,
+                                                    )
+                                                    Text(position, style = MaterialTheme.typography.labelSmall)
+                                                }
+                                                Text(
+                                                    stringResource(R.string.question_unsupported_form),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                )
+                                                AppPrimaryButton(
+                                                    onClick = onOpenInWebView,
+                                                    modifier = Modifier.align(Alignment.End),
+                                                ) {
+                                                    Text(stringResource(R.string.menu_open_in_web))
+                                                }
+                                            }
+                                        }
+                                    } else QuestionCard(
                                         question = interaction.request,
                                         position = position,
                                         onSubmit = { answers, onResult ->

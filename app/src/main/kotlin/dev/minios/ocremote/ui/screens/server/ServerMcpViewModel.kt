@@ -7,6 +7,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.minios.ocremote.data.api.McpStatus
 import dev.minios.ocremote.data.api.OpenCodeApi
 import dev.minios.ocremote.data.api.ServerConnection
+import dev.minios.ocremote.data.api.ServerProtocol
+import dev.minios.ocremote.data.api.ServerProtocolRegistry
 import dev.minios.ocremote.data.repository.ServerConnectionStateRepository
 import dev.minios.ocremote.logging.AppLogger as Log
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -31,11 +33,14 @@ data class McpServerItem(
     val error: String? = null,
 )
 
+internal fun supportsMcpAuthentication(protocol: ServerProtocol?): Boolean = protocol == ServerProtocol.V1
+
 data class ServerMcpUiState(
     val servers: List<McpServerItem> = emptyList(),
     val loadingName: String? = null,
     val isLoading: Boolean = true,
     val error: String? = null,
+    val canAuthenticate: Boolean = false,
 )
 
 internal fun mcpItems(statuses: Map<String, McpStatus>): List<McpServerItem> = statuses
@@ -88,6 +93,7 @@ class ServerMcpViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         servers = mcpItems(api.getMcpStatus(conn)),
+                        canAuthenticate = supportsMcpAuthentication(ServerProtocolRegistry.knownProtocol(conn)),
                         isLoading = false,
                     )
                 }
@@ -123,8 +129,9 @@ class ServerMcpViewModel @Inject constructor(
     }
 
     fun authenticate(name: String) {
-        if (!isServerConnected()) return
+        if (!isServerConnected() || !supportsMcpAuthentication(ServerProtocolRegistry.knownProtocol(conn))) return
         viewModelScope.launch {
+            if (!isServerConnected() || !supportsMcpAuthentication(ServerProtocolRegistry.knownProtocol(conn))) return@launch
             _uiState.update { it.copy(loadingName = name, error = null) }
             try {
                 _authorizationUrls.emit(api.startMcpAuth(conn, name).authorizationUrl)

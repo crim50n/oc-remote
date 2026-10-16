@@ -740,4 +740,5 @@
     <string name="sync_conflict_desc">양쪽 기기에서 동일한 값이 다르게 변경되었습니다. 해당 충돌에 대해 어느 쪽을 적용할지 선택하세요.</string>
     <string name="sync_choose_version_desc">충돌 항목에 대해 로컬 또는 원격 값을 선택하세요. 두 복사본의 관련 없는 변경 사항은 모두 유지됩니다.</string>
     <string name="sync_direction_desc">로컬과 원격 변경 사항이 자동으로 병합됩니다. 동일한 값이 다르게 변경된 경우에만 선택하라는 안내가 표시됩니다.</string>
+    <string name="question_unsupported_form">이 양식은 Android 앱에서 지원되지 않습니다. 웹 클라이언트에서 확인하고 답변해 주세요.</string>
 </resources>

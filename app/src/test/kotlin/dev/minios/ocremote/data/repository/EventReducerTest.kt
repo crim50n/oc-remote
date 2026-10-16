@@ -21,6 +21,179 @@ import kotlinx.serialization.json.put
 class EventReducerTest {
 
     @Test
+    fun staleInboxSnapshot_doesNotUndoConcurrentLifecycleEvents() {
+        val events = listOf(
+            SseEvent.PromptEnqueued("session", "new", "queue"),
+            SseEvent.PromptDelivered("session", "queued"),
+            SseEvent.PromptCancelled("session", "queued"),
+            SseEvent.InboxDeliveryChanged("session", "queued", "steer"),
+            SseEvent.InboxDeliveryChanged("session", "unknown", "steer"),
+            SseEvent.PromptDelivered("other-session", "other"),
+        )
+        for (event in events) {
+            val reducer = EventReducer()
+            reducer.processEvent(SseEvent.PromptEnqueued("session", "queued", "queue"), "server")
+            val snapshot = reducer.v2Inbox.value
+            val revision = reducer.captureV2InboxRevision()
+            reducer.processEvent(event, "server")
+            val inboxAfterEvent = reducer.v2Inbox.value
+            val deliveriesAfterEvent = reducer.promptDeliveries.value
+
+            assertFalse(reducer.reconcileV2Inbox("session", snapshot, revision))
+            assertEquals(inboxAfterEvent, reducer.v2Inbox.value)
+            assertEquals(deliveriesAfterEvent, reducer.promptDeliveries.value)
+            assertTrue(reducer.messages.value.isEmpty())
+            assertTrue(reducer.parts.value.isEmpty())
+        }
+    }
+
+    @Test
+    fun emptyInboxSnapshot_removesQueuedAdmissionsButPreservesTerminalAndUnrelatedState() {
+        val reducer = EventReducer()
+        reducer.processEvent(SseEvent.PromptEnqueued("session", "queued", "queue"), "server")
+        reducer.processEvent(SseEvent.PromptDelivered("session", "delivered"), "server")
+        reducer.processEvent(SseEvent.PromptCancelled("session", "cancelled"), "server")
+        reducer.processEvent(SseEvent.PromptAdmitted("session", "legacy", "queue"), "server")
+        reducer.processEvent(SseEvent.PromptEnqueued("other-session", "other", "queue"), "other-server")
+        val message = Message.User("queued", "session", time = TimeInfo(1))
+        val part = Part.Text("part", "session", "queued", "confirmed")
+        reducer.processEvent(SseEvent.MessageUpdated(message), "server")
+        reducer.processEvent(SseEvent.MessagePartUpdated(part), "server")
+
+        assertTrue(reducer.reconcileV2Inbox("session", emptyMap(), reducer.captureV2InboxRevision()))
+
+        assertNull(reducer.v2Inbox.value["queued"])
+        assertNull(reducer.promptDeliveries.value["queued"])
+        assertEquals(V2InboxState.DELIVERED, reducer.v2Inbox.value["delivered"]?.state)
+        assertEquals(V2InboxState.CANCELLED, reducer.v2Inbox.value["cancelled"]?.state)
+        assertEquals(V2InboxState.QUEUED, reducer.v2Inbox.value["other"]?.state)
+        assertEquals(PromptDeliveryState.PROMOTED, reducer.promptDeliveries.value["delivered"]?.state)
+        assertEquals(PromptDeliveryState.ADMITTED, reducer.promptDeliveries.value["legacy"]?.state)
+        assertEquals(PromptDeliveryState.ADMITTED, reducer.promptDeliveries.value["other"]?.state)
+        assertEquals(listOf(message), reducer.messages.value["session"])
+        assertEquals(listOf(part), reducer.parts.value["queued"])
+    }
+
+    @Test
+    fun inboxSnapshot_replacesQueueWithoutResurrectingTerminalItemsOrSynthesizingTranscript() {
+        val reducer = EventReducer()
+        val payload = buildJsonObject { put("text", "queued text") }
+        reducer.processEvent(SseEvent.PromptEnqueued("session", "updated", "queue"), "server")
+        reducer.processEvent(SseEvent.PromptDelivered("session", "delivered"), "server")
+        reducer.processEvent(SseEvent.PromptCancelled("session", "cancelled"), "server")
+        val queued = V2InboxInfo("session", V2InboxState.QUEUED, "steer", payload, 123, "user")
+        val snapshot = mapOf(
+            "updated" to queued,
+            "new" to queued,
+            "tool" to queued.copy(itemType = "tool"),
+            "delivered" to queued,
+            "cancelled" to queued,
+            "wrong-session" to queued.copy(sessionId = "other-session"),
+        )
+        val revision = reducer.captureV2InboxRevision()
+
+        assertTrue(reducer.reconcileV2Inbox("session", snapshot, revision))
+
+        assertEquals(queued, reducer.v2Inbox.value["updated"])
+        assertEquals(queued, reducer.v2Inbox.value["new"])
+        assertEquals(V2InboxState.DELIVERED, reducer.v2Inbox.value["delivered"]?.state)
+        assertEquals(V2InboxState.CANCELLED, reducer.v2Inbox.value["cancelled"]?.state)
+        assertNull(reducer.v2Inbox.value["wrong-session"])
+        assertEquals(PromptDeliveryState.ADMITTED, reducer.promptDeliveries.value["new"]?.state)
+        assertNull(reducer.promptDeliveries.value["tool"])
+        assertNull(reducer.promptDeliveries.value["cancelled"])
+        assertEquals(PromptDeliveryState.PROMOTED, reducer.promptDeliveries.value["delivered"]?.state)
+        assertTrue(reducer.messages.value.isEmpty())
+        assertTrue(reducer.parts.value.isEmpty())
+        assertFalse(reducer.reconcileV2Inbox("session", emptyMap(), revision))
+    }
+
+    @Test
+    fun inboxCleanup_invalidatesSnapshotsEvenWhenQueueWasEmpty() {
+        for (reset in listOf("delete", "server", "transient", "all")) {
+            val reducer = EventReducer()
+            reducer.processEvent(SseEvent.SessionCreated(session("session")), "server")
+            val revision = reducer.captureV2InboxRevision()
+            when (reset) {
+                "delete" -> reducer.processEvent(SseEvent.SessionDeleted(session("session")), "server")
+                "server" -> reducer.clearForServer("server")
+                "transient" -> reducer.clearTransientForServer("server")
+                "all" -> reducer.clearAll()
+            }
+
+            assertFalse(reducer.reconcileV2Inbox(
+                "session",
+                mapOf("queued" to V2InboxInfo("session", V2InboxState.QUEUED, itemType = "user")),
+                revision,
+            ))
+            assertTrue(reducer.v2Inbox.value.isEmpty())
+            assertTrue(reducer.promptDeliveries.value.isEmpty())
+        }
+    }
+
+    @Test
+    fun inboxAndPromptLifecycle_isClearedOnDeleteServerResetAndGlobalReset() {
+        for (reset in listOf("delete", "server", "transient", "all")) {
+            val reducer = EventReducer()
+            reducer.processEvent(SseEvent.PromptAdmitted("session", "legacy", "queue"), "server")
+            reducer.processEvent(SseEvent.PromptEnqueued("session", "queued", "queue"), "server")
+            reducer.processEvent(SseEvent.PromptDelivered("session", "delivered"), "server")
+            reducer.processEvent(SseEvent.PromptCancelled("session", "cancelled"), "server")
+            reducer.processEvent(SseEvent.PromptEnqueued("other", "other", "queue"), "other-server")
+            when (reset) {
+                "delete" -> reducer.processEvent(SseEvent.SessionDeleted(session("session")), "server")
+                "server" -> reducer.clearForServer("server")
+                "transient" -> reducer.clearTransientForServer("server")
+                "all" -> reducer.clearAll()
+            }
+            assertTrue(reducer.v2Inbox.value.values.none { it.sessionId == "session" })
+            assertTrue(reducer.promptDeliveries.value.values.none { it.sessionId == "session" })
+            if (reset != "all") assertEquals(V2InboxState.QUEUED, reducer.v2Inbox.value["other"]?.state)
+        }
+    }
+
+    @Test
+    fun inboxCancellationDoesNotRemoveOrTombstoneConfirmedHistory() {
+        val reducer = EventReducer()
+        val message = Message.User("message", "session", time = TimeInfo(1))
+        reducer.processEvent(SseEvent.MessageUpdated(message), "server")
+        reducer.processEvent(SseEvent.PromptCancelled("session", "message"), "server")
+        assertEquals(listOf(message), reducer.messages.value["session"])
+        reducer.processEvent(SseEvent.MessageUpdated(message.copy(time = TimeInfo(2))), "server")
+        assertEquals(2L, reducer.messages.value["session"]?.single()?.time?.created)
+    }
+
+    @Test
+    fun sessionDeleteAndServerResetRemovePartsEvenWhenStepStartWasMissed() {
+        for (delete in listOf(true, false)) {
+            val reducer = EventReducer()
+            reducer.processEvent(SseEvent.PromptEnqueued("session", "queued", "queue"), "server")
+            reducer.processEvent(SseEvent.NextTextEnded("session", "missing-message", "part", "full", 1), "server")
+            if (delete) reducer.processEvent(SseEvent.SessionDeleted(session("session")), "server")
+            else reducer.clearForServer("server")
+            assertTrue(reducer.parts.value.isEmpty())
+        }
+    }
+
+    @Test
+    fun revertCommitRemovesKnownBoundaryInclusivelyAndClearsPartsAndBufferedDeltas() {
+        val reducer = EventReducer()
+        val session = session("session").copy(revert = Session.Revert("boundary"))
+        reducer.processEvent(SseEvent.SessionCreated(session), "server")
+        listOf("before", "boundary", "after").forEachIndexed { index, id ->
+            reducer.processEvent(SseEvent.MessageUpdated(Message.User(id, session.id, time = TimeInfo(index.toLong()))), "server")
+            reducer.processEvent(SseEvent.MessagePartUpdated(Part.Text("$id-text", session.id, id, id)), "server")
+        }
+        reducer.processEvent(SseEvent.NextTextDelta(session.id, "after", "missing", "buffered"), "server")
+        reducer.processEvent(SseEvent.SessionRevertCommitted(session.id, "boundary", 10), "server")
+        assertEquals(listOf("before"), reducer.messages.value[session.id]?.map { it.id })
+        assertEquals(setOf("before"), reducer.parts.value.keys)
+        assertNull(reducer.sessions.value.single().revert)
+        reducer.processEvent(SseEvent.NextTextEnded(session.id, "after", "missing", "late", 11), "server")
+        assertNull(reducer.parts.value["after"])
+    }
+
+    @Test
     fun sessionCreated_upsertsWithoutReplacingBusyOrRetryStatus() {
         val reducer = EventReducer()
         val busySession = session("busy", updated = 1)

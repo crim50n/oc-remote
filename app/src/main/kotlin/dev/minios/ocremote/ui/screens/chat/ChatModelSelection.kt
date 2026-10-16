@@ -16,7 +16,10 @@ internal fun resolveChatModelSelection(
     defaultsReady: Boolean = true,
     revert: Session.Revert? = null,
     historyComplete: Boolean = true,
+    sessionModel: Session.Model? = null,
 ): ModelSelection? {
+    // V2 owns selection on the session, independently of transcript messages and catalog defaults.
+    if (sessionModel != null) return selected ?: ModelSelection(sessionModel.providerId, sessionModel.id)
     if (!defaultsReady) return selected
     val history = modelSelectionHistory(messages, revert).filterIsInstance<Message.User>()
         .filter { it.model != null }

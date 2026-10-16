@@ -740,4 +740,5 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_conflict_desc">Los mismos valores se modificaron de manera diferente en ambos dispositivos. Elige qué versión conservar para esos conflictos.</string>
     <string name="sync_choose_version_desc">Elige entre los valores locales o remotos para los conflictos. Los cambios no relacionados de ambas copias se mantienen.</string>
     <string name="sync_direction_desc">Los cambios locales y remotos se fusionan automáticamente. Solo se te pedirá cuando el mismo valor haya cambiado de forma diferente.</string>
+    <string name="question_unsupported_form">Este formulario no es compatible con la app de Android. Abre el cliente web para revisarlo y responderlo.</string>
 </resources>

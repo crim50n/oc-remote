@@ -740,4 +740,5 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_conflict_desc">Die gleichen Werte wurden auf beiden Geräten unterschiedlich geändert. Wähle aus, welche Seite bei diesen Konflikten gewinnt.</string>
     <string name="sync_choose_version_desc">Wähle für Konflikte lokale oder entfernte Werte aus. Unabhängige Änderungen aus beiden Kopien bleiben erhalten.</string>
     <string name="sync_direction_desc">Lokale und entfernte Änderungen werden automatisch zusammengeführt. Du wirst nur gefragt, wenn sich derselbe Wert unterschiedlich geändert hat.</string>
+    <string name="question_unsupported_form">Dieses Formular wird in der Android-App nicht unterstützt. Öffne den Web-Client, um es anzusehen und auszufüllen.</string>
 </resources>

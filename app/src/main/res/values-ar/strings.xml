@@ -740,4 +740,5 @@
     <string name="sync_conflict_desc">تم تغيير نفس القيم بشكل مختلف على كلا الجهازين. اختر أي جهة تفضل لحل هذه التعارضات.</string>
     <string name="sync_choose_version_desc">اختر القيم المحلية أو البعيدة لحل التعارضات. سيتم الاحتفاظ بالتغييرات غير المرتبطة من كلا النسختين.</string>
     <string name="sync_direction_desc">يتم دمج التغييرات المحلية والبعيدة تلقائيًا. سيتم سؤالك فقط عندما يتم تغيير نفس القيمة بشكل مختلف.</string>
+    <string name="question_unsupported_form">هذا النموذج غير مدعوم في تطبيق Android. يرجى فتح العميل على الويب لمراجعته والإجابة عليه.</string>
 </resources>

@@ -6,6 +6,18 @@ Track open bugs here. Remove items once they are fixed and verified on device.
 
 ## Open
 
+- An unreachable host could leave its card connecting without a cancellation action. Connecting
+  cards now expose Cancel, which cancels the health-check job or service connection, and health
+  checks propagate coroutine cancellation. The actual unreachable-host flow still needs device
+  verification (`HomeScreen.kt` around line 1135 and `HomeViewModel.kt` around lines 900-913).
+
+- OpenCode v2 integration is based on the published 2.0.30 contract (PR #45). V1 fallback, scoped
+  discovery, cursor pagination, session-owned selections, inbox admission, authoritative SSE
+  completion and bounded history/file parsing have regression coverage, but successful generation,
+  reconnect recovery, forms and ticketed PTY still need end-to-end device verification
+  (`OpenCodeV2Api.kt`, `V2Protocol.kt`, `EventReducer.kt`, and `ChatViewModel.kt`). Complex forms
+  require the web client; configuration writes and native MCP OAuth are not exposed on v2.
+
 - The first chat prompt could use a hidden server-default model instead of the model shown by the
   selector (#41). UI, prompts, shell commands, and compaction now share model resolution from
   explicit selection, agent configuration, history, project configuration, and visible models,

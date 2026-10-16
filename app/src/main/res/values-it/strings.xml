@@ -740,4 +740,5 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_conflict_desc">Gli stessi valori sono stati modificati in modo diverso su entrambi i dispositivi. Scegli quale versione deve prevalere per questi conflitti.</string>
     <string name="sync_choose_version_desc">Scegli valori locali o remoti per i conflitti. Le modifiche non correlate di entrambe le copie vengono mantenute.</string>
     <string name="sync_direction_desc">Le modifiche locali e remote vengono unite automaticamente. Ti verrà chiesto solo quando lo stesso valore è stato modificato in modo diverso.</string>
+    <string name="question_unsupported_form">Questo modulo non è supportato nell\'app Android. Apri il client web per visualizzarlo e rispondere.</string>
 </resources>

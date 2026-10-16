@@ -977,7 +977,7 @@ private fun EmptyServersView(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ServerCard(
+internal fun ServerCard(
     modifier: Modifier = Modifier,
     server: ServerConfig,
     isConnected: Boolean,
@@ -1112,44 +1112,20 @@ private fun ServerCard(
                 )
             }
 
-            // Action buttons row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (isConnected) {
-                    AppPrimaryButton(
-                        onClick = onOpenSessions,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(
-                            Lucide.MessageCircle,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp).mirrorForRtl(),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.sessions_title), maxLines = 1)
-                    }
-                }
-            }
             if (isConnected) {
-                Row(
+                AppPrimaryButton(
+                    onClick = onOpenSessions,
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    AppSecondaryButton(
-                        onClick = onDisconnect,
-                        modifier = Modifier.fillMaxWidth(),
-                        destructive = true,
-                        outlined = true,
-                    ) {
-                        Icon(Lucide.X, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.home_disconnect), maxLines = 1)
-                    }
+                    Icon(
+                        Lucide.MessageCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp).mirrorForRtl(),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.sessions_title), maxLines = 1)
                 }
-            }
-            if (!isConnected) {
+            } else {
                 AppPrimaryButton(
                     onClick = onConnect,
                     modifier = Modifier.fillMaxWidth(),
@@ -1159,7 +1135,7 @@ private fun ServerCard(
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
-                            color = if (isAmoled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            color = if (isAmoled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.home_connecting))
@@ -1168,6 +1144,18 @@ private fun ServerCard(
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.home_connect))
                     }
+                }
+            }
+            if (isConnected || isConnecting) {
+                AppSecondaryButton(
+                    onClick = onDisconnect,
+                    modifier = Modifier.fillMaxWidth(),
+                    destructive = true,
+                    outlined = true,
+                ) {
+                    Icon(Lucide.X, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(if (isConnected) R.string.home_disconnect else R.string.cancel), maxLines = 1)
                 }
             }
         }

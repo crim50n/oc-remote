@@ -154,6 +154,30 @@ class ChatModelSelectionTest {
         assertNull(Json.decodeFromString<AgentInfo>("""{"name":"build"}""").model)
     }
 
+    @Test
+    fun sessionOwnedV2ModelWinsBeforeCatalogOrDefaultsLoad() {
+        assertEquals(
+            other,
+            resolveChatModelSelection(
+                null, listOf(user(visible, 1)), visible, visible, emptyList(), false, false,
+                defaultsReady = false,
+                historyComplete = false,
+                sessionModel = Session.Model(other.modelId, other.providerId, "high"),
+            ),
+        )
+    }
+
+    @Test
+    fun explicitModelWinsOverSessionOwnedV2Model() {
+        assertEquals(
+            visible,
+            resolveChatModelSelection(
+                visible, emptyList(), null, null, providers, true, false,
+                sessionModel = Session.Model(other.modelId, other.providerId),
+            ),
+        )
+    }
+
     private fun resolve(
         selected: ModelSelection? = null,
         messages: List<Message> = emptyList(),

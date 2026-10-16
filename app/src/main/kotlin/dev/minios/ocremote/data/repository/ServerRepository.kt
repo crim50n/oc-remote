@@ -323,6 +323,8 @@ class ServerRepository @Inject constructor(
             updateServer(updatedServer)
             
             Result.success(health)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Server health check failed", e)
             

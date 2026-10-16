@@ -746,4 +746,5 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_conflict_desc">Nilai yang sama diubah secara berbeda di kedua perangkat. Pilih sisi mana yang akan digunakan untuk konflik tersebut.</string>
     <string name="sync_choose_version_desc">Pilih nilai lokal atau jarak jauh untuk konflik. Perubahan yang tidak terkait dari kedua salinan akan tetap dipertahankan.</string>
     <string name="sync_direction_desc">Perubahan lokal dan jarak jauh digabungkan secara otomatis. Anda hanya akan diminta memilih jika nilai yang sama diubah secara berbeda.</string>
+    <string name="question_unsupported_form">Formulir ini tidak didukung di aplikasi Android. Buka klien web untuk meninjau dan menjawabnya.</string>
 </resources>

@@ -740,4 +740,5 @@ Tokeny: ~%4$d -&gt; ~%5$d</string>
     <string name="sync_conflict_desc">Te same wartości zostały zmienione inaczej na obu urządzeniach. Wybierz, która wersja ma zostać zachowana dla tych konfliktów.</string>
     <string name="sync_choose_version_desc">Wybierz wartości lokalne lub zdalne dla konfliktów. Niezwiązane zmiany z obu kopii zostaną zachowane.</string>
     <string name="sync_direction_desc">Zmiany lokalne i zdalne są scalane automatycznie. Pytanie pojawi się tylko wtedy, gdy ta sama wartość została zmieniona inaczej.</string>
+    <string name="question_unsupported_form">Ten formularz nie jest obsługiwany w aplikacji na Androida. Otwórz klienta webowego, aby go przejrzeć i odpowiedzieć.</string>
 </resources>

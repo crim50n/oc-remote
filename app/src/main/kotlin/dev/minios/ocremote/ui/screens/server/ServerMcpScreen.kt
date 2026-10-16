@@ -158,6 +158,7 @@ fun ServerMcpScreen(
                             onDisconnect = { viewModel.disconnect(server.name) },
                             onAuthenticate = { viewModel.authenticate(server.name) },
                             enabled = isServerConnected,
+                            canAuthenticate = state.canAuthenticate,
                         )
                     }
                 }
@@ -176,6 +177,7 @@ private fun McpServerCard(
     onDisconnect: () -> Unit,
     onAuthenticate: () -> Unit,
     enabled: Boolean,
+    canAuthenticate: Boolean,
 ) {
     Card(
         shape = AppCardShape,
@@ -213,7 +215,7 @@ private fun McpServerCard(
                     "connected" -> OutlinedButton(onClick = onDisconnect, enabled = enabled) {
                         Text(stringResource(R.string.server_mcp_disconnect))
                     }
-                    "needs_auth", "needs_client_registration" -> Button(onClick = onAuthenticate, enabled = enabled) {
+                    "needs_auth", "needs_client_registration" -> Button(onClick = onAuthenticate, enabled = enabled && canAuthenticate) {
                         Text(stringResource(R.string.server_mcp_authenticate))
                     }
                     else -> Button(onClick = onConnect, enabled = enabled) {

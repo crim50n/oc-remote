@@ -740,4 +740,5 @@
     <string name="sync_conflict_desc">两台设备上相同的值被不同方式更改。请选择冲突项的保留方式。</string>
     <string name="sync_choose_version_desc">请为冲突选择本地或远程的值。两份副本中无关的更改都会保留。</string>
     <string name="sync_direction_desc">本地和远程更改会自动合并。仅当相同值被不同方式更改时才会提示您。</string>
+    <string name="question_unsupported_form">此表单在 Android 应用中不支持。请使用网页版查看并填写。</string>
 </resources>
