@@ -1,4 +1,6 @@
 package dev.minios.ocremote.ui.screens.settings
+import dev.minios.ocremote.ui.components.AppDropdownMenu as DropdownMenu
+import dev.minios.ocremote.ui.components.AppDropdownMenuItem as DropdownMenuItem
 
 import com.composables.icons.lucide.*
 import dev.minios.ocremote.ui.components.backIcon

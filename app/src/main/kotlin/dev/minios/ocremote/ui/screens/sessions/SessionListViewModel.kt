@@ -250,6 +250,7 @@ class SessionListViewModel @Inject constructor(
             favoriteSessionIds,
             sessionCategories,
             categoryAssignments,
+            settingsRepository.sessionFeatures,
         )
     ) { values ->
         val allSessions = values[0] as List<Session>
@@ -264,8 +265,9 @@ class SessionListViewModel @Inject constructor(
         val favoriteIds = values[9] as List<String>
         val categories = values[10] as List<SessionCategory>
         val assignments = values[11] as Map<String, String>
-        val favoriteOrder = favoriteIds.withIndex().associate { (index, id) -> id to index }
-        val categoriesById = categories.associateBy { it.id }
+        val features = values[12] as dev.minios.ocremote.domain.model.SessionFeatures
+        val favoriteOrder = if (features.favorites) favoriteIds.withIndex().associate { (index, id) -> id to index } else emptyMap()
+        val categoriesById = if (features.categories) categories.associateBy { it.id } else emptyMap()
 
         // Filter sessions belonging to this server
         val serverSessionIds = serverSessions[serverId] ?: emptySet()
@@ -297,7 +299,7 @@ class SessionListViewModel @Inject constructor(
             error = error,
             selectedIds = validSelectedIds,
             isSelectionMode = validSelectedIds.isNotEmpty(),
-            categories = categories,
+            categories = if (features.categories) categories else emptyList(),
         )
     }.stateIn(
         viewModelScope,

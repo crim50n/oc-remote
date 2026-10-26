@@ -1,4 +1,6 @@
 package dev.minios.ocremote.ui.screens.chat
+import dev.minios.ocremote.ui.components.AppDropdownMenu as DropdownMenu
+import dev.minios.ocremote.ui.components.AppDropdownMenuItem as DropdownMenuItem
 
 import com.composables.icons.lucide.*
 import dev.minios.ocremote.ui.components.backIcon
@@ -189,6 +191,14 @@ import dev.minios.ocremote.logging.AppLogger as Log
 import android.view.MotionEvent
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import dev.minios.ocremote.data.repository.ChatViewSnapshot
+import kotlinx.coroutines.flow.collectLatest
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.haze
 import dev.minios.ocremote.BuildConfig
 import androidx.compose.ui.res.stringResource
 import dev.minios.ocremote.R
@@ -1033,11 +1043,14 @@ private suspend fun buildAttachmentFromUri(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatScreen(
+    openTabCount: Int = 0,
+    onOpenTabs: () -> Unit = {},
     onNavigateBack: () -> Unit,
     onNavigateToSession: (sessionId: String) -> Unit = {},
     onNavigateToChildSession: (sessionId: String) -> Unit = {},
     onOpenInWebView: () -> Unit = {},
     onOpenWorkspace: (directory: String) -> Unit = {},
+    onOpenServerFile: (directory: String, href: String) -> Unit = { _, _ -> },
     onManageModels: () -> Unit = {},
     initialSharedAttachments: List<Uri> = emptyList(),
     onSharedAttachmentsConsumed: () -> Unit = {},
@@ -1048,6 +1061,7 @@ fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val historyLoaded by viewModel.historyLoaded.collectAsState()
     val draftText by viewModel.draftText.collectAsState()
     val draftAttachmentUris by viewModel.draftAttachmentUris.collectAsState()
     var inputText by remember { mutableStateOf(TextFieldValue("")) }
@@ -1071,7 +1085,7 @@ fun ChatScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showAttachmentOptions by remember { mutableStateOf(false) }
     var showSubagentContextDetails by remember { mutableStateOf(false) }
-    var isTerminalMode by rememberSaveable { mutableStateOf(startInTerminalMode) }
+    var isTerminalMode by rememberSaveable { mutableStateOf(startInTerminalMode || viewModel.restoredView?.terminal == true) }
     var terminalCtrlLatched by rememberSaveable { mutableStateOf(false) }
     var terminalAltLatched by rememberSaveable { mutableStateOf(false) }
     var terminalVirtualCtrlDown by remember { mutableStateOf(false) }
@@ -1081,12 +1095,102 @@ fun ChatScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val externalUriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    val currentOpenServerFile by rememberUpdatedState(onOpenServerFile)
+    val serverFileUriHandler = remember(externalUriHandler, viewModel) {
+        object : androidx.compose.ui.platform.UriHandler {
+            override fun openUri(uri: String) {
+                if (dev.minios.ocremote.data.api.parseServerFileLink(uri) != null) {
+                    currentOpenServerFile(viewModel.getSessionDirectory().orEmpty(), uri)
+                } else if (!uri.startsWith("file:", ignoreCase = true)) {
+                    externalUriHandler.openUri(uri)
+                }
+            }
+        }
+    }
     val isAmoled = isAmoledTheme()
     val keyboardController = LocalSoftwareKeyboardController.current
+    val chatHaze = remember { HazeState() }
+    val acrylicModifier = chatAcrylicModifier(chatHaze)
+    ChatAcrylicSystemBars(enabled = !isTerminalMode, background = MaterialTheme.colorScheme.surface)
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     val view = LocalView.current
     val density = LocalDensity.current
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
+    val readingAutoHide by viewModel.readingAutoHide.collectAsState()
+    val readingHideStatus by viewModel.readingHideStatus.collectAsState()
+    val readingHideNavigation by viewModel.readingHideNavigation.collectAsState()
+    val touchExploration = rememberTouchExplorationEnabled()
+    var readingProgress by remember { mutableFloatStateOf(0f) }
+    var keepBottomDuringReveal by remember { mutableStateOf(false) }
+    var readingAnimation by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    fun revealReadingPanels(hidden: Boolean, keepBottom: Boolean = keepBottomDuringReveal || !listState.canScrollForward) {
+        readingAnimation?.cancel()
+        keepBottomDuringReveal = !hidden && keepBottom
+        readingAnimation = coroutineScope.launch {
+            androidx.compose.animation.core.animate(readingProgress, if (hidden) 1f else 0f,
+                animationSpec = androidx.compose.animation.core.tween(180)) { value, _ ->
+                readingProgress = value
+            }
+        }
+    }
+    val readingBlocked = imeVisible || touchExploration || isTerminalMode || showModelPicker || showMenu || showRenameDialog ||
+        showAttachmentOptions || uiState.pendingInteractions.isNotEmpty() || !isServerConnected || !uiState.sessionLoaded
+    val panelCollapse = if (readingBlocked) 0f else readingProgress
+    val topPanelCollapse by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = panelCollapse,
+        animationSpec = androidx.compose.animation.core.tween(320),
+        label = "top panel collapse",
+    )
+    val actualReadingHidden = topPanelCollapse >= 0.999f
+    LaunchedEffect(keepBottomDuringReveal) {
+        if (!keepBottomDuringReveal) return@LaunchedEffect
+        var settledFrames = 0
+        // Top and bottom panels have different durations. Their padding changes must both
+        // settle before releasing the bottom anchor; one final scroll after 180 ms is too early.
+        while (keepBottomDuringReveal) {
+            withFrameNanos { }
+            val lastIndex = listState.layoutInfo.totalItemsCount - 1
+            if (lastIndex >= 0) listState.requestScrollToItem(lastIndex)
+            settledFrames = if (readingProgress == 0f && topPanelCollapse == 0f) settledFrames + 1 else 0
+            if (settledFrames >= 3) keepBottomDuringReveal = false
+        }
+    }
+    val currentReadingBlocked by rememberUpdatedState(readingBlocked)
+    val currentAutoHide by rememberUpdatedState(readingAutoHide)
+    val readingScroll = remember(density) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && available.y > 0f) {
+                    keepBottomDuringReveal = false
+                }
+                if (source == NestedScrollSource.UserInput && currentAutoHide && !currentReadingBlocked) {
+                    readingAnimation?.cancel()
+                    val travel = 96f * density.density
+                    val previous = readingProgress
+                    readingProgress = readingCollapseFraction(previous, available.y, travel)
+                    return Offset(0f, (previous - readingProgress) * travel)
+                }
+                return Offset.Zero
+            }
+            override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity,
+                available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity {
+                if (currentAutoHide && !currentReadingBlocked && readingProgress > 0f && readingProgress < 1f) {
+                    revealReadingPanels(readingProgress >= 0.5f)
+                }
+                return androidx.compose.ui.unit.Velocity.Zero
+            }
+        }
+    }
+    LaunchedEffect(readingBlocked, readingAutoHide) {
+        if (readingBlocked || !readingAutoHide) {
+            readingAnimation?.cancel()
+            keepBottomDuringReveal = false
+            readingProgress = 0f
+        }
+    }
+    ReadingSystemBars(actualReadingHidden, readingHideStatus, readingHideNavigation)
+    BackHandler(enabled = panelCollapse > 0f || topPanelCollapse > 0f) { revealReadingPanels(false) }
     val usesGestureNavigation = WindowInsets.systemGestures.getLeft(density, LayoutDirection.Ltr) > 0
     var terminalOverlayHeightPx by remember { mutableStateOf(0) }
 
@@ -1118,6 +1222,18 @@ fun ChatScreen(
     val terminalFontSizeSp by viewModel.terminalFontSizeSp.collectAsState()
     val terminalDrawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_START) viewModel.setScreenActive(true)
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) viewModel.setScreenActive(false)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        viewModel.setScreenActive(lifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED))
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.setScreenActive(false)
+        }
+    }
     var showSendConfirmDialog by remember { mutableStateOf(false) }
     // Pending send action: stored so the confirm dialog can trigger it
     var pendingSendAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -1577,19 +1693,54 @@ fun ChatScreen(
 
     // Whether auto-scroll should follow new content.
     // Disabled when user manually scrolls up; re-enabled when user scrolls back to bottom.
-    var autoScrollEnabled by remember { mutableStateOf(true) }
+    var autoScrollEnabled by remember { mutableStateOf(viewModel.restoredView?.following ?: true) }
+    var viewRestored by remember { mutableStateOf(viewModel.restoredView?.following != false) }
+    var restorationPages by remember { mutableIntStateOf(0) }
+    var initialScrollDone by remember { mutableStateOf(false) }
+    val latestFollowing by rememberUpdatedState(autoScrollEnabled)
+    val latestTerminalMode by rememberUpdatedState(isTerminalMode)
+    val latestViewRestored by rememberUpdatedState(viewRestored)
+    LaunchedEffect(viewModel.workspaceKey) {
+        snapshotFlow {
+            ChatViewSnapshot(listState.layoutInfo.visibleItemsInfo.firstOrNull()?.key as? String,
+                listState.firstVisibleItemScrollOffset, latestFollowing, latestTerminalMode)
+        }.collectLatest { snapshot ->
+            kotlinx.coroutines.delay(400)
+            if (latestViewRestored) viewModel.saveView(snapshot)
+        }
+    }
+    DisposableEffect(viewModel.workspaceKey) {
+        onDispose {
+            val item = listState.layoutInfo.visibleItemsInfo.firstOrNull()
+            if (latestViewRestored) viewModel.saveView(ChatViewSnapshot(item?.key as? String,
+                listState.firstVisibleItemScrollOffset, latestFollowing, latestTerminalMode))
+        }
+    }
+    LaunchedEffect(uiState.sessionTitle) {
+        if (uiState.sessionLoaded) viewModel.saveWorkspaceTitle(uiState.sessionTitle)
+    }
+    LaunchedEffect(historyLoaded, isServerConnected, uiState.isLoading, uiState.isLoadingOlder, uiState.messages.size) {
+        if (viewRestored || (!historyLoaded && isServerConnected) || uiState.isLoading || uiState.isLoadingOlder) return@LaunchedEffect
+        val snapshot = viewModel.restoredView ?: return@LaunchedEffect
+        val turns = groupChatTurns(uiState.messages)
+        val index = turns.indexOfFirst { it.key == snapshot.itemKey }
+        if (index >= 0) {
+            withFrameNanos { }
+            listState.scrollToItem(index + if (uiState.hasOlderMessages) 1 else 0, snapshot.offset)
+            viewRestored = true
+        } else if (isServerConnected && uiState.hasOlderMessages && restorationPages < 10) {
+            restorationPages++
+            viewModel.loadOlderMessages()
+        } else {
+            viewRestored = true
+        }
+    }
 
     // True when the very bottom of the list is visible (accounting for offset within tall items)
     val isAtBottom by remember {
         derivedStateOf {
-            val info = listState.layoutInfo
-            val lastVisible = info.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf true
-            val totalItems = info.totalItemsCount
-            if (lastVisible.index < totalItems - 1) return@derivedStateOf false
-            // Last item is visible — check if its bottom edge is within the viewport
-            val itemBottom = lastVisible.offset + lastVisible.size
-            val viewportEnd = info.viewportEndOffset
-            itemBottom <= viewportEnd + 50 // 50px tolerance
+            // Includes the space reserved beneath the acrylic composer, not just the last row.
+            !listState.canScrollForward
         }
     }
 
@@ -1600,7 +1751,7 @@ fun ChatScreen(
             autoScrollEnabled = false
         } else if (isAtBottom) {
             // User stopped scrolling and ended up at the bottom — re-enable
-            autoScrollEnabled = true
+            if (viewRestored) autoScrollEnabled = true
         }
     }
 
@@ -1626,7 +1777,7 @@ fun ChatScreen(
     val pendingCount = pendingInteractions.size
     val isBusy = isWorkingSessionStatus(uiState.sessionStatus)
     LaunchedEffect(messageCount, lastPartCount, lastContentLength, pendingCount, isBusy) {
-        if (messageCount > 0 && autoScrollEnabled) {
+        if (messageCount > 0 && autoScrollEnabled && viewRestored) {
             val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
             listState.scrollToItem(lastIndex)
         }
@@ -1634,10 +1785,11 @@ fun ChatScreen(
 
     // Also auto-scroll when first loading
     LaunchedEffect(uiState.isLoading) {
-        if (!uiState.isLoading && messageCount > 0) {
+        if (!initialScrollDone && !uiState.isLoading && messageCount > 0 && viewModel.restoredView?.following != false) {
             val lastIndex = listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1
             listState.scrollToItem(lastIndex)
             autoScrollEnabled = true
+            initialScrollDone = true
         }
     }
 
@@ -1655,24 +1807,33 @@ fun ChatScreen(
             amplitude = hapticAmplitude,
         ),
         LocalImageSaveRequest provides requestSaveImage,
+        androidx.compose.ui.platform.LocalUriHandler provides serverFileUriHandler,
     ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            if ((!isTerminalMode && uiState.sessionLoaded) || !isServerConnected) {
+            CollapsingChatPanel(topPanelCollapse, top = true, backgroundModifier = if (!isTerminalMode) acrylicModifier else Modifier) {
+            if (!isTerminalMode || !isServerConnected) {
             Column(modifier = if (isTerminalMode) Modifier.statusBarsPadding() else Modifier) {
-            if (!isTerminalMode && uiState.sessionLoaded) {
+            if (!isTerminalMode) {
             Box {
             TopAppBar(
                 title = {
                     Column {
-                        Text(
+                        if (!uiState.sessionLoaded) {
+                            dev.minios.ocremote.ui.components.SessionTitlePlaceholder(
+                                loading = isServerConnecting || (isServerConnected && uiState.error == null),
+                            )
+                        } else Text(
                             text = uiState.sessionTitle,
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        Text(viewModel.serverName, style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                         // Subtitle: total tokens and cost for the session
                         val totalTokens = uiState.totalInputTokens + uiState.totalOutputTokens
                         if (totalTokens > 0 || uiState.totalCost > 0) {
@@ -1699,6 +1860,7 @@ fun ChatScreen(
                     }
                 },
                 actions = {
+                    dev.minios.ocremote.ui.components.SessionTabsButton(openTabCount, onOpenTabs)
                     if (
                         uiState.parentSessionId != null &&
                         uiState.contextWindow > 0 &&
@@ -1732,9 +1894,9 @@ fun ChatScreen(
                             }
                         }
                     }
-                    if (uiState.parentSessionId == null) Box {
+                    Box {
                         val isAmoled = isAmoledTheme()
-                        IconButton(onClick = { showMenu = true }) {
+                        IconButton(onClick = { showMenu = true }, enabled = uiState.sessionLoaded && uiState.parentSessionId == null) {
                             Icon(Lucide.EllipsisVertical, contentDescription = stringResource(R.string.more_options))
                         }
                         if (inputText.text.isNotEmpty()) {
@@ -1954,11 +2116,12 @@ fun ChatScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
                 )
             )
                 AppLoadingEdge(
-                    active = uiState.isLoading && uiState.messages.isEmpty(),
+                    active = (uiState.isLoading || isServerConnecting) && uiState.messages.isEmpty(),
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
@@ -1971,8 +2134,27 @@ fun ChatScreen(
                 }
             }
             }
+            }
         },
         bottomBar = {
+            Column {
+                val runningTool = uiState.messages.any { message ->
+                    message.parts.any { it is Part.Tool && it.state is ToolState.Running }
+                }
+                if (!isTerminalMode && uiState.sessionLoaded && (isBusy || runningTool)) {
+                    val density = LocalDensity.current
+                    val bottomInset = WindowInsets.navigationBars.getBottom(density)
+                    Column(Modifier.then(acrylicModifier).padding(
+                        bottom = with(density) { (bottomInset * panelCollapse).toDp() },
+                    )) {
+                        if (uiState.sessionStatus is SessionStatus.Retry) {
+                            RetryStatusBanner(uiState.sessionStatus as SessionStatus.Retry)
+                        } else {
+                            SessionActivityRow(uiState.messages)
+                        }
+                    }
+                }
+            CollapsingChatPanel(panelCollapse, top = false, backgroundModifier = if (!isTerminalMode) acrylicModifier else Modifier) {
             val modelLabel = if (uiState.selectedModelId != null && uiState.providers.isNotEmpty()) {
                 val provider = uiState.providers.find { it.id == uiState.selectedProviderId }
                 val model = provider?.models?.get(uiState.selectedModelId)
@@ -2096,8 +2278,6 @@ fun ChatScreen(
                 onStop = viewModel::abortSession,
                 isSending = uiState.isSending,
                 isBusy = isWorkingSessionStatus(uiState.sessionStatus) || hasRunningTool,
-                sessionStatus = uiState.sessionStatus,
-                messages = uiState.messages,
                 attachments = attachments,
                 onAttach = { showAttachmentOptions = true },
                 onRemoveAttachment = { index ->
@@ -2246,12 +2426,14 @@ fun ChatScreen(
                 isServerConnected = isServerConnected,
             )
             }
+            }
+            }
         }
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(if (isTerminalMode && isServerConnected) PaddingValues(0.dp) else padding)
+                .padding(if ((isTerminalMode && isServerConnected) || (!isTerminalMode && uiState.messages.isNotEmpty())) PaddingValues(0.dp) else padding)
         ) {
             when {
                 isTerminalMode -> {
@@ -2708,7 +2890,19 @@ fun ChatScreen(
                         }
                     }
                 }
-                uiState.messages.isEmpty() && !uiState.isLoading -> {
+                !uiState.sessionLoaded && uiState.messages.isEmpty() -> {
+                    if (isServerConnected && !isServerConnecting) Text(
+                        text = stringResource(when {
+                            isServerConnecting -> R.string.home_connecting
+                            isServerConnected -> R.string.loading
+                            else -> R.string.session_tabs_offline
+                        }),
+                        modifier = Modifier.align(Alignment.Center).padding(32.dp),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                uiState.messages.isEmpty() && !uiState.isLoading && historyLoaded && isServerConnected -> {
                     Column(
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -2741,8 +2935,10 @@ fun ChatScreen(
                     val chatTurns = remember(uiState.messages) { groupChatTurns(uiState.messages) }
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.fillMaxSize().haze(chatHaze).nestedScroll(readingScroll),
+                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp,
+                            top = padding.calculateTopPadding() + 8.dp,
+                            bottom = padding.calculateBottomPadding() + 8.dp),
                         verticalArrangement = Arrangement.spacedBy(messageSpacing)
                     ) {
                         // "Load earlier messages" button at the top
@@ -3005,7 +3201,7 @@ fun ChatScreen(
                             },
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
-                                .padding(bottom = 8.dp),
+                                .padding(bottom = padding.calculateBottomPadding() + 8.dp),
                             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                             contentColor = MaterialTheme.colorScheme.onSurface
                         ) {
@@ -5452,7 +5648,8 @@ private fun MarkdownContent(
             colors = colors,
             typography = typography,
             flavour = ChatMarkdownFlavour,
-            annotator = ChatMarkdownAnnotator,
+            annotator = dev.minios.ocremote.ui.components.rememberInteractiveMarkdownLinks(ChatMarkdownAnnotator,
+                if (isUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary),
             components = components,
             imageTransformer = clickableImageTransformer,
             modifier = Modifier.fillMaxWidth()
@@ -7901,6 +8098,36 @@ private fun RetryStatusBanner(retry: SessionStatus.Retry) {
     }
 }
 
+@Composable
+private fun SessionActivityRow(messages: List<ChatMessage>) {
+    val tool = messages.asReversed().firstNotNullOfOrNull { message ->
+        message.parts.filterIsInstance<Part.Tool>().lastOrNull { it.state is ToolState.Running }
+    }
+    val title = (tool?.state as? ToolState.Running)?.title
+    val text = title ?: when (tool?.tool) {
+        null -> stringResource(R.string.chat_tool_thinking)
+        "read" -> stringResource(R.string.chat_tool_reading_file)
+        "write" -> stringResource(R.string.chat_tool_writing_file)
+        "edit" -> stringResource(R.string.chat_tool_editing_file)
+        "bash" -> stringResource(R.string.chat_tool_running_command)
+        "glob", "list" -> stringResource(R.string.chat_tool_searching_files)
+        "grep" -> stringResource(R.string.chat_tool_searching_code)
+        "webfetch" -> stringResource(R.string.chat_tool_fetching_url)
+        "task" -> stringResource(R.string.chat_tool_running_subagent)
+        "todowrite" -> stringResource(R.string.chat_tool_updating_tasks)
+        else -> stringResource(R.string.chat_tool_running_tool, tool.tool)
+    }
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PulsingDotsIndicator(dotSize = 4.dp, dotSpacing = 3.dp, color = MaterialTheme.colorScheme.tertiary)
+        Text(text, style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChatInputBar(
@@ -7910,8 +8137,6 @@ private fun ChatInputBar(
     onStop: () -> Unit,
     isSending: Boolean,
     isBusy: Boolean = false,
-    sessionStatus: SessionStatus = SessionStatus.Idle,
-    messages: List<ChatMessage> = emptyList(),
     attachments: List<ImageAttachment> = emptyList(),
     onAttach: () -> Unit = {},
     onRemoveAttachment: (Int) -> Unit = {},
@@ -7962,7 +8187,6 @@ private fun ChatInputBar(
         ComposerAction.DISABLED
     }
     val canSend = action == ComposerAction.SEND
-    val retryStatus = sessionStatus as? SessionStatus.Retry
     var showContextDetails by remember { mutableStateOf(false) }
     var previewAttachmentIndex by remember { mutableStateOf(-1) }
     var showVariantMenu by remember { mutableStateOf(false) }
@@ -7998,9 +8222,6 @@ private fun ChatInputBar(
             thickness = 0.5.dp
         )
 
-        retryStatus?.let { retry ->
-            RetryStatusBanner(retry)
-        }
 
         // Slash command suggestions popup (scrollable, max 40% screen height)
         AnimatedVisibility(
@@ -8136,64 +8357,6 @@ private fun ChatInputBar(
             contextPercentage >= 90 -> MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
             contextPercentage >= 70 -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f)
             else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
-        }
-        if (isBusy && retryStatus == null) {
-            val lastRunningTool = if (isBusy) {
-                messages.asReversed().firstNotNullOfOrNull { message ->
-                    message.parts.filterIsInstance<Part.Tool>().lastOrNull { it.state is ToolState.Running }
-                }
-            } else null
-
-            val statusText = if (isBusy) {
-                if (lastRunningTool != null) {
-                    val title = (lastRunningTool.state as ToolState.Running).title
-                    when (lastRunningTool.tool) {
-                        "read" -> title ?: stringResource(R.string.chat_tool_reading_file)
-                        "write" -> title ?: stringResource(R.string.chat_tool_writing_file)
-                        "edit" -> title ?: stringResource(R.string.chat_tool_editing_file)
-                        "bash" -> title ?: stringResource(R.string.chat_tool_running_command)
-                        "glob", "list" -> title ?: stringResource(R.string.chat_tool_searching_files)
-                        "grep" -> title ?: stringResource(R.string.chat_tool_searching_code)
-                        "webfetch" -> title ?: stringResource(R.string.chat_tool_fetching_url)
-                        "task" -> title ?: stringResource(R.string.chat_tool_running_subagent)
-                        "todowrite" -> title ?: stringResource(R.string.chat_tool_updating_tasks)
-                        else -> title ?: stringResource(R.string.chat_tool_running_tool, lastRunningTool.tool)
-                    }
-                } else {
-                    stringResource(R.string.chat_tool_thinking)
-                }
-            } else null
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 2.dp, bottom = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Left: working status
-                if (isBusy && statusText != null) {
-                    Row(
-                        modifier = Modifier.weight(1f, fill = false),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        PulsingDotsIndicator(
-                            dotSize = 4.dp,
-                            dotSpacing = 3.dp,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                        Text(
-                            text = statusText,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
         }
 
         Column(

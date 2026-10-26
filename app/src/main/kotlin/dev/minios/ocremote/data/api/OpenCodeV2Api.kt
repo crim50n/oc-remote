@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import io.ktor.utils.io.readAvailable
+import io.ktor.utils.io.writeFully
 import io.ktor.utils.io.jvm.javaio.toInputStream
 import java.io.File
 import java.io.FileInputStream
@@ -479,18 +480,21 @@ internal class OpenCodeV2Api(private val client: HttpClient, private val json: J
         json.decodeFromJsonElement(payload(conn, "/api/command").data())
 
     suspend fun findFiles(conn: ServerConnection, query: String, type: String?, directory: String?, limit: Int?): List<String> =
-        json.decodeFromJsonElement(payload(conn, "/api/fs/find", directory = directory,
-            query = mapOf("query" to query, "type" to type, "limit" to limit?.toString())).data())
+        payload(conn, "/api/fs/find", directory = directory,
+            query = mapOf("query" to query, "type" to type, "limit" to limit?.toString())).data().jsonArray.map { entry ->
+            if (entry is JsonPrimitive) entry.content else entry.jsonObject.str("path")
+        }
 
-    suspend fun readFile(conn: ServerConnection, path: String, directory: String?): FileContent {
-        val encoded = path.split('/').joinToString("/") { id(it) }
+    suspend fun readFile(conn: ServerConnection, path: String, directory: String?, maxBytes: Long = 8L * 1024 * 1024): FileContent {
+        val target = directory?.takeIf { it.isNotBlank() }?.let { serverFileRequest(path, it) }
+            ?: if (path.startsWith('/') || isWindowsServerPath(path)) serverFileRequest(path, "") else null
+        val encoded = (target?.path ?: path).split('/').joinToString("/") { id(it) }
         return client.prepareGet("${conn.baseUrl}/api/fs/read/$encoded") {
             conn.authHeader?.let { header(HttpHeaders.Authorization, it) }
-            directoryHeader(directory)
+            directoryHeader(target?.directory ?: directory)
         }.execute { response ->
             verifyResponse(response)
             val mime = response.contentType()?.withoutParameters()?.toString() ?: "application/octet-stream"
-            val maxBytes = 8L * 1024 * 1024
             if ((response.contentLength() ?: 0) > maxBytes) throw V2ResponseLimitException()
             val bytes = withContext(Dispatchers.IO) {
                 V2LimitedInputStream(response.bodyAsChannel().toInputStream(), maxBytes).use { input ->
@@ -515,6 +519,66 @@ internal class OpenCodeV2Api(private val client: HttpClient, private val json: J
             val entryPath = obj.str("path")
             FileNode(name = entryPath.trimEnd('/').substringAfterLast('/'), path = entryPath, type = obj.str("type"))
         }
+
+    suspend fun downloadFile(
+        conn: ServerConnection, path: String, directory: String?, output: java.io.OutputStream,
+        onProgress: (Long, Long?) -> Unit,
+    ): String? {
+        val target = directory?.takeIf(String::isNotBlank)?.let { serverFileRequest(path, it) }
+            ?: if (path.startsWith('/') || isWindowsServerPath(path)) serverFileRequest(path, "") else null
+        val encoded = (target?.path ?: path).split('/').joinToString("/") { id(it) }
+        return client.prepareGet("${conn.baseUrl}/api/fs/read/$encoded") {
+            conn.authHeader?.let { header(HttpHeaders.Authorization, it) }
+            directoryHeader(target?.directory ?: directory)
+            header(HttpHeaders.AcceptEncoding, "identity")
+        }.execute { response ->
+            verifyResponse(response)
+            val total = response.contentLength()?.takeIf { it >= 0 }
+            var count = 0L
+            onProgress(count, total)
+            withContext(Dispatchers.IO) {
+                copyResponse(response, output) { bytes -> count = bytes; onProgress(bytes, total) }
+            }
+            check(total == null || count == total) { "Incomplete file download" }
+            response.contentType()?.withoutParameters()?.toString()
+        }
+    }
+
+    suspend fun writeFile(conn: ServerConnection, path: String, directory: String, bytes: ByteArray) {
+        client.preparePost("${conn.baseUrl}/api/experimental/fs/write") {
+            conn.authHeader?.let { header(HttpHeaders.Authorization, it) }
+            directoryHeader(directory)
+            parameter("path", path)
+            contentType(ContentType.Application.OctetStream)
+            setBody(bytes)
+        }.execute { verifyResponse(it) }
+    }
+
+    suspend fun uploadFile(conn: ServerConnection, path: String, directory: String, input: InputStream,
+        onProgress: (Long) -> Unit) {
+        client.preparePost("${conn.baseUrl}/api/experimental/fs/write") {
+            conn.authHeader?.let { header(HttpHeaders.Authorization, it) }
+            directoryHeader(directory)
+            parameter("path", path)
+            setBody(object : io.ktor.http.content.OutgoingContent.WriteChannelContent() {
+                override val contentType = ContentType.Application.OctetStream
+                override suspend fun writeTo(channel: io.ktor.utils.io.ByteWriteChannel) {
+                    withContext(Dispatchers.IO) {
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        var total = 0L
+                        while (true) {
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            if (count == 0) continue
+                            channel.writeFully(buffer, 0, count)
+                            total += count
+                            onProgress(total)
+                        }
+                    }
+                }
+            })
+        }.execute { verifyResponse(it) }
+    }
 
     suspend fun createPty(conn: ServerConnection, title: String?, cwd: String?, directory: String?): PtyInfo =
         json.decodeFromJsonElement(payload(conn, "/api/pty", HttpMethod.Post, buildJsonObject {

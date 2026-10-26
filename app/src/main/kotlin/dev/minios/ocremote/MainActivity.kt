@@ -88,6 +88,9 @@ class MainActivity : ComponentActivity() {
     lateinit var serverRepository: ServerRepository
 
     @Inject
+    lateinit var sessionWorkspace: dev.minios.ocremote.data.repository.SessionWorkspaceRepository
+
+    @Inject
     lateinit var eventReducer: EventReducer
 
     @Inject
@@ -178,6 +181,9 @@ class MainActivity : ComponentActivity() {
                 initial = SettingsRepository.DEFAULT_DYNAMIC_COLOR,
             )
             val amoledDark by settingsRepository.amoledDark.collectAsState(initial = false)
+            val sessionFeatures by settingsRepository.sessionFeatures.collectAsState(
+                initial = null,
+            )
             val connectedServerIds by serverConnectionStateRepository.connectedServerIds.collectAsState()
             val connectingServerIds by serverConnectionStateRepository.connectingServerIds.collectAsState()
             
@@ -206,16 +212,21 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    NavGraph(
-                        deepLinkFlow = _deepLinkFlow,
-                        syncSettingsFlow = _syncSettingsFlow,
-                        sharedAttachmentsFlow = sharedAttachmentsFlow,
-                        settingsRepository = settingsRepository,
-                        serverRepository = serverRepository,
-                        eventReducer = eventReducer,
-                        connectedServerIds = connectedServerIds,
-                        connectingServerIds = connectingServerIds,
-                    )
+                    if (sessionFeatures != null) androidx.compose.runtime.CompositionLocalProvider(
+                        dev.minios.ocremote.ui.components.LocalSessionFeatures provides requireNotNull(sessionFeatures),
+                    ) {
+                        NavGraph(
+                            deepLinkFlow = _deepLinkFlow,
+                            syncSettingsFlow = _syncSettingsFlow,
+                            sharedAttachmentsFlow = sharedAttachmentsFlow,
+                            settingsRepository = settingsRepository,
+                            serverRepository = serverRepository,
+                            sessionWorkspace = sessionWorkspace,
+                            eventReducer = eventReducer,
+                            connectedServerIds = connectedServerIds,
+                            connectingServerIds = connectingServerIds,
+                        )
+                    }
                 }
             }
         }

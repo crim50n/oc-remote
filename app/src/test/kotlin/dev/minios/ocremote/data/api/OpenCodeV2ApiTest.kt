@@ -15,6 +15,9 @@ import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
+import io.ktor.utils.io.core.readBytes
 import kotlinx.serialization.json.*
 import org.junit.Assert.*
 import org.junit.Test
@@ -49,6 +52,87 @@ internal fun HttpRequestData.jsonBody(json: Json): JsonObject =
 class OpenCodeV2ApiTest {
     private val json = Json { ignoreUnknownKeys = true }
     private val conn = ServerConnection("https://opencode.example", "Bearer YOUR_API_KEY_HERE")
+
+    @Test fun `upload streams arbitrary binary content to write endpoint`() = runBlocking {
+        val bytes = ByteArray(150_000) { (it % 251).toByte() }
+        val engine = FixtureEngine { request ->
+            assertEquals("/api/experimental/fs/write", request.url.encodedPath)
+            assertEquals("/tmp/new.apk", request.url.parameters["path"])
+            coroutineScope {
+                val channel = io.ktor.utils.io.ByteChannel(autoFlush = true)
+                val writer = launch {
+                    try { (request.body as OutgoingContent.WriteChannelContent).writeTo(channel) }
+                    finally { channel.close(null) }
+                }
+                assertArrayEquals(bytes, channel.readRemaining().readBytes())
+                writer.join()
+            }
+            FixtureResponse("""{"data":{"path":"/tmp/new.apk"}}""")
+        }
+        val client = fixtureClient(engine, json)
+        try {
+            var progress = 0L
+            bytes.inputStream().use { input ->
+                OpenCodeV2Api(client, json).uploadFile(conn, "/tmp/new.apk", "/repo", input) { progress = it }
+            }
+            assertEquals(bytes.size.toLong(), progress)
+        } finally { client.close() }
+    }
+
+    @Test fun `download streams raw bytes and reports progress`() = runBlocking {
+        val body = "download-data".repeat(100_000)
+        val engine = FixtureEngine { request ->
+            assertEquals("/api/fs/read/app.apk", request.url.encodedPath)
+            assertEquals("/tmp", request.headers["x-opencode-directory"])
+            FixtureResponse(body, headers = headersOf(HttpHeaders.ContentType, "application/octet-stream"))
+        }
+        val client = fixtureClient(engine, json)
+        try {
+            val output = java.io.ByteArrayOutputStream()
+            var progress = 0L
+            val mime = OpenCodeV2Api(client, json).downloadFile(conn, "/tmp/app.apk", "/repo", output) { bytes, _ -> progress = bytes }
+            assertEquals(body, output.toString("UTF-8"))
+            assertEquals(body.length.toLong(), progress)
+            assertEquals("application/octet-stream", mime)
+        } finally { client.close() }
+    }
+
+    @Test fun `write sends raw bytes and explicit target path`() = runBlocking {
+        val bytes = "saved text".toByteArray()
+        val engine = FixtureEngine { request ->
+            assertEquals("/api/experimental/fs/write", request.url.encodedPath)
+            assertEquals("new.txt", request.url.parameters["path"])
+            assertEquals("/repo", request.headers["x-opencode-directory"])
+            assertArrayEquals(bytes, (request.body as OutgoingContent.ByteArrayContent).bytes())
+            FixtureResponse("""{"data":{"path":"/repo/new.txt"}}""")
+        }
+        val client = fixtureClient(engine, json)
+        try { OpenCodeV2Api(client, json).writeFile(conn, "new.txt", "/repo", bytes) }
+        finally { client.close() }
+    }
+
+    @Test fun `filesystem find accepts entry objects from released v2 API`() = runBlocking {
+        val engine = FixtureEngine {
+            FixtureResponse("""{"data":[{"path":"src/main.kt","type":"file"},{"path":"docs/","type":"directory"}]}""")
+        }
+        val client = fixtureClient(engine, json)
+        try {
+            assertEquals(listOf("src/main.kt", "docs/"), OpenCodeV2Api(client, json).findFiles(conn, "", null, "/repo", 20))
+        } finally { client.close() }
+    }
+
+    @Test fun `outside project file reads use parent location and encoded basename`() = runBlocking {
+        val engine = FixtureEngine { request ->
+            assertEquals("/api/fs/read/report%20one.txt", request.url.encodedPath)
+            assertEquals("/tmp", request.headers["x-opencode-directory"])
+            assertEquals(conn.authHeader, request.headers[HttpHeaders.Authorization])
+            FixtureResponse("report", headers = headersOf(HttpHeaders.ContentType, "text/plain"))
+        }
+        val client = fixtureClient(engine, json)
+        try {
+            assertEquals("report", OpenCodeV2Api(client, json).readFile(conn, "/tmp/report one.txt", "/repo").content)
+        } finally { client.close() }
+    }
 
     @Test fun `project catalogs have independent locks cache entries and location headers`() = runBlocking {
         val blocked = kotlinx.coroutines.CompletableDeferred<Unit>()

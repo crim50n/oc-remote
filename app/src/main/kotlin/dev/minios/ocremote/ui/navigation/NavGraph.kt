@@ -32,6 +32,9 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.currentBackStackEntryAsState
+import dev.minios.ocremote.data.repository.SessionWorkspaceRepository
+import dev.minios.ocremote.data.repository.SessionTab
 import androidx.navigation.navArgument
 import dev.minios.ocremote.SessionDeepLink
 import dev.minios.ocremote.data.repository.EventReducer
@@ -148,7 +151,7 @@ internal fun buildSharePickerItems(
 /**
  * Main navigation graph for the app
  */
-@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun NavGraph(
     deepLinkFlow: MutableSharedFlow<SessionDeepLink>,
@@ -156,12 +159,18 @@ fun NavGraph(
     sharedAttachmentsFlow: SharedFlow<List<Uri>>,
     settingsRepository: SettingsRepository,
     serverRepository: ServerRepository,
+    sessionWorkspace: SessionWorkspaceRepository,
     eventReducer: EventReducer,
     connectedServerIds: Set<String>,
     connectingServerIds: Set<String>,
 ) {
     val navController = rememberNavController()
+    val sessionFeatures = dev.minios.ocremote.ui.components.LocalSessionFeatures.current
     val context = LocalContext.current
+    val openTabs by sessionWorkspace.tabs.collectAsState()
+    val currentEntry by navController.currentBackStackEntryAsState()
+    var showTabs by remember { mutableStateOf(false) }
+    var recentlyClosed by remember { mutableStateOf<SessionTab?>(null) }
     fun connectServer(serverId: String, serverName: String, serverUrl: String, username: String, password: String) {
         val intent = Intent(context, OpenCodeConnectionService::class.java).apply {
             putExtra("server_id", serverId)
@@ -185,10 +194,13 @@ fun NavGraph(
     var pendingShareUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     // Target session that should receive the shared attachments (null = not yet chosen)
     var pendingShareSessionId by remember { mutableStateOf<String?>(null) }
+    var pendingShareServerId by remember { mutableStateOf<String?>(null) }
     var reopenSharePickerAfterConnect by remember { mutableStateOf(false) }
     var addServerRequest by remember { mutableIntStateOf(0) }
     val sharePickerServers by serverRepository.servers.collectAsState(initial = emptyList())
     val sharePickerSessions by eventReducer.sessions.collectAsState()
+    val sessionStatuses by eventReducer.sessionStatuses.collectAsState()
+    val pendingInteractions by eventReducer.pendingInteractions.collectAsState()
     val sharePickerServerSessions by eventReducer.serverSessions.collectAsState()
     val sharePickerFavoriteOrder by settingsRepository.crossServerFavoriteOrder.collectAsState(initial = emptyList())
     val sharePickerCategories by settingsRepository.sessionCategories.collectAsState(initial = emptyList())
@@ -213,6 +225,90 @@ fun NavGraph(
     }
     val currentConnectedServerIds by rememberUpdatedState(connectedServerIds)
 
+    fun activateTab(tab: SessionTab) {
+        val server = sharePickerServers.firstOrNull { it.id == tab.serverId } ?: return
+        if (server.id !in connectedServerIds && server.id !in connectingServerIds) {
+            connectServer(server.id, server.displayName, server.url, server.username, server.password.orEmpty())
+        }
+        val route = Screen.Chat.createRoute(server.url, server.username, server.password.orEmpty(),
+            server.displayName, server.id, tab.sessionId)
+        val entry = navController.currentBackStackEntry
+        if (entry?.destination?.route?.startsWith("chat?") == true) {
+            if (entry.arguments?.getString("serverId") == tab.serverId &&
+                entry.arguments?.getString("sessionId") == tab.sessionId) {
+                showTabs = false
+                return
+            }
+            navController.popBackStack()
+        }
+        navController.navigate(route) { launchSingleTop = true }
+        showTabs = false
+    }
+
+    LaunchedEffect(currentEntry, sessionFeatures.tabs) {
+        if (!sessionFeatures.tabs) {
+            showTabs = false
+            return@LaunchedEffect
+        }
+        val entry = currentEntry ?: return@LaunchedEffect
+        if (entry.destination.route?.startsWith("chat?") == true) {
+            val serverId = entry.arguments?.getString("serverId").orEmpty()
+            val sessionId = entry.arguments?.getString("sessionId").orEmpty()
+            if (serverId.isNotBlank() && sessionId.isNotBlank()) {
+                sessionWorkspace.open(serverId, sessionId,
+                    sharePickerSessions.firstOrNull { it.id == sessionId }?.title.orEmpty())
+                val retained = sessionWorkspace.tabs.value.sortedByDescending { it.lastActive }
+                    .take(3).mapTo(mutableSetOf()) { it.sessionId }
+                sessionWorkspace.tabs.value.filter { it.sessionId !in retained }.forEach { tab ->
+                    val busy = sessionStatuses[tab.sessionId]
+                    if (tab.serverId in connectedServerIds &&
+                        busy !is dev.minios.ocremote.domain.model.SessionStatus.Busy &&
+                        busy !is dev.minios.ocremote.domain.model.SessionStatus.Retry &&
+                        pendingInteractions.none { it.sessionId == tab.sessionId } &&
+                        eventReducer.promptDeliveries.value.values.none { it.sessionId == tab.sessionId }) {
+                        eventReducer.clearSessionHistory(tab.sessionId)
+                    }
+                }
+            }
+        }
+    }
+
+    if (showTabs && sessionFeatures.tabs) {
+        SessionTabsSheet(
+            tabs = openTabs,
+            servers = sharePickerServers,
+            sessions = sharePickerSessions,
+            statuses = sessionStatuses,
+            attentionSessionIds = pendingInteractions.mapTo(mutableSetOf()) { it.sessionId },
+            connectedServerIds = connectedServerIds,
+            activeKey = currentEntry?.arguments?.let { "${it.getString("serverId")}:${it.getString("sessionId")}" },
+            canUndo = recentlyClosed != null,
+            onSelect = ::activateTab,
+            onClose = { tab ->
+                sessionWorkspace.close(tab.key)
+                recentlyClosed = tab
+                val entry = navController.currentBackStackEntry
+                if (entry?.destination?.route?.startsWith("chat?") == true &&
+                    entry.arguments?.getString("serverId") == tab.serverId &&
+                    entry.arguments?.getString("sessionId") == tab.sessionId) {
+                    val next = sessionWorkspace.tabs.value.filter { candidate ->
+                        sharePickerServers.any { it.id == candidate.serverId }
+                    }.maxByOrNull { it.lastActive }
+                    if (next != null) { activateTab(next); showTabs = true } else navController.popBackStack()
+                }
+            },
+            onUndo = { recentlyClosed?.let(sessionWorkspace::restore); recentlyClosed = null },
+            onMove = { tab, delta -> sessionWorkspace.move(tab.key, delta) },
+            onAdd = {
+                showTabs = false
+                navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route); launchSingleTop = true }
+            },
+            onDismiss = { showTabs = false },
+            onOrder = sessionWorkspace::reorder,
+            serverSessions = sharePickerServerSessions,
+        )
+    }
+
     // Listen for shared attachments
     LaunchedEffect(Unit) {
         sharedAttachmentsFlow.collect { uris ->
@@ -222,6 +318,7 @@ fun NavGraph(
             // Store pending URIs (will be consumed by the target ChatScreen)
             pendingShareUris = uris
             pendingShareSessionId = null
+            pendingShareServerId = null
             reopenSharePickerAfterConnect = false
 
             // If we're already in a ChatScreen, target the current session directly
@@ -234,6 +331,7 @@ fun NavGraph(
                 if (currentSessionId != null && currentServerId in currentConnectedServerIds) {
                     Log.i(TAG, "Already in ChatScreen for session $currentSessionId, targeting it directly")
                     pendingShareSessionId = currentSessionId
+                    pendingShareServerId = currentServerId
                     return@collect
                 }
             }
@@ -271,14 +369,20 @@ fun NavGraph(
             sessions = sharePickerSessions,
             serverSessions = sharePickerServerSessions,
             connectedServerIds = connectedServerIds,
-            preferencesByServer = sharePickerPreferences,
-            favoriteOrder = sharePickerFavoriteOrder,
-            categories = sharePickerCategories,
+            preferencesByServer = sharePickerPreferences.mapValues { (_, preferences) ->
+                preferences.copy(
+                    favoriteIds = if (sessionFeatures.favorites) preferences.favoriteIds else emptyList(),
+                    categoryAssignments = if (sessionFeatures.categories) preferences.categoryAssignments else emptyMap(),
+                )
+            },
+            favoriteOrder = if (sessionFeatures.favorites) sharePickerFavoriteOrder else emptyList(),
+            categories = if (sessionFeatures.categories) sharePickerCategories else emptyList(),
             attachmentCount = pendingShareUris.size,
             onSelectSession = { server, session ->
                 showSharePicker = false
                 reopenSharePickerAfterConnect = false
                 pendingShareSessionId = session.id
+                pendingShareServerId = server.id
                 val route = Screen.Chat.createRoute(
                     serverUrl = server.url,
                     username = server.username,
@@ -288,6 +392,7 @@ fun NavGraph(
                     sessionId = session.id
                 )
                 Log.i(TAG, "Share → navigating to session ${session.id} on ${server.displayName}")
+                if (navController.currentDestination?.route?.startsWith("chat?") == true) navController.popBackStack()
                 navController.navigate(route) { launchSingleTop = true }
             },
             onNewSession = { server ->
@@ -359,7 +464,8 @@ fun NavGraph(
                         "Deep-link → native Chat: targetSession=$sessionId currentSession=$currentSessionId"
                     )
 
-                    if (currentRoute?.startsWith("chat") == true && currentSessionId != sessionId) {
+                    if (currentRoute?.startsWith("chat") == true && (currentSessionId != sessionId ||
+                            navController.currentBackStackEntry?.arguments?.getString("serverId") != deepLink.serverId)) {
                         // Replace current chat screen when switching sessions from notification.
                         // launchSingleTop alone can keep the same top chat destination and skip
                         // visible transition to a different session.
@@ -410,6 +516,8 @@ fun NavGraph(
         // ============ Home Screen ============
         composable(Screen.Home.route) {
             HomeScreen(
+                openTabCount = openTabs.size,
+                onOpenTabs = { showTabs = true },
                 addServerRequest = addServerRequest,
                 onNavigateToSessions = { serverUrl, username, password, serverName, serverId ->
                     navController.navigate(
@@ -742,13 +850,15 @@ fun NavGraph(
             val openTerminal = backStackEntry.arguments?.getBoolean("openTerminal") ?: false
 
             // Only pass shared attachments to the targeted session, then clear them
-            val attachmentsForThisSession = if (pendingShareSessionId == sessionId && pendingShareUris.isNotEmpty()) {
+            val attachmentsForThisSession = if (pendingShareSessionId == sessionId && pendingShareServerId == serverId && pendingShareUris.isNotEmpty()) {
                 pendingShareUris
             } else {
                 emptyList()
             }
             
             ChatScreen(
+                openTabCount = openTabs.size,
+                onOpenTabs = { showTabs = true },
                 onNavigateBack = {
                     navController.popBackStack()
                 },
@@ -761,14 +871,11 @@ fun NavGraph(
                         serverId = serverId,
                         sessionId = newSessionId
                     )
-                    navController.navigate(route) {
-                        // Pop current chat so back goes to session list, not old session
-                        popUpTo("sessions?serverUrl={serverUrl}&username={username}&password={password}&serverName={serverName}&serverId={serverId}") {
-                            inclusive = false
-                        }
-                    }
+                    navController.popBackStack()
+                    navController.navigate(route)
                 },
                 onNavigateToChildSession = { childSessionId ->
+                    navController.popBackStack()
                     navController.navigate(
                         Screen.Chat.createRoute(
                             serverUrl = serverUrl,
@@ -805,8 +912,14 @@ fun NavGraph(
                             username = username,
                             password = password,
                             directory = directory,
+                            serverId = serverId,
                         ),
                     )
+                },
+                onOpenServerFile = { directory, href ->
+                    navController.navigate(Screen.WorkspaceFiles.createRoute(
+                        serverUrl, username, password, directory, filePath = href, serverId = serverId,
+                    ))
                 },
                 onManageModels = {
                     navController.navigate(
@@ -823,6 +936,7 @@ fun NavGraph(
                 onSharedAttachmentsConsumed = {
                     pendingShareUris = emptyList()
                     pendingShareSessionId = null
+                    pendingShareServerId = null
                 },
                 startInTerminalMode = openTerminal,
                 isServerConnected = serverId in connectedServerIds,
@@ -834,12 +948,14 @@ fun NavGraph(
         }
 
         composable(
-            route = "workspace_files?serverUrl={serverUrl}&username={username}&password={password}&directory={directory}",
+            route = "workspace_files?serverUrl={serverUrl}&username={username}&password={password}&directory={directory}&filePath={filePath}&serverId={serverId}",
             arguments = listOf(
                 navArgument("serverUrl") { type = NavType.StringType },
                 navArgument("username") { type = NavType.StringType },
                 navArgument("password") { type = NavType.StringType },
                 navArgument("directory") { type = NavType.StringType },
+                navArgument("filePath") { type = NavType.StringType; defaultValue = "" },
+                navArgument("serverId") { type = NavType.StringType; defaultValue = "" },
             ),
         ) { backStackEntry ->
             val serverUrl = backStackEntry.arguments?.getString("serverUrl").orEmpty()

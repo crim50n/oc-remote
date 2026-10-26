@@ -51,7 +51,7 @@ class V2ResponseReaderLimitsTest {
             action()
             fail("Expected bounded response rejection")
         } catch (error: V2ResponseLimitException) {
-            assertEquals("OpenCode v2 response exceeds safe parsing limits", error.message)
+            assertEquals("OpenCode response exceeds safe parsing limits", error.message)
             assertNull(error.cause)
         }
     }

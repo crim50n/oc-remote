@@ -94,6 +94,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -130,6 +131,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -475,6 +477,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -516,6 +536,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -542,6 +564,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -570,6 +594,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -582,11 +610,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -720,15 +751,43 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03
     OC Remote Android/de:
         about_check_updates: e0f4e37a8bf1ce2f620e1de4dbbeed71
@@ -824,6 +883,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -860,6 +920,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -1205,6 +1266,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -1246,6 +1325,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -1272,6 +1353,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -1300,6 +1383,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -1312,11 +1399,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -1416,15 +1506,43 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03
     OC Remote Android/es:
         about_check_updates: e0f4e37a8bf1ce2f620e1de4dbbeed71
@@ -1520,6 +1638,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -1556,6 +1675,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -1901,6 +2021,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -1942,6 +2080,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -1968,6 +2108,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -1996,6 +2138,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -2008,11 +2154,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -2112,15 +2261,43 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03
     OC Remote Android/fr:
         about_check_updates: e0f4e37a8bf1ce2f620e1de4dbbeed71
@@ -2216,6 +2393,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -2252,6 +2430,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -2597,6 +2776,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -2638,6 +2835,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -2664,6 +2863,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -2692,6 +2893,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -2704,11 +2909,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -2808,15 +3016,43 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03
     OC Remote Android/id:
         about_check_updates: e0f4e37a8bf1ce2f620e1de4dbbeed71
@@ -2912,6 +3148,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -2948,6 +3185,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -3293,6 +3531,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -3334,6 +3590,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -3360,6 +3618,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -3388,6 +3648,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -3400,11 +3664,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -3504,15 +3771,43 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03
     OC Remote Android/it:
         about_check_updates: e0f4e37a8bf1ce2f620e1de4dbbeed71
@@ -3608,6 +3903,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -3644,6 +3940,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -3989,6 +4286,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -4030,6 +4345,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -4056,6 +4373,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -4084,6 +4403,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -4096,11 +4419,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -4200,15 +4526,43 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03
     OC Remote Android/ja:
         about_check_updates: e0f4e37a8bf1ce2f620e1de4dbbeed71
@@ -4304,6 +4658,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -4340,6 +4695,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -4685,6 +5041,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -4726,6 +5100,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -4752,6 +5128,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -4780,6 +5158,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -4792,11 +5174,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -4896,15 +5281,43 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03
     OC Remote Android/ko:
         about_check_updates: e0f4e37a8bf1ce2f620e1de4dbbeed71
@@ -5000,6 +5413,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -5036,6 +5450,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -5381,6 +5796,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -5422,6 +5855,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -5448,6 +5883,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -5476,6 +5913,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -5488,11 +5929,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -5592,15 +6036,43 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03
     OC Remote Android/pl:
         about_check_updates: e0f4e37a8bf1ce2f620e1de4dbbeed71
@@ -5696,6 +6168,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -5732,6 +6205,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -6077,6 +6551,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -6118,6 +6610,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -6144,6 +6638,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -6172,6 +6668,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -6184,11 +6684,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -6322,15 +6825,43 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03
     OC Remote Android/pt-BR:
         about_check_updates: e0f4e37a8bf1ce2f620e1de4dbbeed71
@@ -6426,6 +6957,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -6462,6 +6994,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -6807,6 +7340,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -6848,6 +7399,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -6874,6 +7427,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -6902,6 +7457,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -6914,11 +7473,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -7018,15 +7580,43 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03
     OC Remote Android/ru:
         about_check_updates: e0f4e37a8bf1ce2f620e1de4dbbeed71
@@ -7122,6 +7712,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -7158,6 +7749,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -7503,6 +8095,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -7544,6 +8154,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -7570,6 +8182,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -7598,6 +8212,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -7610,11 +8228,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -7714,15 +8335,43 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03
     OC Remote Android/tr:
         about_check_updates: e0f4e37a8bf1ce2f620e1de4dbbeed71
@@ -7818,6 +8467,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -7854,6 +8504,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -8199,6 +8850,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -8240,6 +8909,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -8266,6 +8937,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -8294,6 +8967,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -8306,11 +8983,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -8444,15 +9124,43 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03
     OC Remote Android/uk:
         about_check_updates: e0f4e37a8bf1ce2f620e1de4dbbeed71
@@ -8548,6 +9256,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -8584,6 +9293,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -8929,6 +9639,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -8970,6 +9698,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -8996,6 +9726,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -9024,6 +9756,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -9036,11 +9772,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -9174,15 +9913,43 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03
     OC Remote Android/zh-CN:
         about_check_updates: e0f4e37a8bf1ce2f620e1de4dbbeed71
@@ -9278,6 +10045,7 @@ checksums:
         chat_permission_label: 9aab82a0a197a7ffbf60245575868e43
         chat_question_inline: 725d868d6777122630dba42d1ec332ed
         chat_question_label: 5c389e7b80940eceee19fb6fbf095c28
+        chat_reading_mode: 10e6e226e4df6374c1ce651400479b0a
         chat_reasoning_active: a101b835ea15508c9b39969f90a4a523
         chat_reasoning_complete: 33540e3e7e7f9af656e724577bc82415
         chat_remove: 2706c5d98d896b9e51e27800051d070d
@@ -9314,6 +10082,7 @@ checksums:
         chat_shell_failed: c4a60a71f96d0b723a59ae7ef86500af
         chat_shell_mode_hold_send_hint: 7ca735636f909d1ef9bbb1bca6f5e265
         chat_shell_placeholder: 9b415de49430d70b763aebf9a166bee1
+        chat_show_interface: 4421ec4a4552617b9c1ba3e97cd03954
         chat_status_commands: e77bf6162a53aa5ae166f3cdbabc761d
         chat_status_commands_plural: 6268ab823f0df661cffb005283ce924d
         chat_status_edits: a6a12821c79bb82e09d3c4cb2e6b3a6c
@@ -9659,6 +10428,24 @@ checksums:
         session_status_busy: 424be87d991a15d7e6488279807ec801
         session_status_idle: 9651b121c040fa8e2acf716f5ff3f73b
         session_status_retry: a99920757610496cae7fc8fa58191167
+        session_tab_closed: b6149d396807209978d9fa426d1357ff
+        session_tabs_add: 7519d96c4835fc9881074d8ce541d5a6
+        session_tabs_attention: 86bd8a57b82b995b467c159267c28b49
+        session_tabs_close: 51383adfbedc3e77d8aceae3f38d5fa1
+        session_tabs_close_hint: e969f91b2c0a4e214d3015f0990ec697
+        session_tabs_count: 0847fd5fe54391cba45efed5849a5cb8
+        session_tabs_draft: fdbcd362f490fa2b6f465d8412bc046d
+        session_tabs_earlier: 0e92254aabc1f7c5ac7ca66e4a9bb13c
+        session_tabs_empty: fbe65401da1e1fb2e5c36f753b3dc955
+        session_tabs_idle: 856a8c6961cbfad562e5c90140617082
+        session_tabs_later: 7e2062ab7d71997b3225b6f144777f27
+        session_tabs_offline: e840fb2bae5068d6edbf9f0f2e4d4e96
+        session_tabs_previous: 092ebcb5dadde82d43e4b9bb385c3e72
+        session_tabs_restore: dc7046f296d4a53cfb8e2a40c81fa698
+        session_tabs_search: 8e17f6a632616dd395c78c940934295d
+        session_tabs_server_removed: 21462befa50f9715ad1839ae2e2658bc
+        session_tabs_updated: fb73703ad6574239a5221710b950edd8
+        session_tabs_working: e923797a92216b952d0555ce7ba5e7f9
         session_unknown_error: 74297915fbe30586d62e11c76989852b
         session_unpin: 6737625f64e0ec078c89528268f7d230
         session_untitled: 85859f3c2d2aac012b0bcbd5c2755b94
@@ -9700,6 +10487,8 @@ checksums:
         settings_background_wake_lock: f0f8b9c58fa63bd5da22b290b350807c
         settings_background_wake_lock_desc: cf4862f2c8c1898dd66255861d40b268
         settings_categories_empty: e6f38dbf1e80273da4720e6371c7f62f
+        settings_categories_enabled: d6c7a91e11c1ce654f62fe9a4d3fbd4c
+        settings_categories_enabled_desc: 5623640a9718653fd637bf925d1ebefb
         settings_category_add: 339a7a8157974d0e91c17f030269e11b
         settings_category_color: c1c684f9078c7f5ae4c9ebb3f8413a71
         settings_category_delete: 2a5e12cd0672ee2bdf05dd8fb05571c1
@@ -9726,6 +10515,8 @@ checksums:
         settings_dynamic_color_desc: 9896fb444a322b3113b2245c1a9574ac
         settings_expand_reasoning: dbd823fd0c6b9e8d6bc9d15469d8f5fd
         settings_expand_reasoning_desc: d65b1680b83c93d91917d3827845cf34
+        settings_favorites_enabled: f06e00bc87f5145326d8e923728fdcc1
+        settings_favorites_enabled_desc: 24d9444a3545875a9d7c6ae06068c39b
         settings_font_size: 37495b856c6913892cd471176a1d7367
         settings_font_size_large: d0e9865729fe924a3464183430c27c6c
         settings_font_size_medium: a823d82d46938e12498b6cd2cca4887a
@@ -9754,6 +10545,10 @@ checksums:
         settings_local_runtime_desc: ae91ca866e6c5d6bd822b119671bd1e2
         settings_notifications: 79f6930da1e1b36f600e684450a06bca
         settings_notifications_desc: 2339494f7931600f82c4ee4bbaacf64d
+        settings_reading_auto_hide: 33faa49a9bceaab9cc2ba6b1ba652181
+        settings_reading_auto_hide_desc: c9e4ba6e7236febcda03148a22f9e0eb
+        settings_reading_hide_navigation: ddb8a3c5403148f341a96f9794721f49
+        settings_reading_hide_status: 30e467a94ccf682ad7882e953d623af8
         settings_recent_directories: 9315e96931fcabe36b47e708fe2ea115
         settings_recent_directories_desc: d3c1696f01807ed2bd618b566339eea1
         settings_reconnect_aggressive: a6afe93b480d7eb2f4dee10b50f3ddb9
@@ -9766,11 +10561,14 @@ checksums:
         settings_section_chat_display: 29fa3c2c3ea57b9a90b8adfcae070525
         settings_section_general: 70f9a0cf5679090446786ed38672e63d
         settings_section_notifications: 91cb0ca76a93a14ba4527b9fbcdd6d67
+        settings_section_power: f7b03ad408c4dc0e008d48e867502284
         settings_send: f7317848e19ed95e40e0d115f309e9f3
         settings_session_categories: 5c9edfbbd2bda692ddf5670447eddc5c
         settings_session_categories_desc: af71e98691d1ff0778be128d48ebafe4
         settings_silent_notifications: 8c8e2623f5b930b65c8d6f0f8d60cd68
         settings_silent_notifications_desc: fd037a3c4249ec016d10e4314ccb2f30
+        settings_tabs_enabled: 96284fff0d9e5b2b7a0b8735f397153e
+        settings_tabs_enabled_desc: da092e1e8513183d966a296e588e259b
         settings_terminal_font_size: f586e4b24b214e66c8d2b08db9f3a146
         settings_terminal_font_size_value: 2c44801b816a28579cf9e86b0a86a9b9
         settings_terminal_panel_hint: 2e2dde233e0a69a0add70cdddea26f2b
@@ -9904,13 +10702,41 @@ checksums:
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
+        workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
+        workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
         workspace_download_file: 928faa5b079de8da8d2d66a84c856548
+        workspace_download_progress: f661cafa04529149568514cf7f9c3d12
+        workspace_edit_file: 0fa540c6b10b62887deff30f3fe505db
         workspace_empty_directory: cbc12f757f9cfe08d819b2559c224cc0
         workspace_file_save_failed: 30d6ef7dcc3b6f8d6c69b42c8be19bc4
         workspace_file_saved: 97670609d4d481e51fcb6b69a315ef66
         workspace_files_title: 387487021e7adc986555976fc9b1fb46
+        workspace_grid_view: a083ddb29de5c4646e503032a2362a49
+        workspace_html_static: 8395ae8fc2a98b7eca0493041be4f4b9
         workspace_ignored: b21604ae61aae2b97ca5215f7d9e09b3
+        workspace_list_view: 7a997b59c660d994918ec3e5ffe8e26c
         workspace_load_failed: 230f2a481e483737cf6e536c080bc1d0
         workspace_markdown_preview: 01f3e30d71564f13b7717ae71d3c5669
         workspace_markdown_raw: 6a1545d859bb8cda422534f28622823a
+        workspace_next_page: 8e6e17caa60185679f499b189960adcf
+        workspace_no_viewer: 95913d440d2a3cb335dd170e33ff2255
+        workspace_open_file: a66483ad6234c64ebd68a0e4574f1e75
+        workspace_parent_directory: c138d61a6784e7f536e8354ea8fbcab1
+        workspace_pdf_page: d09783833fd5826afbec97ccb8b08dfa
+        workspace_preview_unsupported: 36d87cf3c207c5b9d587cdae136c8fff
+        workspace_previous_page: 8c02517271eb1cc4c61f6c1628a4550a
+        workspace_save_file: 83dc015dab8963e407d42a9bbfff14e4
+        workspace_search_contents: 4c10b3dece5358712b75eef15e905676
+        workspace_search_files: 2b1de44543c667de6964885ead34ac46
+        workspace_share_file: 0686a300a85309f1121d90f174f6d46a
+        workspace_show_diff: 336aec079a64c3df9cbe1fe97278a2cd
+        workspace_show_preview: ad0adabc7d9c5cc6202724d0fe476f10
+        workspace_show_source: c4ab089437aa35ce741068a2e2e2000b
+        workspace_status_added: d1b16b05f74fb022a3599bda050306ba
+        workspace_status_deleted: 570661eaeceb1d1d471d16f3ed817c1d
+        workspace_status_modified: 8f870676c86e4e691a12a736492b4151
+        workspace_transfer_progress: ff9bcbc13b950a5e68b0cdfe61576123
+        workspace_upload_complete: 06ec2baf613f282565a9b91b6e482dd2
+        workspace_upload_file: 30434fcd9f1c83b669397a9fc777b949
+        workspace_upload_overwrite: 8dd5a3e22eb300fe896785d6fd2008fa
         workspace_word_wrap: 7124421b6bf36a9ac36307edb2c06b03

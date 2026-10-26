@@ -1,4 +1,6 @@
 package dev.minios.ocremote.ui.screens.sessions
+import dev.minios.ocremote.ui.components.AppDropdownMenu as DropdownMenu
+import dev.minios.ocremote.ui.components.AppDropdownMenuItem as DropdownMenuItem
 
 import com.composables.icons.lucide.*
 import dev.minios.ocremote.ui.components.backIcon
@@ -1521,7 +1523,7 @@ private fun SessionRow(
                             modifier = Modifier.appPopupBorder(),
                             containerColor = appPopupContainerColor(),
                         ) {
-                            DropdownMenuItem(
+                            if (dev.minios.ocremote.ui.components.LocalSessionFeatures.current.favorites) DropdownMenuItem(
                                 text = {
                                     Text(stringResource(if (item.isFavorite) R.string.session_favorite_remove else R.string.session_favorite_add))
                                 },
@@ -1536,7 +1538,7 @@ private fun SessionRow(
                                     onToggleFavorite()
                                 },
                             )
-                            DropdownMenuItem(
+                            if (dev.minios.ocremote.ui.components.LocalSessionFeatures.current.categories) DropdownMenuItem(
                                 text = { Text(stringResource(R.string.session_category)) },
                                 leadingIcon = {
                                     Icon(
@@ -1624,7 +1626,7 @@ private fun SessionRow(
 
     cardContent()
 
-    if (showCategoryPicker) {
+    if (showCategoryPicker && dev.minios.ocremote.ui.components.LocalSessionFeatures.current.categories) {
         SessionCategoryPickerDialog(
             categories = categories,
             selectedCategoryId = item.category?.id,

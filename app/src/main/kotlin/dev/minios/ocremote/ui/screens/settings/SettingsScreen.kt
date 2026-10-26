@@ -1,4 +1,6 @@
 package dev.minios.ocremote.ui.screens.settings
+import dev.minios.ocremote.ui.components.AppDropdownMenu
+import dev.minios.ocremote.ui.components.AppDropdownMenuItem as DropdownMenuItem
 
 import com.composables.icons.lucide.*
 import dev.minios.ocremote.ui.components.backIcon
@@ -86,6 +88,10 @@ fun SettingsScreen(
     val reconnectMode by viewModel.reconnectMode.collectAsState()
     val backgroundWakeLock by viewModel.backgroundWakeLock.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
+    val readingAutoHide by viewModel.readingAutoHide.collectAsState()
+    val sessionFeatures by viewModel.sessionFeatures.collectAsState()
+    val readingHideStatus by viewModel.readingHideStatus.collectAsState()
+    val readingHideNavigation by viewModel.readingHideNavigation.collectAsState()
     val silentNotifications by viewModel.silentNotifications.collectAsState()
     val compressImageAttachments by viewModel.compressImageAttachments.collectAsState()
     val imageAttachmentMaxLongSide by viewModel.imageAttachmentMaxLongSide.collectAsState()
@@ -185,16 +191,6 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { onNavigateToSync() },
             )
 
-            // Reconnect mode
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_reconnect_mode)) },
-                supportingContent = { Text(getReconnectModeDisplayName(reconnectMode)) },
-                leadingContent = {
-                    Icon(Lucide.RefreshCw, contentDescription = null)
-                },
-                modifier = Modifier.clickable { showReconnectModeDialog = true }
-            )
-
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_recent_directories)) },
                 supportingContent = {
@@ -202,6 +198,18 @@ fun SettingsScreen(
                 },
                 leadingContent = { Icon(Lucide.Folder, contentDescription = null) },
                 modifier = Modifier.clickable { showRecentDirectoryCountDialog = true },
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
+
+            // ======== Power consumption ========
+            SectionHeader(stringResource(R.string.settings_section_power))
+
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_reconnect_mode)) },
+                supportingContent = { Text(getReconnectModeDisplayName(reconnectMode)) },
+                leadingContent = { Icon(Lucide.RefreshCw, contentDescription = null) },
+                modifier = Modifier.clickable { showReconnectModeDialog = true },
             )
 
             ListItem(
@@ -220,6 +228,20 @@ fun SettingsScreen(
                 modifier = Modifier.clickable {
                     viewModel.setBackgroundWakeLock(!backgroundWakeLock)
                 },
+            )
+
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_keep_screen_on)) },
+                supportingContent = { Text(stringResource(R.string.settings_keep_screen_on_desc)) },
+                leadingContent = { Icon(Lucide.Smartphone, contentDescription = null) },
+                trailingContent = {
+                    Switch(
+                        checked = keepScreenOn,
+                        onCheckedChange = viewModel::setKeepScreenOn,
+                        colors = switchColors,
+                    )
+                },
+                modifier = Modifier.clickable { viewModel.setKeepScreenOn(!keepScreenOn) },
             )
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
@@ -544,21 +566,47 @@ fun SettingsScreen(
                 )
             }
 
-            // Keep screen on
             ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_keep_screen_on)) },
-                supportingContent = { Text(stringResource(R.string.settings_keep_screen_on_desc)) },
-                leadingContent = {
-                    Icon(Lucide.Smartphone, contentDescription = null)
-                },
-                trailingContent = {
-                    Switch(
-                        checked = keepScreenOn,
-                        onCheckedChange = { viewModel.setKeepScreenOn(it) },
-                        colors = switchColors
-                    )
-                },
-                modifier = Modifier.clickable { viewModel.setKeepScreenOn(!keepScreenOn) }
+                headlineContent = { Text(stringResource(R.string.settings_favorites_enabled)) },
+                supportingContent = { Text(stringResource(R.string.settings_favorites_enabled_desc)) },
+                leadingContent = { Icon(Lucide.Star, contentDescription = null) },
+                trailingContent = { Switch(sessionFeatures.favorites, viewModel::setFavoritesEnabled, colors = switchColors) },
+                modifier = Modifier.clickable { viewModel.setFavoritesEnabled(!sessionFeatures.favorites) },
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_categories_enabled)) },
+                supportingContent = { Text(stringResource(R.string.settings_categories_enabled_desc)) },
+                leadingContent = { Icon(Lucide.Tag, contentDescription = null) },
+                trailingContent = { Switch(sessionFeatures.categories, viewModel::setCategoriesEnabled, colors = switchColors) },
+                modifier = Modifier.clickable { viewModel.setCategoriesEnabled(!sessionFeatures.categories) },
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_tabs_enabled)) },
+                supportingContent = { Text(stringResource(R.string.settings_tabs_enabled_desc)) },
+                leadingContent = { Icon(Lucide.Layers, contentDescription = null) },
+                trailingContent = { Switch(sessionFeatures.tabs, viewModel::setTabsEnabled, colors = switchColors) },
+                modifier = Modifier.clickable { viewModel.setTabsEnabled(!sessionFeatures.tabs) },
+            )
+
+            // Reading mode
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_reading_auto_hide)) },
+                leadingContent = { Icon(Lucide.PanelsTopLeft, contentDescription = null) },
+                supportingContent = { Text(stringResource(R.string.settings_reading_auto_hide_desc)) },
+                trailingContent = { Switch(readingAutoHide, viewModel::setReadingAutoHide, colors = switchColors) },
+                modifier = Modifier.clickable { viewModel.setReadingAutoHide(!readingAutoHide) },
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_reading_hide_status)) },
+                leadingContent = { Icon(Lucide.PanelTop, contentDescription = null) },
+                trailingContent = { Switch(readingHideStatus, viewModel::setReadingHideStatus, colors = switchColors) },
+                modifier = Modifier.clickable { viewModel.setReadingHideStatus(!readingHideStatus) },
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_reading_hide_navigation)) },
+                leadingContent = { Icon(Lucide.PanelBottom, contentDescription = null) },
+                trailingContent = { Switch(readingHideNavigation, viewModel::setReadingHideNavigation, colors = switchColors) },
+                modifier = Modifier.clickable { viewModel.setReadingHideNavigation(!readingHideNavigation) },
             )
 
             // Optimize image attachments
@@ -1192,10 +1240,10 @@ internal fun LocalServerLaunchOptionsDialog(
                         label = { Text(stringResource(R.string.home_local_startup_timeout_label)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = timeoutExpanded) },
                     )
-                    ExposedDropdownMenu(
+                    AppDropdownMenu(
                         expanded = timeoutExpanded,
                         onDismissRequest = { timeoutExpanded = false },
-                        modifier = Modifier.appPopupBorder(),
+                        modifier = Modifier.exposedDropdownSize().appPopupBorder(),
                         containerColor = appPopupContainerColor(),
                     ) {
                         timeoutOptions.forEach { value ->

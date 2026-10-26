@@ -100,6 +100,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("com.composables:icons-lucide:1.1.0")
     implementation("sh.calvin.reorderable:reorderable:3.1.0")
+    implementation("dev.chrisbanes.haze:haze:1.0.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
@@ -137,6 +138,9 @@ dependencies {
 
     // WebView fallback (kept for legacy)
     implementation("androidx.webkit:webkit:1.11.0")
+
+    // Incremental Base64 decoding from V1 file JSON, without retaining the APK in memory.
+    implementation("com.fasterxml.jackson.core:jackson-core:2.18.3")
 
     // DataStore for preferences
     implementation("androidx.datastore:datastore-preferences:1.1.1")

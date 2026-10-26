@@ -6,6 +6,72 @@ Track open bugs here. Remove items once they are fixed and verified on device.
 
 ## Open
 
+- Back from a chat file link walked parent directories instead of returning to chat. Link-origin
+  screens now exit directly on Back (including loading/error states); Folder Up separately opens
+  the parent directory within the project. Device verification pending (`WorkspaceFilesScreen.kt`,
+  `WorkspaceFilesViewModel.kt`).
+
+- Reading mode hid the session activity row along with the composer. Activity and retry status now
+  sit outside the collapsing panel; fullscreen visibility and navigation-bar spacing need device
+  verification (`ChatScreen.kt`, bottomBar and SessionActivityRow).
+
+- Opening the debug APK on OpenCode 1.19.3 exceeded the shared preview parser's 24 MiB character
+  limit (the live V1 response is about 27 MB of Base64 JSON). APKs now open a binary file card,
+  and V1 Base64 downloads decode incrementally outside the preview limits. Device verification
+  of save/open/install remains pending (`WorkspaceFilesViewModel.kt`, `V1BinaryDownload.kt`).
+
+- Workspace parent navigation could leave the project and expose raw JSON decoding errors on V1.
+  Directory navigation is now normalized to project-relative paths and blocked outside the root;
+  V1 listing validates status and payload shape first. Device verification pending
+  (`WorkspaceFilesViewModel.kt`, `OpenCodeApi.kt`).
+
+- Inline-code file paths looked like links but had no click handler (including the APK path in chat).
+  Recognized paths now receive native Compose link annotations; device verification of tapping and
+  selection is pending (`InteractiveMarkdownLinks.kt`).
+
+- Markdown file links reportedly did not open from chat. Inline links now use native Compose
+  LinkAnnotation callbacks instead of the renderer's pointerInput(Unit), which captures stale text
+  during streaming. Actual file navigation and menu surface fade still need device verification
+  (`InteractiveMarkdownLinks.kt`, `AppDropdownMenu.kt`).
+
+- Workspace downloads previously discarded the saved URI and offered no Open action; generic MIME
+  also prevented APK installer routing. Downloads now retain content URIs, use specific MIME types,
+  grant read permission, and offer Open/Share. V2 transfers stream separately from preview limits;
+  upload, cancellation cleanup, SAF providers and APK installation still need device verification
+  (`WorkspaceFileActions.kt`, `WorkspaceFilesViewModel.kt`, `OpenCodeV2Api.kt`).
+
+- Leaving fullscreen at the conversation bottom released the scroll anchor after the lower panel's
+  animation while the slower upper panel was still changing list padding. Bottom anchoring now runs
+  through both animations and their final layout frames, without a second competing scroll command;
+  the reported Back gesture still needs device verification (`ChatScreen.kt` around lines 1125-1170).
+
+- Server-file links and expanded workspace previews now target the OpenCode 2.1.4 filesystem
+  contract: links resolve on the server, v2 reads outside the project use the file's parent location,
+  and fs.find entry objects are decoded correctly. Link navigation, Windows paths, PDF rendering,
+  and static HTML previews still need live-server/device verification (`ServerFileLink.kt`,
+  `OpenCodeV2Api.kt`, and `ui/screens/files/`).
+
+- Cold-opening a tab on a disconnected server rendered the connection banner under the status
+  bar because the chat toolbar depended on sessionLoaded. The toolbar now remains visible before
+  loading, and the empty conversation prompt is replaced with connection/loading state until the
+  session arrives. Device verification is pending (`ChatScreen.kt` around lines 1800 and 2850).
+
+- Chat panels now use Haze-backed acrylic surfaces and continuous slide/fade on user scrolling.
+  Backdrop blur, status-bar contrast, keyboard insets, and frame pacing need device verification;
+  unsupported Android versions use a tinted fallback (`ChatAcrylic.kt` and `ReadingMode.kt`).
+
+- Automatic reading mode was blocked at the end of loaded history and defaulted off; tab-switcher
+  system bars also appeared black on device instead of matching the surface. The end-of-history
+  restriction is removed, unset auto-hide/status-bar options default on, and dialog window colors
+  are reapplied after window setup. These device-reported regressions require rechecking
+  (`ChatScreen.kt` around line 1100 and `SessionTabsSheet.kt` around line 80).
+
+- Session-tab switching and reading mode are new. Tabs restore lightweight metadata and bounded
+  history anchors; fullscreen hides selected system bars and restores them on leaving the screen.
+  Cross-server drafts, long-message scroll anchors, IME/insets, accessibility, and terminal return
+  still need device verification (`SessionWorkspaceRepository.kt`, `NavGraph.kt`, `ReadingMode.kt`,
+  and `ChatScreen.kt`).
+
 - An unreachable host could leave its card connecting without a cancellation action. Connecting
   cards now expose Cancel, which cancels the health-check job or service connection, and health
   checks propagate coroutine cancellation. The actual unreachable-host flow still needs device

@@ -107,6 +107,39 @@ class SyncMergeTest {
     }
 
     @Test
+    fun sessionFeatureTogglesMergeIndependentlyWithoutDeletingSavedData() {
+        fun snapshot(settings: SyncSettings) = data(
+            settings = settings,
+            servers = listOf(SyncServer("server", "https://example.test")),
+            favorites = mapOf("server" to listOf("session")),
+            categories = listOf(SessionCategory("category", "Work", "blue", "tag")),
+            assignments = mapOf("server" to mapOf("session" to "category")),
+        )
+        val base = snapshot(SyncSettings())
+        val result = mergeSyncData(
+            base,
+            snapshot(SyncSettings(favoritesEnabled = false)),
+            snapshot(SyncSettings(categoriesEnabled = false, tabsEnabled = false)),
+            json,
+        )
+        assertFalse(result.hasConflicts)
+        assertFalse(result.data.payload.settings.favoritesEnabled)
+        assertFalse(result.data.payload.settings.categoriesEnabled)
+        assertFalse(result.data.payload.settings.tabsEnabled)
+        assertEquals(base.payload.favoriteSessionIds, result.data.payload.favoriteSessionIds)
+        assertEquals(base.payload.sessionCategories, result.data.payload.sessionCategories)
+        assertEquals(base.payload.sessionCategoryAssignments, result.data.payload.sessionCategoryAssignments)
+    }
+
+    @Test
+    fun legacySettingsKeepSessionFeaturesEnabled() {
+        val settings = json.decodeFromString<SyncSettings>("{}")
+        assertTrue(settings.favoritesEnabled)
+        assertTrue(settings.categoriesEnabled)
+        assertTrue(settings.tabsEnabled)
+    }
+
+    @Test
     fun conflictChoiceKeepsDisjointChangesFromBothSides() {
         val base = data(settings = SyncSettings(appTheme = "system", chatFontSize = "medium"))
         val local = data(settings = SyncSettings(appTheme = "dark", chatFontSize = "medium"))

@@ -1,4 +1,6 @@
 package dev.minios.ocremote.ui.screens.home
+import dev.minios.ocremote.ui.components.AppDropdownMenu as DropdownMenu
+import dev.minios.ocremote.ui.components.AppDropdownMenuItem as DropdownMenuItem
 
 import com.composables.icons.lucide.*
 import dev.minios.ocremote.ui.components.forwardChevronIcon
@@ -145,6 +147,8 @@ private fun PulsingDotsIndicator(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    openTabCount: Int = 0,
+    onOpenTabs: () -> Unit = {},
     addServerRequest: Int = 0,
     onNavigateToSessions: (serverUrl: String, username: String, password: String, serverName: String, serverId: String) -> Unit = { _, _, _, _, _ -> },
     onNavigateToCrossServerSessions: () -> Unit = {},
@@ -154,6 +158,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val sessionFeatures = dev.minios.ocremote.ui.components.LocalSessionFeatures.current
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val launchInstaller = rememberUpdateInstallLauncher(viewModel::installerLaunched)
@@ -252,6 +257,7 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.home_title)) },
                 actions = {
+                    dev.minios.ocremote.ui.components.SessionTabsButton(openTabCount, onOpenTabs)
                     IconButton(onClick = { viewModel.showAddServerDialog() }) {
                         Icon(Lucide.Plus, contentDescription = stringResource(R.string.home_add_server))
                     }
@@ -320,7 +326,7 @@ fun HomeScreen(
                             }
                         }
 
-                        if (uiState.hasFavoriteSessions == true) {
+                        if (uiState.hasFavoriteSessions == true && sessionFeatures.favorites) {
                             item(key = "__favorite_sessions") {
                                 FavoritesCard(onClick = onNavigateToCrossServerSessions)
                             }

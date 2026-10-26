@@ -58,6 +58,9 @@ class SettingsRepository @Inject constructor(
         private val EXPAND_REASONING_KEY = booleanPreferencesKey("expand_reasoning")
         private val SHOW_TURN_DIVIDERS_KEY = booleanPreferencesKey("show_turn_dividers")
         private val GROUP_SESSIONS_BY_PROJECT_KEY = booleanPreferencesKey("group_sessions_by_project")
+        private val FAVORITES_ENABLED_KEY = booleanPreferencesKey("favorites_enabled")
+        private val CATEGORIES_ENABLED_KEY = booleanPreferencesKey("categories_enabled")
+        private val TABS_ENABLED_KEY = booleanPreferencesKey("tabs_enabled")
         private val HAPTIC_FEEDBACK_KEY = booleanPreferencesKey("haptic_feedback")
         private val HAPTIC_STRENGTH_KEY = stringPreferencesKey("haptic_strength")
         private val HAPTIC_DURATION_KEY = intPreferencesKey("haptic_duration_ms")
@@ -65,6 +68,9 @@ class SettingsRepository @Inject constructor(
         private val RECONNECT_MODE_KEY = stringPreferencesKey("reconnect_mode")
         private val BACKGROUND_WAKE_LOCK_KEY = booleanPreferencesKey("background_wake_lock")
         private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
+        private val READING_AUTO_HIDE_KEY = booleanPreferencesKey("reading_auto_hide")
+        private val READING_HIDE_STATUS_KEY = booleanPreferencesKey("reading_hide_status")
+        private val READING_HIDE_NAVIGATION_KEY = booleanPreferencesKey("reading_hide_navigation")
         private val SILENT_NOTIFICATIONS_KEY = booleanPreferencesKey("silent_notifications")
         private val COMPRESS_IMAGE_ATTACHMENTS_KEY = booleanPreferencesKey("compress_image_attachments")
         private val IMAGE_ATTACHMENT_MAX_LONG_SIDE_KEY = intPreferencesKey("image_attachment_max_long_side")
@@ -488,6 +494,18 @@ class SettingsRepository @Inject constructor(
         dataStore.edit { preferences -> preferences[SHOW_TURN_DIVIDERS_KEY] = enabled }
     }
 
+    val sessionFeatures: Flow<dev.minios.ocremote.domain.model.SessionFeatures> = dataStore.data.map {
+        dev.minios.ocremote.domain.model.SessionFeatures(
+            favorites = it[FAVORITES_ENABLED_KEY] ?: true,
+            categories = it[CATEGORIES_ENABLED_KEY] ?: true,
+            tabs = it[TABS_ENABLED_KEY] ?: true,
+        )
+    }
+
+    suspend fun setFavoritesEnabled(enabled: Boolean) { dataStore.edit { it[FAVORITES_ENABLED_KEY] = enabled } }
+    suspend fun setCategoriesEnabled(enabled: Boolean) { dataStore.edit { it[CATEGORIES_ENABLED_KEY] = enabled } }
+    suspend fun setTabsEnabled(enabled: Boolean) { dataStore.edit { it[TABS_ENABLED_KEY] = enabled } }
+
     val groupSessionsByProject: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[GROUP_SESSIONS_BY_PROJECT_KEY] ?: false
     }
@@ -568,6 +586,16 @@ class SettingsRepository @Inject constructor(
     val keepScreenOn: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[KEEP_SCREEN_ON_KEY] ?: false
     }
+
+    val readingAutoHide: Flow<Boolean> = dataStore.data.map { it[READING_AUTO_HIDE_KEY] ?: true }
+    val workspaceGrid: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("workspace_grid")] ?: false }
+    suspend fun setWorkspaceGrid(enabled: Boolean) { dataStore.edit { it[booleanPreferencesKey("workspace_grid")] = enabled } }
+    val readingHideStatus: Flow<Boolean> = dataStore.data.map { it[READING_HIDE_STATUS_KEY] ?: true }
+    val readingHideNavigation: Flow<Boolean> = dataStore.data.map { it[READING_HIDE_NAVIGATION_KEY] ?: false }
+
+    suspend fun setReadingAutoHide(enabled: Boolean) { dataStore.edit { it[READING_AUTO_HIDE_KEY] = enabled } }
+    suspend fun setReadingHideStatus(enabled: Boolean) { dataStore.edit { it[READING_HIDE_STATUS_KEY] = enabled } }
+    suspend fun setReadingHideNavigation(enabled: Boolean) { dataStore.edit { it[READING_HIDE_NAVIGATION_KEY] = enabled } }
 
     suspend fun setKeepScreenOn(enabled: Boolean) {
         dataStore.edit { preferences ->
@@ -856,6 +884,9 @@ class SettingsRepository @Inject constructor(
             expandReasoning = preferences[EXPAND_REASONING_KEY] ?: false,
             showTurnDividers = preferences[SHOW_TURN_DIVIDERS_KEY] ?: true,
             groupSessionsByProject = preferences[GROUP_SESSIONS_BY_PROJECT_KEY] ?: false,
+            favoritesEnabled = preferences[FAVORITES_ENABLED_KEY] ?: true,
+            categoriesEnabled = preferences[CATEGORIES_ENABLED_KEY] ?: true,
+            tabsEnabled = preferences[TABS_ENABLED_KEY] ?: true,
             hapticFeedback = preferences[HAPTIC_FEEDBACK_KEY] ?: true,
             hapticStrength = when {
                 hapticAmplitude < 96 -> "light"
@@ -982,6 +1013,9 @@ class SettingsRepository @Inject constructor(
         preferences[EXPAND_REASONING_KEY] = settings.expandReasoning
         preferences[SHOW_TURN_DIVIDERS_KEY] = settings.showTurnDividers
         preferences[GROUP_SESSIONS_BY_PROJECT_KEY] = settings.groupSessionsByProject
+        preferences[FAVORITES_ENABLED_KEY] = settings.favoritesEnabled
+        preferences[CATEGORIES_ENABLED_KEY] = settings.categoriesEnabled
+        preferences[TABS_ENABLED_KEY] = settings.tabsEnabled
         preferences[HAPTIC_FEEDBACK_KEY] = settings.hapticFeedback
         preferences[HAPTIC_STRENGTH_KEY] = settings.hapticStrength
         val fallbackHaptic = hapticPatternForStrength(settings.hapticStrength)

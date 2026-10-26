@@ -243,6 +243,7 @@ class ChatViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val pendingPromptRepository: PendingPromptRepository,
     private val connectionStateRepository: ServerConnectionStateRepository,
+    private val sessionWorkspace: dev.minios.ocremote.data.repository.SessionWorkspaceRepository,
 ) : ViewModel() {
 
     @Volatile
@@ -254,12 +255,32 @@ class ChatViewModel @Inject constructor(
     val serverName: String = savedStateHandle.get<String>("serverName").orEmpty()
     val serverId: String = savedStateHandle.get<String>("serverId").orEmpty()
     val sessionId: String = savedStateHandle.get<String>("sessionId").orEmpty()
+    val workspaceKey: String get() = "$serverId:$sessionId"
+    val restoredView = sessionWorkspace.snapshot(workspaceKey)
+    fun saveView(snapshot: dev.minios.ocremote.data.repository.ChatViewSnapshot) {
+        sessionWorkspace.saveSnapshot(workspaceKey, snapshot)
+        saveDraft()
+    }
+    fun saveWorkspaceTitle(title: String) {
+        viewModelScope.launch {
+            if (settingsRepository.sessionFeatures.first().tabs) sessionWorkspace.open(serverId, sessionId, title)
+        }
+    }
+    val readingAutoHide = settingsRepository.readingAutoHide.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val readingHideStatus = settingsRepository.readingHideStatus.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val readingHideNavigation = settingsRepository.readingHideNavigation.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val conn = ServerConnection.from(serverUrl, username, password.ifEmpty { null })
     private fun isV2Connection() = ServerProtocolRegistry.knownProtocol(conn) == ServerProtocol.V2
     private fun isServerConnected(): Boolean = serverId in connectionStateRepository.connectedServerIds.value
 
     private val _isLoading = MutableStateFlow(true)
+    private val _screenActive = MutableStateFlow(false)
+    fun setScreenActive(active: Boolean) {
+        if (!active && _screenActive.value) sessionWorkspace.markViewed(workspaceKey)
+        _screenActive.value = active
+        if (!active) saveDraft()
+    }
     private var messageLoadJob: Job? = null
     private val _error = MutableStateFlow<String?>(null)
     private val _isSending = MutableStateFlow(false)
@@ -276,6 +297,8 @@ class ChatViewModel @Inject constructor(
     private var agentsLoaded = false
     private var providersLoaded = false
     private val _historyComplete = MutableStateFlow(false)
+    private val _historyLoaded = MutableStateFlow(false)
+    val historyLoaded: StateFlow<Boolean> = _historyLoaded
     /** The directory of this session's project — sent as x-opencode-directory so the server resolves the correct project context. */
     private var sessionDirectory: String? = eventReducer.sessions.value
         .firstOrNull { it.id == sessionId }
@@ -595,8 +618,11 @@ class ChatViewModel @Inject constructor(
         }
 
         // Restore draft from disk
-        val draft = draftRepository.getDraft(sessionId)
+        val draft = draftRepository.getDraft(workspaceKey) ?: draftRepository.getDraft(sessionId)
         if (draft != null) {
+            if (draft.selectedProviderId != null && draft.selectedModelId != null) {
+                _selectedModel.value = ModelSelection(draft.selectedProviderId, draft.selectedModelId)
+            }
             _draftText.value = draft.text
             _draftAttachmentUris.value = draft.imageUris
             if (draft.confirmedFilePaths.isNotEmpty()) {
@@ -627,12 +653,13 @@ class ChatViewModel @Inject constructor(
 
         viewModelScope.launch {
             currentMessageLimit = settingsRepository.initialMessageCount.first()
-            connectionStateRepository.connectedServerIds
-                .map { serverId in it }
+            combine(connectionStateRepository.connectedServerIds, _screenActive) { ids, active ->
+                active to (serverId in ids)
+            }
                 .distinctUntilChanged()
-                .collectLatest { connected ->
+                .collectLatest { (active, connected) ->
                     terminalWorkspace.setServerAvailable(connected)
-                    if (connected) {
+                    if (active && connected) {
                         _modelDefaultsReady.value = false
                         configLoaded = false
                         agentsLoaded = false
@@ -655,7 +682,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             while (true) {
                 delay(3_000)
-                if (isServerConnected()) {
+                if (_screenActive.value && isServerConnected()) {
                     if (isV2Connection()) {
                         reconcileV2Inbox()
                         loadPendingRequests()
@@ -769,6 +796,7 @@ class ChatViewModel @Inject constructor(
                 olderMessagesCursor = nextCursor
                 eventReducer.mergeMessages(sessionId, messages)
                 _historyComplete.value = firstPage.nextCursor == null
+                _historyLoaded.value = true
                 reconcilePendingPrompts(
                     authoritative = messages,
                     minimumAgeMs = 10_000L,
@@ -847,6 +875,7 @@ class ChatViewModel @Inject constructor(
                         olderMessagesCursor = page.nextCursor
                         eventReducer.mergeMessages(sessionId, messages)
                         _historyComplete.value = page.nextCursor == null
+                        _historyLoaded.value = true
                         _hasOlderMessages.value = page.nextCursor != null
                         if (BuildConfig.DEBUG) Log.d(TAG, "Retry succeeded: loaded ${messages.size} messages (limit=$currentMessageLimit)")
                     } catch (retryEx: Exception) {
@@ -1200,7 +1229,9 @@ class ChatViewModel @Inject constructor(
     fun clearDraft() {
         _draftText.value = ""
         _draftAttachmentUris.value = emptyList()
+        draftRepository.clearDraft(workspaceKey)
         draftRepository.clearDraft(sessionId)
+        sessionWorkspace.updateDraft(workspaceKey, false)
     }
 
     /** Persist current draft to disk. */
@@ -1211,9 +1242,12 @@ class ChatViewModel @Inject constructor(
             imageUris = _draftAttachmentUris.value,
             confirmedFilePaths = _confirmedFilePaths.value.toList(),
             selectedAgent = agentPair.first.takeIf { agentPair.second },
-            selectedVariant = _selectedVariant.value.first
+            selectedVariant = _selectedVariant.value.first,
+            selectedProviderId = _selectedModel.value?.providerId,
+            selectedModelId = _selectedModel.value?.modelId,
         )
-        draftRepository.saveDraft(sessionId, draft)
+        draftRepository.saveDraft(workspaceKey, draft)
+        sessionWorkspace.updateDraft(workspaceKey, draft.text.isNotBlank() || draft.imageUris.isNotEmpty())
     }
 
     override fun onCleared() {
@@ -1372,7 +1406,7 @@ class ChatViewModel @Inject constructor(
         )
         _draftText.value = draft.text
         _draftAttachmentUris.value = draft.imageUris
-        draftRepository.saveDraft(sessionId, draft)
+        draftRepository.saveDraft(workspaceKey, draft)
         _revertedDraftEvent.tryEmit(RevertedDraftPayload(draft.text, draft.imageUris))
     }
 
@@ -1381,7 +1415,7 @@ class ChatViewModel @Inject constructor(
         _draftText.value = snapshot.text
         _draftAttachmentUris.value = snapshot.imageUris
         _confirmedFilePaths.value = snapshot.confirmedFilePaths.toSet()
-        draftRepository.saveDraft(sessionId, snapshot)
+        draftRepository.saveDraft(workspaceKey, snapshot)
         _revertedDraftEvent.tryEmit(RevertedDraftPayload(snapshot.text, snapshot.imageUris))
     }
 

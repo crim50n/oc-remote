@@ -24,6 +24,18 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.layout.heightIn
+import dev.minios.ocremote.ui.components.AppDropdownMenu
+import dev.minios.ocremote.ui.components.AppDropdownMenuItem
+import dev.minios.ocremote.ui.components.AppDialog
+import dev.minios.ocremote.data.api.FileNode
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -42,6 +54,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.SpanStyle
+import dev.minios.ocremote.data.api.parseServerFileLink
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
@@ -89,7 +106,19 @@ fun WorkspaceFilesScreen(
     viewModel: WorkspaceFilesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var showActions by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
+    var editText by rememberSaveable(state.preview?.node?.path) { mutableStateOf("") }
+    var uploadSource by rememberSaveable { mutableStateOf<String?>(null) }
+    var uploadPath by rememberSaveable { mutableStateOf("") }
+    val uploadLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.prepareUpload(uri)
+    }
     val wordWrap by viewModel.wordWrap.collectAsState()
+    val gridView by viewModel.gridView.collectAsState()
+    var searchVisible by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val fileSavedMessage = stringResource(R.string.workspace_file_saved)
     val fileSaveFailedMessage = stringResource(R.string.workspace_file_save_failed)
@@ -97,26 +126,49 @@ fun WorkspaceFilesScreen(
         state.preview?.content?.let(::workspaceFileBytes)
     }
     val previewMime = state.preview?.let { workspaceFileMimeType(it.node, it.content) }
-    val isTextPreview = state.preview != null && previewBytes != null && previewMime?.startsWith("image/") != true
+    val isTextPreview = state.preview?.content?.type == "text" && previewMime?.startsWith("image/") != true
     val isMarkdownPreview = state.preview?.node?.name?.let(::isWorkspaceMarkdownFile) == true
+    val isHtmlPreview = state.preview?.node?.name?.substringAfterLast('.', "")?.lowercase() in setOf("html", "htm")
     var renderMarkdown by rememberSaveable(state.preview?.node?.path) {
-        mutableStateOf(isMarkdownPreview)
+        mutableStateOf((isMarkdownPreview || isHtmlPreview) && state.preview?.line == null)
     }
+    var showDiff by rememberSaveable(state.preview?.node?.path) { mutableStateOf(false) }
     val saveLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("*/*"),
+        contract = WorkspaceDownloadContract(),
     ) { uri ->
         if (uri != null) viewModel.savePreview(uri)
     }
     val navigateBack = {
-        if (!viewModel.navigateUp()) onNavigateBack()
+        if (viewModel.openedFromChatLink || !viewModel.navigateUp()) onNavigateBack()
     }
 
     BackHandler(onBack = navigateBack)
+    fun openDownloaded(file: DownloadedWorkspaceFile, share: Boolean = false) {
+        try {
+            if (!share && file.mime == "application/vnd.android.package-archive" && !context.packageManager.canRequestPackageInstalls()) {
+                context.startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    android.net.Uri.parse("package:${context.packageName}")))
+            } else {
+                val intent = workspaceOpenIntent(file, share)
+                context.startActivity(if (share) android.content.Intent.createChooser(intent, file.name) else intent)
+            }
+        } catch (e: Exception) {
+            dev.minios.ocremote.logging.AppLogger.e("WorkspaceFiles", "Unable to open downloaded file", e)
+            scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.workspace_no_viewer)) }
+        }
+    }
     LaunchedEffect(Unit) {
-        viewModel.saveResults.collect { saved ->
-            snackbarHostState.showSnackbar(
-                if (saved) fileSavedMessage else fileSaveFailedMessage,
-            )
+        viewModel.saveResults.collectLatest { event ->
+            when (event) {
+                is WorkspaceFileEvent.Saved -> {
+                    if (snackbarHostState.showSnackbar(fileSavedMessage, context.getString(R.string.workspace_open_file))
+                        == SnackbarResult.ActionPerformed) openDownloaded(event.file)
+                }
+                is WorkspaceFileEvent.Open -> openDownloaded(event.file, event.share)
+                is WorkspaceFileEvent.Error -> snackbarHostState.showSnackbar(event.message ?: fileSaveFailedMessage)
+                is WorkspaceFileEvent.UploadDestination -> { uploadSource = event.source; uploadPath = event.path }
+                WorkspaceFileEvent.Uploaded -> snackbarHostState.showSnackbar(context.getString(R.string.workspace_upload_complete))
+            }
         }
     }
 
@@ -158,6 +210,22 @@ fun WorkspaceFilesScreen(
                 },
                 actions = {
                     val preview = state.preview
+                    if (preview == null) {
+                        IconButton(onClick = { viewModel.setGridView(!gridView) }) {
+                            Icon(if (gridView) Lucide.List else Lucide.LayoutGrid,
+                                stringResource(if (gridView) R.string.workspace_list_view else R.string.workspace_grid_view))
+                        }
+                        IconButton(onClick = {
+                            searchVisible = !searchVisible
+                            if (!searchVisible) viewModel.searchFiles("")
+                        }, enabled = isServerConnected) { Icon(Lucide.Search, stringResource(R.string.workspace_search_files)) }
+                    }
+                    IconButton(
+                        onClick = { searchVisible = false; viewModel.browseParent() },
+                        enabled = isServerConnected && (preview != null || state.currentPath.isNotEmpty()),
+                    ) {
+                        Icon(Lucide.FolderUp, stringResource(R.string.workspace_parent_directory))
+                    }
                     if (isTextPreview) {
                         IconButton(onClick = { viewModel.setWordWrap(!wordWrap) }) {
                             Icon(
@@ -172,19 +240,58 @@ fun WorkspaceFilesScreen(
                             )
                         }
                     }
-                    if (isMarkdownPreview) {
+                    if (isMarkdownPreview || isHtmlPreview) {
                         IconButton(onClick = { renderMarkdown = !renderMarkdown }) {
                             Icon(
                                 imageVector = if (renderMarkdown) Lucide.Code else Lucide.ScanEye,
                                 contentDescription = stringResource(
-                                    if (renderMarkdown) R.string.workspace_markdown_raw else R.string.workspace_markdown_preview,
+                                    if (renderMarkdown) R.string.workspace_show_source else R.string.workspace_show_preview,
                                 ),
                             )
                         }
                     }
-                    if (preview != null && previewBytes != null) {
-                        IconButton(onClick = { saveLauncher.launch(preview.node.name) }) {
+                    if (preview != null && (previewBytes != null || state.capabilities.rawDownload || preview.requiresDownload)) {
+                        IconButton(onClick = { viewModel.openExternally() }, enabled = state.transfer == null && !state.isLoading) {
+                            Icon(Lucide.ExternalLink, contentDescription = stringResource(R.string.workspace_open_file))
+                        }
+                        IconButton(onClick = { viewModel.prepareDownload()?.let(saveLauncher::launch) }, enabled = state.transfer == null && !state.isLoading) {
                             Icon(Lucide.Download, contentDescription = stringResource(R.string.workspace_download_file))
+                        }
+                    }
+                    Box {
+                        IconButton(onClick = { showActions = true }) { Icon(Lucide.EllipsisVertical, stringResource(R.string.more_options)) }
+                        AppDropdownMenu(showActions, { showActions = false }) {
+                            if (!preview?.content?.diff.isNullOrBlank()) AppDropdownMenuItem(
+                                text = { Text(stringResource(if (showDiff) R.string.workspace_show_source else R.string.workspace_show_diff)) },
+                                onClick = { showDiff = !showDiff }, leadingIcon = { Icon(Lucide.GitBranch, null) },
+                            )
+                            if (preview == null && state.capabilities.write) AppDropdownMenuItem(
+                                text = { Text(stringResource(R.string.workspace_upload_file)) },
+                                enabled = isServerConnected && state.transfer == null,
+                                onClick = { uploadLauncher.launch(arrayOf("*/*")) }, leadingIcon = { Icon(Lucide.Upload, null) },
+                            )
+                            AppDropdownMenuItem(text = { Text(stringResource(R.string.retry)) }, enabled = isServerConnected,
+                                onClick = viewModel::retry, leadingIcon = { Icon(Lucide.RefreshCw, null) })
+                            if (preview != null && (previewBytes != null || state.capabilities.rawDownload || preview.requiresDownload)) {
+                                AppDropdownMenuItem(text = { Text(stringResource(R.string.workspace_share_file)) },
+                                    enabled = state.transfer == null, onClick = { viewModel.openExternally(share = true) },
+                                    leadingIcon = { Icon(Lucide.Share2, null) })
+                            }
+                            if (state.capabilities.write && isTextPreview && preview != null && preview.content.content.length <= 1_000_000) {
+                                AppDropdownMenuItem(text = { Text(stringResource(R.string.workspace_edit_file)) },
+                                    enabled = isServerConnected && !state.isSaving,
+                                    onClick = { editText = previewBytes?.toString(Charsets.UTF_8).orEmpty(); editing = true },
+                                    leadingIcon = { Icon(Lucide.Pencil, null) })
+                            }
+                            if (preview == null && state.capabilities.textSearch) {
+                                AppDropdownMenuItem(text = { Text(stringResource(R.string.workspace_search_contents)) }, enabled = isServerConnected,
+                                    onClick = { searchVisible = true; viewModel.setContentSearch(!state.searchContents) },
+                                    leadingIcon = { Icon(if (state.searchContents) Lucide.Check else Lucide.Search, null) })
+                            }
+                            if (preview == null && state.capabilities.gitStatus) {
+                                AppDropdownMenuItem(text = { Text(stringResource(R.string.workspace_changed_files)) }, enabled = isServerConnected,
+                                    onClick = { searchVisible = false; viewModel.loadGitStatus() }, leadingIcon = { Icon(Lucide.GitBranch, null) })
+                            }
                         }
                     }
                 },
@@ -193,6 +300,23 @@ fun WorkspaceFilesScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            state.transfer?.let { transfer ->
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.workspace_transfer_progress, transfer.bytes / 1024),
+                        modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = viewModel::cancelTransfer) { Text(stringResource(R.string.cancel)) }
+                }
+            }
+            if (searchVisible && state.preview == null) OutlinedTextField(
+                value = state.searchQuery,
+                onValueChange = viewModel::searchFiles,
+                label = { Text(stringResource(if (state.searchContents) R.string.workspace_search_contents else R.string.workspace_search_files)) },
+                singleLine = true,
+                enabled = isServerConnected,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            )
             if (!isServerConnected) {
                 ServerConnectionBanner(
                     connecting = isServerConnecting,
@@ -217,12 +341,39 @@ fun WorkspaceFilesScreen(
                     }
                 }
                 state.preview != null -> WorkspaceFileContent(
-                    preview = state.preview!!,
+                    preview = if (showDiff && state.preview!!.content.diff != null) state.preview!!.copy(
+                        content = dev.minios.ocremote.data.api.FileContent("text", state.preview!!.content.diff!!),
+                        line = null, endLine = null,
+                    ) else state.preview!!,
                     bytes = previewBytes,
                     wordWrap = wordWrap,
-                    renderMarkdown = renderMarkdown,
+                    renderMarkdown = renderMarkdown && !showDiff,
+                    onOpenLink = viewModel::openLink,
+                    canDownload = state.capabilities.rawDownload,
                     modifier = Modifier.fillMaxSize(),
                 )
+                state.gitStatuses != null -> LazyColumn(Modifier.fillMaxSize()) {
+                    items(state.gitStatuses.orEmpty(), key = { it.path }) { file ->
+                        ListItem(headlineContent = { Text(file.path, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                            supportingContent = { Text("${stringResource(when (file.status) {
+                                "added" -> R.string.workspace_status_added
+                                "deleted" -> R.string.workspace_status_deleted
+                                else -> R.string.workspace_status_modified
+                            })} · +${file.additions} −${file.deletions}") },
+                            modifier = Modifier.clickable(enabled = isServerConnected && file.status != "deleted") {
+                                viewModel.open(FileNode(file.path.substringAfterLast('/'), file.path, "file"))
+                            })
+                    }
+                }
+                state.searchContents && state.searchQuery.isNotBlank() -> LazyColumn(Modifier.fillMaxSize()) {
+                    items(state.matches) { match ->
+                        ListItem(headlineContent = { Text("${match.path}:${match.lineNumber}") },
+                            supportingContent = { Text(match.lines.trim(), maxLines = 3, overflow = TextOverflow.Ellipsis) },
+                            modifier = Modifier.clickable(enabled = isServerConnected) {
+                                viewModel.open(FileNode(match.path.substringAfterLast('/'), match.path, "file"), match.lineNumber)
+                            })
+                    }
+                }
                 state.entries.isEmpty() && !state.isLoading -> {
                     Text(
                         text = stringResource(R.string.workspace_empty_directory),
@@ -231,40 +382,8 @@ fun WorkspaceFilesScreen(
                     )
                 }
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 4.dp),
-                    ) {
-                        items(state.entries, key = { it.path }) { node ->
-                            val kind = workspaceFileKind(node)
-                            ListItem(
-                                headlineContent = {
-                                    Text(node.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                },
-                                supportingContent = if (node.ignored) {
-                                    { Text(stringResource(R.string.workspace_ignored)) }
-                                } else {
-                                    null
-                                },
-                                leadingContent = {
-                                    Icon(
-                                         imageVector = workspaceFileIcon(kind),
-                                         contentDescription = null,
-                                         tint = workspaceFileIconColor(kind),
-                                         modifier = if (kind == WorkspaceFileKind.Generic) {
-                                             Modifier.mirrorForRtl()
-                                         } else {
-                                             Modifier
-                                         },
-                                    )
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .alpha(if (node.ignored) 0.55f else 1f)
-                                    .clickable(enabled = isServerConnected) { viewModel.open(node) },
-                            )
-                        }
-                    }
+                    WorkspaceFileList(state.entries, gridView, isServerConnected, state.searchQuery.isNotBlank(),
+                        onOpen = { viewModel.open(it) }, thumbnail = viewModel::thumbnail)
                 }
             }
 
@@ -277,6 +396,30 @@ fun WorkspaceFilesScreen(
         }
         }
     }
+    if (editing) AppDialog(onDismissRequest = { editing = false }, modifier = Modifier.fillMaxWidth().heightIn(max = 640.dp)) {
+        OutlinedTextField(editText, { editText = it }, label = { Text(state.preview?.node?.name.orEmpty()) },
+            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+            modifier = Modifier.fillMaxWidth().weight(1f, fill = false).padding(12.dp), minLines = 8, maxLines = 20)
+        androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = { editing = false }) { Text(stringResource(R.string.cancel)) }
+            TextButton(onClick = { viewModel.saveText(editText); editing = false }, enabled = isServerConnected && !state.isSaving) {
+                Text(stringResource(R.string.workspace_save_file))
+            }
+        }
+    }
+    if (uploadSource != null) AppDialog(onDismissRequest = { uploadSource = null }, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.workspace_upload_file), Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
+        OutlinedTextField(uploadPath, { uploadPath = it }, label = { Text(stringResource(R.string.workspace_destination_path)) },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+        Text(stringResource(R.string.workspace_upload_overwrite), Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall)
+        androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = { uploadSource = null }) { Text(stringResource(R.string.cancel)) }
+            TextButton(onClick = {
+                uploadSource?.let { viewModel.upload(android.net.Uri.parse(it), uploadPath) }
+                uploadSource = null
+            }, enabled = uploadPath.isNotBlank() && isServerConnected) { Text(stringResource(R.string.workspace_upload_file)) }
+        }
+    }
 }
 
 @Composable
@@ -285,14 +428,26 @@ private fun WorkspaceFileContent(
     bytes: ByteArray?,
     wordWrap: Boolean,
     renderMarkdown: Boolean,
+    onOpenLink: (String) -> Unit,
+    canDownload: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val mime = workspaceFileMimeType(preview.node, preview.content)
+    val external = LocalUriHandler.current
+    val uriHandler = remember(external, onOpenLink) {
+        object : UriHandler {
+            override fun openUri(uri: String) {
+                if (parseServerFileLink(uri) != null) onOpenLink(uri)
+                else if (!uri.startsWith("file:", true)) external.openUri(uri)
+            }
+        }
+    }
+    CompositionLocalProvider(LocalUriHandler provides uriHandler) {
     when {
         bytes == null -> {
             Box(modifier = modifier.padding(24.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    text = stringResource(R.string.workspace_binary_unavailable),
+                    text = stringResource(if (canDownload) R.string.workspace_preview_unsupported else R.string.workspace_binary_unavailable),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -304,6 +459,14 @@ private fun WorkspaceFileContent(
                 modifier = modifier.padding(12.dp),
                 contentScale = ContentScale.Fit,
             )
+        }
+        mime == "application/pdf" -> WorkspacePdfPreview(bytes, modifier)
+        preview.node.name.substringAfterLast('.', "").lowercase() in setOf("html", "htm") && renderMarkdown ->
+            WorkspaceHtmlPreview(preview.content.content, modifier)
+        preview.content.type != "text" -> {
+            Box(modifier.padding(24.dp), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.workspace_preview_unsupported), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         isWorkspaceMarkdownFile(preview.node.name) && renderMarkdown -> {
             WorkspaceMarkdownPreview(
@@ -326,9 +489,28 @@ private fun WorkspaceFileContent(
                     )
                 }
             }
+            val vertical = rememberScrollState()
+            val selectionColor = MaterialTheme.colorScheme.primaryContainer
+            val selectedText = remember(text, preview.line, preview.endLine, selectionColor) {
+                val line = preview.line
+                if (line == null) text else AnnotatedString.Builder(text).apply {
+                    val start = workspaceLineOffset(text.text, line)
+                    val end = workspaceLineOffset(text.text, ((preview.endLine ?: line).toLong() + 1)
+                        .coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+                    if (end > start) addStyle(SpanStyle(background = selectionColor), start, end)
+                }.toAnnotatedString()
+            }
+            var textLayout by remember(preview.node.path) { mutableStateOf<TextLayoutResult?>(null) }
+            LaunchedEffect(preview.node.path, preview.line, textLayout?.lineCount) {
+                val layout = textLayout ?: return@LaunchedEffect
+                val line = preview.line ?: return@LaunchedEffect
+                val offset = workspaceLineOffset(preview.content.content, line)
+                val visualLine = layout.getLineForOffset(offset)
+                vertical.scrollTo(layout.getLineTop(visualLine).toInt())
+            }
             Box(
                 modifier = modifier
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(vertical)
                     .then(
                         if (wordWrap) Modifier else Modifier.horizontalScroll(rememberScrollState()),
                     )
@@ -336,7 +518,8 @@ private fun WorkspaceFileContent(
             ) {
                 androidx.compose.foundation.text.selection.SelectionContainer {
                     Text(
-                        text = text,
+                        text = selectedText,
+                        onTextLayout = { textLayout = it },
                         style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                         softWrap = wordWrap,
                         modifier = if (wordWrap) Modifier.fillMaxWidth() else Modifier,
@@ -344,6 +527,7 @@ private fun WorkspaceFileContent(
                 }
             }
         }
+    }
     }
 }
 
@@ -423,6 +607,7 @@ private fun WorkspaceMarkdownPreview(
             androidx.compose.foundation.text.selection.SelectionContainer {
                 Markdown(
                     content = markdown,
+                    annotator = dev.minios.ocremote.ui.components.rememberInteractiveMarkdownLinks(),
                     components = components,
                     typography = typography,
                     modifier = Modifier.fillMaxWidth(),
@@ -472,7 +657,7 @@ private fun MarkdownTypography.withInlineCodeSize(
     link = link,
 )
 
-private fun workspaceFileIcon(kind: WorkspaceFileKind): ImageVector = when (kind) {
+internal fun workspaceFileIcon(kind: WorkspaceFileKind): ImageVector = when (kind) {
     WorkspaceFileKind.Directory -> Lucide.Folder
     WorkspaceFileKind.Code -> Lucide.Code
     WorkspaceFileKind.Config -> Lucide.Settings
@@ -487,7 +672,7 @@ private fun workspaceFileIcon(kind: WorkspaceFileKind): ImageVector = when (kind
 }
 
 @Composable
-private fun workspaceFileIconColor(kind: WorkspaceFileKind): Color = when (kind) {
+internal fun workspaceFileIconColor(kind: WorkspaceFileKind): Color = when (kind) {
     WorkspaceFileKind.Directory -> MaterialTheme.colorScheme.primary
     WorkspaceFileKind.Code -> MaterialTheme.colorScheme.tertiary
     WorkspaceFileKind.Config -> MaterialTheme.colorScheme.secondary

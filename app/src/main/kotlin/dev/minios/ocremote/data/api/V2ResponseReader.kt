@@ -21,7 +21,7 @@ internal data class V2ResponseLimits(
 )
 
 /** Deliberately excludes response contents and server-supplied field names. */
-internal class V2ResponseLimitException : IOException("OpenCode v2 response exceeds safe parsing limits")
+internal class V2ResponseLimitException : IOException("OpenCode response exceeds safe parsing limits")
 
 /** Reads large catalogs without constructing ignored configuration or provider metadata. */
 internal fun readV2Response(

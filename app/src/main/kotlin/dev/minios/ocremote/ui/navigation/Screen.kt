@@ -73,11 +73,14 @@ sealed class Screen(val route: String) {
             username: String,
             password: String,
             directory: String,
+            filePath: String = "",
+            serverId: String = "",
         ): String {
             return "workspace_files?serverUrl=${encodeNavigationArgument(serverUrl)}" +
                 "&username=${encodeNavigationArgument(username)}" +
                 "&password=${encodeNavigationArgument(password)}" +
-                "&directory=${encodeNavigationArgument(directory)}"
+                "&directory=${encodeNavigationArgument(directory)}" +
+                "&filePath=${encodeNavigationArgument(filePath)}&serverId=${encodeNavigationArgument(serverId)}"
         }
     }
 

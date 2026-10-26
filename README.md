@@ -1,186 +1,235 @@
+<div align="center">
+
+<img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png" width="88" height="88" alt="OC Remote app icon" />
+
 # OC Remote
 
-Android client for [OpenCode](https://github.com/anomalyco/opencode) servers with a native UI and broad feature coverage.
+### Your coding agent. Wherever you are.
 
-**This is an unofficial community project, not affiliated with the OpenCode team.**
+A native Android companion for [OpenCode](https://github.com/anomalyco/opencode).<br />
+Chat with your agent, explore your workspace, and open a real terminal from your phone.
 
-## Why OC Remote
+<p>
+  <a href="https://github.com/crim50n/oc-remote/releases/latest"><img src="https://img.shields.io/github/v/release/crim50n/oc-remote?style=flat-square&amp;label=release&amp;color=2563eb" alt="Latest release" /></a>
+  <a href="#get-started"><img src="https://img.shields.io/badge/Android-8.0%2B-34a853?style=flat-square&amp;logo=android&amp;logoColor=white" alt="Requires Android 8.0 or newer" /></a>
+  <a href="https://github.com/crim50n/oc-remote/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/crim50n/oc-remote/release.yml?style=flat-square&amp;label=release%20build" alt="Release build status" /></a>
+  <a href="#make-it-yours"><img src="https://img.shields.io/badge/languages-15-7c3aed?style=flat-square" alt="15 supported languages" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-64748b?style=flat-square" alt="Source code licensed under MIT" /></a>
+</p>
 
-- **Work from anywhere** — use OpenCode through a mobile-first native chat or a full interactive terminal
-- **Stay connected** — manage, reorder, and reconnect multiple remote servers, or run OpenCode directly on-device through Termux
-- **Keep projects organized** — search, favorite, categorize, reorder, share, export, and revisit sessions across servers
-- **Use the complete workflow** — stream responses, inspect tool output and context usage, attach files, answer questions, approve permissions, and run session actions without falling back to a desktop
-- **Make it yours** — choose from 15 locales, flexible themes including AMOLED, and detailed chat, connection, notification, and image controls
-- **Operate reliably** — keep cached server content available during disconnects, resume safely after reconnect, review detailed sync conflicts, limit diagnostic exports, and use cryptographically verified in-app updates
+<p>
+  <a href="https://github.com/crim50n/oc-remote/releases/latest"><img src="https://img.shields.io/badge/Download_APK-2563eb?style=for-the-badge&amp;logo=android&amp;logoColor=white" alt="Download the latest Android APK" /></a>
+  <a href="#get-started"><img src="https://img.shields.io/badge/Quick_Start-1e293b?style=for-the-badge" alt="Quick start guide" /></a>
+  <a href="https://github.com/crim50n/oc-remote/issues"><img src="https://img.shields.io/badge/Report_an_Issue-1e293b?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="Report an issue on GitHub" /></a>
+</p>
+
+[Screenshots](#screenshots) · [Features](#features) · [Compatibility](#compatibility) · [Build](#build-from-source)
+
+<sub>Unofficial community project. Not affiliated with the OpenCode team.</sub>
+
+</div>
+
+---
+
+## Built for Mobile Work
+
+| **Pick up the conversation** | **Stay close to your workspace** | **Keep control** |
+| :--- | :--- | :--- |
+| Native streaming chat, model and agent selection, attachments, and readable tool results. | Browse files, preview changes, switch projects, and work in a full interactive terminal. | Answer questions, approve permissions, stop runs, and reconnect without losing your place. |
+
+Connect to your own remote servers, or run OpenCode on-device through **Termux**. Manage multiple connections and keep important sessions together in **Favorites**.
 
 ## Screenshots
 
-<p align="center">
-  <img src="screenshots/01_home_and_servers.jpg" width="200" alt="Home screen with local and remote OpenCode servers" />
-  <img src="screenshots/02_favorites.jpg" width="200" alt="Cross-server Favorites with category filters" />
-  <img src="screenshots/03_chat.jpg" width="200" alt="Native OpenCode chat with model, agent, and context controls" />
-</p>
-<p align="center">
-  <img src="screenshots/04_attachments.jpg" width="200" alt="Image, device file, and project file attachment options" />
-  <img src="screenshots/05_session_actions.jpg" width="200" alt="Session actions including terminal, review, sharing, and export" />
-  <img src="screenshots/06_context_usage.jpg" width="200" alt="Detailed context window and session token usage" />
-</p>
-<p align="center">
-  <img src="screenshots/07_category_editor.jpg" width="200" alt="Custom Favorites category editor" />
-  <img src="screenshots/08_settings.jpg" width="200" alt="Connection, notification, and appearance settings" />
-  <img src="screenshots/09_about_updates.jpg" width="200" alt="About screen with secure in-app update check" />
-</p>
+<p align="center"><sub>Real app screens. Select an image to view it at full resolution. Appearance may vary by version and theme.</sub></p>
 
-## Features
+<table>
+  <tr>
+    <th width="33%">01 / Your servers</th>
+    <th width="33%">02 / Native chat</th>
+    <th width="33%">03 / Favorites</th>
+  </tr>
+  <tr>
+    <td align="center"><a href="screenshots/01_home_and_servers.jpg"><img src="screenshots/01_home_and_servers.jpg" width="100%" alt="Home screen with local and remote OpenCode servers" /></a></td>
+    <td align="center"><a href="screenshots/03_chat.jpg"><img src="screenshots/03_chat.jpg" width="100%" alt="Native chat with model, agent, and context controls" /></a></td>
+    <td align="center"><a href="screenshots/02_favorites.jpg"><img src="screenshots/02_favorites.jpg" width="100%" alt="Cross-server Favorites with category filters" /></a></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Remote connections and local runtime</sub></td>
+    <td align="center"><sub>Your agent, without the desktop</sub></td>
+    <td align="center"><sub>Important sessions, one place</sub></td>
+  </tr>
+</table>
 
-### Native UI
-- **Full chat interface** — native Material 3 UI with GFM markdown, code blocks, task markers, strikethrough, scrollable tables, syntax highlighting, and copy actions
-- **Message streaming** — real-time text streaming with auto-scroll
-- **Smart scroll behavior** — manual scroll disables auto-scroll; automatically re-enables when scrolled to bottom
-- **File mentions** — `@file` autocomplete with server-backed path search and quick insert
-- **Workspace files** — browse project folders, preview highlighted text, Markdown, and images, and download files without leaving the chat
-- **Attachment support** — send images, PDFs, text, source code, and configuration files from device storage
-- **Android sharing** — share one or multiple supported files into an existing or new chat on a connected server
-- **Tool outputs** — expandable tool-call cards with selectable monospace output
-- **Image preview & save** — open sent, draft, and Markdown images in a fullscreen viewer with pinch zoom, pan, double-tap zoom, and device saving
-- **Shell output copy** — bash output blocks support text selection and one-tap copy (command + output)
-- **HTML error fallback modes** — switch long HTML error payloads between rendered page view and raw code view
-- **Collapsible reasoning** — reasoning expands on demand, with optional auto-expand and turn dividers for multi-message responses
-- **Slash commands** — `/new`, `/fork`, `/compact`, `/share`, `/rename`, `/undo`, `/redo`, `/shell`
-- **Message actions** — long-press user messages to revert with confirmation
-- **Reliable delivery** — outgoing prompts stay visible with queued state while delayed server events and history are reconciled
-- **Offline-aware screens** — preserve cached chat and server content in read-only mode, show disconnected or reconnecting status, and resume loading after reconnection
-- **Retry control** — connection retry errors and countdowns stay visible while Stop remains available to abort the pending run
-- **Interaction queue** — simultaneous permissions and questions stay ordered with position, retry, parent-chat routing, and permanent-approval confirmation
+<details>
+<summary><strong>Explore six more screens: attachments, session actions, context, and settings</strong></summary>
+<br />
 
-### Terminal Mode
-- **Termux-like terminal mode** — full-screen terminal UI with dedicated extra keys and mobile-first interactions
-- **Server-scoped terminal tabs** — tabs are shared across sessions for the same server and managed from a drawer
-- **PTY over WebSocket** — low-latency interactive I/O for CLI/TUI apps
-- **Reliable PTY resize** — rows/cols update with viewport changes and IME transitions
-- **TUI rendering improvements** — better full-grid rendering behavior for terminal UIs
-- **Terminal shortcuts** — Ctrl/Alt latching, volume-key virtual modifiers (Ctrl/Fn), and `Ctrl+Alt+V` paste
-- **Selection toolbar paste** — terminal selection menu includes paste action integrated with terminal input
-- **Mobile navigation and recovery** — inertial scrollback, pinch zoom, explicit connection states, reconnect for transient failures, and in-place restart for exited tabs
-- **Terminal guidance and keys** — optional panel-opening guidance, repeating arrow keys, and server-controlled cursor visibility, blink, and shape
+<table>
+  <tr>
+    <th width="33%">Bring your files</th>
+    <th width="33%">Act on a session</th>
+    <th width="33%">Understand context</th>
+  </tr>
+  <tr>
+    <td align="center"><a href="screenshots/04_attachments.jpg"><img src="screenshots/04_attachments.jpg" width="100%" loading="lazy" alt="Image, device file, and project file attachment options" /></a></td>
+    <td align="center"><a href="screenshots/05_session_actions.jpg"><img src="screenshots/05_session_actions.jpg" width="100%" loading="lazy" alt="Session actions including terminal, review, sharing, and export" /></a></td>
+    <td align="center"><a href="screenshots/06_context_usage.jpg"><img src="screenshots/06_context_usage.jpg" width="100%" loading="lazy" alt="Context window breakdown, token usage, and session cost" /></a></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Images, documents, and project files</sub></td>
+    <td align="center"><sub>Review, fork, export, and more</sub></td>
+    <td align="center"><sub>Tokens, cache, and remaining capacity</sub></td>
+  </tr>
+  <tr>
+    <th>Organize your sessions</th>
+    <th>Make it yours</th>
+    <th>Stay up to date</th>
+  </tr>
+  <tr>
+    <td align="center"><a href="screenshots/07_category_editor.jpg"><img src="screenshots/07_category_editor.jpg" width="100%" loading="lazy" alt="Custom Favorites category editor with colors and icons" /></a></td>
+    <td align="center"><a href="screenshots/08_settings.jpg"><img src="screenshots/08_settings.jpg" width="100%" loading="lazy" alt="Appearance, connection, and notification settings" /></a></td>
+    <td align="center"><a href="screenshots/09_about_updates.jpg"><img src="screenshots/09_about_updates.jpg" width="100%" loading="lazy" alt="About screen with secure in-app update checks" /></a></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Reusable categories and 32 icon choices</sub></td>
+    <td align="center"><sub>Appearance and behavior, your way</sub></td>
+    <td align="center"><sub>Verified updates inside the app</sub></td>
+  </tr>
+</table>
 
-### Session Management  
-- **Multi-session** — switch between sessions, view history
-- **Project browser** — search sessions, optionally group them by project, and start chats from 5–50 configurable recent directories
-- **Session organization** — favorite and reorder important sessions across servers, filter Favorites with reusable custom categories and 32 icon choices, and keep offline favorites visible until their server reconnects
-- **Session actions** — create, reload, fork, compact, run a code review, share/unshare, rename, and delete via explicit menus
-- **Terminal mode shortcut** — open the current session in terminal mode from the chat top bar
-- **Fast history loading** — show the newest 10 messages first, preload the configured 25–200 message target in the background, and load older pages on demand
-- **Large-session stability** — configurable response limits, disk-backed processing, cached message images, oversized-payload fallback, and smaller-page OOM recovery
-- **Session export** — export full session as JSON file with streaming progress notification
-- **Multi-select in sessions** — long-press to enter selection mode, select multiple sessions, and delete in one action
-- **Draft persistence** — input text, image attachments, and @file mentions saved per session; survives navigation, app restart, and WebUI detours
-- **Read-only subagents** — child-agent sessions expose their history and context without unsafe prompt or shell controls
+</details>
 
-### Model & Agent Selection
-- **Model picker** — search providers and models, follow server ordering, select model variants, and manage model visibility without leaving chat
-- **Agent selector** — tap to cycle through agents; each agent colored with its TUI theme color (blue, purple, green…)
-- **Reliable agent mode persistence** — explicit Plan/Build choice is preserved correctly between UI state and sent commands
-- **Provider icons** — 74 vector icons for AI providers shown in model picker and next to assistant responses
-- **Token usage** — displays total tokens and cost in toolbar subtitle
-- **Context window details** — color-coded usage indicator with input/output/reasoning/cache, session totals, remaining capacity, and cost
-- **Compact layout** — horizontally scrollable toolbar prevents overflow on long translations
+## Get Started
 
-### Localization
-- **15 locales** — English (source), Russian, German, Spanish, French, Italian, Portuguese (BR), Indonesian, Japanese, Korean, Chinese (Simplified), Ukrainian, Turkish, Arabic, Polish
-- **Localization workflow** — locale files are maintained with `lokit` during development
-- **Settings** — language and theme selection in Settings screen
+**You need:** Android **8.0+** and an OpenCode server reachable from your phone.
 
-### Settings
-- **Language** — 15 locales (system default, English, Russian, German, Spanish, French, Italian, Portuguese BR, Indonesian, Japanese, Korean, Chinese Simplified, Ukrainian, Turkish, Arabic, Polish)
-- **Reconnect mode** — aggressive (1–5s), normal (1–30s), or conservative (1–60s) backoff strategy
-- **Background WakeLock** — optionally keep screen-off SSE delivery active continuously, or reconnect after device wake and network changes
-- **Theme** — light, dark, or system default
-- **Dynamic colors** — Material You dynamic color support (Android 12+)
-- **AMOLED dark mode** — pure black surfaces with accent borders across chat bubbles, cards, menus, dialogs, and input blocks (works with both static and dynamic colors)
-- **Chat font size** — small, medium, or large text in chat messages and code blocks
-- **Code word wrap** — toggle horizontal scrolling vs. word wrap in code blocks and tool outputs
-- **Compact messages** — reduce spacing between messages for denser layout
-- **Auto-expand tool results** — show tool card contents expanded by default
-- **Memory-saving tool cards** — optionally show only tool headers without rendering command output, file listings, diffs, or other expandable details
-- **History preload target** — configure how many recent messages to load per session after the newest 10 appear (25–200)
-- **Recent directories** — choose how many projects appear in the quick new-session dialog (5–50, default 20)
-- **Reasoning display** — optionally auto-expand reasoning and show dividers between messages in one response
-- **Confirm before send** — optional confirmation dialog before sending messages
-- **Haptic feedback** — optional direct vibration with configurable duration, amplitude, and an immediate test action
-- **Keep screen on** — prevents sleep while the chat screen is open
-- **Notifications** — toggle task completion notifications
-- **Silent notifications** — suppress sound and vibration for task notifications
-- **Image optimization controls** — tune max image side (keep original or 720–2560 px) and WebP quality for attachments
-- **Diagnostics** — inspect privacy-sanitized logs by severity, choose the latest 100–1,000 messages to export, and copy, share, or clear them without ADB
-- **Settings sync** — synchronize preferences, ordered remote servers, categories, assignments, Favorites, and hidden models through GitHub Gist, WebDAV, or an Android document provider; independent changes merge automatically, while overlapping conflicts offer local/remote choices that retain unrelated changes. Server passwords can be included with passphrase encryption; sync credentials and local runtime configuration remain device-specific
-- **Secure in-app updates** — automatic daily discovery plus manual checks from About; GitHub Release APKs are downloaded in-app, verified by SHA-256, package/version, and signing certificate, then handed to Android's system installer
+### 1. Install the app
 
-### Connection
-- **Multi-server** — connect to multiple OpenCode servers simultaneously and long-press remote server cards to reorder them
-- **Local runtime via Termux** — set up and run OpenCode directly on-device from the Home screen (setup/start/stop/sessions)
-- **Local runtime launch options** — configure LAN binding (`0.0.0.0`), optional server username/password auth, background launch mode, auto-start (background-only), startup timeout, and proxy/`NO_PROXY` from the app
-- **Provider OAuth flow** — browser OAuth, headless fallback handling, and provider-state refresh on resume
-- **MCP management** — inspect configured MCP server status, connect or disconnect servers, retry failures, and launch OAuth authentication from per-server settings
-- **SSE event stream** — real-time session status, permissions, questions
-- **WebSocket transport** — used for terminal PTY streams
-- **Auto-reconnect** — exponential backoff starting at 1s, with max delay based on reconnect mode (5s/30s/60s)
-- **Cancel connection attempts** — cancel an in-progress health check or connection without waiting for an unreachable host
-- **Connection-aware screens** — disconnected and reconnecting banners span chat, sessions, terminal, files, WebView, provider/model, and MCP screens, with cached content retained and network actions paused until reconnect
-- **Background service** — foreground service keeps connections alive when app is minimized
+[Download the latest APK](https://github.com/crim50n/oc-remote/releases/latest) from GitHub Releases and open it on your Android device. If prompted, allow installation from the browser or file manager you used.
 
-## Requirements
+Future updates can be checked from **About**. In-app downloads are verified against their SHA-256, package/version, and signing certificate before Android's installer opens.
 
-- Android 8.0+ (API 26)
-- OpenCode server accessible over the network
+### 2. Start your server
 
-### OpenCode API Compatibility
-
-The client detects OpenCode V1 and V2 per connection. V2 integration targets the published
-`@opencode/cli` 2.0.30 contract and preserves V1 support. V2 configuration writes, session sharing,
-and native MCP OAuth are unavailable; unsupported forms offer a web-client fallback. End-to-end
-device verification is still pending. See [compatibility notes](OPENCODE_V2_COMPATIBILITY.md).
-
-## Setup
-
-1. Start the OpenCode server with network access:
+On the computer hosting your project:
 
 ```bash
 opencode serve --port 4096 --hostname 0.0.0.0
 ```
 
-2. In the app, tap **+** and enter the server URL (e.g. `http://192.168.0.10:4096`), username, and optional password.
+> [!IMPORTANT]
+> `0.0.0.0` listens on all network interfaces. Use a trusted network or VPN, configure authentication, and do not expose an unauthenticated server to the public internet. Use HTTPS when connecting over an untrusted network.
 
-3. Tap **Connect** on the server card.
+### 3. Connect and work
 
-## Building
+Open OC Remote, tap **+**, and enter your server URL, for example `http://192.168.0.10:4096`, along with the server's username and password if configured. Tap **Connect**, then **Sessions**.
 
-### Android Studio
+Prefer to work entirely on your phone? The **Local OpenCode** card guides you through setup and launch using Termux.
 
-1. Open the project
-2. Sync Gradle
-3. Run on a device or emulator
+## Features
 
-### Command line
+### Chat, Files, and Context
+
+- **Native Material 3 chat:** streaming responses, GFM Markdown, syntax-highlighted code, tables, copy actions, and scroll behavior that respects manual scrolling.
+- **Reading mode:** translucent, blurred chat panels hide as you scroll toward newer messages and return on reverse scrolling or Back. Session activity remains visible, with optional hiding of Android system bars.
+- **Useful tool cards:** expandable results, selectable shell output, diffs, and a headers-only mode to reduce rendering memory.
+- **Files within reach:** open file links from chat, browse folders in a list or three-column grid, search filenames, and preview text, Markdown, images, PDFs, and static HTML. Back from a chat file link returns to chat; folder navigation stays within the project.
+- **File transfers:** download, open, and share files, including large APKs on compatible V1 servers. V2 adds streamed uploads and text editing; available actions depend on the server API.
+- **Attachments and Android sharing:** send images, PDFs, text, source code, and configuration files from your device or another app.
+- **Model and agent controls:** searchable model picker, provider icons, variants, model visibility, and agent selection.
+- **Context visibility:** token breakdowns, cache usage, remaining context capacity, and session cost.
+- **Human-in-the-loop actions:** ordered permission and question prompts, retry controls, and Stop for active runs.
+
+### A Real Terminal
+
+Open an interactive **PTY terminal over WebSocket** without leaving the session.
+
+| Input | Navigation | Recovery |
+| :--- | :--- | :--- |
+| Dedicated extra keys, Ctrl/Alt latching, volume-key modifiers, and `Ctrl+Alt+V` paste | Server-scoped terminal tabs, inertial scrollback, pinch zoom, and text selection | Viewport/keyboard-aware resizing, connection status, reconnect, and restart for exited tabs |
+
+### Projects and Sessions
+
+- **Multiple servers:** connect simultaneously, reorder remote cards, and cancel pending connections.
+- **Project organization:** search and group sessions, revisit recent directories, and handle Windows and Unicode project paths.
+- **Cross-server Favorites:** reorder sessions, filter by custom categories, and keep offline favorites visible.
+- **Session tabs:** switch between saved open sessions across servers, search and reorder tabs, undo closing, and reconnect when opening a disconnected server's tab.
+- **Session actions:** fork, compact, review, rename, revert, delete, and export JSON; sharing is available where supported by the server API.
+- **Fast history:** show the newest 10 messages first, load the configured history target in the background, and fetch older pages on demand.
+- **Draft persistence:** preserve text, attachments, and confirmed file mentions across navigation and app restarts.
+- **Read-only subagents:** inspect child-session history and context without unsafe prompt controls.
+
+### Make It Yours
+
+| Appearance | Interaction | Connections |
+| :--- | :--- | :--- |
+| Light, dark, system, and true-black AMOLED themes | Adjustable chat and terminal fonts, code wrapping, and compact messages | Reconnect policies, background WakeLock, and keep-screen-on controls |
+| Material You dynamic colors on Android 12+ | Configurable haptic duration/amplitude and a test action | Completion notifications with optional silent delivery |
+| **15 languages** | Reasoning expansion, turn dividers, and send confirmation | Local runtime authentication, LAN binding, proxy, and startup settings |
+
+Favorites, categories, and session tabs can each be disabled without deleting saved data. Power-related controls are grouped together in Settings.
+
+<details>
+<summary><strong>All supported languages</strong></summary>
+
+English · Russian · German · Spanish · French · Italian · Portuguese (Brazil) · Indonesian · Japanese · Korean · Chinese (Simplified) · Ukrainian · Turkish · Arabic · Polish
+
+Translations are maintained with [Lokit](https://github.com/crim50n/oc-remote/blob/master/lokit.yaml).
+
+</details>
+
+### Sync and Reliability
+
+**Settings sync** works through GitHub Gist, WebDAV, or an Android document provider. Preferences, ordered remote servers, categories, assignments, Favorites, and hidden models travel together. Independent changes merge automatically; overlapping changes offer local/remote choices that retain unrelated edits.
+
+Server passwords are optional and encrypted with a separate passphrase. Sync credentials and local-runtime configuration remain device-specific.
+
+**Offline-aware screens** retain cached content in read-only mode and show connection status. History processing uses response limits and disk-backed handling; diagnostics provide privacy-sanitized logs with export controls. Provider authentication and MCP management are available according to server capabilities.
+
+## Compatibility
+
+OC Remote detects **OpenCode V1 or V2 per connection**.
+
+| Server API | Availability |
+| :--- | :--- |
+| **V1** | Existing native chat, terminal, session, and server-management workflows |
+| **V2** | Initial integration based on `@opencode/cli` **2.0.30**, with filesystem support updated against **2.1.4** |
+
+> [!NOTE]
+> OC Remote does not implement V2 configuration writes or native MCP OAuth; V1-style session sharing is unavailable on V2. Unsupported forms offer a web-client fallback. End-to-end V2 device verification is still pending; automated tests do not establish full live-server compatibility.
+
+[Known issues](KNOWN_ISSUES.md) · [Release history](https://github.com/crim50n/oc-remote/releases)
+
+## Build from Source
+
+Use **JDK 17** and the Android SDK, or open the project in **Android Studio**, sync Gradle, and run on a device or emulator.
 
 ```bash
-# Build debug APK
+# Build the development APK
 ./gradlew assembleDebug
 
-# Install on connected device
+# Install on a connected device
 adb install -r app/build/outputs/apk/debug/app-debug.apk
+
+# Run unit tests and Android lint
+./gradlew :app:test :app:lint
 ```
 
-## Trademark and branding
+## Feedback and Contributions
 
-The software license applies to the source code.
+Found a bug? [Open an issue](https://github.com/crim50n/oc-remote/issues/new) with your OC Remote version, OpenCode version, Android version, and reproduction steps. Attach a sanitized diagnostic export when possible; never include passwords or API tokens.
 
-“OC Remote”, the OC Remote logo, application icon and other project
-branding are not licensed for use as the identity of derivative
-applications. Forks must use a clearly distinct name and visual identity.
+Have an improvement in mind? [Browse open pull requests](https://github.com/crim50n/oc-remote/pulls) to avoid duplicate work, keep changes focused, and include tests for behavior changes.
 
-See [TRADEMARKS.md](TRADEMARKS.md).
+---
 
-## License
+<div align="center">
 
-MIT
+**OC Remote** · Native Android access to your OpenCode servers
+
+[Download](https://github.com/crim50n/oc-remote/releases/latest) · [Report a bug](https://github.com/crim50n/oc-remote/issues) · [Back to top](#oc-remote)
+
+<sub>Source code: <a href="LICENSE">MIT License</a>. The OC Remote name, logo, and app icon are subject to the <a href="TRADEMARKS.md">trademark and branding policy</a>; forks must use a distinct identity.</sub>
+
+</div>

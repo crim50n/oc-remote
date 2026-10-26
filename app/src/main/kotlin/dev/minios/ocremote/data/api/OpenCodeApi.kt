@@ -18,7 +18,9 @@ import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 import io.ktor.websocket.send
 import io.ktor.utils.io.readAvailable
+import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -1163,12 +1165,87 @@ class OpenCodeApi @Inject constructor(
 
     // ============ Files ============
 
-    suspend fun searchText(conn: ServerConnection, pattern: String): List<SearchMatch> {
+    suspend fun fileCapabilities(conn: ServerConnection): WorkspaceFileCapabilities =
+        workspaceFileCapabilities(ServerProtocolRegistry.resolve(httpClient, json, conn))
+
+    suspend fun downloadFile(conn: ServerConnection, path: String, directory: String?,
+        output: java.io.OutputStream, base64Encoded: Boolean = false, onProgress: (Long, Long?) -> Unit): String? {
+        if (isV2(conn)) return v2.downloadFile(conn, path, directory, output, onProgress)
+        if (base64Encoded) {
+            val target = directory?.takeIf(String::isNotBlank)?.let { serverFileRequest(path, it) }
+            return httpClient.prepareGet("${conn.baseUrl}/file/content") {
+                conn.authHeader?.let { header("Authorization", it) }
+                (target?.directory ?: directory)?.let { parameter("directory", it) }
+                directoryHeader(target?.directory ?: directory)
+                parameter("path", target?.path ?: path)
+            }.execute { response ->
+                check(response.status.isSuccess()) { "File download failed (HTTP ${response.status.value})" }
+                withContext(Dispatchers.IO) {
+                    val context = kotlinx.coroutines.currentCoroutineContext()
+                    var written = 0L
+                    var reported = 0L
+                    val progress = object : java.io.OutputStream() {
+                        override fun write(value: Int) = write(byteArrayOf(value.toByte()), 0, 1)
+                        override fun write(bytes: ByteArray, offset: Int, length: Int) {
+                            context.ensureActive()
+                            output.write(bytes, offset, length)
+                            written += length
+                            if (written - reported >= 65_536) {
+                                onProgress(written, null)
+                                reported = written
+                            }
+                        }
+                    }
+                    val mime = downloadV1Binary(response.bodyAsChannel().toInputStream(), progress)
+                    output.flush()
+                    onProgress(written, written)
+                    mime
+                }
+            }
+        }
+        val content = readFile(conn, path, directory)
+        check(content.type != "binary" || content.content.isNotEmpty()) { "This V1 server does not expose the binary file contents" }
+        val bytes = if (content.encoding == "base64") Base64.getMimeDecoder().decode(content.content)
+            else content.content.toByteArray(Charsets.UTF_8)
+        withContext(Dispatchers.IO) { output.write(bytes); output.flush() }
+        onProgress(bytes.size.toLong(), bytes.size.toLong())
+        return content.mimeType
+    }
+
+    suspend fun writeWorkspaceFile(conn: ServerConnection, path: String, directory: String, bytes: ByteArray) {
+        check(isV2(conn)) { "File writes are unavailable on the V1 API" }
+        v2.writeFile(conn, path, directory, bytes)
+    }
+
+    suspend fun uploadWorkspaceFile(conn: ServerConnection, path: String, directory: String,
+        input: java.io.InputStream, onProgress: (Long) -> Unit) {
+        check(isV2(conn)) { "File upload is unavailable on the V1 API" }
+        v2.uploadFile(conn, path, directory, input, onProgress)
+    }
+
+    suspend fun fileStatuses(conn: ServerConnection, directory: String): List<WorkspaceGitStatus> {
+        check(!isV2(conn)) { "File status is unavailable on the V2 filesystem API" }
+        return httpClient.get("${conn.baseUrl}/file/status") { conn.authHeader?.let { header("Authorization", it) }; directoryHeader(directory) }.body()
+    }
+
+    suspend fun searchText(conn: ServerConnection, pattern: String, directory: String? = null): List<SearchMatch> {
         if (isV2(conn)) error("Text search is unavailable in the OpenCode v2 API")
-        return httpClient.get("${conn.baseUrl}/find") {
+        val matches: JsonArray = httpClient.get("${conn.baseUrl}/find") {
             conn.authHeader?.let { header("Authorization", it) }
             parameter("pattern", pattern)
+            directoryHeader(directory)
         }.body()
+        return matches.mapNotNull { element ->
+            val match = element as? JsonObject ?: return@mapNotNull null
+            fun text(key: String): String? = when (val value = match[key]) {
+                is kotlinx.serialization.json.JsonPrimitive -> value.contentOrNull
+                is JsonObject -> (value["text"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+                else -> null
+            }
+            SearchMatch(text("path") ?: return@mapNotNull null, text("lines").orEmpty(),
+                (match["line_number"] ?: match["lineNumber"])?.jsonPrimitive?.intOrNull ?: 1,
+                (match["absolute_offset"] ?: match["absoluteOffset"])?.jsonPrimitive?.intOrNull ?: 0)
+        }
     }
 
     suspend fun findFiles(conn: ServerConnection, query: String, type: String? = null, directory: String? = null, limit: Int? = null, dirs: String? = null): List<String> {
@@ -1186,28 +1263,43 @@ class OpenCodeApi @Inject constructor(
         }.body()
     }
 
-    suspend fun readFile(conn: ServerConnection, path: String, directory: String? = null): FileContent {
-        if (isV2(conn)) return v2.readFile(conn, path, directory)
-        return httpClient.get("${conn.baseUrl}/file/content") {
+    suspend fun readFile(conn: ServerConnection, path: String, directory: String? = null,
+        maxResponseBytes: Long = 32L * 1024 * 1024): FileContent {
+        if (isV2(conn)) return v2.readFile(conn, path, directory, minOf(maxResponseBytes, 8L * 1024 * 1024))
+        val target = directory?.takeIf(String::isNotBlank)?.let { serverFileRequest(path, it) }
+        return httpClient.prepareGet("${conn.baseUrl}/file/content") {
             conn.authHeader?.let { header("Authorization", it) }
-            directory?.let {
+            (target?.directory ?: directory)?.let {
                 parameter("directory", it)
             }
-            directoryHeader(directory)
-            parameter("path", path)
-        }.body()
+            directoryHeader(target?.directory ?: directory)
+            parameter("path", target?.path ?: path)
+        }.execute { response ->
+            check(response.status.isSuccess()) { "File read failed (HTTP ${response.status.value})" }
+            withContext(Dispatchers.IO) {
+                V2LimitedInputStream(response.bodyAsChannel().toInputStream(), maxResponseBytes)
+                    .reader(Charsets.UTF_8).use { input ->
+                        json.decodeFromJsonElement<FileContent>(readV2Response(json, input, "/file/content",
+                            V2ResponseLimits(maxRetainedChars = 24 * 1024 * 1024, maxLiteralChars = 24 * 1024 * 1024)))
+                    }
+            }
+        }
     }
 
     suspend fun listDirectory(conn: ServerConnection, path: String = "", directory: String? = null): List<FileNode> {
         if (isV2(conn)) return v2.listDirectory(conn, path, directory)
-        return httpClient.get("${conn.baseUrl}/file") {
+        val response = httpClient.get("${conn.baseUrl}/file") {
             conn.authHeader?.let { header("Authorization", it) }
             directory?.let {
                 parameter("directory", it)
             }
             directoryHeader(directory)
             parameter("path", path)
-        }.body()
+        }
+        check(response.status.isSuccess()) { "Directory listing failed (HTTP ${response.status.value})" }
+        val payload = response.body<JsonElement>()
+        check(payload is JsonArray) { "Server did not return a directory listing" }
+        return json.decodeFromJsonElement(payload)
     }
 }
 
@@ -1403,11 +1495,16 @@ data class SearchMatch(
 )
 
 @Serializable
+data class WorkspaceGitStatus(val path: String, @SerialName("added") val additions: Int = 0,
+    @SerialName("removed") val deletions: Int = 0, val status: String)
+
+@Serializable
 data class FileContent(
     val type: String,
     val content: String,
     val encoding: String? = null,
     val mimeType: String? = null,
+    val diff: String? = null,
 )
 
 @Serializable
