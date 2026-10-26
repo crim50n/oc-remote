@@ -800,4 +800,5 @@
     <string name="settings_tabs_enabled">Вкладки сесій</string>
     <string name="settings_tabs_enabled_desc">Зберігати відкриті сесії у вкладках і показувати перемикач вкладок. Вимкнення цієї опції не видаляє збережені вкладки.</string>
     <string name="settings_section_power">Споживання енергії</string>
+    <string name="menu_compress_images">Стиснення зображень</string>
 </resources>

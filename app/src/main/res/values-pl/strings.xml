@@ -800,4 +800,5 @@ Tokeny: ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled">Karty sesji</string>
     <string name="settings_tabs_enabled_desc">Zachowuj otwarte sesje w kartach i pokazuj przełącznik kart. Wyłączenie tej opcji nie usuwa zapisanych kart.</string>
     <string name="settings_section_power">Zużycie energii</string>
+    <string name="menu_compress_images">Kompresja obrazów</string>
 </resources>

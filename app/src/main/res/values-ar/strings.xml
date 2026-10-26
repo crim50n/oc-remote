@@ -800,4 +800,5 @@
     <string name="settings_tabs_enabled">علامات تبويب الجلسات</string>
     <string name="settings_tabs_enabled_desc">الاحتفاظ بالجلسات المفتوحة في علامات التبويب وعرض أداة التبديل بينها. إيقاف هذا الخيار لا يحذف علامات التبويب المحفوظة لديك.</string>
     <string name="settings_section_power">استهلاك الطاقة</string>
+    <string name="menu_compress_images">ضغط الصور</string>
 </resources>

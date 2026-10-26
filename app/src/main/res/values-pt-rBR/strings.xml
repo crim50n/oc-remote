@@ -800,4 +800,5 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled">Abas de sessões</string>
     <string name="settings_tabs_enabled_desc">Manter sessões abertas em abas e mostrar o alternador de abas. Desativar isso mantém suas abas salvas.</string>
     <string name="settings_section_power">Consumo de energia</string>
+    <string name="menu_compress_images">Compressão de imagem</string>
 </resources>

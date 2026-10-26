@@ -800,4 +800,5 @@
     <string name="settings_tabs_enabled">セッションタブ</string>
     <string name="settings_tabs_enabled_desc">開いているセッションをタブで管理し、タブ切り替えを表示します。オフにしても保存済みのタブは残ります。</string>
     <string name="settings_section_power">電力消費</string>
+    <string name="menu_compress_images">画像圧縮</string>
 </resources>

@@ -17,6 +17,8 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import dev.minios.ocremote.ui.components.isAmoledTheme
 import androidx.core.view.WindowCompat
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeTint
@@ -26,13 +28,14 @@ import dev.chrisbanes.haze.hazeChild
 internal fun chatAcrylicModifier(state: HazeState): Modifier {
     val surface = MaterialTheme.colorScheme.surface
     val edge = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
-    return Modifier.hazeChild(state) {
+    val background = if (isAmoledTheme()) Modifier.background(Color.Black) else Modifier.hazeChild(state) {
         backgroundColor = surface
         tints = listOf(HazeTint(surface.copy(alpha = 0.78f)))
         blurRadius = 22.dp
         noiseFactor = 0.08f
         fallbackTint = HazeTint(surface.copy(alpha = 0.94f))
-    }.drawWithContent {
+    }
+    return background.drawWithContent {
         drawContent()
         drawLine(edge, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx())
     }

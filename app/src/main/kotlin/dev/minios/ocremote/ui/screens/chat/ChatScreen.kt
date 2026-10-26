@@ -1811,7 +1811,7 @@ fun ChatScreen(
     ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { dev.minios.ocremote.ui.components.AppSnackbarHost(snackbarHostState) },
         topBar = {
             CollapsingChatPanel(topPanelCollapse, top = true, backgroundModifier = if (!isTerminalMode) acrylicModifier else Modifier) {
             if (!isTerminalMode || !isServerConnected) {
@@ -1931,6 +1931,24 @@ fun ChatScreen(
                                     showMenu = false
                                     inputMode = ChatInputMode.NORMAL.name
                                     showAttachmentOptions = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_compress_images)) },
+                                leadingIcon = { Icon(Lucide.ImageDown, contentDescription = null) },
+                                trailingIcon = {
+                                    Switch(checked = compressImageAttachments, onCheckedChange = null,
+                                        colors = if (isAmoledTheme()) SwitchDefaults.colors(
+                                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                            checkedTrackColor = Color.Black,
+                                            checkedBorderColor = MaterialTheme.colorScheme.primary,
+                                            uncheckedTrackColor = Color.Black,
+                                            uncheckedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                        ) else SwitchDefaults.colors())
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.setCompressImageAttachments(!compressImageAttachments)
                                 },
                             )
                             DropdownMenuItem(

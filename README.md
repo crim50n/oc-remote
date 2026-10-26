@@ -168,7 +168,7 @@ Open an interactive **PTY terminal over WebSocket** without leaving the session.
 | Material You dynamic colors on Android 12+ | Configurable haptic duration/amplitude and a test action | Completion notifications with optional silent delivery |
 | **15 languages** | Reasoning expansion, turn dividers, and send confirmation | Local runtime authentication, LAN binding, proxy, and startup settings |
 
-Favorites, categories, and session tabs can each be disabled without deleting saved data. Power-related controls are grouped together in Settings.
+Favorites, categories, and session tabs can each be disabled without deleting saved data. Power-related controls are grouped together in Settings. Toggle image compression from the session menu; resolution and quality remain in Settings. AMOLED uses black panels, file tiles, menus, and notification surfaces with contrasting borders.
 
 <details>
 <summary><strong>All supported languages</strong></summary>

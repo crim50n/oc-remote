@@ -800,4 +800,5 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled">Schede sessione</string>
     <string name="settings_tabs_enabled_desc">Mantieni le sessioni aperte nelle schede e mostra il selettore di schede. Disattivando questa opzione, le schede salvate vengono mantenute.</string>
     <string name="settings_section_power">Consumo energetico</string>
+    <string name="menu_compress_images">Compressione immagini</string>
 </resources>

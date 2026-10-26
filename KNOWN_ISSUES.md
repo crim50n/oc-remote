@@ -6,6 +6,11 @@ Track open bugs here. Remove items once they are fixed and verified on device.
 
 ## Open
 
+- Tab-close snackbar's long translated action squeezed the message into a narrow column. New
+  snackbars place actions below the message and use theme-aware outlined surfaces. AMOLED fixes
+  also cover the tab FAB, file tiles, menus, and chat panels. Device verification pending
+  (`AppSnackbarHost.kt`, `SessionTabsSheet.kt`, `ChatAcrylic.kt`).
+
 - Back from a chat file link walked parent directories instead of returning to chat. Link-origin
   screens now exit directly on Back (including loading/error states); Folder Up separately opens
   the parent directory within the project. Device verification pending (`WorkspaceFilesScreen.kt`,

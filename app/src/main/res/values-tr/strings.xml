@@ -800,4 +800,5 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled">Oturum sekmeleri</string>
     <string name="settings_tabs_enabled_desc">Açık oturumları sekmelerde tut ve sekme değiştiriciyi göster. Bunu kapattığınızda, kaydedilmiş sekmeleriniz korunur.</string>
     <string name="settings_section_power">Güç tüketimi</string>
+    <string name="menu_compress_images">Görüntü sıkıştırma</string>
 </resources>

@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.rememberTransition
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
@@ -55,7 +56,9 @@ fun AppDropdownMenu(
         ) {
             Surface(
                 modifier = Modifier.graphicsLayer { this.alpha = alpha }.then(modifier),
-                color = containerColor,
+                color = if (isAmoledTheme()) Color.Black else containerColor,
+                border = if (isAmoledTheme()) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
+                tonalElevation = 0.dp,
                 shape = MaterialTheme.shapes.extraSmall,
                 shadowElevation = if (isAmoledTheme()) 0.dp else 8.dp,
             ) {

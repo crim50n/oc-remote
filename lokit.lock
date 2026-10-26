@@ -321,6 +321,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163
@@ -1110,6 +1111,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163
@@ -1865,6 +1867,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163
@@ -2620,6 +2623,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163
@@ -3375,6 +3379,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163
@@ -4130,6 +4135,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163
@@ -4885,6 +4891,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163
@@ -5640,6 +5647,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163
@@ -6395,6 +6403,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163
@@ -7184,6 +7193,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163
@@ -7939,6 +7949,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163
@@ -8694,6 +8705,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163
@@ -9483,6 +9495,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163
@@ -10272,6 +10285,7 @@ checksums:
         image_count_single: 0d5f17d0c55a6c6816d4049ca7c376db
         loading: a59711a98c591a8cf02d5fd9c104aec7
         menu_compact_session: eae905f73c9bee9c2814c1c3aa12bdc7
+        menu_compress_images: 0303361a0d6ea53474b29c1b5a523899
         menu_export_session: e0df2f810cdc70d04a584180b1f21c15
         menu_fork_session: 63b7c2bff09d9359846f7b3d345a4562
         menu_new_session: 40be212eac36369a347ca67a3c163163

@@ -35,7 +35,10 @@ internal fun WorkspaceFileList(
                 Column(Modifier.clip(MaterialTheme.shapes.medium).alpha(if (node.ignored) 0.55f else 1f)
                     .clickable(enabled = connected) { onOpen(node) }) {
                     Surface(Modifier.fillMaxWidth().aspectRatio(1f), shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                        color = if (dev.minios.ocremote.ui.components.isAmoledTheme()) androidx.compose.ui.graphics.Color.Black
+                            else MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = if (dev.minios.ocremote.ui.components.isAmoledTheme())
+                            androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null) {
                         WorkspaceThumbnail(node, connected, thumbnail, Modifier.fillMaxSize(), grid = true)
                     }
                     Text(node.name, Modifier.padding(top = 6.dp), style = MaterialTheme.typography.bodySmall,

@@ -801,4 +801,5 @@
     <string name="settings_tabs_enabled">Вкладки сессий</string>
     <string name="settings_tabs_enabled_desc">Оставлять открытые сессии во вкладках и показывать переключатель вкладок. Если отключить, ваши сохранённые вкладки останутся.</string>
     <string name="settings_section_power">Потребление энергии</string>
+    <string name="menu_compress_images">Сжатие изображений</string>
 </resources>

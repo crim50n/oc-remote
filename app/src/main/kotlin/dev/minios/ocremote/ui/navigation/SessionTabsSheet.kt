@@ -1,6 +1,7 @@
 package dev.minios.ocremote.ui.navigation
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.graphics.SolidColor
@@ -160,7 +161,7 @@ internal fun SessionTabsSheet(
                                     snackbar.currentSnackbarData?.dismiss()
                                     undoJob = scope.launch {
                                         if (snackbar.showSnackbar(context.getString(R.string.session_tab_closed),
-                                            context.getString(R.string.session_tabs_restore), duration = SnackbarDuration.Short)
+                                            context.getString(R.string.chat_restore), duration = SnackbarDuration.Short)
                                             == SnackbarResult.ActionPerformed) undo()
                                     }
                                 }, modifier = Modifier.align(Alignment.Top)) {
@@ -172,8 +173,18 @@ internal fun SessionTabsSheet(
                 }
             }
         }
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 88.dp))
-        FloatingActionButton(onClick = { adding = true }, modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp)) {
+        dev.minios.ocremote.ui.components.AppSnackbarHost(snackbar,
+            Modifier.align(Alignment.BottomCenter).padding(horizontal = 12.dp).padding(bottom = 88.dp))
+        FloatingActionButton(
+            onClick = { adding = true },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp).then(
+                if (amoled) Modifier.border(1.dp, MaterialTheme.colorScheme.primary, FloatingActionButtonDefaults.shape) else Modifier,
+            ),
+            containerColor = if (amoled) androidx.compose.ui.graphics.Color.Black else MaterialTheme.colorScheme.primaryContainer,
+            contentColor = if (amoled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer,
+            elevation = if (amoled) FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp)
+                else FloatingActionButtonDefaults.elevation(),
+        ) {
             Icon(Lucide.Plus, stringResource(R.string.session_tabs_add))
         }
         if (adding) {

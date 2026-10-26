@@ -800,4 +800,5 @@
     <string name="settings_tabs_enabled">会话标签页</string>
     <string name="settings_tabs_enabled_desc">在标签页中保留已打开的会话，并显示标签切换器。关闭此选项不会删除已保存的标签页。</string>
     <string name="settings_section_power">功耗</string>
+    <string name="menu_compress_images">图片压缩</string>
 </resources>

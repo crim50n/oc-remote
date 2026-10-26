@@ -800,4 +800,5 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled">Sitzungs-Tabs</string>
     <string name="settings_tabs_enabled_desc">Behält geöffnete Sitzungen in Tabs und zeigt den Tab-Umschalter an. Wenn du diese Option deaktivierst, bleiben deine gespeicherten Tabs erhalten.</string>
     <string name="settings_section_power">Energieverbrauch</string>
+    <string name="menu_compress_images">Bildkomprimierung</string>
 </resources>

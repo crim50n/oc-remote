@@ -173,7 +173,7 @@ fun WorkspaceFilesScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { dev.minios.ocremote.ui.components.AppSnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -349,7 +349,7 @@ fun WorkspaceFilesScreen(
                     wordWrap = wordWrap,
                     renderMarkdown = renderMarkdown && !showDiff,
                     onOpenLink = viewModel::openLink,
-                    canDownload = state.capabilities.rawDownload,
+                    canDownload = state.capabilities.rawDownload || state.preview?.requiresDownload == true,
                     modifier = Modifier.fillMaxSize(),
                 )
                 state.gitStatuses != null -> LazyColumn(Modifier.fillMaxSize()) {
