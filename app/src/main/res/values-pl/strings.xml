@@ -801,4 +801,7 @@ Tokeny: ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled_desc">Zachowuj otwarte sesje w kartach i pokazuj przełącznik kart. Wyłączenie tej opcji nie usuwa zapisanych kart.</string>
     <string name="settings_section_power">Zużycie energii</string>
     <string name="menu_compress_images">Kompresja obrazów</string>
+    <string name="update_whats_new">Co nowego</string>
+    <string name="update_notes_empty">Brak informacji o zmianach dla tej wersji.</string>
+    <string name="update_notes_error">Nie udało się załadować informacji o zmianach. Możesz spróbować ponownie lub kontynuować aktualizację.</string>
 </resources>

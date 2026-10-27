@@ -16,7 +16,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
-import dev.minios.ocremote.ui.components.DialogSystemBars
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -26,8 +25,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.activity.compose.BackHandler
 import dev.minios.ocremote.ui.components.backIcon
 import kotlinx.coroutines.launch
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
@@ -76,12 +73,10 @@ internal fun SessionTabsSheet(
         }
     }
     val amoled = isAmoledTheme()
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(
-        usePlatformDefaultWidth = false, decorFitsSystemWindows = false,
-    )) {
-        BackHandler(enabled = searching) { searching = false; query = "" }
-        DialogSystemBars(MaterialTheme.colorScheme.background)
-        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    BackHandler {
+        if (searching) { searching = false; query = "" } else onDismiss()
+    }
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(Modifier.fillMaxSize().safeDrawingPadding()) {
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -246,5 +241,4 @@ internal fun SessionTabsSheet(
         }
         }
         }
-    }
 }

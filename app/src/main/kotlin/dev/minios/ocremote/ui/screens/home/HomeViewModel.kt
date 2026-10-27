@@ -145,10 +145,6 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             updateRepository.state.collect { state -> _uiState.update { it.copy(updateState = state) } }
         }
-        viewModelScope.launch {
-            updateRepository.restore()
-            updateRepository.check(manual = false)
-        }
     }
 
     private fun observeSettings() {

@@ -170,6 +170,8 @@ fun NavGraph(
     val openTabs by sessionWorkspace.tabs.collectAsState()
     val currentEntry by navController.currentBackStackEntryAsState()
     var showTabs by remember { mutableStateOf(false) }
+    val tabsVisibility = remember { androidx.compose.animation.core.MutableTransitionState(false) }
+    tabsVisibility.targetState = showTabs && sessionFeatures.tabs
     var recentlyClosed by remember { mutableStateOf<SessionTab?>(null) }
     fun connectServer(serverId: String, serverName: String, serverUrl: String, username: String, password: String) {
         val intent = Intent(context, OpenCodeConnectionService::class.java).apply {
@@ -273,7 +275,16 @@ fun NavGraph(
         }
     }
 
-    if (showTabs && sessionFeatures.tabs) {
+    @Composable
+    fun TabsOverlay() {
+    androidx.compose.animation.AnimatedVisibility(
+        visibleState = tabsVisibility,
+        modifier = Modifier.fillMaxSize(),
+        enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)) +
+            androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(220), initialScale = 0.97f),
+        exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)) +
+            androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(180), targetScale = 0.98f),
+    ) {
         SessionTabsSheet(
             tabs = openTabs,
             servers = sharePickerServers,
@@ -307,6 +318,7 @@ fun NavGraph(
             onOrder = sessionWorkspace::reorder,
             serverSessions = sharePickerServerSessions,
         )
+    }
     }
 
     // Listen for shared attachments
@@ -509,13 +521,18 @@ fun NavGraph(
         }
     }
     
+    Box(Modifier.fillMaxSize()) {
     NavHost(
         navController = navController,
         startDestination = Screen.Home.route
     ) {
         // ============ Home Screen ============
+        composable(Screen.UpdateDetails.route) {
+            dev.minios.ocremote.ui.screens.update.UpdateDetailsScreen(onNavigateBack = { navController.popBackStack() })
+        }
         composable(Screen.Home.route) {
             HomeScreen(
+                onOpenUpdateDetails = { navController.navigate(Screen.UpdateDetails.route) { launchSingleTop = true } },
                 openTabCount = openTabs.size,
                 onOpenTabs = { showTabs = true },
                 addServerRequest = addServerRequest,
@@ -726,6 +743,7 @@ fun NavGraph(
         // ============ About Screen ============
         composable(Screen.About.route) {
             AboutScreen(
+                onOpenUpdateDetails = { navController.navigate(Screen.UpdateDetails.route) { launchSingleTop = true } },
                 onNavigateBack = {
                     navController.popBackStack()
                 }
@@ -857,6 +875,7 @@ fun NavGraph(
             }
             
             ChatScreen(
+                tabsOverlayVisible = tabsVisibility.currentState || tabsVisibility.targetState,
                 openTabCount = openTabs.size,
                 onOpenTabs = { showTabs = true },
                 onNavigateBack = {
@@ -974,6 +993,8 @@ fun NavGraph(
                 onNavigateBack = { navController.popBackStack() },
             )
         }
+    }
+    TabsOverlay()
     }
 }
 

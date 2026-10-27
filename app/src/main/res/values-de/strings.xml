@@ -801,4 +801,7 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled_desc">Behält geöffnete Sitzungen in Tabs und zeigt den Tab-Umschalter an. Wenn du diese Option deaktivierst, bleiben deine gespeicherten Tabs erhalten.</string>
     <string name="settings_section_power">Energieverbrauch</string>
     <string name="menu_compress_images">Bildkomprimierung</string>
+    <string name="update_whats_new">Neuigkeiten</string>
+    <string name="update_notes_empty">Für diese Version sind keine Versionshinweise verfügbar.</string>
+    <string name="update_notes_error">Versionshinweise konnten nicht geladen werden. Du kannst es erneut versuchen oder mit dem Update fortfahren.</string>
 </resources>

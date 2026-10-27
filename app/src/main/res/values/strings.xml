@@ -835,4 +835,7 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled_desc">Keep opened sessions in tabs and show the tab switcher. Turning this off keeps your saved tabs.</string>
     <string name="settings_section_power">Power consumption</string>
     <string name="menu_compress_images">Image compression</string>
+    <string name="update_whats_new">What’s new</string>
+    <string name="update_notes_empty">No release notes are available for this version.</string>
+    <string name="update_notes_error">Could not load release notes. You can retry or continue with the update.</string>
 </resources>

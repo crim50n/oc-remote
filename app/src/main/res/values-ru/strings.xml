@@ -802,4 +802,7 @@
     <string name="settings_tabs_enabled_desc">Оставлять открытые сессии во вкладках и показывать переключатель вкладок. Если отключить, ваши сохранённые вкладки останутся.</string>
     <string name="settings_section_power">Потребление энергии</string>
     <string name="menu_compress_images">Сжатие изображений</string>
+    <string name="update_whats_new">Что нового</string>
+    <string name="update_notes_empty">Примечания к выпуску для этой версии отсутствуют.</string>
+    <string name="update_notes_error">Не удалось загрузить примечания к выпуску. Вы можете повторить попытку или продолжить обновление.</string>
 </resources>

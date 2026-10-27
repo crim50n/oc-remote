@@ -1043,6 +1043,7 @@ private suspend fun buildAttachmentFromUri(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatScreen(
+    tabsOverlayVisible: Boolean = false,
     openTabCount: Int = 0,
     onOpenTabs: () -> Unit = {},
     onNavigateBack: () -> Unit,
@@ -1112,7 +1113,7 @@ fun ChatScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val chatHaze = remember { HazeState() }
     val acrylicModifier = chatAcrylicModifier(chatHaze)
-    ChatAcrylicSystemBars(enabled = !isTerminalMode, background = MaterialTheme.colorScheme.surface)
+    ChatAcrylicSystemBars(enabled = !isTerminalMode && !tabsOverlayVisible, background = MaterialTheme.colorScheme.surface)
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     val view = LocalView.current
     val density = LocalDensity.current
@@ -1134,7 +1135,7 @@ fun ChatScreen(
             }
         }
     }
-    val readingBlocked = imeVisible || touchExploration || isTerminalMode || showModelPicker || showMenu || showRenameDialog ||
+    val readingBlocked = tabsOverlayVisible || imeVisible || touchExploration || isTerminalMode || showModelPicker || showMenu || showRenameDialog ||
         showAttachmentOptions || uiState.pendingInteractions.isNotEmpty() || !isServerConnected || !uiState.sessionLoaded
     val panelCollapse = if (readingBlocked) 0f else readingProgress
     val topPanelCollapse by androidx.compose.animation.core.animateFloatAsState(
@@ -1189,7 +1190,7 @@ fun ChatScreen(
             readingProgress = 0f
         }
     }
-    ReadingSystemBars(actualReadingHidden, readingHideStatus, readingHideNavigation)
+    ReadingSystemBars(actualReadingHidden && !tabsOverlayVisible, readingHideStatus, readingHideNavigation)
     BackHandler(enabled = panelCollapse > 0f || topPanelCollapse > 0f) { revealReadingPanels(false) }
     val usesGestureNavigation = WindowInsets.systemGestures.getLeft(density, LayoutDirection.Ltr) > 0
     var terminalOverlayHeightPx by remember { mutableStateOf(0) }
@@ -1337,9 +1338,9 @@ fun ChatScreen(
 
     // Force status bar black while terminal is visible.
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    DisposableEffect(isTerminalMode) {
+    DisposableEffect(isTerminalMode, tabsOverlayVisible, isDarkTheme) {
         val activity = context as? android.app.Activity
-        if (isTerminalMode && activity != null) {
+        if (isTerminalMode && !tabsOverlayVisible && activity != null) {
             activity.window.statusBarColor = android.graphics.Color.BLACK
             androidx.core.view.WindowCompat.getInsetsController(
                 activity.window, activity.window.decorView

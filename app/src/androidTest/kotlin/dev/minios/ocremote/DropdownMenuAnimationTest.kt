@@ -17,6 +17,26 @@ import org.junit.Test
 class DropdownMenuAnimationTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun dismissalDuringEntranceStillAnimatesBeforeRemovingPopup() {
+        val expanded = mutableStateOf(true)
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            MaterialTheme {
+                Box {
+                    AppDropdownMenu(expanded.value, { expanded.value = false }) {
+                        AppDropdownMenuItem(text = { Text("Item") }, onClick = {})
+                    }
+                }
+            }
+        }
+        compose.mainClock.advanceTimeBy(80)
+        compose.runOnIdle { expanded.value = false }
+        compose.mainClock.advanceTimeBy(80)
+        compose.onNodeWithText("Item").assertExists()
+        compose.mainClock.advanceTimeBy(400)
+        compose.onNodeWithText("Item").assertDoesNotExist()
+    }
+
     @Test fun menuRemainsDuringExitAndActionRunsAfterwards() {
         val expanded = mutableStateOf(false)
         var actions = 0

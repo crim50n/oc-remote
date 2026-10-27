@@ -801,4 +801,7 @@
     <string name="settings_tabs_enabled_desc">열려 있는 세션을 탭에 유지하고 탭 전환기를 표시합니다. 이 옵션을 꺼도 저장된 탭은 유지됩니다.</string>
     <string name="settings_section_power">전력 소비</string>
     <string name="menu_compress_images">이미지 압축</string>
+    <string name="update_whats_new">새로운 기능</string>
+    <string name="update_notes_empty">이 버전에 대한 릴리스 노트가 없습니다.</string>
+    <string name="update_notes_error">릴리스 노트를 불러올 수 없습니다. 다시 시도하거나 업데이트를 계속할 수 있습니다.</string>
 </resources>

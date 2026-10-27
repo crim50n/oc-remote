@@ -801,4 +801,7 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled_desc">Manter sessões abertas em abas e mostrar o alternador de abas. Desativar isso mantém suas abas salvas.</string>
     <string name="settings_section_power">Consumo de energia</string>
     <string name="menu_compress_images">Compressão de imagem</string>
+    <string name="update_whats_new">Novidades</string>
+    <string name="update_notes_empty">Nenhuma nota de versão disponível para esta versão.</string>
+    <string name="update_notes_error">Não foi possível carregar as notas de versão. Você pode tentar novamente ou continuar com a atualização.</string>
 </resources>

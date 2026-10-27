@@ -801,4 +801,7 @@ Tokens: ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled_desc">Mantener sesiones abiertas en pestañas y mostrar el selector de pestañas. Si lo desactivas, tus pestañas guardadas se mantienen.</string>
     <string name="settings_section_power">Consumo de energía</string>
     <string name="menu_compress_images">Compresión de imágenes</string>
+    <string name="update_whats_new">Novedades</string>
+    <string name="update_notes_empty">No hay notas de la versión disponibles para esta versión.</string>
+    <string name="update_notes_error">No se pudieron cargar las notas de la versión. Puedes reintentar o continuar con la actualización.</string>
 </resources>

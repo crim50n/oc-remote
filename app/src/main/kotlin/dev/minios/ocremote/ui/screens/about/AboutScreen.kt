@@ -36,6 +36,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
+    onOpenUpdateDetails: () -> Unit = {},
     onNavigateBack: () -> Unit = {},
     viewModel: AboutViewModel = hiltViewModel(),
 ) {
@@ -47,8 +48,9 @@ fun AboutScreen(
     val cardColor = if (isAmoled) Color.Black else MaterialTheme.colorScheme.surfaceContainer
 
     val readyUpdate = updateState as? UpdateState.ReadyToInstall
-    LaunchedEffect(readyUpdate?.apkPath) {
-        readyUpdate?.let { launchInstaller(it.apkPath) }
+    val lifecycleState by androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
+    LaunchedEffect(readyUpdate?.apkPath, lifecycleState) {
+        if (lifecycleState == androidx.lifecycle.Lifecycle.State.RESUMED) readyUpdate?.let { launchInstaller(it.apkPath) }
     }
 
     Scaffold(
@@ -153,6 +155,11 @@ fun AboutScreen(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
                 val buttonModifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
+                if (updateState is UpdateState.Available || (updateState as? UpdateState.Error)?.release != null) {
+                    TextButton(onClick = onOpenUpdateDetails, modifier = Modifier.padding(horizontal = 16.dp)) {
+                        Text(stringResource(R.string.update_whats_new))
+                    }
+                }
                 when (val state = updateState) {
                     UpdateState.Idle, UpdateState.UpToDate -> AppPrimaryButton(
                         onClick = viewModel::checkForUpdates,

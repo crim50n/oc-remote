@@ -801,4 +801,7 @@ Jetons : ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled_desc">Conserver les sessions ouvertes dans des onglets et afficher le sélecteur d’onglets. Désactiver cette option conserve vos onglets enregistrés.</string>
     <string name="settings_section_power">Consommation d\'énergie</string>
     <string name="menu_compress_images">Compression d’image</string>
+    <string name="update_whats_new">Nouveautés</string>
+    <string name="update_notes_empty">Aucune note de version n’est disponible pour cette version.</string>
+    <string name="update_notes_error">Impossible de charger les notes de version. Vous pouvez réessayer ou poursuivre la mise à jour.</string>
 </resources>

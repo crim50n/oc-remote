@@ -801,4 +801,7 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled_desc">Mantieni le sessioni aperte nelle schede e mostra il selettore di schede. Disattivando questa opzione, le schede salvate vengono mantenute.</string>
     <string name="settings_section_power">Consumo energetico</string>
     <string name="menu_compress_images">Compressione immagini</string>
+    <string name="update_whats_new">Novità</string>
+    <string name="update_notes_empty">Nessuna nota di rilascio disponibile per questa versione.</string>
+    <string name="update_notes_error">Impossibile caricare le note di rilascio. Puoi riprovare o continuare con l’aggiornamento.</string>
 </resources>

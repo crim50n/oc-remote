@@ -746,11 +746,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
@@ -1502,11 +1505,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
@@ -2258,11 +2264,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
@@ -3014,11 +3023,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
@@ -3770,11 +3782,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
@@ -4526,11 +4541,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
@@ -5282,11 +5300,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
@@ -6038,11 +6059,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
@@ -6828,11 +6852,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
@@ -7584,11 +7611,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
@@ -8340,11 +8370,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
@@ -9130,11 +9163,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
@@ -9920,11 +9956,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0
@@ -10710,11 +10749,14 @@ checksums:
         update_downloading_percent: 20574310d2f2fd712ccc5823ba9c1e25
         update_error: cd1f5403da3cf9a7ce07b41b605eede9
         update_installer_launch_failed: df95fa8f3844c5118b75a17b4ec4d4c0
+        update_notes_empty: 1a184830ac84dc0e979dfe70bb74de2e
+        update_notes_error: 7c720a0c7c17ea078a53db5d986ef355
         update_open_release: 92c21df153eb5888ddb5acfe9ad29b9d
         update_opening_installer: b73cd33ec9380828795353843ed4b8e6
         update_prepare_error: 1f4c8b3cc5f3e18da2e550fb89e141a0
         update_retry: 1e679d5481cb9269ccdaee42b2e95cf8
         update_up_to_date: f01a0980a0a5c7eb257f2afb42ea3c8d
+        update_whats_new: 200046818f40218d2a94bb84f4f60d87
         workspace_binary_unavailable: c1f1d73e8f833e4bfdb7c7575b10a876
         workspace_changed_files: 9871057706facc01f6ed240f18ffa60f
         workspace_destination_path: 9d289d57bd16c16439eb9aaa68b1eef0

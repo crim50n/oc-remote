@@ -6,6 +6,25 @@ Track open bugs here. Remove items once they are fixed and verified on device.
 
 ## Open
 
+- Moving tabs from Dialog to the Activity removed the platform window transition. The overlay now
+  has explicit fade/scale entrance and exit animations. Session menus also retain their popup until
+  fade-out completes, including dismissal during entrance; device verification pending
+  (`NavGraph.kt`, `AppDropdownMenu.kt`).
+
+- Native update release-notes screen is new: version-specific GitHub notes are cached for offline
+  reading, with a fixed download/install action and progress. Navigation, long Markdown, AMOLED,
+  and installer return still need device verification (`ui/screens/update/`, `UpdateRepository.kt`).
+
+- Light-theme tab switcher still showed some white status icons on a light background (device
+  report after 1.13.0). Synchronizing dialog InsetsController and legacy flags did not fix it on
+  device. The switcher now uses the Activity's own window as a fullscreen overlay instead of a
+  floating Dialog; underlying chat system-bar overrides are suspended. Device verification pending
+  (`SessionTabsSheet.kt`, `NavGraph.kt`, `ChatScreen.kt`).
+
+- Automatic update discovery only ran when HomeViewModel was created. It now runs on Activity
+  resume with a 24-hour completed-check interval, following Telegram standalone; cancelled checks
+  do not consume the interval. Device verification pending (`MainActivity.kt`, `UpdateRepository.kt`).
+
 - Tab-close snackbar's long translated action squeezed the message into a narrow column. New
   snackbars place actions below the message and use theme-aware outlined surfaces. AMOLED fixes
   also cover the tab FAB, file tiles, menus, and chat panels. Device verification pending

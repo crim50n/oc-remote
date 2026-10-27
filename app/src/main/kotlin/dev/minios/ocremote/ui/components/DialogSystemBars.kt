@@ -55,18 +55,32 @@ internal fun DialogSystemBars(background: Color) {
             val light = currentBackground.value.luminance() > 0.5f
             if (window.statusBarColor != color) window.statusBarColor = color
             if (window.navigationBarColor != color) window.navigationBarColor = color
-            if (attachedController.isAppearanceLightStatusBars != light) attachedController.isAppearanceLightStatusBars = light
-            if (attachedController.isAppearanceLightNavigationBars != light) attachedController.isAppearanceLightNavigationBars = light
+            // Some system bars/OEMs still read the decor flags while others read InsetsController.
+            // The controller getter alone can report the requested appearance even after Compose
+            // has overwritten the legacy flags when the dialog gains focus.
+            val iconFlags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            val previousFlags = window.decorView.systemUiVisibility
+            val requestedFlags = if (light) previousFlags or iconFlags else previousFlags and iconFlags.inv()
+            if (previousFlags != requestedFlags) window.decorView.systemUiVisibility = requestedFlags
+            attachedController.isAppearanceLightStatusBars = light
+            attachedController.isAppearanceLightNavigationBars = light
             if (Build.VERSION.SDK_INT >= 29) {
                 if (window.isStatusBarContrastEnforced) window.isStatusBarContrastEnforced = false
                 if (window.isNavigationBarContrastEnforced) window.isNavigationBarContrastEnforced = false
             }
         }
         val listener = ViewTreeObserver.OnPreDrawListener { applyColors(); true }
+        val focusListener = ViewTreeObserver.OnWindowFocusChangeListener { focused ->
+            if (focused) applyColors()
+        }
         view.viewTreeObserver.addOnPreDrawListener(listener)
+        view.viewTreeObserver.addOnWindowFocusChangeListener(focusListener)
         applyColors()
         onDispose {
-            if (view.viewTreeObserver.isAlive) view.viewTreeObserver.removeOnPreDrawListener(listener)
+            if (view.viewTreeObserver.isAlive) {
+                view.viewTreeObserver.removeOnPreDrawListener(listener)
+                view.viewTreeObserver.removeOnWindowFocusChangeListener(focusListener)
+            }
             restore?.invoke()
         }
     }

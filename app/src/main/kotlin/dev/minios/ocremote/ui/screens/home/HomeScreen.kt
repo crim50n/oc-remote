@@ -147,6 +147,7 @@ private fun PulsingDotsIndicator(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    onOpenUpdateDetails: () -> Unit = {},
     openTabCount: Int = 0,
     onOpenTabs: () -> Unit = {},
     addServerRequest: Int = 0,
@@ -180,8 +181,9 @@ fun HomeScreen(
     }
 
     val readyUpdate = uiState.updateState as? UpdateState.ReadyToInstall
-    LaunchedEffect(readyUpdate?.apkPath) {
-        readyUpdate?.let { launchInstaller(it.apkPath) }
+    val lifecycleState by androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
+    LaunchedEffect(readyUpdate?.apkPath, lifecycleState) {
+        if (lifecycleState == androidx.lifecycle.Lifecycle.State.RESUMED) readyUpdate?.let { launchInstaller(it.apkPath) }
     }
 
     LaunchedEffect(addServerRequest) {
@@ -313,6 +315,7 @@ fun HomeScreen(
                         if (uiState.updateState is UpdateState.Available || uiState.updateState is UpdateState.Error) {
                             item(key = "__app_update") {
                                 UpdateAvailableCard(
+                                    onWhatsNew = onOpenUpdateDetails,
                                     updateState = uiState.updateState,
                                     onPrepareInstall = viewModel::prepareInstall,
                                     onOpenInstaller = launchInstaller,
@@ -559,6 +562,7 @@ private fun FavoritesCard(onClick: () -> Unit) {
 
 @Composable
 private fun UpdateAvailableCard(
+    onWhatsNew: () -> Unit,
     updateState: UpdateState,
     onPrepareInstall: (dev.minios.ocremote.data.update.AvailableUpdate) -> Unit,
     onOpenInstaller: (String) -> Unit,
@@ -656,6 +660,9 @@ private fun UpdateAvailableCard(
 
                 else -> Unit
             }
+        }
+        if (release != null) TextButton(onClick = onWhatsNew, modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)) {
+            Text(stringResource(R.string.update_whats_new))
         }
     }
 }

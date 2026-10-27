@@ -43,6 +43,8 @@ class DialogSystemBarsTest {
             val controller = WindowCompat.getInsetsController(target, target.decorView)
             assertTrue(controller.isAppearanceLightStatusBars)
             assertTrue(controller.isAppearanceLightNavigationBars)
+            assertTrue(target.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR != 0)
+            assertTrue(target.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR != 0)
             background.value = Color.Black
         }
         compose.waitForIdle()
@@ -51,6 +53,24 @@ class DialogSystemBarsTest {
             val controller = WindowCompat.getInsetsController(target, target.decorView)
             assertFalse(controller.isAppearanceLightStatusBars)
             assertFalse(controller.isAppearanceLightNavigationBars)
+            assertTrue(target.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR == 0)
+            assertTrue(target.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR == 0)
+            background.value = Color.White
+        }
+        compose.waitForIdle()
+        compose.runOnIdle {
+            val target = requireNotNull(window)
+            assertTrue(WindowCompat.getInsetsController(target, target.decorView).isAppearanceLightStatusBars)
+            // Simulate a legacy appearance reset while the platform controller retains light mode.
+            target.decorView.systemUiVisibility = target.decorView.systemUiVisibility and
+                (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR).inv()
+            target.decorView.invalidate()
+        }
+        compose.waitForIdle()
+        compose.runOnIdle {
+            val target = requireNotNull(window)
+            assertTrue(target.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR != 0)
+            assertTrue(target.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR != 0)
         }
     }
 }

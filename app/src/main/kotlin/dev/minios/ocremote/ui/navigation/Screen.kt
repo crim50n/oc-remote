@@ -11,6 +11,7 @@ internal fun encodeNavigationArgument(value: String): String =
  */
 sealed class Screen(val route: String) {
     data object Home : Screen("home")
+    data object UpdateDetails : Screen("update_details")
     data object CrossServerSessions : Screen("cross_server_sessions")
     
     data object WebView : Screen("webview") {

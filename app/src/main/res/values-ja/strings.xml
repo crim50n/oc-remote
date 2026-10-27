@@ -801,4 +801,7 @@
     <string name="settings_tabs_enabled_desc">開いているセッションをタブで管理し、タブ切り替えを表示します。オフにしても保存済みのタブは残ります。</string>
     <string name="settings_section_power">電力消費</string>
     <string name="menu_compress_images">画像圧縮</string>
+    <string name="update_whats_new">新機能</string>
+    <string name="update_notes_empty">このバージョンのリリースノートはありません。</string>
+    <string name="update_notes_error">リリースノートを読み込めませんでした。再試行するか、このままアップデートを続行できます。</string>
 </resources>

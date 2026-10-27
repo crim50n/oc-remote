@@ -95,6 +95,11 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var serverConnectionStateRepository: ServerConnectionStateRepository
+
+    @Inject
+    lateinit var updateRepository: dev.minios.ocremote.data.update.UpdateRepository
+
+    private var updateCheckJob: kotlinx.coroutines.Job? = null
     
     /**
      * Shared flow for deep-link events from notification taps.
@@ -228,6 +233,16 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (updateCheckJob?.isActive != true) {
+            updateCheckJob = lifecycleScope.launch {
+                updateRepository.restore()
+                updateRepository.check(manual = false)
             }
         }
     }

@@ -801,4 +801,7 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled_desc">Açık oturumları sekmelerde tut ve sekme değiştiriciyi göster. Bunu kapattığınızda, kaydedilmiş sekmeleriniz korunur.</string>
     <string name="settings_section_power">Güç tüketimi</string>
     <string name="menu_compress_images">Görüntü sıkıştırma</string>
+    <string name="update_whats_new">Yenilikler</string>
+    <string name="update_notes_empty">Bu sürüm için sürüm notları mevcut değil.</string>
+    <string name="update_notes_error">Sürüm notları yüklenemedi. Tekrar deneyebilir veya güncellemeye devam edebilirsiniz.</string>
 </resources>

@@ -807,4 +807,7 @@ Token: ~%4$d -&gt; ~%5$d</string>
     <string name="settings_tabs_enabled_desc">Pertahankan sesi yang dibuka di tab dan tampilkan pengalih tab. Mematikan ini tidak menghapus tab yang sudah Anda simpan.</string>
     <string name="settings_section_power">Konsumsi daya</string>
     <string name="menu_compress_images">Kompresi gambar</string>
+    <string name="update_whats_new">Apa yang baru</string>
+    <string name="update_notes_empty">Catatan rilis tidak tersedia untuk versi ini.</string>
+    <string name="update_notes_error">Tidak dapat memuat catatan rilis. Anda dapat mencoba lagi atau melanjutkan pembaruan.</string>
 </resources>

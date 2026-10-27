@@ -24,6 +24,8 @@ data class GitHubReleaseDto(
     @SerialName("html_url") val htmlUrl: String,
     val draft: Boolean = false,
     val prerelease: Boolean = false,
+    val body: String? = null,
+    @SerialName("published_at") val publishedAt: String? = null,
 )
 
 @Serializable
@@ -34,6 +36,8 @@ data class AvailableUpdate(
     val packageName: String? = null,
     val apkUrl: String? = null,
     val sha256: String? = null,
+    val releaseNotes: String? = null,
+    val publishedAt: String? = null,
 )
 
 sealed interface UpdateState {
@@ -47,6 +51,13 @@ sealed interface UpdateState {
 }
 
 object UpdatePolicy {
+    internal fun withReleaseNotes(release: AvailableUpdate, dto: GitHubReleaseDto): AvailableUpdate {
+        require(!dto.draft && !dto.prerelease && dto.tagName == "v${release.versionName}" && dto.htmlUrl == release.releaseUrl)
+        return release.copy(releaseNotes = dto.body.orEmpty().take(32 * 1024), publishedAt = dto.publishedAt)
+    }
+    internal fun shouldCheckAutomatically(now: Long, lastCompleted: Long): Boolean =
+        lastCompleted <= 0L || kotlin.math.abs(now - lastCompleted) >= 24 * 60 * 60 * 1000L
+
     const val RELEASE_URL_PREFIX = "https://$REPOSITORY_HOST/$REPOSITORY_OWNER/$REPOSITORY_NAME/releases/tag/"
 
     fun manifestToRelease(dto: UpdateManifestDto): AvailableUpdate? {
@@ -66,7 +77,8 @@ object UpdatePolicy {
     fun githubToRelease(dto: GitHubReleaseDto): AvailableUpdate? {
         if (dto.draft || dto.prerelease) return null
         val versionName = dto.tagName.removePrefix("v").takeIf(::isValidVersionName) ?: return null
-        return AvailableUpdate(versionName, releaseUrl = dto.htmlUrl).takeIf {
+        return AvailableUpdate(versionName, releaseUrl = dto.htmlUrl,
+            releaseNotes = dto.body?.take(32 * 1024), publishedAt = dto.publishedAt).takeIf {
             hasValidReleaseUrl(it) && dto.tagName == "v$versionName"
         }
     }

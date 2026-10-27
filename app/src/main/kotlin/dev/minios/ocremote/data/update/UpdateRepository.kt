@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -41,7 +42,6 @@ import javax.inject.Singleton
 private const val RICH_UPDATE_MANIFEST_URL = "https://github.com/crim50n/oc-remote/releases/latest/download/update.json"
 private const val UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/crim50n/oc-remote/master/update.json"
 private const val GITHUB_LATEST_RELEASE_URL = "https://api.github.com/repos/crim50n/oc-remote/releases/latest"
-private const val CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000L
 private const val MAX_RESPONSE_BYTES = 64 * 1024L
 private const val MAX_MANIFEST_CHARS = 8 * 1024
 private const val MAX_GITHUB_CHARS = 64 * 1024
@@ -60,6 +60,7 @@ class UpdateRepository @Inject constructor(
     private val _state = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val state: StateFlow<UpdateState> = _state.asStateFlow()
     private val operationMutex = Mutex()
+    private val notesMutex = Mutex()
 
     suspend fun restore() = operationMutex.withLock {
         if (_state.value is UpdateState.Downloading || _state.value is UpdateState.ReadyToInstall) return@withLock
@@ -73,21 +74,32 @@ class UpdateRepository @Inject constructor(
         if (_state.value is UpdateState.Downloading || _state.value is UpdateState.ReadyToInstall) return@withLock
         val preferences = dataStore.data.first()
         val now = System.currentTimeMillis()
-        if (!manual && now - (preferences[LAST_ATTEMPT_KEY] ?: 0L) < CHECK_INTERVAL_MS) return
+        if (!manual && !UpdatePolicy.shouldCheckAutomatically(now, preferences[LAST_ATTEMPT_KEY] ?: 0L)) return
         val cachedAvailable = _state.value as? UpdateState.Available
         if (manual || cachedAvailable == null) _state.value = UpdateState.Checking
-        dataStore.edit { it[LAST_ATTEMPT_KEY] = now }
-
-        val release = runCatching { fetchManifest(RICH_UPDATE_MANIFEST_URL) }.getOrNull()
-            ?: runCatching { fetchManifest(UPDATE_MANIFEST_URL) }.getOrNull()
-            ?: runCatching { fetchLatestGitHubRelease() }.getOrElse {
-                _state.value = cachedAvailable ?: if (manual) {
-                    UpdateState.Error("Unable to check for updates")
-                } else {
-                    UpdateState.Idle
-                }
-                return
+        val discovered = try {
+            fetchUpdateOrNull { fetchManifest(RICH_UPDATE_MANIFEST_URL) }
+                ?: fetchUpdateOrNull { fetchManifest(UPDATE_MANIFEST_URL) }
+                ?: fetchUpdateOrNull { fetchLatestGitHubRelease() }
+        } catch (e: CancellationException) {
+            _state.value = cachedAvailable ?: UpdateState.Idle
+            throw e
+        }
+        // Like Telegram standalone, throttle completed checks, including network failures.
+        // Cancellation is not a completed check and must not postpone the next resume attempt.
+        dataStore.edit { it[LAST_ATTEMPT_KEY] = System.currentTimeMillis() }
+        if (discovered == null) {
+            _state.value = cachedAvailable ?: if (manual) {
+                UpdateState.Error("Unable to check for updates")
+            } else {
+                UpdateState.Idle
             }
+            return
+        }
+        val cached = decodeCachedRelease(preferences[CACHED_RELEASE_KEY])
+        val release = if (cached?.versionName == discovered.versionName && discovered.releaseNotes == null) {
+            discovered.copy(releaseNotes = cached.releaseNotes, publishedAt = cached.publishedAt)
+        } else discovered
 
         if (UpdatePolicy.isNewer(release, BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME)) {
             dataStore.edit { it[CACHED_RELEASE_KEY] = json.encodeToString(AvailableUpdate.serializer(), release) }
@@ -96,6 +108,15 @@ class UpdateRepository @Inject constructor(
             dataStore.edit { it.remove(CACHED_RELEASE_KEY) }
             _state.value = UpdateState.UpToDate
         }
+    }
+
+    private suspend fun fetchUpdateOrNull(fetch: suspend () -> AvailableUpdate): AvailableUpdate? = try {
+        fetch()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.e(TAG, "Update source check failed", e)
+        null
     }
 
     suspend fun prepareInstall(release: AvailableUpdate) = operationMutex.withLock {
@@ -142,10 +163,46 @@ class UpdateRepository @Inject constructor(
     }
 
     private fun decodeCachedRelease(value: String?): AvailableUpdate? {
-        if (value.isNullOrBlank() || value.length > 512) return null
+        if (value.isNullOrBlank() || value.length > 256 * 1024) return null
         return runCatching { json.decodeFromString(AvailableUpdate.serializer(), value) }
             .getOrNull()
             ?.takeIf(UpdatePolicy::isInstallableOrDiscoveryOnly)
+    }
+
+    suspend fun loadReleaseNotes(release: AvailableUpdate): AvailableUpdate = notesMutex.withLock {
+        val cached = decodeCachedRelease(dataStore.data.first()[CACHED_RELEASE_KEY])
+        if (cached?.versionName == release.versionName && cached.releaseNotes != null) return@withLock cached
+        require(UpdatePolicy.hasValidReleaseUrl(release))
+        val response = client.get("https://api.github.com/repos/crim50n/oc-remote/releases/tags/v${release.versionName}") {
+            header(HttpHeaders.Accept, "application/vnd.github+json")
+            header(HttpHeaders.UserAgent, "OC-Remote/${BuildConfig.VERSION_NAME}")
+            timeout { requestTimeoutMillis = UPDATE_TIMEOUT_MS }
+        }
+        response.requireBoundedSuccess()
+        val dto = json.decodeFromString<GitHubReleaseDto>(response.readBounded(MAX_GITHUB_CHARS))
+        val enriched = UpdatePolicy.withReleaseNotes(release, dto)
+        dataStore.edit { preferences ->
+            val current = decodeCachedRelease(preferences[CACHED_RELEASE_KEY])
+            if (current?.versionName == release.versionName) {
+                preferences[CACHED_RELEASE_KEY] = json.encodeToString(AvailableUpdate.serializer(),
+                    current.copy(releaseNotes = enriched.releaseNotes, publishedAt = enriched.publishedAt))
+            }
+        }
+        _state.update { state ->
+            fun AvailableUpdate.enrich() = copy(releaseNotes = enriched.releaseNotes, publishedAt = enriched.publishedAt)
+            when {
+                state is UpdateState.Downloading && state.release.versionName == release.versionName ->
+                    UpdateState.Downloading(state.release.enrich(), state.progressPercent)
+                state is UpdateState.ReadyToInstall && state.release.versionName == release.versionName ->
+                    UpdateState.ReadyToInstall(state.release.enrich(), state.apkPath)
+                state is UpdateState.Available && state.release.versionName == release.versionName ->
+                    UpdateState.Available(state.release.enrich())
+                state is UpdateState.Error && state.release?.versionName == release.versionName ->
+                    state.copy(release = state.release.enrich())
+                else -> state
+            }
+        }
+        enriched
     }
 
     private suspend fun downloadAndValidateApk(release: AvailableUpdate): File {

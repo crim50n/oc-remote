@@ -1,12 +1,11 @@
 package dev.minios.ocremote.ui.components
 
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.rememberTransition
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
 import androidx.compose.ui.unit.dp
@@ -17,6 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.TransformOrigin
 
 private val LocalMenuAction = staticCompositionLocalOf<((() -> Unit) -> Unit)?> { null }
 
@@ -29,24 +30,24 @@ fun AppDropdownMenu(
     containerColor: Color = MaterialTheme.colorScheme.surface,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val visible = remember { MutableTransitionState(false) }
-    visible.targetState = expanded
+    var mounted by remember { mutableStateOf(false) }
+    val opacity = remember { Animatable(0f) }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
-    val transition = rememberTransition(visible, label = "menu visibility")
     LaunchedEffect(expanded) {
-        if (expanded) pendingAction = null
-    }
-    val alpha by transition.animateFloat(
-        transitionSpec = { tween(if (targetState) 160 else 180) }, label = "menu opacity",
-    ) { if (it) 1f else 0f }
-    LaunchedEffect(visible.isIdle, visible.currentState) {
-        if (visible.isIdle && !visible.currentState) {
+        if (expanded) {
+            pendingAction = null
+            mounted = true
+            opacity.animateTo(1f, tween(200))
+        } else if (mounted) {
+            // Keep the popup even if dismissal interrupts its entrance animation.
+            opacity.animateTo(0f, tween(220))
+            mounted = false
             val action = pendingAction
             pendingAction = null
             action?.invoke()
         }
     }
-    if (visible.currentState || visible.targetState) {
+    if (expanded || mounted) {
         DropdownMenu(
             expanded = true,
             onDismissRequest = onDismissRequest,
@@ -54,8 +55,15 @@ fun AppDropdownMenu(
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
         ) {
+            Box(Modifier.graphicsLayer {
+                alpha = opacity.value
+                scaleX = 0.96f + 0.04f * opacity.value
+                scaleY = scaleX
+                transformOrigin = TransformOrigin(0.5f, 0f)
+                compositingStrategy = CompositingStrategy.Offscreen
+            }) {
             Surface(
-                modifier = Modifier.graphicsLayer { this.alpha = alpha }.then(modifier),
+                modifier = modifier,
                 color = if (isAmoledTheme()) Color.Black else containerColor,
                 border = if (isAmoledTheme()) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
                 tonalElevation = 0.dp,
@@ -69,6 +77,7 @@ fun AppDropdownMenu(
                     onDismissRequest()
                 }
             }) { content() }
+            }
             }
             }
         }

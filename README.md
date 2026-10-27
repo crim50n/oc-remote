@@ -108,7 +108,7 @@ Connect to your own remote servers, or run OpenCode on-device through **Termux**
 
 [Download the latest APK](https://github.com/crim50n/oc-remote/releases/latest) from GitHub Releases and open it on your Android device. If prompted, allow installation from the browser or file manager you used.
 
-Future updates can be checked from **About**. In-app downloads are verified against their SHA-256, package/version, and signing certificate before Android's installer opens.
+Future updates can be checked from **About**. Automatic discovery also runs when you return to the app, subject to a 24-hour interval between completed checks; manual checks bypass the interval. **What's new** opens the release notes inside the app, with offline access after loading and a download/install button that stays visible while reading. In-app downloads are verified against their SHA-256, package/version, and signing certificate before Android's installer opens.
 
 ### 2. Start your server
 
@@ -154,7 +154,7 @@ Open an interactive **PTY terminal over WebSocket** without leaving the session.
 - **Multiple servers:** connect simultaneously, reorder remote cards, and cancel pending connections.
 - **Project organization:** search and group sessions, revisit recent directories, and handle Windows and Unicode project paths.
 - **Cross-server Favorites:** reorder sessions, filter by custom categories, and keep offline favorites visible.
-- **Session tabs:** switch between saved open sessions across servers, search and reorder tabs, undo closing, and reconnect when opening a disconnected server's tab.
+- **Session tabs:** switch between saved open sessions across servers, search and reorder tabs, undo closing, and reconnect when opening a disconnected server's tab. The fullscreen switcher shares the app window and uses smooth opening and closing transitions.
 - **Session actions:** fork, compact, review, rename, revert, delete, and export JSON; sharing is available where supported by the server API.
 - **Fast history:** show the newest 10 messages first, load the configured history target in the background, and fetch older pages on demand.
 - **Draft persistence:** preserve text, attachments, and confirmed file mentions across navigation and app restarts.
