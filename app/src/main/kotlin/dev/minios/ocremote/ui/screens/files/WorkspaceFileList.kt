@@ -1,4 +1,5 @@
 package dev.minios.ocremote.ui.screens.files
+import dev.minios.ocremote.ui.components.readableContentWidth
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
@@ -28,7 +29,7 @@ internal fun WorkspaceFileList(
     onOpen: (FileNode) -> Unit, thumbnail: suspend (FileNode) -> Bitmap?,
 ) {
     if (grid) {
-        LazyVerticalGrid(columns = GridCells.Fixed(3), modifier = Modifier.fillMaxSize(),
+        LazyVerticalGrid(columns = GridCells.Fixed(3), modifier = Modifier.fillMaxSize().readableContentWidth(),
             contentPadding = PaddingValues(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
             gridItems(nodes, key = { it.path }) { node ->
@@ -48,7 +49,7 @@ internal fun WorkspaceFileList(
             }
         }
     } else {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 4.dp)) {
+        LazyColumn(Modifier.fillMaxSize().readableContentWidth(), contentPadding = PaddingValues(vertical = 4.dp)) {
             items(nodes, key = { it.path }) { node ->
                 ListItem(
                     headlineContent = { Text(node.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },

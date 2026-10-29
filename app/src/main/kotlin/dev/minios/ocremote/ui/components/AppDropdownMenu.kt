@@ -7,6 +7,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.DropdownMenu
@@ -33,6 +36,7 @@ fun AppDropdownMenu(
     var mounted by remember { mutableStateOf(false) }
     val opacity = remember { Animatable(0f) }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val maxHeight = (rememberVisibleWindowSize().height - 32.dp).coerceAtLeast(48.dp)
     LaunchedEffect(expanded) {
         if (expanded) {
             pendingAction = null
@@ -63,14 +67,14 @@ fun AppDropdownMenu(
                 compositingStrategy = CompositingStrategy.Offscreen
             }) {
             Surface(
-                modifier = modifier,
+                modifier = modifier.heightIn(max = maxHeight),
                 color = if (isAmoledTheme()) Color.Black else containerColor,
                 border = if (isAmoledTheme()) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
                 tonalElevation = 0.dp,
                 shape = MaterialTheme.shapes.extraSmall,
                 shadowElevation = if (isAmoledTheme()) 0.dp else 8.dp,
             ) {
-            Column(Modifier.padding(vertical = 8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
             CompositionLocalProvider(LocalMenuAction provides { action ->
                 if (expanded && pendingAction == null) {
                     pendingAction = action

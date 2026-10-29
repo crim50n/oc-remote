@@ -143,8 +143,9 @@ class MainActivity : ComponentActivity() {
         if (languageCode.isNotEmpty()) {
             val locale = parseLocale(languageCode)
             Locale.setDefault(locale)
-            val config = newBase.resources.configuration
-            config.setLocale(locale)
+            // Override only locale, not the current screen size/orientation/font scale.
+            // A full configuration copy freezes those values across handled configuration changes.
+            val config = android.content.res.Configuration().apply { setLocale(locale) }
             super.attachBaseContext(newBase.createConfigurationContext(config))
         } else {
             super.attachBaseContext(newBase)

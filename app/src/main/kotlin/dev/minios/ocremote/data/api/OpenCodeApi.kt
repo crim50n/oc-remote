@@ -232,6 +232,16 @@ class OpenCodeApi @Inject constructor(
         return json.decodeFromJsonElement(v2.inbox(conn, sessionId))
     }
 
+    suspend fun cancelSessionInbox(conn: ServerConnection, sessionId: String, inboxId: String) {
+        check(isV2(conn)) { "Inbox controls require OpenCode V2" }
+        v2.cancelInbox(conn, sessionId, inboxId)
+    }
+
+    suspend fun changeSessionInboxDelivery(conn: ServerConnection, sessionId: String, inboxId: String, delivery: String) {
+        check(isV2(conn)) { "Inbox controls require OpenCode V2" }
+        v2.changeInboxDelivery(conn, sessionId, inboxId, delivery)
+    }
+
     suspend fun listChildSessions(
         conn: ServerConnection,
         sessionId: String,
@@ -1226,6 +1236,21 @@ class OpenCodeApi @Inject constructor(
     suspend fun fileStatuses(conn: ServerConnection, directory: String): List<WorkspaceGitStatus> {
         check(!isV2(conn)) { "File status is unavailable on the V2 filesystem API" }
         return httpClient.get("${conn.baseUrl}/file/status") { conn.authHeader?.let { header("Authorization", it) }; directoryHeader(directory) }.body()
+    }
+
+    suspend fun workspaceVcsStatus(conn: ServerConnection, directory: String): List<WorkspaceVcsChange> {
+        if (isV2(conn)) return v2.vcsStatus(conn, directory)
+        return readWorkspaceVcsV1(httpClient, json, conn, "/vcs/status", directory) ?: fileStatuses(conn, directory).map {
+            WorkspaceVcsChange(it.path, it.additions, it.deletions, it.status)
+        }
+    }
+
+    suspend fun workspaceVcsDiff(conn: ServerConnection, directory: String, mode: WorkspaceDiffMode): List<WorkspaceVcsChange> {
+        val isV2 = isV2(conn)
+        val query = mapOf("mode" to workspaceDiffMode(mode, isV2), "context" to "3")
+        if (isV2) return v2.vcsDiff(conn, directory, mode)
+        return readWorkspaceVcsV1(httpClient, json, conn, "/vcs/diff", directory, query)
+            ?: error("This server does not support the project diff API")
     }
 
     suspend fun searchText(conn: ServerConnection, pattern: String, directory: String? = null): List<SearchMatch> {

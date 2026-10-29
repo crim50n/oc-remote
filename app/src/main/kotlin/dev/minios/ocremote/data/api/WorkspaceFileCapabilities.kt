@@ -5,9 +5,10 @@ data class WorkspaceFileCapabilities(
     val write: Boolean = false,
     val textSearch: Boolean = false,
     val gitStatus: Boolean = false,
+    val committedDiff: Boolean = false,
 )
 
 internal fun workspaceFileCapabilities(protocol: ServerProtocol) = when (protocol) {
     ServerProtocol.V1 -> WorkspaceFileCapabilities(textSearch = true, gitStatus = true)
-    ServerProtocol.V2 -> WorkspaceFileCapabilities(rawDownload = true, write = true)
+    ServerProtocol.V2 -> WorkspaceFileCapabilities(rawDownload = true, write = true, gitStatus = true, committedDiff = true)
 }

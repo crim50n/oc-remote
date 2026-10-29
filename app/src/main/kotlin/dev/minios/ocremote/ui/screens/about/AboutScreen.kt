@@ -1,4 +1,5 @@
 package dev.minios.ocremote.ui.screens.about
+import dev.minios.ocremote.ui.components.readableContentWidth
 
 import com.composables.icons.lucide.*
 import dev.minios.ocremote.ui.components.backIcon
@@ -8,6 +9,8 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -36,6 +39,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
+    showTopBar: Boolean = true,
     onOpenUpdateDetails: () -> Unit = {},
     onNavigateBack: () -> Unit = {},
     viewModel: AboutViewModel = hiltViewModel(),
@@ -56,7 +60,7 @@ fun AboutScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
+            if (showTopBar) TopAppBar(
                 title = { Text(stringResource(R.string.about_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -77,6 +81,8 @@ fun AboutScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(padding)
+                .readableContentWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

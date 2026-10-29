@@ -23,7 +23,9 @@ class WorkspaceFileActionsTest {
         assertTrue(v2.write)
         assertTrue(v2.rawDownload)
         assertFalse(v2.textSearch)
-        assertFalse(v2.gitStatus)
+        assertTrue(v2.gitStatus)
+        assertTrue(v2.committedDiff)
+        assertFalse(v1.committedDiff)
     }
     @Test fun v1StatusUsesAddedRemovedFieldNames() {
         val status = Json.decodeFromString<WorkspaceGitStatus>("""{"path":"file.kt","added":4,"removed":2,"status":"modified"}""")

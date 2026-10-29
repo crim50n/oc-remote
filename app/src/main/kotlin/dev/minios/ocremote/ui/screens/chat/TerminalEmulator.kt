@@ -113,6 +113,19 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
     // DEC private modes exposed to UI
     var cursorKeysApplicationMode = false   // DECCKM: true = application cursor keys (ESC O), false = normal (ESC [)
         private set
+    var bracketedPasteEnabled = false
+        private set
+    var mouseTracking = TerminalMouseTracking.NONE
+        private set
+    private var sgrMouse = false
+    private var utf8Mouse = false
+    private var urxvtMouse = false
+    val mouseEncoding: TerminalMouseEncoding get() = when {
+        sgrMouse -> TerminalMouseEncoding.SGR
+        urxvtMouse -> TerminalMouseEncoding.URXVT
+        utf8Mouse -> TerminalMouseEncoding.UTF8
+        else -> TerminalMouseEncoding.LEGACY
+    }
 
     // ESC sequence parser state
     private var escState = EscState.NORMAL
@@ -183,6 +196,9 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
         aboutToAutoWrap = false
         useLineDrawingG0 = false; useLineDrawingG1 = false; useG0 = true
         cursorKeysApplicationMode = false
+        bracketedPasteEnabled = false
+        mouseTracking = TerminalMouseTracking.NONE
+        sgrMouse = false; utf8Mouse = false; urxvtMouse = false
         cursorVisible = true
         cursorBlinkEnabled = true
         cursorStyle = TerminalCursorStyle.BLOCK
@@ -980,9 +996,7 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
                         }
                     }
                 }
-                2004 -> {
-                    // Bracketed paste mode — ignore
-                }
+                2004 -> bracketedPasteEnabled = enable
                 7 -> {
                     // Auto-wrap — we always auto-wrap, ignore
                 }
@@ -993,9 +1007,13 @@ class TerminalEmulator(initialCols: Int = 80, initialRows: Int = 24) {
                 12 -> {
                     cursorBlinkEnabled = enable
                 }
-                1000, 1002, 1003, 1006, 1015 -> {
-                    // Mouse tracking modes — ignore
+                1000, 1002, 1003 -> {
+                    val mode = when (p) { 1002 -> TerminalMouseTracking.DRAG; 1003 -> TerminalMouseTracking.ANY; else -> TerminalMouseTracking.PRESS }
+                    if (enable) mouseTracking = mode else if (mouseTracking == mode) mouseTracking = TerminalMouseTracking.NONE
                 }
+                1005 -> utf8Mouse = enable
+                1006 -> sgrMouse = enable
+                1015 -> urxvtMouse = enable
             }
         }
     }

@@ -1,5 +1,8 @@
 package dev.minios.ocremote.ui.screens.chat
 
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+
 import dev.minios.ocremote.logging.AppLogger as Log
 import dev.minios.ocremote.BuildConfig
 import dev.minios.ocremote.R
@@ -263,7 +266,7 @@ class ChatViewModel @Inject constructor(
     }
     fun saveWorkspaceTitle(title: String) {
         viewModelScope.launch {
-            if (settingsRepository.sessionFeatures.first().tabs) sessionWorkspace.open(serverId, sessionId, title)
+            if (settingsRepository.sessionFeatures.first().tabs) sessionWorkspace.updateTitle(workspaceKey, title)
         }
     }
     val readingAutoHide = settingsRepository.readingAutoHide.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
@@ -285,6 +288,48 @@ class ChatViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     private val _isSending = MutableStateFlow(false)
     private val _pendingPrompts = MutableStateFlow<List<PendingPromptRecord>>(emptyList())
+    private val _inboxActions = MutableStateFlow<Set<String>>(emptySet())
+    val inboxActions = _inboxActions.asStateFlow()
+    val queuedInbox = eventReducer.v2Inbox.map { inbox ->
+        inbox.filterValues { it.sessionId == sessionId && it.state == V2InboxState.QUEUED && it.itemType == "user" }
+            .entries.sortedBy { it.value.timestamp }.map { (id, item) ->
+                val text = ((item.payload as? JsonObject)?.get("text") as? kotlinx.serialization.json.JsonPrimitive)
+                    ?.content.orEmpty()
+                InboxQueueItem(id, text.take(500), item.delivery ?: "queue")
+            }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun updateInboxItem(id: String, delivery: String?, onResult: (Boolean) -> Unit) {
+        if (!isServerConnected() || id in _inboxActions.value) return
+        val item = eventReducer.v2Inbox.value[id]
+        if (item?.sessionId != sessionId || item.state != V2InboxState.QUEUED || item.itemType != "user") return
+        _inboxActions.update { it + id }
+        viewModelScope.launch {
+            try {
+                if (delivery == null) {
+                    api.cancelSessionInbox(conn, sessionId, id)
+                    // DELETE is a no-op if delivery won the race. Never delete a delivered message.
+                    try {
+                        val delivered = api.getMessage(conn, sessionId, id)
+                        eventReducer.mergeMessages(sessionId, listOf(delivered))
+                    } catch (e: dev.minios.ocremote.data.api.OpenCodeHttpException) {
+                        if (e.statusCode != 404) throw e
+                        Log.d(TAG, "Cancelled inbox item has no transcript entry")
+                        eventReducer.confirmV2InboxCancellation(sessionId, id)
+                    }
+                } else api.changeSessionInboxDelivery(conn, sessionId, id, delivery)
+                reconcileV2Inbox()
+                onResult(true)
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                Log.e(TAG, "Failed to update session inbox", e)
+                reconcileV2Inbox()
+                onResult(false)
+            } finally {
+                _inboxActions.update { it - id }
+            }
+        }
+    }
     private val _allProviders = MutableStateFlow<List<ProviderInfo>>(emptyList())
     private val _providers = MutableStateFlow<List<ProviderInfo>>(emptyList())
     private val _hiddenModels = MutableStateFlow<Set<String>>(emptySet())
@@ -377,6 +422,10 @@ class ChatViewModel @Inject constructor(
     )
     fun setCompressImageAttachments(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setCompressImageAttachments(enabled) }
+    }
+    val desktopFullWidthChat = settingsRepository.desktopFullWidthChat.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    fun setDesktopFullWidthChat(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setDesktopFullWidthChat(enabled) }
     }
 
     val compressImageAttachments = settingsRepository.compressImageAttachments.stateIn(
@@ -1944,6 +1993,10 @@ class ChatViewModel @Inject constructor(
     fun sendTerminalInput(input: String) {
         if (!isServerConnected()) return
         terminalWorkspace.sendActiveInput(input)
+    }
+
+    fun sendTerminalTabInput(tabId: String, input: String) {
+        if (isServerConnected()) terminalWorkspace.sendTabInput(tabId, input)
     }
 
     fun clearTerminalBuffer() {

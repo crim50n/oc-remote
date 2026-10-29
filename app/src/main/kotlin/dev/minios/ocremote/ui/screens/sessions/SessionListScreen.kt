@@ -1,4 +1,5 @@
 package dev.minios.ocremote.ui.screens.sessions
+import dev.minios.ocremote.ui.components.readableContentWidth
 import dev.minios.ocremote.ui.components.AppDropdownMenu as DropdownMenu
 import dev.minios.ocremote.ui.components.AppDropdownMenuItem as DropdownMenuItem
 
@@ -381,7 +382,7 @@ fun SessionListScreen(
             }
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Column(modifier = Modifier.fillMaxSize().padding(padding).readableContentWidth()) {
         if (!isServerConnected) {
             ServerConnectionBanner(
                 connecting = isServerConnecting,
@@ -904,7 +905,7 @@ private fun OpenProjectDialog(
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.92f)
+                .widthIn(max = 840.dp).fillMaxWidth(0.92f)
                 .fillMaxHeight(0.75f),
             shape = AppDialogShape,
             color = appDialogContainerColor(),
@@ -1337,7 +1338,7 @@ private fun NewSessionQuickDialog(
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.88f)
+                .widthIn(max = 840.dp).fillMaxWidth(0.88f)
                 .wrapContentHeight(),
             shape = AppDialogShape,
             color = appDialogContainerColor(),

@@ -1,4 +1,5 @@
 package dev.minios.ocremote.ui.screens.settings
+import dev.minios.ocremote.ui.components.readableContentWidth
 
 import com.composables.icons.lucide.*
 import dev.minios.ocremote.ui.components.backIcon
@@ -80,6 +81,7 @@ import java.util.Date
 @Composable
 fun SyncSettingsScreen(
     onNavigateBack: () -> Unit,
+    showTopBar: Boolean = true,
     viewModel: SyncSettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -102,7 +104,7 @@ fun SyncSettingsScreen(
     var includePasswords by remember { mutableStateOf(false) }
     var passphrase by remember { mutableStateOf("") }
     var passphraseFocused by remember { mutableStateOf(false) }
-    var autoSync by remember { mutableStateOf(false) }
+    val autoSync = state.config.autoSync
     var showVersionDialog by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
@@ -151,15 +153,31 @@ fun SyncSettingsScreen(
         (selectedBackend == SyncBackend.DOCUMENT) != state.config.document.enabled ||
         documentUri != state.config.document.endpoint ||
         includePasswords != state.config.includeEncryptedPasswords ||
-        passphrase.isNotBlank() ||
-        autoSync != state.config.autoSync
+        passphrase.isNotBlank()
+
+    fun currentDraft() = SyncConnectionDraft(
+        selectedBackend, gistEndpoint, gistToken, webDavEndpoint, webDavUsername, webDavPassword,
+        documentUri, documentGrantFlags, includePasswords, passphrase,
+    )
+    var savedDraft by remember { mutableStateOf<SyncConnectionDraft?>(null) }
+    var lastAttemptedDraft by remember { mutableStateOf<SyncConnectionDraft?>(null) }
+    var exitRequested by remember { mutableStateOf(false) }
+    val draft = currentDraft()
+    fun navigateBack() {
+        if (savedDraft != null && currentDraft() != savedDraft) exitRequested = true
+        else onNavigateBack()
+    }
+    androidx.activity.compose.BackHandler(onBack = ::navigateBack)
 
     LaunchedEffect(
-        state.config,
+        state.config.copy(autoSync = false),
         state.hasGithubToken,
         state.hasWebDavPassword,
         state.hasSyncPassphrase,
     ) {
+        // A save can finish while the user is already typing the next change.
+        // Never replace those newer edits with the emitted repository configuration.
+        if (savedDraft != null && currentDraft() != savedDraft) return@LaunchedEffect
         selectedBackend = state.config.primaryBackend.takeIf { it != SyncBackend.NONE } ?: SyncBackend.GIST
         gistEndpoint = state.config.gist.endpoint
         webDavEndpoint = state.config.webDav.endpoint
@@ -170,19 +188,61 @@ fun SyncSettingsScreen(
             .orEmpty()
         documentGrantFlags = 0
         includePasswords = state.config.includeEncryptedPasswords
-        autoSync = state.config.autoSync
         gistToken = ""
         webDavPassword = ""
         passphrase = ""
+        savedDraft = currentDraft()
+        lastAttemptedDraft = null
+    }
+
+    LaunchedEffect(draft, working, exitRequested) {
+        if (savedDraft == null || working) return@LaunchedEffect
+        if (draft == savedDraft) {
+            if (exitRequested) onNavigateBack()
+            return@LaunchedEffect
+        }
+        if (!exitRequested && draft == lastAttemptedDraft) return@LaunchedEffect
+        if (!exitRequested) kotlinx.coroutines.delay(800)
+        lastAttemptedDraft = draft
+        viewModel.saveConfiguration(
+            primaryBackend = draft.backend,
+            gistEnabled = draft.backend == SyncBackend.GIST,
+            gistEndpoint = draft.gistEndpoint,
+            token = draft.token,
+            webDavEnabled = draft.backend == SyncBackend.WEBDAV,
+            webDavEndpoint = draft.webDavEndpoint,
+            webDavUsername = draft.username,
+            webDavPassword = draft.password,
+            documentEnabled = draft.backend == SyncBackend.DOCUMENT,
+            documentUri = draft.documentUri,
+            documentGrantFlags = draft.documentGrantFlags,
+            includePasswords = draft.includePasswords,
+            passphrase = draft.passphrase,
+            autoSync = state.config.autoSync,
+            onComplete = { success ->
+                if (success) {
+                    val unchanged = currentDraft() == draft
+                    if (unchanged) {
+                        gistToken = ""
+                        webDavPassword = ""
+                        passphrase = ""
+                        documentGrantFlags = 0
+                        savedDraft = currentDraft()
+                    } else savedDraft = draft
+                    if (exitRequested && unchanged) onNavigateBack()
+                }
+                exitRequested = false
+            },
+        )
     }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
+            if (showTopBar) TopAppBar(
                 title = { Text(stringResource(R.string.sync_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = ::navigateBack) {
                         Icon(backIcon(), contentDescription = stringResource(R.string.back))
                     }
                 },
@@ -195,6 +255,7 @@ fun SyncSettingsScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(padding)
+                .readableContentWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -211,9 +272,10 @@ fun SyncSettingsScreen(
                 supportingContent = { Text(stringResource(R.string.sync_automatic_desc)) },
                 leadingContent = { Icon(Lucide.CloudCog, contentDescription = null) },
                 trailingContent = {
-                    Switch(checked = autoSync, onCheckedChange = { autoSync = it }, colors = switchColors)
+                    Switch(checked = autoSync, onCheckedChange = viewModel::setAutomaticSync,
+                        enabled = !working, colors = switchColors)
                 },
-                modifier = Modifier.clickable { autoSync = !autoSync },
+                modifier = Modifier.clickable(enabled = !working) { viewModel.setAutomaticSync(!autoSync) },
             )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.sync_encrypted_passwords)) },
@@ -455,35 +517,14 @@ fun SyncSettingsScreen(
                 }
             }
 
-            AppPrimaryButton(
-                onClick = {
-                    viewModel.saveConfiguration(
-                        primaryBackend = selectedBackend,
-                        gistEnabled = selectedBackend == SyncBackend.GIST,
-                        gistEndpoint = gistEndpoint,
-                        token = gistToken,
-                        webDavEnabled = selectedBackend == SyncBackend.WEBDAV,
-                        webDavEndpoint = webDavEndpoint,
-                        webDavUsername = webDavUsername,
-                        webDavPassword = webDavPassword,
-                        documentEnabled = selectedBackend == SyncBackend.DOCUMENT,
-                        documentUri = documentUri,
-                        documentGrantFlags = documentGrantFlags,
-                        includePasswords = includePasswords,
-                        passphrase = passphrase,
-                        autoSync = autoSync,
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !working && connectionChanged &&
-                    (selectedBackend != SyncBackend.DOCUMENT || documentUri.isNotBlank()),
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 if (operation == SyncUiOperation.SAVING) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.padding(horizontal = 4.dp))
                     Text(stringResource(R.string.sync_status_saving))
                 } else {
-                    Text(stringResource(R.string.sync_save_connection))
+                    Text(stringResource(R.string.sync_autosave_hint), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (configured) {

@@ -6,6 +6,112 @@ Track open bugs here. Remove items once they are fixed and verified on device.
 
 ## Open
 
+- Phone tab menu used horizontal "to the right" labels in a vertical list (device report).
+  It now uses "after this one" / "below"; desktop retains horizontal labels. Device visual
+  confirmation pending (`SessionTabContextMenu.kt`, `SessionTabsSheet.kt`).
+
+- Phone volume shortcuts were compared with Termux: Volume Up+Q/K now toggles extra keys instead
+  of the Android keyboard, clears held Fn, and releases the hidden panel's viewport space.
+  Numeric Ctrl aliases and Ctrl+/ now match Termux. Device/IME verification pending
+  (`ChatScreen.kt`, `TerminalPhoneShortcutsTest.kt`).
+
+- Terminal extra-key visibility reset after session tab navigation: it was only rememberSaveable
+  state keyed by hardware keyboard presence and absent from ChatViewSnapshot. The explicit choice
+  is now saved/restored per session, with keyboard-based defaults only before a choice is made.
+  Device navigation verification pending (`ChatScreen.kt`, `SessionWorkspaceRepository.kt`).
+
+- Phone tab cards were oversized and the pin displaced the two-line heading (device feedback).
+  Cards now follow Favorites' shape, surface, typography and three-row spacing, with a single-line
+  heading and aligned actions. Visual/device verification pending (`SessionTabsSheet.kt:137–210`).
+
+- Terminal toolbar/layout visual correction awaits device verification: the underline-style tabs
+  did not match the app (device feedback). PTYs now use compact outlined tabs and stable `[n]`
+  labels shared with the phone drawer. The terminal frame is removed,
+  and the splitter draws a 1dp line inside a 12dp drag target. Composer width now accounts for the
+  splitter (`DesktopTerminalToolbar.kt`, `TerminalPaneDivider.kt`, `ChatScreen.kt`).
+
+- Phone terminal edge interaction was reported to work only alongside text. The edge layer had no
+  ordinary tap handler and shared the content's z-order. It now handles tap as well as long-press
+  and swipe in a 24dp-wide foreground strip spanning the viewport above the extra keys. Verify
+  taps beside both text and empty rows on device (`ChatScreen.kt`, around line 2800).
+
+- Desktop terminal input and split layout are new. Hardware keys honor DECCKM and xterm modifiers;
+  paste honors DEC 2004; mouse tracking supports SGR/URXVT/UTF-8 with Shift-local selection and
+  scrollback. Legacy text-frame mouse coordinates are limited to ASCII-safe values. Focus routing,
+  physical keyboard layouts, TUI mouse interaction, clipboard shortcuts and resizing a docked PTY
+  require device/live-TUI verification (`TerminalDesktopProtocol.kt`, `TerminalDesktopInput.kt`,
+  `DesktopTerminalToolbar.kt`, `ChatScreen.kt`).
+
+- Follow-up browser corrections need device verification: desktop Undo now has a finite snackbar
+  duration; phone tab lists/counts/history and bulk operations are session-only while desktop pages
+  remain saved. Home's wide-mode header is removed and About/Add server are in the desktop menu.
+  Tab widths now shrink before scrolling, keeping the add button visible (`BrowserTabs.kt`,
+  `DesktopTabWidths.kt`, `DesktopSessionTabs.kt`, `NavGraph.kt`, `HomeScreen.kt`).
+
+- Terminal IME prediction was not fully disabled by autoCorrectEnabled=false alone. The terminal
+  input connection now requests visible-password/no-suggestions input and disables personalized
+  learning and extract/fullscreen IME modes. Verify with the device keyboard (`TerminalKeyboardInput.kt`).
+
+- Page tabs and the desktop tab-search popup are new. Wide-mode app/settings/server/file pages now
+  have typed, credential-free tab identities, sharing close/pin/restore with sessions. Legacy saved
+  session tabs and closed history are migrated. The left-hand tab search uses an anchored popup;
+  settings/about/sync/update headers are hidden when represented by a wide-mode tab. Device
+  verification pending (`WorkspaceTab.kt`, `WorkspacePages.kt`, `DesktopTabSearch.kt`).
+
+- Browser workspace changes need device verification: shared pinned-tab ordering and a persisted
+  100-entry closed history now back both tab presentations. Context menus support rename/reload,
+  pinning and bulk close; mouse middle-click closes and Ctrl+Shift+T restores. The wide layout
+  removes the session header and old navigation rail, exposes settings through its session menu,
+  and supports a saved full-width chat preference (`BrowserTabs.kt`, `ChatSessionMenu.kt`,
+  `DesktopSessionTabs.kt`, `NavGraph.kt`).
+
+- Desktop session tabs are new: wide chat windows use a persistent draggable tab strip backed by
+  the same saved tabs as the mobile switcher. Close/undo, existing-session picker, hover tooltips,
+  Ctrl+Tab/Ctrl+Shift+Tab and Ctrl+W (reserved while connected terminal input has focus) require device/DeX verification
+  (`DesktopSessionTabs.kt`, `NavGraph.kt`, `ChatScreen.kt`).
+
+- Locale override copied the entire Configuration, potentially retaining portrait dimensions after
+  rotation with configChanges enabled. It now overrides only locale, and menus use the actual
+  visible window frame, including IME/split-screen changes. Previous configuration-based menu
+  height fix did not work on device; this replacement still needs device verification
+  (`MainActivity.kt:attachBaseContext`, `AppDropdownMenu.kt`).
+
+- Responsive-layout audit changes need device verification: About, category editing, context
+  details and upload forms now scroll; dialog heights follow the visible frame and actions wrap.
+  File editing allows a single visible line. Short windows use smaller suggestions, attachments,
+  a two-line composer and an initially collapsed inbox. Wide windows now use browser-style tabs
+  with optional full-width chat (`AdaptiveLayout.kt`, `DesktopSessionTabs.kt`, `AppSurfaces.kt`,
+  affected screen roots). Verify rotation, split-screen, keyboard transitions, large fonts and
+  restored navigation state. Simultaneous list/detail panes are not implemented.
+
+- Long dropdown menus were clipped on short/landscape screens after introducing the animated
+  surface wrapper. The common menu now bounds its surface to the available screen height and
+  scrolls content inside that surface. Device verification pending (`AppDropdownMenu.kt`).
+
+- V2 inbox controls are new: confirmed queued user requests expose cancel and queue/steer actions.
+  Cancellation checks whether the item was already delivered before marking it cancelled; stale
+  snapshots cannot revive the cancelled item. Live V2 and device verification pending
+  (`InboxQueueBar.kt`, `ChatViewModel.kt`, `EventReducer.kt`).
+
+- Modern V1 file status returned no changes because `/file/status` is a stub in 1.19.4. Project
+  changes now use `/vcs/status` and `/vcs/diff` (V2: `/api/vcs/*`), with read-only patch viewing
+  including deleted files. Older V1 status falls back only on missing endpoints. Device
+  verification pending (`WorkspaceChangesPane.kt`, `WorkspaceFilesViewModel.kt`, `OpenCodeApi.kt`).
+
+- Automatic sync switch only changed an unsaved form value, so leaving Settings reset it. The
+  switch now persists immediately and updates WorkManager without saving or resetting connection
+  fields. The remaining form now autosaves after an input pause and flushes on Back; a completed
+  save must not overwrite newer edits. Device verification pending (`SyncSettingsScreen.kt`,
+  `SyncSettingsViewModel.kt`, `SyncRepository.kt`).
+
+- Tab switcher could retain the chat/search keyboard after moving into the main Activity window.
+  Entering the switcher or closing its search now clears focus and hides the keyboard; device
+  verification pending (`SessionTabsSheet.kt`).
+
+- Shared snackbars drew an outer border around Material's built-in margin, creating a second
+  oversized frame. AppSnackbarHost now uses the content overload with margin outside the border;
+  all messages using it receive the fix. Device verification pending (`AppSnackbarHost.kt`).
+
 - Moving tabs from Dialog to the Activity removed the platform window transition. The overlay now
   has explicit fade/scale entrance and exit animations. Session menus also retain their popup until
   fade-out completes, including dismissal during entrance; device verification pending

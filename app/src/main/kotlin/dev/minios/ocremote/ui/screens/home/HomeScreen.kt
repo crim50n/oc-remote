@@ -1,4 +1,5 @@
 package dev.minios.ocremote.ui.screens.home
+import dev.minios.ocremote.ui.components.readableContentWidth
 import dev.minios.ocremote.ui.components.AppDropdownMenu as DropdownMenu
 import dev.minios.ocremote.ui.components.AppDropdownMenuItem as DropdownMenuItem
 
@@ -147,10 +148,12 @@ private fun PulsingDotsIndicator(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    desktopMode: Boolean = false,
     onOpenUpdateDetails: () -> Unit = {},
     openTabCount: Int = 0,
     onOpenTabs: () -> Unit = {},
     addServerRequest: Int = 0,
+    onAddServerRequestHandled: () -> Unit = {},
     onNavigateToSessions: (serverUrl: String, username: String, password: String, serverName: String, serverId: String) -> Unit = { _, _, _, _, _ -> },
     onNavigateToCrossServerSessions: () -> Unit = {},
     onNavigateToServerSettings: (serverUrl: String, username: String, password: String, serverName: String, serverId: String) -> Unit = { _, _, _, _, _ -> },
@@ -187,7 +190,7 @@ fun HomeScreen(
     }
 
     LaunchedEffect(addServerRequest) {
-        if (addServerRequest > 0) viewModel.showAddServerDialog()
+        if (addServerRequest > 0) { viewModel.showAddServerDialog(); onAddServerRequestHandled() }
     }
 
     // Track battery optimization status, re-check when app resumes
@@ -256,14 +259,14 @@ fun HomeScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
+            if (!desktopMode) TopAppBar(
                 title = { Text(stringResource(R.string.home_title)) },
                 actions = {
-                    dev.minios.ocremote.ui.components.SessionTabsButton(openTabCount, onOpenTabs)
+                    if (!desktopMode) dev.minios.ocremote.ui.components.SessionTabsButton(openTabCount, onOpenTabs)
                     IconButton(onClick = { viewModel.showAddServerDialog() }) {
                         Icon(Lucide.Plus, contentDescription = stringResource(R.string.home_add_server))
                     }
-                    IconButton(onClick = onNavigateToSettings) {
+                    if (!desktopMode) IconButton(onClick = onNavigateToSettings) {
                         Icon(Lucide.Settings, contentDescription = stringResource(R.string.settings_title))
                     }
                     IconButton(onClick = onNavigateToAbout) {
@@ -293,7 +296,7 @@ fun HomeScreen(
                 else -> {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().readableContentWidth(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {

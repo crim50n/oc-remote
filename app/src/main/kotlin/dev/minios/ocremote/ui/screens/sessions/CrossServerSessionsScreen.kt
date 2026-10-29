@@ -1,4 +1,5 @@
 package dev.minios.ocremote.ui.screens.sessions
+import dev.minios.ocremote.ui.components.readableContentWidth
 import dev.minios.ocremote.ui.components.AppDropdownMenu as DropdownMenu
 import dev.minios.ocremote.ui.components.AppDropdownMenuItem as DropdownMenuItem
 
@@ -126,7 +127,8 @@ fun CrossServerSessionsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(padding)
+                .readableContentWidth(),
         ) {
             if (state.items.isNotEmpty() && features.categories) {
                 Row(

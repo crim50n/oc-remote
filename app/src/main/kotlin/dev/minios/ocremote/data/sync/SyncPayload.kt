@@ -54,6 +54,7 @@ data class SyncSettings(
     val favoritesEnabled: Boolean = true,
     val categoriesEnabled: Boolean = true,
     val tabsEnabled: Boolean = true,
+    val desktopFullWidthChat: Boolean = false,
     val hapticFeedback: Boolean = true,
     val hapticStrength: String = "medium",
     val hapticDurationMillis: Int? = null,

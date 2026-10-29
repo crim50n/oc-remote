@@ -61,6 +61,7 @@ class SettingsRepository @Inject constructor(
         private val FAVORITES_ENABLED_KEY = booleanPreferencesKey("favorites_enabled")
         private val CATEGORIES_ENABLED_KEY = booleanPreferencesKey("categories_enabled")
         private val TABS_ENABLED_KEY = booleanPreferencesKey("tabs_enabled")
+        private val DESKTOP_FULL_WIDTH_KEY = booleanPreferencesKey("desktop_full_width_chat")
         private val HAPTIC_FEEDBACK_KEY = booleanPreferencesKey("haptic_feedback")
         private val HAPTIC_STRENGTH_KEY = stringPreferencesKey("haptic_strength")
         private val HAPTIC_DURATION_KEY = intPreferencesKey("haptic_duration_ms")
@@ -505,6 +506,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setFavoritesEnabled(enabled: Boolean) { dataStore.edit { it[FAVORITES_ENABLED_KEY] = enabled } }
     suspend fun setCategoriesEnabled(enabled: Boolean) { dataStore.edit { it[CATEGORIES_ENABLED_KEY] = enabled } }
     suspend fun setTabsEnabled(enabled: Boolean) { dataStore.edit { it[TABS_ENABLED_KEY] = enabled } }
+    val desktopFullWidthChat: Flow<Boolean> = dataStore.data.map { it[DESKTOP_FULL_WIDTH_KEY] ?: false }
+    suspend fun setDesktopFullWidthChat(enabled: Boolean) { dataStore.edit { it[DESKTOP_FULL_WIDTH_KEY] = enabled } }
 
     val groupSessionsByProject: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[GROUP_SESSIONS_BY_PROJECT_KEY] ?: false
@@ -887,6 +890,7 @@ class SettingsRepository @Inject constructor(
             favoritesEnabled = preferences[FAVORITES_ENABLED_KEY] ?: true,
             categoriesEnabled = preferences[CATEGORIES_ENABLED_KEY] ?: true,
             tabsEnabled = preferences[TABS_ENABLED_KEY] ?: true,
+            desktopFullWidthChat = preferences[DESKTOP_FULL_WIDTH_KEY] ?: false,
             hapticFeedback = preferences[HAPTIC_FEEDBACK_KEY] ?: true,
             hapticStrength = when {
                 hapticAmplitude < 96 -> "light"
@@ -1016,6 +1020,7 @@ class SettingsRepository @Inject constructor(
         preferences[FAVORITES_ENABLED_KEY] = settings.favoritesEnabled
         preferences[CATEGORIES_ENABLED_KEY] = settings.categoriesEnabled
         preferences[TABS_ENABLED_KEY] = settings.tabsEnabled
+        preferences[DESKTOP_FULL_WIDTH_KEY] = settings.desktopFullWidthChat
         preferences[HAPTIC_FEEDBACK_KEY] = settings.hapticFeedback
         preferences[HAPTIC_STRENGTH_KEY] = settings.hapticStrength
         val fallbackHaptic = hapticPatternForStrength(settings.hapticStrength)

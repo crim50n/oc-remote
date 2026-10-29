@@ -54,7 +54,7 @@ class SessionTabsSheetTest {
     }
 
     @Test fun plusOpensExistingSessionsWithoutCreationOption() {
-        var selected: SessionTab? = null
+        var selected: dev.minios.ocremote.data.repository.WorkspaceTab? = null
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         compose.setContent {
             MaterialTheme {

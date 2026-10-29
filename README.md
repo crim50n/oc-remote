@@ -136,14 +136,39 @@ Prefer to work entirely on your phone? The **Local OpenCode** card guides you th
 - **Useful tool cards:** expandable results, selectable shell output, diffs, and a headers-only mode to reduce rendering memory.
 - **Files within reach:** open file links from chat, browse folders in a list or three-column grid, search filenames, and preview text, Markdown, images, PDFs, and static HTML. Back from a chat file link returns to chat; folder navigation stays within the project.
 - **File transfers:** download, open, and share files, including large APKs on compatible V1 servers. V2 adds streamed uploads and text editing; available actions depend on the server API.
+- **Project changes:** inspect working-tree and branch diffs, including deleted files, with colored additions/deletions, copying, line wrapping, and pinch zoom. V2 also supports committed-only comparisons.
 - **Attachments and Android sharing:** send images, PDFs, text, source code, and configuration files from your device or another app.
 - **Model and agent controls:** searchable model picker, provider icons, variants, model visibility, and agent selection.
 - **Context visibility:** token breakdowns, cache usage, remaining context capacity, and session cost.
 - **Human-in-the-loop actions:** ordered permission and question prompts, retry controls, and Stop for active runs.
+- **V2 request queue:** view pending requests, cancel queued messages, or switch their delivery between queue and steer.
 
 ### A Real Terminal
 
+Phone volume-key shortcuts follow Termux: hold **Volume Down** for Ctrl, or **Volume Up** for:
+
+| Key | Action |
+| --- | --- |
+| W / A / S / D | Up / Left / Down / Right |
+| P / N | Page Up / Page Down |
+| T / I / E | Tab / Insert / Escape |
+| 1–9 / 0 | F1–F9 / F10 |
+| H / U / L | `~` / `_` / `\|` |
+| B / F / X | Alt+B / Alt+F / Alt+X |
+| . | Ctrl+\\ |
+| Q / K | Show/hide extra keys (remembered per session) |
+| V | Show Android volume controls |
+
+Volume Down also supports Ctrl aliases: `2` → NUL, `3` → Escape, `4` → Ctrl+\\,
+`5` → Ctrl+], `6` → Ctrl+^, `7` or `/` → Ctrl+_, and `8` → DEL.
+
 Open an interactive **PTY terminal over WebSocket** without leaving the session.
+
+Wide windows can dock the terminal beside chat with a draggable divider or expand it to the full
+workspace. Physical keyboards use terminal escape sequences; Ctrl+Shift+C/V copy and paste,
+Ctrl+wheel changes text size, and Shift keeps mouse selection/scrolling local when a TUI captures
+the mouse. Extra keys can be toggled and default to hidden with a physical keyboard. Terminal
+input honors bracketed-paste mode and requests no keyboard prediction or autocorrection.
 
 | Input | Navigation | Recovery |
 | :--- | :--- | :--- |
@@ -154,13 +179,23 @@ Open an interactive **PTY terminal over WebSocket** without leaving the session.
 - **Multiple servers:** connect simultaneously, reorder remote cards, and cancel pending connections.
 - **Project organization:** search and group sessions, revisit recent directories, and handle Windows and Unicode project paths.
 - **Cross-server Favorites:** reorder sessions, filter by custom categories, and keep offline favorites visible.
-- **Session tabs:** switch between saved open sessions across servers, search and reorder tabs, undo closing, and reconnect when opening a disconnected server's tab. The fullscreen switcher shares the app window and uses smooth opening and closing transitions.
+- **Session tabs:** switch between sessions across servers, pin and reorder tabs, close other tabs or tabs to the right, and restore from a saved history of the last 100 closed tabs. Wide windows use a browser-style strip with hover details and mouse context menus; narrow windows show session tabs in a fullscreen switcher. Ctrl+Tab / Ctrl+Shift+Tab switch tabs, Ctrl+W closes a tab, and Ctrl+Shift+T restores one when connected terminal input does not own focus. Closing tabs never deletes sessions or stops the agent.
 - **Session actions:** fork, compact, review, rename, revert, delete, and export JSON; sharing is available where supported by the server API.
 - **Fast history:** show the newest 10 messages first, load the configured history target in the background, and fetch older pages on demand.
 - **Draft persistence:** preserve text, attachments, and confirmed file mentions across navigation and app restarts.
 - **Read-only subagents:** inspect child-session history and context without unsafe prompt controls.
 
 ### Make It Yours
+
+Wide windows use one browser-style tab strip without a duplicate session header. The active session
+menu includes app settings and a saved full-width chat toggle. Short windows use a compact composer,
+while dialogs and menus adapt to the visible area and keyboard.
+
+In wide mode, settings, sync, diagnostics, release notes, and server/file screens also open as tabs.
+The tab-search button sits at the left edge and opens a compact searchable popup rather than taking
+over the screen. Page tabs use the same pinning, closing, and saved restoration history as sessions,
+but the phone switcher and its history show sessions only. Desktop pages remain saved for wide mode.
+The tab strip shrinks tabs to fit before enabling scrolling, and keeps the add button visible.
 
 | Appearance | Interaction | Connections |
 | :--- | :--- | :--- |
@@ -182,6 +217,8 @@ Translations are maintained with [Lokit](https://github.com/crim50n/oc-remote/bl
 ### Sync and Reliability
 
 **Settings sync** works through GitHub Gist, WebDAV, or an Android document provider. Preferences, ordered remote servers, categories, assignments, Favorites, and hidden models travel together. Independent changes merge automatically; overlapping changes offer local/remote choices that retain unrelated edits.
+
+Connection settings save automatically after editing; the automatic-sync switch takes effect immediately.
 
 Server passwords are optional and encrypted with a separate passphrase. Sync credentials and local-runtime configuration remain device-specific.
 

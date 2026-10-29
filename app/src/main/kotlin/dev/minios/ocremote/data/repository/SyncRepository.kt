@@ -153,6 +153,15 @@ class SyncRepository @Inject constructor(
 
     val state: Flow<SyncState> = dataStore.data.map(::stateFrom)
 
+    suspend fun setAutomaticSync(enabled: Boolean) = syncMutex.withLock {
+        // Finish persistence and scheduling together even if the settings screen is closed.
+        kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+            val preferences = dataStore.edit { it[AUTO_SYNC] = enabled }
+            val config = stateFrom(preferences).config
+            dev.minios.ocremote.data.sync.SyncWorkScheduler.update(context, config.autoSync, config.primaryBackend)
+        }
+    }
+
     suspend fun configure(
         config: SyncConfig,
         githubToken: String? = null,

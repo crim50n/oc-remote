@@ -285,6 +285,16 @@ internal class OpenCodeV2Api(private val client: HttpClient, private val json: J
     suspend fun inbox(conn: ServerConnection, sessionID: String): JsonArray =
         payload(conn, "/api/session/${id(sessionID)}/inbox").data().jsonArray
 
+    suspend fun cancelInbox(conn: ServerConnection, sessionId: String, inboxId: String) {
+        request(conn, "/api/session/${id(sessionId)}/inbox/${id(inboxId)}", HttpMethod.Delete)
+    }
+
+    suspend fun changeInboxDelivery(conn: ServerConnection, sessionId: String, inboxId: String, delivery: String) {
+        require(delivery == "queue" || delivery == "steer")
+        request(conn, "/api/session/${id(sessionId)}/inbox/${id(inboxId)}", HttpMethod.Patch,
+            buildJsonObject { put("delivery", delivery) })
+    }
+
     suspend fun export(conn: ServerConnection, sessionId: String): String =
         payload(conn, "/api/experimental/session/${id(sessionId)}/export").data().toString()
 
@@ -478,6 +488,13 @@ internal class OpenCodeV2Api(private val client: HttpClient, private val json: J
 
     suspend fun commands(conn: ServerConnection): List<CommandInfo> =
         json.decodeFromJsonElement(payload(conn, "/api/command").data())
+
+    suspend fun vcsStatus(conn: ServerConnection, directory: String): List<WorkspaceVcsChange> =
+        json.decodeFromJsonElement(payload(conn, "/api/vcs/status", directory = directory).data())
+
+    suspend fun vcsDiff(conn: ServerConnection, directory: String, mode: WorkspaceDiffMode): List<WorkspaceVcsChange> =
+        json.decodeFromJsonElement(payload(conn, "/api/vcs/diff", directory = directory,
+            query = mapOf("mode" to workspaceDiffMode(mode, true), "context" to "3")).data())
 
     suspend fun findFiles(conn: ServerConnection, query: String, type: String?, directory: String?, limit: Int?): List<String> =
         payload(conn, "/api/fs/find", directory = directory,

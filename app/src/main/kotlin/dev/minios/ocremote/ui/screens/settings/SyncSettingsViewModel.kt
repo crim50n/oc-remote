@@ -39,6 +39,10 @@ class SyncSettingsViewModel @Inject constructor(
     private val _operationError = MutableStateFlow<String?>(null)
     val operationError = _operationError.asStateFlow()
 
+    fun setAutomaticSync(enabled: Boolean) = runOperation(SyncUiOperation.SAVING) {
+        repository.setAutomaticSync(enabled)
+    }
+
     fun saveConfiguration(
         primaryBackend: SyncBackend,
         gistEnabled: Boolean,
@@ -54,7 +58,8 @@ class SyncSettingsViewModel @Inject constructor(
         includePasswords: Boolean,
         passphrase: String,
         autoSync: Boolean,
-    ) = runOperation(SyncUiOperation.SAVING) {
+        onComplete: (Boolean) -> Unit = {},
+    ) = runOperation(SyncUiOperation.SAVING, onComplete) {
         val uri = documentUri.takeIf { documentEnabled && documentGrantFlags != 0 }?.let(Uri::parse)
         if (uri != null) {
             context.contentResolver.takePersistableUriPermission(uri, documentGrantFlags)
@@ -114,18 +119,23 @@ class SyncSettingsViewModel @Inject constructor(
         _operationError.value = null
     }
 
-    private fun runOperation(operation: SyncUiOperation, block: suspend () -> Unit) {
+    private fun runOperation(operation: SyncUiOperation, onComplete: (Boolean) -> Unit = {}, block: suspend () -> Unit) {
         if (_operation.value != SyncUiOperation.NONE) return
+        _operation.value = operation
+        _operationError.value = null
         viewModelScope.launch {
-            _operation.value = operation
-            _operationError.value = null
+            var success = false
             try {
                 block()
+                success = true
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Settings sync operation failed", e)
                 _operationError.value = e.message ?: "Sync failed"
             } finally {
                 _operation.value = SyncUiOperation.NONE
+                onComplete(success)
             }
         }
     }

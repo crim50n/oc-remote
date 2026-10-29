@@ -2,8 +2,18 @@ package dev.minios.ocremote.data.repository
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class SessionWorkspaceTest {
+    @Test fun terminalExtraKeysChoiceSurvivesSnapshotSerialization() {
+        for (choice in listOf(true, false, null)) {
+            val snapshot = ChatViewSnapshot(terminalExtraKeys = choice)
+            assertEquals(choice, Json.decodeFromString<ChatViewSnapshot>(Json.encodeToString(snapshot)).terminalExtraKeys)
+        }
+        assertEquals(null, Json.decodeFromString<ChatViewSnapshot>("{}").terminalExtraKeys)
+    }
+
     @Test fun sameSessionOnDifferentServersHasSeparateTabs() {
         val tabs = openedSessionTabs(listOf(SessionTab("a", "session")), SessionTab("b", "session"))
         assertEquals(2, tabs.size)

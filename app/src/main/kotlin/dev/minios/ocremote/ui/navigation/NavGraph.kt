@@ -18,6 +18,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -35,6 +37,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import dev.minios.ocremote.data.repository.SessionWorkspaceRepository
 import dev.minios.ocremote.data.repository.SessionTab
+import dev.minios.ocremote.data.repository.WorkspaceTab
+import dev.minios.ocremote.data.repository.PageTab
 import androidx.navigation.navArgument
 import dev.minios.ocremote.SessionDeepLink
 import dev.minios.ocremote.data.repository.EventReducer
@@ -167,12 +171,20 @@ fun NavGraph(
     val navController = rememberNavController()
     val sessionFeatures = dev.minios.ocremote.ui.components.LocalSessionFeatures.current
     val context = LocalContext.current
-    val openTabs by sessionWorkspace.tabs.collectAsState()
+    val workspace by sessionWorkspace.state.collectAsState()
+    val openTabs = workspace.tabs
     val currentEntry by navController.currentBackStackEntryAsState()
     var showTabs by remember { mutableStateOf(false) }
+    var openSessionPicker by remember { mutableStateOf(false) }
+    var insertionAnchor by remember { mutableStateOf<String?>(null) }
+    var terminalModeActive by remember { mutableStateOf(false) }
+    val desktopSnackbar = remember { SnackbarHostState() }
+    val navigationScope = rememberCoroutineScope()
+    var desktopUndoJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val tabsVisibility = remember { androidx.compose.animation.core.MutableTransitionState(false) }
     tabsVisibility.targetState = showTabs && sessionFeatures.tabs
-    var recentlyClosed by remember { mutableStateOf<SessionTab?>(null) }
+    var showClosedTabs by remember { mutableStateOf(false) }
+    var pendingTabAction by remember { mutableStateOf<Pair<String, SessionTabAction>?>(null) }
     fun connectServer(serverId: String, serverName: String, serverUrl: String, username: String, password: String) {
         val intent = Intent(context, OpenCodeConnectionService::class.java).apply {
             putExtra("server_id", serverId)
@@ -227,7 +239,25 @@ fun NavGraph(
     }
     val currentConnectedServerIds by rememberUpdatedState(connectedServerIds)
 
-    fun activateTab(tab: SessionTab) {
+    val currentPage = pageTabForEntry(currentEntry, sharePickerServers, context)
+
+    fun activateTab(tab: WorkspaceTab) {
+        if (tab is PageTab) {
+            val route = workspacePageRoute(tab, sharePickerServers) ?: return
+            val server = sharePickerServers.firstOrNull { it.id == tab.serverId }
+            if (server != null && server.id !in connectedServerIds && server.id !in connectingServerIds) {
+                connectServer(server.id, server.displayName, server.url, server.username, server.password.orEmpty())
+            }
+            if (pageTabForEntry(navController.currentBackStackEntry, sharePickerServers, context)?.key != tab.key) {
+                // Different page keys can share a route definition (e.g. two project folders).
+                // They need separate SavedStateHandles/ViewModels, not singleTop argument replacement.
+                if (!navController.popBackStack(route, false)) navController.navigate(route)
+            }
+            sessionWorkspace.openPage(tab)
+            showTabs = false
+            return
+        }
+        tab as SessionTab
         val server = sharePickerServers.firstOrNull { it.id == tab.serverId } ?: return
         if (server.id !in connectedServerIds && server.id !in connectingServerIds) {
             connectServer(server.id, server.displayName, server.url, server.username, server.password.orEmpty())
@@ -247,7 +277,58 @@ fun NavGraph(
         showTabs = false
     }
 
+    fun restoreClosedTab(key: String? = null, sessionsOnly: Boolean = false) {
+        val entry = sessionWorkspace.state.value.closed.lastOrNull { entry ->
+            (key == null || entry.tab.key == key) && (!sessionsOnly || entry.tab is SessionTab) && workspaceTabAvailable(entry.tab, sharePickerServers)
+        } ?: return
+        sessionWorkspace.restoreClosed(entry.tab.key)?.let(::activateTab)
+    }
+
+    fun closeTabs(keys: Set<String>, keepSwitcher: Boolean = false, notify: Boolean = true) {
+        if (keys.isEmpty()) return
+        val entry = navController.currentBackStackEntry
+        val activeKey = pageTabForEntry(entry, sharePickerServers, context)?.key
+            ?: entry?.takeIf { it.destination.route?.startsWith("chat?") == true }?.arguments
+                ?.let { "${it.getString("serverId")}:${it.getString("sessionId")}" }
+        val nextKey = sessionWorkspace.closeTabs(keys, activeKey, sessionsOnly = keepSwitcher)
+        if (activeKey != nextKey) {
+            val available = sessionWorkspace.tabs.filter { (!keepSwitcher || it is SessionTab) && workspaceTabAvailable(it, sharePickerServers) }
+            val next = available.firstOrNull { it.key == nextKey } ?: available.firstOrNull()
+            if (next != null) activateTab(next) else navController.popBackStack(Screen.Home.route, false)
+        }
+        if (keepSwitcher) showTabs = true
+        if (!notify) return
+        desktopUndoJob?.cancel()
+        desktopSnackbar.currentSnackbarData?.dismiss()
+        desktopUndoJob = navigationScope.launch {
+            val message = if (keys.size == 1) R.string.session_tab_closed else R.string.tabs_closed
+            if (desktopSnackbar.showSnackbar(context.getString(message), context.getString(R.string.chat_restore),
+                    duration = SnackbarDuration.Short) == SnackbarResult.ActionPerformed) {
+                keys.forEach { sessionWorkspace.restoreClosed(it) }
+                sessionWorkspace.tabs.firstOrNull { it.key == activeKey }?.let(::activateTab)
+            }
+        }
+    }
+
+    fun tabAction(tab: WorkspaceTab, action: SessionTabAction) {
+        val kind = when (action) {
+            SessionTabAction.CLOSE -> dev.minios.ocremote.data.repository.TabCloseKind.SINGLE
+            SessionTabAction.CLOSE_OTHERS -> dev.minios.ocremote.data.repository.TabCloseKind.OTHERS
+            SessionTabAction.CLOSE_RIGHT -> dev.minios.ocremote.data.repository.TabCloseKind.RIGHT
+            else -> null
+        }
+        if (kind != null) { closeTabs(sessionWorkspace.state.value.closeKeys(tab.key, kind, sessionsOnly = showTabs), showTabs); return }
+        when (action) {
+            SessionTabAction.OPEN_RIGHT -> { insertionAnchor = tab.key; openSessionPicker = true; showTabs = true }
+            SessionTabAction.PIN -> sessionWorkspace.pin(tab.key, !tab.pinned)
+            SessionTabAction.REOPEN -> restoreClosedTab(sessionsOnly = showTabs)
+            SessionTabAction.HISTORY -> showClosedTabs = true
+            else -> { activateTab(tab); pendingTabAction = tab.key to action }
+        }
+    }
+
     LaunchedEffect(currentEntry, sessionFeatures.tabs) {
+        if (currentEntry?.destination?.route?.startsWith("chat?") != true) terminalModeActive = false
         if (!sessionFeatures.tabs) {
             showTabs = false
             return@LaunchedEffect
@@ -259,9 +340,9 @@ fun NavGraph(
             if (serverId.isNotBlank() && sessionId.isNotBlank()) {
                 sessionWorkspace.open(serverId, sessionId,
                     sharePickerSessions.firstOrNull { it.id == sessionId }?.title.orEmpty())
-                val retained = sessionWorkspace.tabs.value.sortedByDescending { it.lastActive }
+                val retained = sessionWorkspace.tabs.filterIsInstance<SessionTab>().sortedByDescending { it.lastActive }
                     .take(3).mapTo(mutableSetOf()) { it.sessionId }
-                sessionWorkspace.tabs.value.filter { it.sessionId !in retained }.forEach { tab ->
+                sessionWorkspace.tabs.filterIsInstance<SessionTab>().filter { it.sessionId !in retained }.forEach { tab ->
                     val busy = sessionStatuses[tab.sessionId]
                     if (tab.serverId in connectedServerIds &&
                         busy !is dev.minios.ocremote.domain.model.SessionStatus.Busy &&
@@ -286,37 +367,34 @@ fun NavGraph(
             androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(180), targetScale = 0.98f),
     ) {
         SessionTabsSheet(
-            tabs = openTabs,
+            tabs = openTabs.filterIsInstance<SessionTab>(),
             servers = sharePickerServers,
             sessions = sharePickerSessions,
             statuses = sessionStatuses,
             attentionSessionIds = pendingInteractions.mapTo(mutableSetOf()) { it.sessionId },
             connectedServerIds = connectedServerIds,
-            activeKey = currentEntry?.arguments?.let { "${it.getString("serverId")}:${it.getString("sessionId")}" },
-            canUndo = recentlyClosed != null,
-            onSelect = ::activateTab,
-            onClose = { tab ->
-                sessionWorkspace.close(tab.key)
-                recentlyClosed = tab
-                val entry = navController.currentBackStackEntry
-                if (entry?.destination?.route?.startsWith("chat?") == true &&
-                    entry.arguments?.getString("serverId") == tab.serverId &&
-                    entry.arguments?.getString("sessionId") == tab.sessionId) {
-                    val next = sessionWorkspace.tabs.value.filter { candidate ->
-                        sharePickerServers.any { it.id == candidate.serverId }
-                    }.maxByOrNull { it.lastActive }
-                    if (next != null) { activateTab(next); showTabs = true } else navController.popBackStack()
-                }
+            activeKey = currentPage?.key ?: currentEntry?.arguments?.let { "${it.getString("serverId")}:${it.getString("sessionId")}" },
+            canUndo = workspace.closed.any { it.tab is SessionTab },
+            onSelect = { tab ->
+                insertionAnchor?.let { sessionWorkspace.openAfter(tab, it) }
+                insertionAnchor = null
+                activateTab(tab)
             },
-            onUndo = { recentlyClosed?.let(sessionWorkspace::restore); recentlyClosed = null },
-            onMove = { tab, delta -> sessionWorkspace.move(tab.key, delta) },
+            onClose = { tab -> closeTabs(setOf(tab.key), keepSwitcher = true, notify = false) },
+            onUndo = { restoreClosedTab(sessionsOnly = true) },
+            onMove = { tab, delta -> sessionWorkspace.moveSession(tab.key, delta) },
             onAdd = {
                 showTabs = false
                 navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route); launchSingleTop = true }
             },
-            onDismiss = { showTabs = false },
-            onOrder = sessionWorkspace::reorder,
+            onDismiss = { showTabs = false; insertionAnchor = null },
+            onOrder = sessionWorkspace::reorderSessions,
             serverSessions = sharePickerServerSessions,
+            openSessionPicker = openSessionPicker,
+            onSessionPickerOpened = { openSessionPicker = false },
+            onPickerDismissed = { insertionAnchor = null },
+            onTabAction = ::tabAction,
+            onHistory = { showClosedTabs = true },
         )
     }
     }
@@ -521,21 +599,67 @@ fun NavGraph(
         }
     }
     
-    Box(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    // Keep the desktop strip stable when the search field opens the soft keyboard.
+    val desktopTabs = maxWidth >= 840.dp
+    LaunchedEffect(currentPage, desktopTabs, sessionFeatures.tabs) {
+        if (desktopTabs && sessionFeatures.tabs && currentPage != null) sessionWorkspace.openPage(currentPage)
+    }
+    val sessionActive = currentEntry?.destination?.route?.startsWith("chat?") == true
+    val activeTabKey = currentPage?.key ?: currentEntry?.arguments?.let { "${it.getString("serverId")}:${it.getString("sessionId")}" }
+    Row(Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+        if (!desktopTabs || !sessionFeatures.tabs || terminalModeActive || !event.isCtrlPressed || event.type != KeyEventType.KeyDown) false
+        else when (event.key) {
+            Key.Tab -> {
+                val available = openTabs.filter { workspaceTabAvailable(it, sharePickerServers) }
+                adjacentSessionTab(available, activeTabKey, event.isShiftPressed)?.let(::activateTab)
+                true
+            }
+            Key.W -> {
+                if (event.nativeKeyEvent.repeatCount == 0) openTabs.firstOrNull { it.key == activeTabKey }?.let { closeTabs(setOf(it.key)) }
+                true
+            }
+            Key.T -> if (event.isShiftPressed) { restoreClosedTab(); true } else false
+            else -> false
+        }
+    }) {
+    Column(Modifier.weight(1f).fillMaxHeight().then(if (desktopTabs) Modifier.statusBarsPadding() else Modifier)) {
+    if (desktopTabs) DesktopSessionTabs(
+        tabs = if (sessionFeatures.tabs) openTabs else emptyList(), servers = sharePickerServers, statuses = sessionStatuses,
+        attention = pendingInteractions.mapTo(mutableSetOf()) { it.sessionId }, connected = connectedServerIds,
+        activeKey = activeTabKey, onSelect = ::activateTab, onClose = { closeTabs(setOf(it.key)) },
+        onOrder = sessionWorkspace::reorder,
+        onAdd = { insertionAnchor = null; openSessionPicker = true; showTabs = true },
+        onHistory = { showClosedTabs = true },
+        onMenu = { activeTabKey?.let { pendingTabAction = it to SessionTabAction.OPEN_MENU } },
+        onTabAction = ::tabAction, canRestore = workspace.closed.isNotEmpty(), sessions = sharePickerSessions,
+        tabsEnabled = sessionFeatures.tabs, sessionActive = sessionActive,
+        onSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
+        onAbout = { navController.navigate(Screen.About.route) { launchSingleTop = true } },
+        onServers = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route); launchSingleTop = true } },
+        onAddServer = {
+            addServerRequest++
+            navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route); launchSingleTop = true }
+        },
+    )
     NavHost(
+        modifier = Modifier.weight(1f).fillMaxWidth(),
         navController = navController,
         startDestination = Screen.Home.route
     ) {
         // ============ Home Screen ============
         composable(Screen.UpdateDetails.route) {
-            dev.minios.ocremote.ui.screens.update.UpdateDetailsScreen(onNavigateBack = { navController.popBackStack() })
+            dev.minios.ocremote.ui.screens.update.UpdateDetailsScreen(onNavigateBack = { navController.popBackStack() },
+                showTopBar = !desktopTabs || !sessionFeatures.tabs)
         }
         composable(Screen.Home.route) {
             HomeScreen(
+                desktopMode = desktopTabs,
                 onOpenUpdateDetails = { navController.navigate(Screen.UpdateDetails.route) { launchSingleTop = true } },
-                openTabCount = openTabs.size,
-                onOpenTabs = { showTabs = true },
+                openTabCount = openTabs.count { it is SessionTab },
+                onOpenTabs = { openSessionPicker = false; showTabs = true },
                 addServerRequest = addServerRequest,
+                onAddServerRequestHandled = { addServerRequest = 0 },
                 onNavigateToSessions = { serverUrl, username, password, serverName, serverId ->
                     navController.navigate(
                         Screen.SessionList.createRoute(serverUrl, username, password, serverName, serverId)
@@ -589,6 +713,7 @@ fun NavGraph(
         // ============ Settings Screen ============
         composable(Screen.Settings.route) {
             SettingsScreen(
+                showTopBar = !desktopTabs || !sessionFeatures.tabs,
                 onNavigateBack = {
                     navController.popBackStack()
                 },
@@ -599,6 +724,7 @@ fun NavGraph(
 
         composable(Screen.SyncSettings.route) {
             dev.minios.ocremote.ui.screens.settings.SyncSettingsScreen(
+                showTopBar = !desktopTabs || !sessionFeatures.tabs,
                 onNavigateBack = { navController.popBackStack() },
             )
         }
@@ -743,6 +869,7 @@ fun NavGraph(
         // ============ About Screen ============
         composable(Screen.About.route) {
             AboutScreen(
+                showTopBar = !desktopTabs || !sessionFeatures.tabs,
                 onOpenUpdateDetails = { navController.navigate(Screen.UpdateDetails.route) { launchSingleTop = true } },
                 onNavigateBack = {
                     navController.popBackStack()
@@ -875,9 +1002,22 @@ fun NavGraph(
             }
             
             ChatScreen(
+                requestedTabAction = pendingTabAction?.takeIf { it.first == "$serverId:$sessionId" }?.second,
+                onTabActionHandled = { if (pendingTabAction?.first == "$serverId:$sessionId") pendingTabAction = null },
+                onOpenAppSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
+                onOpenServers = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route); launchSingleTop = true } },
+                onOpenAbout = { navController.navigate(Screen.About.route) { launchSingleTop = true } },
+                onAddServer = {
+                    addServerRequest++
+                    navController.navigate(Screen.Home.route) { popUpTo(Screen.Home.route); launchSingleTop = true }
+                },
+                desktopTabsVisible = desktopTabs,
+                onTerminalFocusChange = {
+                    if (navController.currentBackStackEntry?.id == backStackEntry.id) terminalModeActive = it
+                },
                 tabsOverlayVisible = tabsVisibility.currentState || tabsVisibility.targetState,
-                openTabCount = openTabs.size,
-                onOpenTabs = { showTabs = true },
+                openTabCount = openTabs.count { it is SessionTab },
+                onOpenTabs = { openSessionPicker = false; showTabs = true },
                 onNavigateBack = {
                     navController.popBackStack()
                 },
@@ -994,7 +1134,13 @@ fun NavGraph(
             )
         }
     }
+    }
+    }
     TabsOverlay()
+    if (showClosedTabs) ClosedTabsDialog(if (desktopTabs) workspace.closed else workspace.closed.filter { it.tab is SessionTab }, sharePickerServers,
+        onRestore = { showClosedTabs = false; restoreClosedTab(it) }, onDismiss = { showClosedTabs = false })
+    dev.minios.ocremote.ui.components.AppSnackbarHost(desktopSnackbar,
+        Modifier.align(Alignment.BottomCenter).navigationBarsPadding().widthIn(max = 560.dp))
     }
 }
 
@@ -1049,7 +1195,7 @@ private fun ShareTargetPickerDialog(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.92f)
+                .widthIn(max = 840.dp).fillMaxWidth(0.92f)
                 .widthIn(max = 560.dp)
                 .then(
                     if (isAmoled) {

@@ -20,6 +20,30 @@ import kotlinx.serialization.json.put
 
 class EventReducerTest {
 
+    @Test fun confirmedInboxCancellationRejectsOlderSnapshots() {
+        val reducer = EventReducer()
+        reducer.processEvent(SseEvent.PromptEnqueued("s", "id", "queue"), "server")
+        val before = reducer.v2Inbox.value
+        val revision = reducer.captureV2InboxRevision()
+        reducer.confirmV2InboxCancellation("s", "id")
+        assertEquals(V2InboxState.CANCELLED, reducer.v2Inbox.value["id"]?.state)
+        assertNull(reducer.promptDeliveries.value["id"])
+        assertFalse(reducer.reconcileV2Inbox("s", before, revision))
+    }
+
+    @Test fun cancellationAcknowledgementDoesNotHideDeliveredMessages() {
+        val reducer = EventReducer()
+        reducer.processEvent(SseEvent.PromptEnqueued("s", "id", "queue"), "server")
+        reducer.processEvent(SseEvent.PromptDelivered("s", "id"), "server")
+        reducer.confirmV2InboxCancellation("s", "id")
+        assertEquals(V2InboxState.DELIVERED, reducer.v2Inbox.value["id"]?.state)
+        val message = Message.User("confirmed", "s", time = TimeInfo(1))
+        reducer.processEvent(SseEvent.MessageUpdated(message), "server")
+        reducer.confirmV2InboxCancellation("s", "confirmed")
+        assertNull(reducer.v2Inbox.value["confirmed"])
+        assertEquals(listOf(message), reducer.messages.value["s"])
+    }
+
     @Test
     fun staleInboxSnapshot_doesNotUndoConcurrentLifecycleEvents() {
         val events = listOf(

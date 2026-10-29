@@ -6,8 +6,12 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -80,9 +84,10 @@ fun AppDialog(
     shape: Shape = AppDialogShape,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val maxHeight = (rememberVisibleWindowSize().height - 32.dp).coerceAtLeast(96.dp)
     BasicAlertDialog(onDismissRequest = onDismissRequest) {
         Surface(
-            modifier = modifier,
+            modifier = Modifier.widthIn(max = 560.dp).heightIn(max = maxHeight).then(modifier),
             shape = shape,
             color = appDialogContainerColor(),
             border = appAmoledBorder(),
@@ -93,6 +98,7 @@ fun AppDialog(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AppDialogActions(
     dismissText: String,
@@ -103,9 +109,10 @@ fun AppDialogActions(
     destructiveConfirm: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    FlowRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         AppSecondaryButton(onClick = onDismiss) {
             Text(dismissText)

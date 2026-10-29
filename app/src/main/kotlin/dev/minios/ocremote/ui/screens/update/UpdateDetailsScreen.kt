@@ -1,4 +1,5 @@
 package dev.minios.ocremote.ui.screens.update
+import dev.minios.ocremote.ui.components.readableContentWidth
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -22,7 +23,7 @@ import dev.minios.ocremote.ui.components.rememberUpdateInstallLauncher
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UpdateDetailsScreen(onNavigateBack: () -> Unit, viewModel: UpdateDetailsViewModel = hiltViewModel()) {
+fun UpdateDetailsScreen(onNavigateBack: () -> Unit, showTopBar: Boolean = true, viewModel: UpdateDetailsViewModel = hiltViewModel()) {
     val notes by viewModel.notes.collectAsState()
     val update by viewModel.updateState.collectAsState()
     val release = notes.release
@@ -37,7 +38,7 @@ fun UpdateDetailsScreen(onNavigateBack: () -> Unit, viewModel: UpdateDetailsView
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
+            if (showTopBar) TopAppBar(
                 title = {
                     Column {
                         Text(stringResource(R.string.update_whats_new))
@@ -51,7 +52,7 @@ fun UpdateDetailsScreen(onNavigateBack: () -> Unit, viewModel: UpdateDetailsView
         },
         bottomBar = {
             if (release != null) Surface(color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.readableContentWidth().navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     HorizontalDivider()
                     if (downloading != null) {
                         val progress = downloading.progressPercent
@@ -81,8 +82,10 @@ fun UpdateDetailsScreen(onNavigateBack: () -> Unit, viewModel: UpdateDetailsView
             }
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
+        Column(Modifier.fillMaxSize().padding(padding).readableContentWidth().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (!showTopBar && release != null) Text(stringResource(R.string.about_version, release.versionName),
+                style = MaterialTheme.typography.titleSmall)
             release?.publishedAt?.let { timestamp ->
                 val date = remember(timestamp) {
                     runCatching { java.time.OffsetDateTime.parse(timestamp).toLocalDate().format(

@@ -1049,6 +1049,17 @@ class EventReducer @Inject constructor() {
     /** Capture before fetching the REST inbox so any intervening lifecycle event rejects the result. */
     fun captureV2InboxRevision(): Long = synchronized(v2InboxLock) { v2InboxRevision }
 
+    /** Call only after DELETE succeeded and the message endpoint confirmed no transcript entry. */
+    fun confirmV2InboxCancellation(sessionId: String, inboxId: String) = synchronized(v2InboxLock) {
+        val previous = _v2Inbox.value[inboxId]
+        if (previous != null && (previous.sessionId != sessionId || previous.state == V2InboxState.DELIVERED)) return@synchronized
+        if (_messages.value[sessionId].orEmpty().any { it.id == inboxId }) return@synchronized
+        _v2Inbox.update { it + (inboxId to (previous?.copy(state = V2InboxState.CANCELLED)
+            ?: V2InboxInfo(sessionId, V2InboxState.CANCELLED))) }
+        _promptDeliveries.update { it - inboxId }
+        v2InboxRevision++
+    }
+
     fun reconcileV2Inbox(
         sessionId: String,
         items: Map<String, V2InboxInfo>,

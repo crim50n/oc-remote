@@ -179,7 +179,9 @@ fun WorkspaceFilesScreen(
                 title = {
                     val currentLocation = state.currentPath.ifEmpty { state.directory }
                     val preview = state.preview
-                    if (preview != null) {
+                    if (state.gitStatuses != null && preview == null) {
+                        Text(stringResource(R.string.workspace_changed_files), style = MaterialTheme.typography.titleMedium)
+                    } else if (preview != null) {
                         Column {
                             Text(
                                 text = preview.node.name,
@@ -210,7 +212,7 @@ fun WorkspaceFilesScreen(
                 },
                 actions = {
                     val preview = state.preview
-                    if (preview == null) {
+                    if (preview == null && state.gitStatuses == null) {
                         IconButton(onClick = { viewModel.setGridView(!gridView) }) {
                             Icon(if (gridView) Lucide.List else Lucide.LayoutGrid,
                                 stringResource(if (gridView) R.string.workspace_list_view else R.string.workspace_grid_view))
@@ -352,19 +354,14 @@ fun WorkspaceFilesScreen(
                     canDownload = state.capabilities.rawDownload || state.preview?.requiresDownload == true,
                     modifier = Modifier.fillMaxSize(),
                 )
-                state.gitStatuses != null -> LazyColumn(Modifier.fillMaxSize()) {
-                    items(state.gitStatuses.orEmpty(), key = { it.path }) { file ->
-                        ListItem(headlineContent = { Text(file.path, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                            supportingContent = { Text("${stringResource(when (file.status) {
-                                "added" -> R.string.workspace_status_added
-                                "deleted" -> R.string.workspace_status_deleted
-                                else -> R.string.workspace_status_modified
-                            })} · +${file.additions} −${file.deletions}") },
-                            modifier = Modifier.clickable(enabled = isServerConnected && file.status != "deleted") {
-                                viewModel.open(FileNode(file.path.substringAfterLast('/'), file.path, "file"))
-                            })
-                    }
-                }
+                state.gitStatuses != null -> WorkspaceChangesPane(
+                    changes = state.gitStatuses.orEmpty(), mode = state.gitMode,
+                    committedSupported = state.capabilities.committedDiff,
+                    path = state.gitDiffPath, diff = state.gitDiff,
+                    loading = state.gitDiffLoading, error = state.gitDiffError, connected = isServerConnected,
+                    onMode = viewModel::loadGitStatus, onSelect = viewModel::openGitDiff,
+                    wordWrap = wordWrap, onWordWrapChange = viewModel::setWordWrap,
+                )
                 state.searchContents && state.searchQuery.isNotBlank() -> LazyColumn(Modifier.fillMaxSize()) {
                     items(state.matches) { match ->
                         ListItem(headlineContent = { Text("${match.path}:${match.lineNumber}") },
@@ -399,26 +396,27 @@ fun WorkspaceFilesScreen(
     if (editing) AppDialog(onDismissRequest = { editing = false }, modifier = Modifier.fillMaxWidth().heightIn(max = 640.dp)) {
         OutlinedTextField(editText, { editText = it }, label = { Text(state.preview?.node?.name.orEmpty()) },
             textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-            modifier = Modifier.fillMaxWidth().weight(1f, fill = false).padding(12.dp), minLines = 8, maxLines = 20)
-        androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = { editing = false }) { Text(stringResource(R.string.cancel)) }
-            TextButton(onClick = { viewModel.saveText(editText); editing = false }, enabled = isServerConnected && !state.isSaving) {
-                Text(stringResource(R.string.workspace_save_file))
-            }
-        }
+            modifier = Modifier.fillMaxWidth().weight(1f, fill = false).padding(12.dp), minLines = 1, maxLines = 20)
+        dev.minios.ocremote.ui.components.AppDialogActions(
+            dismissText = stringResource(R.string.cancel), confirmText = stringResource(R.string.workspace_save_file),
+            onDismiss = { editing = false }, onConfirm = { viewModel.saveText(editText); editing = false },
+            confirmEnabled = isServerConnected && !state.isSaving, modifier = Modifier.padding(8.dp),
+        )
     }
     if (uploadSource != null) AppDialog(onDismissRequest = { uploadSource = null }, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
         Text(stringResource(R.string.workspace_upload_file), Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
         OutlinedTextField(uploadPath, { uploadPath = it }, label = { Text(stringResource(R.string.workspace_destination_path)) },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), singleLine = true)
         Text(stringResource(R.string.workspace_upload_overwrite), Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall)
-        androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = { uploadSource = null }) { Text(stringResource(R.string.cancel)) }
-            TextButton(onClick = {
+        dev.minios.ocremote.ui.components.AppDialogActions(
+            dismissText = stringResource(R.string.cancel), confirmText = stringResource(R.string.workspace_upload_file),
+            onDismiss = { uploadSource = null }, onConfirm = {
                 uploadSource?.let { viewModel.upload(android.net.Uri.parse(it), uploadPath) }
                 uploadSource = null
-            }, enabled = uploadPath.isNotBlank() && isServerConnected) { Text(stringResource(R.string.workspace_upload_file)) }
-        }
+            }, confirmEnabled = uploadPath.isNotBlank() && isServerConnected, modifier = Modifier.padding(8.dp),
+        )
+    }
     }
 }
 

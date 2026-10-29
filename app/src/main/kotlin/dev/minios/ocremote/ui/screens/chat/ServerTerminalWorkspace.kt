@@ -19,7 +19,7 @@ import java.util.UUID
 
 private const val WORKSPACE_TAG = "ServerTerminalWorkspace"
 private val RECONNECT_BACKOFF_MS = longArrayOf(1_000L, 2_000L, 5_000L, 10_000L, 30_000L)
-private const val DEFAULT_TERMINAL_FONT_SIZE_SP = 13f
+internal const val DEFAULT_TERMINAL_FONT_SIZE_SP = 13f
 
 internal fun isMissingPtyFailure(error: Throwable): Boolean {
     return generateSequence(error) { it.cause }
@@ -136,10 +136,12 @@ internal class ServerTerminalWorkspace(
         startTabCreation(tab, cwd, removeOnFailure = true, onResult)
     }
 
+    private var nextTabNumber = 1
+
     private fun addTabLocked(directory: String?): RuntimeTab {
         val tab = RuntimeTab(
             id = UUID.randomUUID().toString(),
-            title = "Tab ${tabs.size + 1}",
+            title = "[${nextTabNumber++}]",
             fontSizeSp = defaultFontSizeSp,
             directory = directory,
         )
@@ -268,7 +270,12 @@ internal class ServerTerminalWorkspace(
     }
 
     fun sendActiveInput(input: String) {
-        val socket = synchronized(lock) { activeTabLocked()?.socket } ?: return
+        val id = synchronized(lock) { activeTabLocked()?.id } ?: return
+        sendTabInput(id, input)
+    }
+
+    fun sendTabInput(tabId: String, input: String) {
+        val socket = synchronized(lock) { tabs.firstOrNull { it.id == tabId }?.socket } ?: return
         scope.launch {
             try {
                 socket.send(input)

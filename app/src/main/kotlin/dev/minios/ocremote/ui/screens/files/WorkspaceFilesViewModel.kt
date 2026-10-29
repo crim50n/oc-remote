@@ -15,7 +15,8 @@ import dev.minios.ocremote.data.api.parseServerFileLink
 import dev.minios.ocremote.data.api.resolveServerPath
 import dev.minios.ocremote.data.api.serverFileRequest
 import dev.minios.ocremote.data.api.WorkspaceFileCapabilities
-import dev.minios.ocremote.data.api.WorkspaceGitStatus
+import dev.minios.ocremote.data.api.WorkspaceVcsChange
+import dev.minios.ocremote.data.api.WorkspaceDiffMode
 import dev.minios.ocremote.data.api.SearchMatch
 import dev.minios.ocremote.data.repository.SettingsRepository
 import dev.minios.ocremote.data.repository.ServerConnectionStateRepository
@@ -61,7 +62,12 @@ data class WorkspaceFilesUiState(
     val downloaded: DownloadedWorkspaceFile? = null,
     val searchContents: Boolean = false,
     val matches: List<SearchMatch> = emptyList(),
-    val gitStatuses: List<WorkspaceGitStatus>? = null,
+    val gitStatuses: List<WorkspaceVcsChange>? = null,
+    val gitMode: WorkspaceDiffMode = WorkspaceDiffMode.WORKING,
+    val gitDiffPath: String? = null,
+    val gitDiff: WorkspaceVcsChange? = null,
+    val gitDiffLoading: Boolean = false,
+    val gitDiffError: String? = null,
     val isSaving: Boolean = false,
 )
 
@@ -380,6 +386,17 @@ class WorkspaceFilesViewModel @Inject constructor(
 
     fun navigateUp(): Boolean {
         val state = _uiState.value
+        if (state.gitStatuses != null && state.preview == null) {
+            loadJob?.cancel()
+            if (state.gitDiffPath != null) {
+                _uiState.update { it.copy(gitDiffPath = null, gitDiff = null, gitDiffError = null, gitDiffLoading = false) }
+            } else if (effectiveServerId in connectionStateRepository.connectedServerIds.value) {
+                loadDirectory(state.currentPath)
+            } else {
+                _uiState.update { it.copy(gitStatuses = null, error = null, isLoading = false) }
+            }
+            return true
+        }
         if (state.preview != null) {
             if (fileBackStack.isNotEmpty()) {
                 val previous = fileBackStack.removeLast()
@@ -404,6 +421,11 @@ class WorkspaceFilesViewModel @Inject constructor(
         if (effectiveServerId !in connectionStateRepository.connectedServerIds.value) return
         val file = requestedFile
         if (file != null) open(file, requestedLine, requestedEndLine)
+        else if (_uiState.value.gitStatuses != null) {
+            val path = _uiState.value.gitDiffPath
+            if (path != null) { gitDiffCache = null; openGitDiff(path) }
+            else loadGitStatus(_uiState.value.gitMode)
+        }
         else if (_uiState.value.searchQuery.isNotBlank()) searchFiles(_uiState.value.searchQuery)
         else loadDirectory(_uiState.value.currentPath)
     }
@@ -524,18 +546,40 @@ class WorkspaceFilesViewModel @Inject constructor(
         searchFiles(_uiState.value.searchQuery)
     }
 
-    fun loadGitStatus() {
-        if (!_uiState.value.capabilities.gitStatus) return
+    private var gitDiffCache: List<WorkspaceVcsChange>? = null
+
+    fun loadGitStatus(mode: WorkspaceDiffMode = WorkspaceDiffMode.WORKING) {
+        if (!_uiState.value.capabilities.gitStatus || effectiveServerId !in connectionStateRepository.connectedServerIds.value) return
         loadJob?.cancel()
+        gitDiffCache = null
         requestedFile = null
         fileBackStack.clear()
         loadJob = viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, preview = null, error = null, searchQuery = "", matches = emptyList()) }
+            _uiState.update { it.copy(isLoading = true, preview = null, error = null, searchQuery = "", matches = emptyList(),
+                gitStatuses = emptyList(), gitMode = mode, gitDiffPath = null, gitDiff = null, gitDiffError = null, gitDiffLoading = false) }
             try {
-                val statuses = api.fileStatuses(connection, directory)
+                val statuses = if (mode == WorkspaceDiffMode.WORKING) api.workspaceVcsStatus(connection, directory)
+                    else api.workspaceVcsDiff(connection, directory, mode).also { gitDiffCache = it }
                 _uiState.update { it.copy(gitStatuses = statuses, isLoading = false) }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { Log.e(TAG, "Failed to load file status", e); _uiState.update { it.copy(error = e.message, isLoading = false) } }
+        }
+    }
+
+    fun openGitDiff(path: String) {
+        if (effectiveServerId !in connectionStateRepository.connectedServerIds.value) return
+        loadJob?.cancel()
+        val mode = _uiState.value.gitMode
+        _uiState.update { it.copy(gitDiffPath = path, gitDiff = null, gitDiffLoading = true, gitDiffError = null) }
+        loadJob = viewModelScope.launch {
+            try {
+                val changes = gitDiffCache ?: api.workspaceVcsDiff(connection, directory, mode).also { gitDiffCache = it }
+                _uiState.update { it.copy(gitDiff = changes.firstOrNull { change -> change.path == path }, gitDiffLoading = false) }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                Log.e(TAG, "Failed to load project diff", e)
+                _uiState.update { it.copy(gitDiffError = e.message, gitDiffLoading = false) }
+            }
         }
     }
 

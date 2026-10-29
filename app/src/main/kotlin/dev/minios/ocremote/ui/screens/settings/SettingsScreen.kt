@@ -1,4 +1,5 @@
 package dev.minios.ocremote.ui.screens.settings
+import dev.minios.ocremote.ui.components.readableContentWidth
 import dev.minios.ocremote.ui.components.AppDropdownMenu
 import dev.minios.ocremote.ui.components.AppDropdownMenuItem as DropdownMenuItem
 
@@ -61,6 +62,7 @@ import kotlin.math.roundToInt
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    showTopBar: Boolean = true,
     onNavigateToDiagnostics: () -> Unit = {},
     onNavigateToSync: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
@@ -132,7 +134,7 @@ fun SettingsScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
+            if (showTopBar) TopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -153,6 +155,7 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(padding)
+                .readableContentWidth()
                 .verticalScroll(rememberScrollState())
         ) {
             // ======== General ========
@@ -614,7 +617,7 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.settings_compress_images)) },
                 supportingContent = { Text(stringResource(R.string.settings_compress_images_desc)) },
                 leadingContent = {
-                    Icon(Lucide.ImageDown, contentDescription = null)
+                    Icon(Lucide.Scaling, contentDescription = null)
                 },
                 trailingContent = {
                     Switch(
@@ -833,6 +836,7 @@ internal fun SessionCategoriesDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
