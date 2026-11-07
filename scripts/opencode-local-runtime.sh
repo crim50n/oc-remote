@@ -76,7 +76,8 @@ proot_exec() {
 }
 
 rootfs_present() {
-    [[ -d "$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS" ]]
+    [[ -d "$PREFIX/var/lib/proot-distro/installed-rootfs/$DISTRO_ALIAS" ||
+       -d "$PREFIX/var/lib/proot-distro/containers/$DISTRO_ALIAS/rootfs" ]]
 }
 
 prepare_environment() {
@@ -160,16 +161,15 @@ profile_version_floor() {
     if [[ -f "$INSTALL_DIR/profile-versions/$profile" ]]; then
         value="$(cat "$INSTALL_DIR/profile-versions/$profile")"
         floor="$(parse_version "$value")" || die "Unrecognized version highwater for $profile"
-        [[ "v${floor%%.*}" == "${profile#legacy-}" ]] || die "Wrong major in profile highwater"
     fi
     # Also recover floors from installations made before highwater tracking existed.
-    for metadata in "$INSTALL_DIR"/releases/*/metadata.json; do
+    # Unpublished candidates have never used the profile and cannot establish a floor.
+    for metadata in "$INSTALL_DIR/active/metadata.json" "$INSTALL_DIR/previous/metadata.json"; do
         [[ -f "$metadata" ]] || continue
         value="$(jq -r --arg profile "$profile" 'if .profile == $profile then .version else empty end' "$metadata")" \
             || die "Unreadable retained profile descriptor"
         [[ -n "$value" ]] || continue
         value="$(parse_version "$value")" || die "Unrecognized retained profile version"
-        [[ "v${value%%.*}" == "${profile#legacy-}" ]] || die "Wrong major in retained profile descriptor"
         if [[ -z "$floor" ]] || version_at_least "$value" "$floor"; then floor="$value"; fi
     done
     if [[ "${PROFILE:-}" == "$profile" && "${INTEGRITY:-}" == ok ]]; then
@@ -220,7 +220,8 @@ detect_installation() {
         [[ "$target" =~ ^releases/[A-Za-z0-9._-]+$ ]] || return 0
         metadata="$INSTALL_DIR/$target/metadata.json"
         jq -e '(.channel == "v1" or .channel == "v2") and
-            (.profile == .channel or .profile == ("legacy-" + .channel)) and
+            (.profile == .channel or .profile == ("legacy-" + .channel) or
+             (.channel == "v2" and (.profile == "v1" or .profile == "legacy-v1"))) and
             (.executable | type == "string") and (.version | type == "string")' "$metadata" >/dev/null 2>&1 || return 0
         CHANNEL="$(jq -r .channel "$metadata")"
         PROFILE="$(jq -r .profile "$metadata")"
@@ -235,15 +236,27 @@ detect_installation() {
         if [[ "$observed" == "$VERSION" ]]; then INTEGRITY=ok; else INTEGRITY=mismatch; fi
         return 0
     fi
-    command -v proot-distro >/dev/null && rootfs_present || return 0
+    # Existing environments stay present even when proot or executable discovery fails.
+    # Missing is reserved for an actually absent rootfs with no legacy launcher evidence.
+    if ! rootfs_present; then
+        if [[ -e "$PREFIX/var/lib/proot-distro/containers/$DISTRO_ALIAS" ||
+              -L "$PREFIX/var/lib/proot-distro/containers/$DISTRO_ALIAS" ]]; then
+            SOURCE=unknown INTEGRITY=incomplete
+        elif [[ -e "$INSTALL_DIR/start.sh" || -L "$INSTALL_DIR/start.sh" ]] &&
+            [[ "$(readlink "$INSTALL_DIR/start.sh" 2>/dev/null || true)" != runtime-start.sh ]]; then
+            SOURCE=unknown INTEGRITY=unknown
+        fi
+        return 0
+    fi
+    SOURCE=unknown INTEGRITY=unknown
+    command -v proot-distro >/dev/null || { INTEGRITY=probe-failed; return 0; }
     # Honor the same executable precedence as the old start.sh; never silently fall through
     # an unrecognized first executable to a different major later in PATH.
     BINARY="$(proot_exec "for p in $(quote "$GUEST_HOME/.opencode/bin/opencode") \
         $(quote "$GUEST_HOME/.local/bin/opencode") /usr/local/bin/opencode; do
         if [[ -x \"\$p\" ]]; then printf '%s\\n' \"\$p\"; exit; fi; done
-        command -v opencode || true" 2>/dev/null || true)"
-    [[ -n "$BINARY" ]] || return 0
-    SOURCE=unknown INTEGRITY=unknown
+        command -v opencode || true" 2>/dev/null)" || { BINARY=""; INTEGRITY=probe-failed; return 0; }
+    [[ -n "$BINARY" ]] || { INTEGRITY=incomplete; return 0; }
     if VERSION="$(binary_version "$BINARY")"; then
         CHANNEL="v${VERSION%%.*}"
         PROFILE="legacy-$CHANNEL"
@@ -290,9 +303,6 @@ preserve_previous() {
     elif [[ "$INTEGRITY" == ok ]]; then
         old="releases/legacy-$(date +%s)-$$"
         write_metadata "$INSTALL_DIR/$old" "$CHANNEL" "$VERSION" "$BINARY" "$PROFILE"
-        # Remember the original legacy mapping when switching back in the future.
-        mkdir -p "$INSTALL_DIR/profiles"
-        printf '%s\n' "$PROFILE" >"$INSTALL_DIR/profiles/$CHANNEL"
     else
         return 0
     fi
@@ -310,17 +320,17 @@ choose_channel() {
     [[ "$REQUESTED_CHANNEL" == v1 || "$REQUESTED_CHANNEL" == v2 ]] || usage_error "No major selected"
 }
 
-confirm_switch() {
-    info "Switching to $REQUESTED_CHANNEL uses its own profile; authenticate/configure providers again. Old sessions/auth/config and projects are retained."
+confirm_v2_upgrade() {
+    info "One-way upgrade to V2 using the current configuration and data. Returning to V1 or the previous configuration is not supported. V1-only clients/plugins may stop working."
     (( CONFIRMED )) && return 0
     local answer=""
     if { exec 8<>/dev/tty; } 2>/dev/null; then
-        printf 'Switch OpenCode major? [y/N]: ' >&8
+        printf 'Upgrade this profile permanently to V2? [y/N]: ' >&8
         IFS= read -r answer <&8 || true
         exec 8>&-
     fi
     case "$answer" in y|Y|yes|YES) return 0 ;; esac
-    info "Switch cancelled; use --yes only after explicit confirmation"
+    info "Upgrade cancelled; use --yes only after explicit confirmation"
     exit 3
 }
 
@@ -384,6 +394,7 @@ parent_alive() {
 # Never replace an owner published by another attempt, even if startup was delayed.
 [[ ! -e "$CONTROL/owner" && ! -L "$CONTROL/owner" ]] || exit 1
 parent_alive || exit 1
+unset OPENCODE_PASSWORD
 source "$attempt/env"
 rm -f "$attempt/env"
 export HOME="$GUEST_HOME"
@@ -492,12 +503,14 @@ process_state() {
 }
 
 stop_owned_server() {
-    local state
+    local expected_request="${1:-}" state
     state="$(process_state)"
     [[ "$state" != unknown ]] || die "Unverified process/listener on the local runtime; refusing to signal it"
     [[ "$state" == owned ]] || return 0
     local target
     target="$(readlink "$INSTALL_DIR/owner" 2>/dev/null || true)"
+    [[ -z "$expected_request" || "$target" == "attempts/$expected_request/owner" ]] \
+        || die "Owned launch changed; refusing to stop another request"
     if [[ "$target" =~ ^attempts/([A-Za-z0-9][A-Za-z0-9_-]{0,63})/owner$ ]]; then
         revoke_attempt "${BASH_REMATCH[1]}"
         return
@@ -614,8 +627,8 @@ stage_release() {
     # Stage and validate before stopping a working server. Never restart with lost auth/proxy args.
     stop_owned_server
     preserve_previous
-    record_profile_version "$profile" "$version"
     publish_pointer active "releases/$id" || die "Cannot publish candidate; prior active pointer preserved"
+    record_profile_version "$profile" "$version"
     STAGE=""
     info "Selected $channel $version ($profile). Server is stopped; run opencode-runtime start."
 }
@@ -628,7 +641,7 @@ install_or_maintain() {
             choose_channel
             if [[ "$SOURCE" != missing ]]; then
                 require_known_installation
-                [[ "$CHANNEL" == "$REQUESTED_CHANNEL" ]] || die "Existing $CHANNEL is retained; use switch --channel $REQUESTED_CHANNEL --yes"
+                [[ "$CHANNEL" == "$REQUESTED_CHANNEL" ]] || die "Existing $CHANNEL is retained. Only upgrade-v2 --expected-channel v1 --yes can change the major"
                 require_profile_version "$PROFILE" "$VERSION"
                 prepare_environment
                 write_runtime_scripts
@@ -642,7 +655,10 @@ install_or_maintain() {
             prepare_environment
             # Environment preparation can expose an existing binary: recheck before replacement.
             detect_installation
-            [[ "$SOURCE" == missing ]] || die "A binary was discovered during setup; run doctor and choose install/switch explicitly"
+            # This branch started with no rootfs/launcher evidence. A successfully probed,
+            # still-empty rootfs just provisioned by prepare_environment is a fresh target.
+            [[ "$SOURCE" == missing || ( "$SOURCE" == unknown && "$INTEGRITY" == incomplete ) ]] \
+                || die "An existing or unverified binary was discovered during setup; run doctor before retrying"
             stage_release "$REQUESTED_CHANNEL" "$REQUESTED_CHANNEL"
             ;;
         update)
@@ -650,17 +666,13 @@ install_or_maintain() {
             ensure_guest_tools
             stage_release "$CHANNEL" "$PROFILE"
             ;;
-        switch)
-            require_known_installation
-            [[ "$REQUESTED_CHANNEL" != "$CHANNEL" ]] || die "Already using $CHANNEL; use update"
-            confirm_switch
+        upgrade-v2)
+            [[ "$EXPECTED_CHANNEL" == v1 ]] || die "Upgrade requires the confirmed V1 installation"
+            require_expected_channel v1
+            confirm_v2_upgrade
             ensure_guest_tools
-            local profile="$REQUESTED_CHANNEL"
-            if [[ -f "$INSTALL_DIR/profiles/$REQUESTED_CHANNEL" ]]; then
-                IFS= read -r profile <"$INSTALL_DIR/profiles/$REQUESTED_CHANNEL"
-                [[ "$profile" == "legacy-$REQUESTED_CHANNEL" ]] || die "Invalid legacy profile mapping"
-            fi
-            stage_release "$REQUESTED_CHANNEL" "$profile"
+            # V2 migrates supported V1 data at first start. Keep the same HOME/XDG roots.
+            stage_release v2 "$PROFILE"
             ;;
     esac
 }
@@ -704,6 +716,24 @@ write_runtime_scripts() {
 refresh_runtime_controller() {
     bootstrap_stdin refresh-runtime
     lock_runtime
+    write_runtime_scripts
+}
+
+# Explicit consent path for an old installation: prepare the new supervisor's tools
+# without installing/upgrading OpenCode, replacing the rootfs, or changing its profile.
+upgrade_runtime_controller() {
+    bootstrap_stdin upgrade-control
+    if ! command -v flock >/dev/null; then apt-get install -yq util-linux; fi
+    lock_runtime
+    if rootfs_present; then
+        proot_exec true || die "Existing Debian is unhealthy; preserve it and repair it manually"
+        proot_exec 'set -e
+            if command -v node >/dev/null && command -v ss >/dev/null &&
+                command -v setsid >/dev/null && command -v flock >/dev/null && command -v timeout >/dev/null; then exit; fi
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 update -qq
+            apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y -qq --no-install-recommends nodejs util-linux iproute2'
+    fi
     write_runtime_scripts
 }
 
@@ -854,20 +884,24 @@ stop_launch_on_signal() {
 
 status_snapshot() {
     detect_installation
-    local running busy=false owner=null
+    local running busy=false owner=null available
+    available="$(df -Pk "$HOME" 2>/dev/null | awk 'NR == 2 && $4 ~ /^[0-9]+$/ {printf "%.0f", $4 * 1024}')" || available=""
+    [[ "$available" =~ ^[0-9]+$ ]] || available=null
     running="$(process_state)"
     if [[ "$running" == owned ]]; then owner="$(owned_launch_json)"; fi
     if [[ -f "$INSTALL_DIR/lifecycle.lock" ]] && command -v flock >/dev/null; then
         flock -n "$INSTALL_DIR/lifecycle.lock" true || busy=true
     fi
     jq -n -c --arg channel "$CHANNEL" --arg version "$VERSION" --arg profile "$PROFILE" \
-        --arg source "$SOURCE" --arg integrity "$INTEGRITY" --arg running "$running" --argjson busy "$busy" --argjson owner "$owner" '
+        --arg source "$SOURCE" --arg integrity "$INTEGRITY" --arg running "$running" --argjson busy "$busy" --argjson owner "$owner" \
+        --argjson available "$available" '
         {schemaVersion:1,installed:($source != "missing"),
         channel:(if $channel == "" then null else $channel end),
         version:(if $version == "" then null else $version end),source:$source,
         profile:(if $profile == "" then null else $profile end),
         profileIsolated:($profile == "v1" or $profile == "v2"),
-        integrity:$integrity,running:$running,busy:$busy,owner:$owner}'
+        integrity:$integrity,running:$running,busy:$busy,owner:$owner,controllerReady:true,
+        supportsV2Upgrade:true,availableBytes:$available}'
 }
 
 bootstrap_stdin() {
@@ -893,14 +927,16 @@ usage() {
 Usage: opencode-runtime <command>
   install --channel v1|v2             Install or adopt the selected major
   update [--expected-channel v1|v2]    Update within the active major; reject stale major
-  switch --channel v1|v2 [--yes]        Explicit transition, separate profile/auth
+  upgrade-v2 --expected-channel v1 [--yes]  One-way upgrade of the current profile to V2
   start [--expected-channel v1|v2] [--proxy URL] [--no-proxy LIST] [--hostname HOST]
         [--server-username USER] [--server-password PASS]
         [--request-id ID] [--json [--detach]]  Correlated ownership acknowledgement
   stop                                Stop only the verified owned server
+    [--expected-request-id ID]         Refuse a replaced launch, including delayed app commands
   status [--json]                      Process status / safe version snapshot
   doctor [--json]                      Local installation diagnostics
   refresh-runtime                     Regenerate local wrappers, no download
+  upgrade-control                     Prepare supervisor tools and refresh wrappers; preserve OpenCode/data
   uninstall [--force]                  DELETE distro, projects and all profiles
 USAGE
 }
@@ -911,7 +947,7 @@ main() {
     [[ "${1:-}" != --skip-self-update ]] || shift
     local command="${1:-install}"
     (( $# == 0 )) || shift
-    REQUESTED_CHANNEL="" EXPECTED_CHANNEL="" CONFIRMED=0
+    REQUESTED_CHANNEL="" EXPECTED_CHANNEL="" EXPECTED_REQUEST_ID="" CONFIRMED=0
     local json=0 force=0
     if [[ "$command" == start ]]; then
         require_termux
@@ -922,18 +958,23 @@ main() {
     while (( $# )); do
         case "$1" in
             --channel)
-                [[ "$command" == install || "$command" == switch ]] || usage_error "--channel is only valid for install/switch"
+                [[ "$command" == install ]] || usage_error "--channel is only valid for install"
                 [[ $# -ge 2 && -z "$REQUESTED_CHANNEL" ]] || usage_error "One --channel value is required"
                 REQUESTED_CHANNEL="$2"; shift
                 [[ "$REQUESTED_CHANNEL" == v1 || "$REQUESTED_CHANNEL" == v2 ]] || usage_error "Channel must be v1 or v2"
                 ;;
             --expected-channel)
-                [[ "$command" == update ]] || usage_error "--expected-channel is only valid for update/start"
+                [[ "$command" == update || "$command" == upgrade-v2 ]] || usage_error "--expected-channel is only valid for update/upgrade-v2/start"
                 [[ $# -ge 2 && -z "$EXPECTED_CHANNEL" ]] || usage_error "One --expected-channel value is required"
                 EXPECTED_CHANNEL="$2"; shift
                 [[ "$EXPECTED_CHANNEL" == v1 || "$EXPECTED_CHANNEL" == v2 ]] || usage_error "Expected channel must be v1 or v2"
                 ;;
-            --yes) [[ "$command" == switch ]] || usage_error "--yes is only valid for switch"; CONFIRMED=1 ;;
+            --expected-request-id)
+                [[ "$command" == stop && $# -ge 2 && -z "$EXPECTED_REQUEST_ID" ]] || usage_error "One stop request ID is required"
+                [[ "$2" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$ ]] || usage_error "Invalid stop request ID"
+                EXPECTED_REQUEST_ID="$2"; shift
+                ;;
+            --yes) [[ "$command" == upgrade-v2 ]] || usage_error "--yes is only valid for upgrade-v2"; CONFIRMED=1 ;;
             --json) [[ "$command" == status || "$command" == doctor ]] || usage_error "--json is only valid for status/doctor"; json=1 ;;
             --force) [[ "$command" == uninstall ]] || usage_error "--force is only valid for uninstall"; force=1 ;;
             *) usage_error "Unknown argument: $1" ;;
@@ -955,8 +996,7 @@ main() {
                 esac
             fi
             ;;
-        install|update|switch)
-            [[ "$command" != switch || -n "$REQUESTED_CHANNEL" ]] || usage_error "switch requires --channel v1|v2"
+        install|update|upgrade-v2)
             [[ "$command" != install ]] || choose_channel
             local bootstrap_args=("$command")
             [[ -z "$REQUESTED_CHANNEL" ]] || bootstrap_args+=(--channel "$REQUESTED_CHANNEL")
@@ -970,10 +1010,11 @@ main() {
             lock_runtime
             install_or_maintain "$command"
             ;;
-        stop) lock_runtime; stop_owned_server ;;
+        stop) lock_runtime; stop_owned_server "$EXPECTED_REQUEST_ID" ;;
         refresh-runtime) refresh_runtime_controller ;;
-        reinstall|reinstall-opencode)
-            die "Destructive reinstall is retired. Use update or switch --channel v1|v2 --yes; data/projects are retained"
+        upgrade-control) upgrade_runtime_controller ;;
+        switch|reinstall|reinstall-opencode)
+            die "Branch switching and destructive reinstall are retired. Use update or the one-way upgrade-v2 --expected-channel v1 --yes"
             ;;
         uninstall)
             (( force )) || die "Uninstall deletes Debian/projects/all profiles; pass --force only after backing up"
