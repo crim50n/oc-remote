@@ -120,13 +120,13 @@ prepare_environment() {
 
 ensure_guest_tools() {
     proot_exec 'set -e
-        if command -v npm >/dev/null && command -v node >/dev/null && command -v ss >/dev/null &&
+        if command -v node >/dev/null && command -v ss >/dev/null &&
             command -v setsid >/dev/null && command -v timeout >/dev/null &&
             dpkg -s ca-certificates curl git ripgrep tmux procps bash >/dev/null 2>&1; then exit; fi
         export DEBIAN_FRONTEND=noninteractive
         apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 update -qq
         apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y -qq --no-install-recommends \
-            ca-certificates curl git ripgrep tmux procps bash nodejs npm util-linux iproute2'
+            ca-certificates curl git ripgrep tmux procps bash nodejs util-linux iproute2'
 }
 
 # Accept exactly one stable version line, optionally prefixed by the product name/v.
@@ -604,27 +604,48 @@ emit_start_result() {
 }
 
 stage_release() {
-    local channel="$1" profile="$2" spec id prefix version
-    case "$channel" in v1) spec="opencode-ai@1" ;; v2) spec="@opencode/cli@2" ;; esac
+    local channel="$1" profile="$2" installer id prefix version
+    # Install and update BOTH use OpenCode's official curl installers, never npm.
+    # Stage into an isolated HOME; the existing executable remains untouched until validation.
+    case "$channel" in
+        v1) installer="https://opencode.ai/install" ;;
+        v2) installer="https://opencode.ai/v2/install" ;;
+        *) die "Unsupported OpenCode channel $channel" ;;
+    esac
     id="$channel-$(date +%s)-$$-$RANDOM"
     prefix="$GUEST_BASE/releases/$id"
     STAGE="$prefix"
-    info "Staging $spec (stable releases within $channel)"
-    # npm's major range excludes prereleases. Each attempt gets a fresh prefix and probe HOME.
-    proot_exec "set -e; mkdir -p $(quote "$prefix"); p=\$(mktemp -d)
-        trap 'rm -rf \"\$p\"' EXIT
-        export HOME=\"\$p\" XDG_DATA_HOME=\"\$p/data\" XDG_CONFIG_HOME=\"\$p/config\"
-        export XDG_STATE_HOME=\"\$p/state\" XDG_CACHE_HOME=\"\$p/cache\"
-        cd \"\$p\"
-        npm install --global --prefix $(quote "$prefix") --no-audit --no-fund $(quote "$spec")" >&2 \
-        || die "Package installation failed; active binary/profile preserved"
+    info "Staging official OpenCode $channel installer (stable releases only)"
+    proot_exec "set -euo pipefail
+        prefix=$(quote "$prefix")
+        mkdir -p \"\$prefix\"
+        export HOME=\"\$prefix\" XDG_DATA_HOME=\"\$prefix/.local/share\"
+        export XDG_CONFIG_HOME=\"\$prefix/.config\" XDG_STATE_HOME=\"\$prefix/.local/state\"
+        export XDG_CACHE_HOME=\"\$prefix/.cache\" TMPDIR=\"\$prefix/.cache/tmp\"
+        mkdir -p \"\$TMPDIR\"
+        # A previous V1 binary in PATH must not short-circuit the staged installer.
+        export PATH=\"\$(printf '%s' \"\$PATH\" | sed 's#^/root/.opencode/bin:##')\"
+        unset VERSION OPENCODE_CONFIG OPENCODE_CONFIG_DIR OPENCODE_CONFIG_CONTENT
+        unset OPENCODE_BIN_PATH OPENCODE_TEST_HOME
+        cd \"\$prefix\"
+        curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+            --connect-timeout 15 --max-time 60 $(quote "$installer") -o \"\$prefix/.official-install.sh\"
+        test -s \"\$prefix/.official-install.sh\"
+        bash -n \"\$prefix/.official-install.sh\"
+        bash \"\$prefix/.official-install.sh\" --no-modify-path
+        test -x \"\$prefix/.opencode/bin/opencode\"
+        mkdir -p \"\$prefix/bin\"
+        mv \"\$prefix/.opencode/bin/opencode\" \"\$prefix/bin/opencode\"
+        chmod 700 \"\$prefix/bin/opencode\"
+        rm -f \"\$prefix/.official-install.sh\"" >&2 \
+        || die "Official OpenCode installation failed; active binary/profile preserved"
     version="$(binary_version "$prefix/bin/opencode")" || die "Candidate did not report a stable V1/V2 version"
-    [[ "v${version%%.*}" == "$channel" ]] || die "Wrong package major: expected $channel, received $version"
+    [[ "v$(printf '%s' "$version" | cut -d. -f1)" == "$channel" ]] ||
+        die "Wrong package major: expected $channel, received $version"
     require_profile_version "$profile" "$version"
     write_metadata "$INSTALL_DIR/releases/$id" "$channel" "$version" "$prefix/bin/opencode" "$profile"
-    # Wrapper publication can fail (e.g. full storage). Do it before committing a new binary.
     write_runtime_scripts
-    # Stage and validate before stopping a working server. Never restart with lost auth/proxy args.
+    # Validation and wrapper preparation precede stopping the exact owned server.
     stop_owned_server
     preserve_previous
     publish_pointer active "releases/$id" || die "Cannot publish candidate; prior active pointer preserved"
