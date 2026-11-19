@@ -16,7 +16,6 @@ DEBIAN_ROOTFS_URL="https://github.com/termux/proot-distro/releases/download/v4.2
 DEBIAN_ROOTFS_SHA256="3834a11cbc6496935760bdc20cca7e2c25724d0cd8f5e4926da8fd5ca1857918"
 WAKE_LOCK_HELD=0
 LOCK_HELD=0
-STAGE=""
 START_REGISTRATION_POLLS=100
 START_REQUEST_ID=""
 START_JSON=0
@@ -45,8 +44,6 @@ cleanup() {
     fi
     if (( START_JSON && START_RESULT_EMITTED == 0 )); then emit_start_result "$START_RESULT" null; fi
     unlock_runtime
-    # Unpublished prefixes are intentionally retained for diagnosis; never remove profiles.
-    [[ -z "$STAGE" ]] || info "Unpublished candidate retained: $STAGE"
     if (( WAKE_LOCK_HELD )) && command -v termux-wake-unlock >/dev/null; then
         termux-wake-unlock >/dev/null 2>&1 || true
     fi
@@ -603,55 +600,40 @@ emit_start_result() {
         profile:(if $profile == "" then null else $profile end),owner:$owner}'
 }
 
-stage_release() {
-    local channel="$1" profile="$2" installer id prefix version
-    # Install and update BOTH use OpenCode's official curl installers, never npm.
-    # Stage into an isolated HOME; the existing executable remains untouched until validation.
+install_official() {
+    local channel="$1" profile="$2" installer binary version
+    # Let OpenCode's official installer handle downloads, extraction and replacement.
+    # This controller only selects the major and checks the result for its server lifecycle.
     case "$channel" in
         v1) installer="https://opencode.ai/install" ;;
         v2) installer="https://opencode.ai/v2/install" ;;
         *) die "Unsupported OpenCode channel $channel" ;;
     esac
-    id="$channel-$(date +%s)-$$-$RANDOM"
-    prefix="$GUEST_BASE/releases/$id"
-    STAGE="$prefix"
-    info "Staging official OpenCode $channel installer (stable releases only)"
+    binary="$GUEST_HOME/.opencode/bin/opencode"
+    info "Installing OpenCode $channel using the official installer"
     proot_exec "set -euo pipefail
-        prefix=$(quote "$prefix")
-        mkdir -p \"\$prefix\"
-        export HOME=\"\$prefix\" XDG_DATA_HOME=\"\$prefix/.local/share\"
-        export XDG_CONFIG_HOME=\"\$prefix/.config\" XDG_STATE_HOME=\"\$prefix/.local/state\"
-        export XDG_CACHE_HOME=\"\$prefix/.cache\" TMPDIR=\"\$prefix/.cache/tmp\"
-        mkdir -p \"\$TMPDIR\"
-        # A previous V1 binary in PATH must not short-circuit the staged installer.
-        export PATH=\"\$(printf '%s' \"\$PATH\" | sed 's#^/root/.opencode/bin:##')\"
+        export HOME=$(quote "$GUEST_HOME")
         unset VERSION OPENCODE_CONFIG OPENCODE_CONFIG_DIR OPENCODE_CONFIG_CONTENT
         unset OPENCODE_BIN_PATH OPENCODE_TEST_HOME
-        cd \"\$prefix\"
+        cd \"\$HOME\"
         curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
-            --connect-timeout 15 --max-time 60 $(quote "$installer") -o \"\$prefix/.official-install.sh\"
-        test -s \"\$prefix/.official-install.sh\"
-        bash -n \"\$prefix/.official-install.sh\"
-        bash \"\$prefix/.official-install.sh\" --no-modify-path
-        test -x \"\$prefix/.opencode/bin/opencode\"
-        mkdir -p \"\$prefix/bin\"
-        mv \"\$prefix/.opencode/bin/opencode\" \"\$prefix/bin/opencode\"
-        chmod 700 \"\$prefix/bin/opencode\"
-        rm -f \"\$prefix/.official-install.sh\"" >&2 \
-        || die "Official OpenCode installation failed; active binary/profile preserved"
-    version="$(binary_version "$prefix/bin/opencode")" || die "Candidate did not report a stable V1/V2 version"
-    [[ "v$(printf '%s' "$version" | cut -d. -f1)" == "$channel" ]] ||
-        die "Wrong package major: expected $channel, received $version"
+            --connect-timeout 15 --max-time 60 $(quote "$installer") |
+            bash -s -- --no-modify-path" >&2 ||
+        die "Official OpenCode installer failed"
+    version="$(binary_version "$binary")" || die "Installed OpenCode version is unavailable"
+    [[ "v${version%%.*}" == "$channel" ]] ||
+        die "OpenCode installer returned the wrong major: $version"
     require_profile_version "$profile" "$version"
-    write_metadata "$INSTALL_DIR/releases/$id" "$channel" "$version" "$prefix/bin/opencode" "$profile"
-    write_runtime_scripts
-    # Validation and wrapper preparation precede stopping the exact owned server.
-    stop_owned_server
-    preserve_previous
-    publish_pointer active "releases/$id" || die "Cannot publish candidate; prior active pointer preserved"
+    # Reuse the selected data profile when an older OC Remote managed installation
+    # already has one. No release snapshot, backup or alternative binary is created.
+    # An already running server keeps its current process until explicitly restarted.
+    # The installer alone owns the binary replacement.
+    if [[ "$SOURCE" == managed ]]; then
+        write_metadata "$INSTALL_DIR/active" "$channel" "$version" "$binary" "$profile"
+    fi
     record_profile_version "$profile" "$version"
-    STAGE=""
-    info "Selected $channel $version ($profile). Server is stopped; run opencode-runtime start."
+    write_runtime_scripts
+    info "Installed OpenCode $channel $version. Restart the server if it was stopped."
 }
 
 install_or_maintain() {
@@ -662,38 +644,29 @@ install_or_maintain() {
             choose_channel
             if [[ "$SOURCE" != missing ]]; then
                 require_known_installation
-                [[ "$CHANNEL" == "$REQUESTED_CHANNEL" ]] || die "Existing $CHANNEL is retained. Only upgrade-v2 --expected-channel v1 --yes can change the major"
-                require_profile_version "$PROFILE" "$VERSION"
+                [[ "$CHANNEL" == "$REQUESTED_CHANNEL" ]] ||
+                    die "Existing $CHANNEL is retained. Only upgrade-v2 --expected-channel v1 --yes can change major"
                 prepare_environment
-                write_runtime_scripts
-                if [[ "$SOURCE" == legacy ]]; then
-                    preserve_previous
-                    publish_pointer active "$(readlink "$INSTALL_DIR/previous")"
-                fi
-                info "Existing $CHANNEL $VERSION preserved ($PROFILE); use update for a newer same-major version"
-                return
+                install_official "$CHANNEL" "$PROFILE"
+            else
+                prepare_environment
+                detect_installation
+                [[ "$SOURCE" == missing || ( "$SOURCE" == unknown && "$INTEGRITY" == incomplete ) ]] ||
+                    die "An existing or unverified binary was discovered during setup; run doctor"
+                install_official "$REQUESTED_CHANNEL" "legacy-$REQUESTED_CHANNEL"
             fi
-            prepare_environment
-            # Environment preparation can expose an existing binary: recheck before replacement.
-            detect_installation
-            # This branch started with no rootfs/launcher evidence. A successfully probed,
-            # still-empty rootfs just provisioned by prepare_environment is a fresh target.
-            [[ "$SOURCE" == missing || ( "$SOURCE" == unknown && "$INTEGRITY" == incomplete ) ]] \
-                || die "An existing or unverified binary was discovered during setup; run doctor before retrying"
-            stage_release "$REQUESTED_CHANNEL" "$REQUESTED_CHANNEL"
             ;;
         update)
             require_expected_channel "$EXPECTED_CHANNEL"
             ensure_guest_tools
-            stage_release "$CHANNEL" "$PROFILE"
+            install_official "$CHANNEL" "$PROFILE"
             ;;
         upgrade-v2)
             [[ "$EXPECTED_CHANNEL" == v1 ]] || die "Upgrade requires the confirmed V1 installation"
             require_expected_channel v1
             confirm_v2_upgrade
             ensure_guest_tools
-            # V2 migrates supported V1 data at first start. Keep the same HOME/XDG roots.
-            stage_release v2 "$PROFILE"
+            install_official v2 "$PROFILE"
             ;;
     esac
 }

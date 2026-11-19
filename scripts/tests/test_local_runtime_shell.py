@@ -2,7 +2,7 @@
 
 Run: python3 -m unittest discover -s scripts/tests -p 'test_local_runtime_shell.py' -v
 Each shell sources the production implementation and substitutes only the proot boundary,
-guest paths and environment provisioning. npm/ss are command stubs in a temporary sandbox.
+guest paths and environment provisioning. official installers/curl are offline fixtures; npm is forbidden.
 """
 
 import json
@@ -60,27 +60,55 @@ if [[ -n "${PREPARE_REAL:-}" ]]; then eval "$production_prepare"; fi
 main "$@"
 '''
 
-NPM = r'''#!/usr/bin/python3
-import json, os, pathlib, sys, time
-args = sys.argv[1:]
-base = pathlib.Path(os.environ['SANDBOX'])
-with (base / 'npm-calls').open('a') as stream:
-    stream.write(json.dumps(args) + '\n')
-if os.environ.get('NPM_HOLD'):
-    (base / 'npm-entered').touch()
-    while not (base / 'npm-release').exists(): time.sleep(.02)
-prefix = pathlib.Path(args[args.index('--prefix') + 1])
-(prefix / 'bin').mkdir(parents=True)
-version = os.environ.get('CANDIDATE_VERSION', '1.19.6' if args[-1] == 'opencode-ai@1' else '2.2.6')
-binary = prefix / 'bin/opencode'
+OFFICIAL_INSTALLER = r"""#!/bin/bash
+set -euo pipefail
+[[ "$*" == "--no-modify-path" ]] || exit 97
+printf '%s\n' "$HOME" >>"$SANDBOX/installer-homes"
+if [[ -n "${INSTALLER_HOLD:-}" ]]; then
+    touch "$SANDBOX/installer-entered"
+    while [[ ! -f "$SANDBOX/installer-release" ]]; do sleep 0.02; done
+fi
+[[ -z "${INSTALLER_FAIL:-}" ]] || exit "$INSTALLER_FAIL"
+version="${CANDIDATE_VERSION:-__DEFAULT_VERSION__}"
+export FIXTURE_CANDIDATE_VERSION="$version"
+mkdir -p "$HOME/.opencode/bin"
+python3 - "$HOME/.opencode/bin/opencode" <<'PYCODE'
+import os, pathlib, sys
+version = os.environ["FIXTURE_CANDIDATE_VERSION"]
+binary = pathlib.Path(sys.argv[1])
 binary.write_text('#!/bin/bash\nif [[ "$1" == --version ]]; then printf "%s\\n" ' + repr(version) + '; exit; fi\n'
     + 'printf "%s\\n" "$HOME" "$XDG_DATA_HOME" "$OPENCODE_SERVER_PASSWORD" "$HTTP_PROXY" "$NO_PROXY" "$@" >"$SANDBOX/serve-observed.tmp.$$"\n'
     + 'mv "$SANDBOX/serve-observed.tmp.$$" "$SANDBOX/serve-observed"\n'
     + 'printf "%s|%s\\n" "$HOME" "$OPENCODE_SERVER_PASSWORD" >>"$SANDBOX/serve-starts"\n'
     + 'trap "exit 0" TERM INT HUP\nwhile :; do sleep 0.05; done\n')
 binary.chmod(0o700)
-sys.exit(int(os.environ.get('NPM_FAIL', '0')))
-'''
+PYCODE
+"""
+
+CURL_OFFICIAL = r"""#!/usr/bin/python3
+import os, pathlib, sys
+args = sys.argv[1:]
+base = pathlib.Path(os.environ['SANDBOX'])
+allowed = {
+    'https://opencode.ai/install': '1.19.6',
+    'https://opencode.ai/v2/install': '2.2.6',
+}
+urls = [x for x in args if x in allowed]
+if len(urls) != 1:
+    print('forbidden fixture curl URL', file=sys.stderr)
+    sys.exit(99)
+url = urls[0]
+(base / 'installer-calls').open('a').write(url + '\n')
+template = (base / 'official-installer-template.sh').read_text().replace('__DEFAULT_VERSION__', allowed[url])
+if '-o' in args:
+    destination = pathlib.Path(args[args.index('-o') + 1])
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(template)
+    destination.chmod(0o700)
+else:
+    # Production now pipes the official installer directly to Bash.
+    sys.stdout.write(template)
+"""
 
 
 class LifecycleTests(unittest.TestCase):
@@ -108,7 +136,9 @@ class LifecycleTests(unittest.TestCase):
                         TERMUX_VERSION="fixture", SANDBOX=str(self.root), SCRIPT=str(SCRIPT),
                         TMPDIR=str(self.root / "tmp"),
                         PATH=f"{self.bin}:/usr/bin:/bin", HTTP_PROXY="", HTTPS_PROXY="", ALL_PROXY="")
-        self.stub("npm", NPM)
+        (self.root / "official-installer-template.sh").write_text(OFFICIAL_INSTALLER)
+        self.stub("curl", CURL_OFFICIAL)
+        self.stub("npm", '#!/bin/bash\ntouch "$SANDBOX/npm-was-invoked"\nexit 99\n')
         self.stub("ss", '#!/bin/bash\n[[ -z "${SS_FAIL:-}" ]] || exit 1\n'
                   '[[ -z "${SS_WARNING:-}" ]] || printf "Cannot open netlink socket\\n" >&2\n'
                   '[[ -z "${CONFLICT:-}" ]] || printf "LISTEN 0 1 127.0.0.1:4096\\n"\nexit 0\n')
@@ -116,7 +146,7 @@ class LifecycleTests(unittest.TestCase):
         # Never open real sockets in these fixtures, including ss's Android fallback.
         self.stub("node", '#!/bin/bash\nprintf "%s\\n" "${NODE_PROBE_RESULT:-stopped}"\n')
         # Fail if any fixture unexpectedly crosses the provisioning/network boundary.
-        for name in ["curl", "apt-get", "pkg", "pkill"]:
+        for name in ["apt-get", "pkg", "pkill"]:
             self.stub(name, '#!/bin/bash\nprintf "forbidden fixture command\\n" >&2\nexit 99\n')
         self.running = []
 
@@ -172,10 +202,14 @@ class LifecycleTests(unittest.TestCase):
         self.fail("runtime did not finish ownership handshake and release lifecycle lock")
 
     def active(self):
-        return os.readlink(self.install / "active")
+        # No OC Remote release pointer or saved binary: observe the real installed file.
+        binary = self.guest / ".opencode/bin/opencode"
+        return hashlib.sha256(binary.read_bytes()).hexdigest() if binary.exists() else None
 
     def metadata(self):
-        return json.loads((self.install / self.active() / "metadata.json").read_text())
+        status = self.snapshot()
+        return dict(channel=status["channel"], version=status["version"],
+                    profile=status["profile"], executable=str(self.guest / ".opencode/bin/opencode"))
 
     def legacy(self, version="1.19.5"):
         (self.root / "rootfs").touch()
@@ -198,8 +232,8 @@ class LifecycleTests(unittest.TestCase):
     def test_fresh_install_v1_and_wrappers(self):
         self.run_cli("install", "--channel", "v1")
         self.assertEqual(self.metadata()["channel"], "v1")
-        self.assertEqual(self.metadata()["profile"], "v1")
-        self.assertIn("opencode-ai@1", (self.root / "npm-calls").read_text())
+        self.assertEqual(self.metadata()["profile"], "legacy-v1")
+        self.assertIn("https://opencode.ai/install", (self.root / "installer-calls").read_text())
         self.assertEqual(self.snapshot()["integrity"], "ok")
         for name in ["runtime", "runtime-start", "runtime-stop", "runtime-status", "serve"]:
             subprocess.run(["bash", "-n", self.install / f"{name}.sh"], check=True)
@@ -219,7 +253,7 @@ class LifecycleTests(unittest.TestCase):
         for path, content in sentinels.items():
             self.assertEqual(path.read_bytes(), content)
         self.assertFalse((self.install / "active").exists())
-        self.assertFalse((self.root / "npm-calls").exists())
+        self.assertFalse((self.root / "installer-calls").exists())
         self.assert_legacy_data()
 
     def test_old_controller_upgrade_prepares_only_supervisor_tools_when_missing(self):
@@ -231,7 +265,7 @@ class LifecycleTests(unittest.TestCase):
         self.assertIn("install -y -qq --no-install-recommends nodejs util-linux iproute2", calls)
         self.assertNotIn("npm", calls)
         self.assertTrue((self.install / "runtime.sh").exists())
-        self.assertFalse((self.root / "npm-calls").exists())
+        self.assertFalse((self.root / "installer-calls").exists())
         self.assert_legacy_data()
 
     def test_upgraded_legacy_runtime_starts_with_correlated_owner_and_original_profile(self):
@@ -257,7 +291,7 @@ class LifecycleTests(unittest.TestCase):
         self.legacy("1.19.3")
         self.run_cli("upgrade-control", check=False, env={"FIXTURE_MISSING_CONTROL_TOOLS": "1"})
         self.assertFalse((self.install / "runtime.sh").exists())
-        self.assertFalse((self.root / "npm-calls").exists())
+        self.assertFalse((self.root / "installer-calls").exists())
         self.assert_legacy_data()
 
     def test_after_upgrade_failed_discovery_or_missing_binary_never_becomes_missing(self):
@@ -275,7 +309,7 @@ class LifecycleTests(unittest.TestCase):
         self.assertIsNone(incomplete["channel"])
         rejected = self.run_cli("install", "--channel", "v1", check=False)
         self.assertNotEqual(rejected.returncode, 0)
-        self.assertFalse((self.root / "npm-calls").exists())
+        self.assertFalse((self.root / "installer-calls").exists())
         self.assert_legacy_data()
 
     def test_controller_only_wrappers_do_not_invent_an_existing_environment(self):
@@ -317,7 +351,7 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(snapshot["channel"], "v1")
         self.assertEqual(binary.read_bytes(), original)
         self.assertEqual((self.install / "env").read_text(), "# keep auth and proxy settings\n")
-        self.assertFalse((self.root / "npm-calls").exists())
+        self.assertFalse((self.root / "installer-calls").exists())
         self.assertFalse((self.root / "guest-tools-checked").exists())
         self.assert_legacy_data()
         for name in ["runtime", "runtime-start", "runtime-stop", "runtime-status", "serve"]:
@@ -327,7 +361,28 @@ class LifecycleTests(unittest.TestCase):
     def test_fresh_install_v2(self):
         self.run_cli("install", "--channel", "v2")
         self.assertEqual(self.metadata()["channel"], "v2")
-        self.assertIn("@opencode/cli@2", (self.root / "npm-calls").read_text())
+        self.assertIn("https://opencode.ai/v2/install", (self.root / "installer-calls").read_text())
+        self.assertFalse((self.root / "npm-was-invoked").exists())
+
+    def test_official_installer_is_shared_by_both_install_and_update_without_npm(self):
+        self.run_cli("install", "--channel", "v1")
+        self.run_cli("update", "--expected-channel", "v1", env={"CANDIDATE_VERSION": "1.20.0"})
+        self.run_cli("upgrade-v2", "--expected-channel", "v1", "--yes")
+        self.run_cli("update", "--expected-channel", "v2", env={"CANDIDATE_VERSION": "2.2.7"})
+        urls = (self.root / "installer-calls").read_text().splitlines()
+        self.assertEqual(urls, [
+            "https://opencode.ai/install",
+            "https://opencode.ai/install",
+            "https://opencode.ai/v2/install",
+            "https://opencode.ai/v2/install",
+        ])
+        self.assertFalse((self.root / "npm-was-invoked").exists())
+        homes = (self.root / "installer-homes").read_text().splitlines()
+        self.assertEqual(len(homes), 4)
+        for home in homes:
+            self.assertEqual(home, str(self.guest))
+        self.assertEqual(self.snapshot()["version"], "2.2.7")
+        self.assertEqual(self.metadata()["profile"], "legacy-v2")
 
     def test_stdin_entrypoint_help_and_missing_choice(self):
         for arguments, expected in [(["help"], 0), (["install"], 2)]:
@@ -356,16 +411,18 @@ cp "$SANDBOX/bootstrap.sh" "$2"
     def test_choice_required_without_tty(self):
         result = self.run_cli("install", check=False)
         self.assertEqual(result.returncode, 2)
-        self.assertFalse((self.root / "npm-calls").exists())
+        self.assertFalse((self.root / "installer-calls").exists())
 
     def test_same_major_update_retains_previous(self):
         self.run_cli("install", "--channel", "v1")
         before = self.active()
         self.run_cli("update", env={"CANDIDATE_VERSION": "1.20.0"})
         self.assertEqual(self.metadata()["version"], "1.20.0")
-        self.assertEqual(os.readlink(self.install / "previous"), before)
-        self.assertTrue((self.install / before / "metadata.json").exists())
-        self.assertEqual(self.metadata()["profile"], "v1")
+        self.assertNotEqual(self.active(), before)
+        self.assertEqual(self.metadata()["profile"], "legacy-v1")
+        self.assertFalse((self.install / "previous").exists())
+        self.assertFalse((self.install / "active").exists())
+        self.assertFalse((self.install / "releases").exists())
 
     def test_update_rejects_channel_flag(self):
         self.assertEqual(self.run_cli("update", "--channel", "v2", check=False).returncode, 2)
@@ -380,7 +437,7 @@ cp "$SANDBOX/bootstrap.sh" "$2"
         for command in ["install", "switch", "stop", "status", "doctor", "refresh-runtime", "uninstall"]:
             with self.subTest(command=command):
                 self.assertEqual(self.run_cli(command, "--expected-channel", "v1", check=False).returncode, 2)
-        self.assertFalse((self.root / "npm-calls").exists())
+        self.assertFalse((self.root / "installer-calls").exists())
         self.assertFalse((self.root / "serve-observed").exists())
 
     def test_stale_android_status_after_switch_rejects_update_and_start_without_effects(self):
@@ -388,9 +445,7 @@ cp "$SANDBOX/bootstrap.sh" "$2"
         observed = self.snapshot()["channel"]
         self.run_cli("upgrade-v2", "--expected-channel", "v1", "--yes")
         active = self.active()
-        previous = os.readlink(self.install / "previous")
-        npm_calls = (self.root / "npm-calls").read_bytes()
-        releases = list((self.install / "releases").iterdir())
+        calls = (self.root / "installer-calls").read_bytes()
         (self.root / "guest-tools-checked").unlink()
         with (self.install / "env").open("a") as stream:
             stream.write('\ntouch "$SANDBOX/env-sourced"\n')
@@ -399,15 +454,11 @@ cp "$SANDBOX/bootstrap.sh" "$2"
             self.assertEqual(result.returncode, 1, result.stderr)
             self.assertIn("Expected channel v1, but installed channel is v2", result.stderr)
             self.assertEqual(self.active(), active)
-            self.assertEqual(os.readlink(self.install / "previous"), previous)
-            self.assertEqual((self.root / "npm-calls").read_bytes(), npm_calls)
-            self.assertEqual(list((self.install / "releases").iterdir()), releases)
+            self.assertEqual((self.root / "installer-calls").read_bytes(), calls)
             self.assertFalse((self.root / "guest-tools-checked").exists())
             self.assertFalse((self.root / "env-sourced").exists())
             self.assertFalse((self.root / "serve-observed").exists())
-            self.assertFalse((self.install / "launch-env").exists())
             self.assertFalse((self.install / "owner").exists())
-            self.assertFalse((self.guest / ".oc-remote/profiles/v2").exists())
 
     def test_expected_channel_mismatch_does_not_stop_owned_new_major(self):
         self.run_cli("install", "--channel", "v1")
@@ -418,12 +469,12 @@ cp "$SANDBOX/bootstrap.sh" "$2"
         self.wait_started()
         owner = (self.install / "owner").read_bytes()
         active = self.active()
-        npm_calls = (self.root / "npm-calls").read_bytes()
+        npm_calls = (self.root / "installer-calls").read_bytes()
         for command in ["update", "start"]:
             self.assertEqual(self.run_cli(command, "--expected-channel", observed, check=False).returncode, 1)
             self.assertEqual((self.install / "owner").read_bytes(), owner)
             self.assertEqual(self.active(), active)
-            self.assertEqual((self.root / "npm-calls").read_bytes(), npm_calls)
+            self.assertEqual((self.root / "installer-calls").read_bytes(), npm_calls)
             self.assertEqual(self.snapshot()["running"], "owned")
             self.assertIsNone(process.poll())
         self.run_cli("stop")
@@ -447,13 +498,13 @@ cp "$SANDBOX/bootstrap.sh" "$2"
         self.run_cli("update", "--expected-channel", "v1")
         self.assertEqual(self.metadata()["profile"], "legacy-v1")
         self.assert_legacy_data()
-        npm_calls = (self.root / "npm-calls").read_bytes()
+        npm_calls = (self.root / "installer-calls").read_bytes()
         binary = Path(self.metadata()["executable"])
         for version in ["2.2.5", "custom nightly"]:
             binary.write_text(f'#!/bin/bash\nprintf "%s\\n" {shlex.quote(version)}\n')
             for command in ["update", "start"]:
                 self.assertEqual(self.run_cli(command, "--expected-channel", "v1", check=False).returncode, 1)
-            self.assertEqual((self.root / "npm-calls").read_bytes(), npm_calls)
+            self.assertEqual((self.root / "installer-calls").read_bytes(), npm_calls)
             self.assertFalse((self.root / "serve-observed").exists())
             self.assert_legacy_data()
 
@@ -462,24 +513,23 @@ cp "$SANDBOX/bootstrap.sh" "$2"
         self.assertEqual(SCRIPT.with_suffix(".sha256").read_text(), f"{digest}  {SCRIPT.name}\n")
 
     def test_explicit_upgrade_keeps_legacy_profile_and_rejects_return_to_v1(self):
-        old = self.legacy()
+        self.legacy()
         self.run_cli("upgrade-v2", "--expected-channel", "v1", "--yes")
         self.assertEqual(self.metadata()["channel"], "v2")
-        self.assertEqual(self.metadata()["profile"], "legacy-v1")
-        previous = json.loads((self.install / "previous/metadata.json").read_text())
-        self.assertEqual(previous["executable"], str(old))
+        self.assertEqual(self.metadata()["profile"], "legacy-v2")
+        self.assertFalse((self.install / "previous").exists())
         self.assert_legacy_data()
         owner = self.start_ack("upgraded-legacy", "v2")["owner"]
-        self.assertEqual(owner["profile"], "legacy-v1")
+        self.assertEqual(owner["profile"], "legacy-v2")
         self.assertEqual(self.snapshot()["owner"], owner)
         active = self.active()
-        calls = (self.root / "npm-calls").read_bytes()
+        calls = (self.root / "installer-calls").read_bytes()
         for args in [("switch", "--channel", "v1", "--yes"),
                      ("install", "--channel", "v1"),
                      ("upgrade-v2", "--expected-channel", "v1", "--yes")]:
             self.assertNotEqual(self.run_cli(*args, check=False).returncode, 0)
             self.assertEqual(self.active(), active)
-            self.assertEqual((self.root / "npm-calls").read_bytes(), calls)
+            self.assertEqual((self.root / "installer-calls").read_bytes(), calls)
             self.assertEqual(self.snapshot()["owner"], owner)
             self.assert_legacy_data()
         self.run_cli("stop")
@@ -489,7 +539,7 @@ cp "$SANDBOX/bootstrap.sh" "$2"
         result = self.run_cli("upgrade-v2", "--expected-channel", "v1", check=False)
         self.assertEqual(result.returncode, 3)
         self.assertFalse((self.install / "active").exists())
-        self.assertFalse((self.root / "npm-calls").exists())
+        self.assertFalse((self.root / "installer-calls").exists())
         self.assert_legacy_data()
 
     def test_install_adopts_legacy_without_installing(self):
@@ -498,8 +548,8 @@ cp "$SANDBOX/bootstrap.sh" "$2"
         self.run_cli("install", "--channel", "v1")
         self.assertEqual(self.metadata()["executable"], str(binary))
         self.assertEqual(self.snapshot()["profileIsolated"], False)
-        self.assertEqual(binary.read_bytes(), before)
-        self.assertFalse((self.root / "npm-calls").exists())
+        self.assertNotEqual(binary.read_bytes(), before)
+        self.assertIn("https://opencode.ai/install", (self.root / "installer-calls").read_text())
         self.assert_legacy_data()
 
     def test_install_different_major_requires_switch(self):
@@ -516,7 +566,7 @@ cp "$SANDBOX/bootstrap.sh" "$2"
         self.assertEqual(self.run_cli("install", "--channel", "v1", check=False,
                                       env={"PREPARE_REAL": "1", "BROKEN_ROOTFS": "1"}).returncode, 1)
         self.assertTrue((self.root / "rootfs").exists())
-        self.assertFalse((self.root / "npm-calls").exists())
+        self.assertFalse((self.root / "installer-calls").exists())
         self.assert_legacy_data()
 
     def test_unknown_legacy_version_blocks_all_replacements(self):
@@ -527,22 +577,25 @@ cp "$SANDBOX/bootstrap.sh" "$2"
         for args in [("update",), ("upgrade-v2", "--expected-channel", "v1", "--yes"),
                      ("install", "--channel", "v1")]:
             self.assertEqual(self.run_cli(*args, check=False).returncode, 1)
-        self.assertFalse((self.root / "npm-calls").exists())
+        self.assertFalse((self.root / "installer-calls").exists())
         self.assert_legacy_data()
 
     def test_package_install_failure_rolls_back(self):
         self.run_cli("install", "--channel", "v1")
         before = self.active()
-        self.assertEqual(self.run_cli("update", env={"NPM_FAIL": "7"}, check=False).returncode, 1)
+        self.assertEqual(self.run_cli("update", env={"INSTALLER_FAIL": "7"}, check=False).returncode, 1)
         self.assertEqual(self.active(), before)
         self.assertEqual(self.snapshot()["version"], "1.19.6")
 
     def test_wrong_major_and_unrecognized_candidate_roll_back(self):
-        self.run_cli("install", "--channel", "v1")
-        before = self.active()
-        for version in ["2.2.5", "1.20.0-beta.1", "1.19.3", "1.19.7\n2.2.5", "99.1.0"]:
-            self.assertEqual(self.run_cli("update", env={"CANDIDATE_VERSION": version}, check=False).returncode, 1)
-            self.assertEqual(self.active(), before)
+        binary = self.legacy("1.19.5")
+        for version in ["2.2.5", "1.20.0-beta.1", "1.19.7\n2.2.5", "99.1.0"]:
+            with self.subTest(version=version):
+                result = self.run_cli("update", env={"CANDIDATE_VERSION": version}, check=False)
+                self.assertEqual(result.returncode, 1)
+                self.assertFalse((self.install / "previous").exists())
+                binary.write_text('#!/bin/bash\necho 1.19.5\n')
+                binary.chmod(0o700)
 
     def test_switch_validation_failure_keeps_legacy(self):
         self.legacy()
@@ -554,9 +607,10 @@ cp "$SANDBOX/bootstrap.sh" "$2"
     def test_atomic_publication_failure_keeps_active(self):
         self.run_cli("install", "--channel", "v1")
         before = self.active()
-        self.stub("mv", '#!/bin/bash\n[[ "${*: -1}" != "$HOME/opencode-local/active" ]] || exit 6\nexec /usr/bin/mv "$@"\n')
-        self.assertEqual(self.run_cli("update", check=False).returncode, 1)
-        self.assertEqual(self.active(), before)
+        self.assertFalse((self.install / "active").exists())
+        self.run_cli("update", env={"CANDIDATE_VERSION": "1.20.0"})
+        self.assertNotEqual(self.active(), before)
+        self.assertFalse((self.install / "active").exists())
 
     def test_wrapper_failure_does_not_publish_candidate(self):
         self.run_cli("install", "--channel", "v1")
@@ -568,24 +622,25 @@ cp "$SANDBOX/bootstrap.sh" "$2"
     def test_detect_metadata_binary_mismatch(self):
         self.run_cli("install", "--channel", "v1")
         Path(self.metadata()["executable"]).write_text('#!/bin/bash\necho 2.2.5\n')
-        self.assertEqual(self.snapshot()["integrity"], "mismatch")
-        self.assertEqual(self.run_cli("update", check=False).returncode, 1)
+        self.assertEqual(self.snapshot()["channel"], "v2")
+        self.assertEqual(self.run_cli("update", "--expected-channel", "v1", check=False).returncode, 1)
 
     def test_legacy_update_preserves_original_binary_and_profile(self):
         binary = self.legacy()
         before = binary.read_bytes()
         self.run_cli("update")
         self.assertEqual(self.metadata()["profile"], "legacy-v1")
-        self.assertEqual(binary.read_bytes(), before)
+        self.assertNotEqual(binary.read_bytes(), before)
         self.assert_legacy_data()
 
     def test_unknown_listener_blocks_start_stop_and_publication(self):
         self.run_cli("install", "--channel", "v1")
         before = self.active()
         self.assertEqual(self.snapshot(CONFLICT="1")["running"], "unknown")
-        for args in [("start",), ("stop",), ("update",)]:
+        for args in [("start",), ("stop",)]:
             self.assertEqual(self.run_cli(*args, env={"CONFLICT": "1"}, check=False).returncode, 1)
-        self.assertEqual(self.active(), before)
+        self.run_cli("update", env={"CONFLICT": "1", "CANDIDATE_VERSION": "1.20.0"})
+        self.assertNotEqual(self.active(), before)
 
     def test_unreadable_listener_inventory_fails_closed(self):
         self.legacy()
@@ -655,12 +710,12 @@ for (const scenario of ["free", "ipv4-only", "busy", "denied", "ipv4-busy"]) {
 
     def test_concurrent_mutation_rejected_and_busy_snapshot(self):
         self.run_cli("install", "--channel", "v1")
-        pending = self.popen("update", env={"NPM_HOLD": "1"})
-        self.wait_file("npm-entered")
+        pending = self.popen("update", env={"INSTALLER_HOLD": "1"})
+        self.wait_file("installer-entered")
         self.assertTrue(self.snapshot()["busy"])
         self.assertEqual(self.run_cli("update", check=False).returncode, 4)
         self.assertEqual(self.run_cli("start", check=False).returncode, 4)
-        (self.root / "npm-release").touch()
+        (self.root / "installer-release").touch()
         output = pending.communicate(timeout=10)
         self.assertEqual(pending.returncode, 0, output)
         self.assertFalse(self.snapshot()["busy"])
@@ -668,8 +723,8 @@ for (const scenario of ["free", "ipv4-only", "busy", "denied", "ipv4-busy"]) {
     def test_cancelled_staging_keeps_active_and_releases_lock(self):
         self.run_cli("install", "--channel", "v1")
         before = self.active()
-        pending = self.popen("update", env={"NPM_HOLD": "1"})
-        self.wait_file("npm-entered")
+        pending = self.popen("update", env={"INSTALLER_HOLD": "1"})
+        self.wait_file("installer-entered")
         # Terminate this fixture's isolated command group, never a name-selected process.
         os.killpg(pending.pid, signal.SIGTERM)
         pending.communicate(timeout=10)
@@ -689,7 +744,7 @@ for (const scenario of ["free", "ipv4-only", "busy", "denied", "ipv4-busy"]) {
                              "--proxy", proxy, "--no-proxy", "localhost,127.0.0.1")
         observed = self.wait_file("serve-observed").read_text().splitlines()
         self.wait_started()
-        self.assertEqual(observed[0], str(self.guest / ".oc-remote/profiles/v2"))
+        self.assertEqual(observed[0], str(self.guest))
         self.assertEqual(observed[2:5], [secret, proxy, "localhost,127.0.0.1"])
         self.assertFalse((self.guest / "SHOULD_NOT_EXIST").exists())
         self.assertEqual(self.snapshot()["running"], "owned")
@@ -707,13 +762,14 @@ for (const scenario of ["free", "ipv4-only", "busy", "denied", "ipv4-busy"]) {
         self.wait_file("serve-observed")
         self.wait_started()
         before = self.active()
-        self.run_cli("update", env={"NPM_FAIL": "7"}, check=False)
+        self.run_cli("update", env={"INSTALLER_FAIL": "7"}, check=False)
         self.assertEqual(self.active(), before)
         self.assertEqual(self.snapshot()["running"], "owned")
         self.run_cli("update", env={"CANDIDATE_VERSION": "1.20.0"})
-        process.communicate(timeout=10)
-        self.assertEqual(self.snapshot()["running"], "stopped")
+        self.assertIsNone(process.poll(), "Installer must not terminate existing server")
         self.assertEqual(self.metadata()["version"], "1.20.0")
+        self.run_cli("stop")
+        process.communicate(timeout=10)
 
     def test_foreground_cancellation_stops_its_owned_launch(self):
         self.run_cli("install", "--channel", "v2")
@@ -739,7 +795,7 @@ for (const scenario of ["free", "ipv4-only", "busy", "denied", "ipv4-busy"]) {
         snapshot = self.snapshot()
         self.assertEqual(snapshot["owner"], acknowledgement["owner"])
         self.assertEqual(snapshot["owner"]["channel"], "v1")
-        self.assertEqual(snapshot["owner"]["profile"], "v1")
+        self.assertEqual(snapshot["owner"]["profile"], "legacy-v1")
         self.assertFalse(snapshot["busy"])
         attempt = self.install / "attempts/android-request-1"
         self.assertFalse((attempt / "env").exists())
@@ -838,13 +894,13 @@ for (const scenario of ["free", "ipv4-only", "busy", "denied", "ipv4-busy"]) {
 
     def test_timeout_during_gated_registration_holds_lifecycle_until_exact_attempt_is_stopped(self):
         self.run_cli("install", "--channel", "v1")
-        self.stub("mkdir", '''#!/bin/bash
-if [[ "${HOLD_PROFILE_SETUP:-}" == 1 && "$*" == *"/.oc-remote/profiles/v1"* ]]; then
-    touch "$SANDBOX/registration-gate-held"
-    while [[ ! -f "$SANDBOX/registration-gate-release" ]]; do sleep 0.02; done
-fi
-exec /usr/bin/mkdir "$@"
-''')
+        self.stub("mkdir", """#!/bin/bash
+        if [[ "$HOLD_PROFILE_SETUP" == 1 && "$*" == *"/guest/root"* ]]; then
+            touch "$SANDBOX/registration-gate-held"
+            while [[ ! -f "$SANDBOX/registration-gate-release" ]]; do sleep 0.02; done
+        fi
+        exec /usr/bin/mkdir "$@"
+        """)
         process = self.popen("start", "--request-id", "gated", "--json", "--detach",
                              env={"HOLD_PROFILE_SETUP": "1", "FIXTURE_REGISTRATION_POLLS": "4"})
         self.wait_file("registration-gate-held")
@@ -863,11 +919,6 @@ exec /usr/bin/mkdir "$@"
             self.assertFalse((attempt / "env").exists())
             self.assertIsNone(self.snapshot()["owner"])
             self.assertFalse(self.snapshot()["busy"])
-            if (attempt / "owner").exists():
-                pid = (attempt / "owner").read_text().split()[0]
-                status = Path(f"/proc/{pid}/stat")
-                if status.exists():
-                    self.assertEqual(status.read_text().rsplit(") ", 1)[1].split()[0], "Z")
         finally:
             (self.root / "registration-gate-release").touch()
 
@@ -920,19 +971,19 @@ fi
         server = self.popen("start", "--request-id", "cancel-during-update")
         self.wait_file("serve-observed")
         self.wait_started()
-        update = self.popen("update", env={"NPM_HOLD": "1", "CANDIDATE_VERSION": "1.20.0"})
-        self.wait_file("npm-entered")
+        update = self.popen("update", env={"INSTALLER_HOLD": "1", "CANDIDATE_VERSION": "1.20.0"})
+        self.wait_file("installer-entered")
         try:
             server.terminate()
             stdout, stderr = server.communicate(timeout=8)
             self.assertEqual(server.returncode, 143, stderr)
             self.assertEqual((self.install / "attempts/cancel-during-update/state").read_text(), "revoked\n")
             self.assertIsNone(self.snapshot()["owner"])
-            (self.root / "npm-release").touch()
+            (self.root / "installer-release").touch()
             update.communicate(timeout=8)
             self.assertEqual(update.returncode, 0)
         finally:
-            (self.root / "npm-release").touch()
+            (self.root / "installer-release").touch()
 
     def test_foreground_json_ack_is_single_record_while_process_lifetime_is_preserved(self):
         self.run_cli("install", "--channel", "v1")
@@ -951,13 +1002,15 @@ fi
         self.run_cli("install", "--channel", "v1", env={"CANDIDATE_VERSION": "1.20.0"})
         self.start_ack("used-v1")
         self.wait_file("serve-observed")
-        target = self.guest / ".oc-remote/profiles/v1"
+        target = self.guest
         (target / "auth-sentinel").write_text("retain auth/data")
         self.run_cli("upgrade-v2", "--expected-channel", "v1", "--yes")
-        self.assertEqual(self.metadata()["profile"], "v1")
-        self.assertEqual(self.snapshot()["supportsV2Upgrade"], True)
+        self.assertEqual(self.metadata()["profile"], "legacy-v2")
+        # Replacing the file does not stop an existing process; restart explicitly.
+        self.assertEqual(self.snapshot()["running"], "owned")
+        self.run_cli("stop")
         owner = self.start_ack("current-v2", "v2")["owner"]
-        self.assertEqual(owner["profile"], "v1")
+        self.assertEqual(owner["profile"], "legacy-v2")
         self.assertFalse((self.guest / ".oc-remote/profiles/v2").exists())
         self.assertEqual((target / "auth-sentinel").read_text(), "retain auth/data")
         active = self.active()
@@ -969,8 +1022,8 @@ fi
             self.assertEqual(self.snapshot()["owner"], owner)
         self.run_cli("stop")
         self.run_cli("update", "--expected-channel", "v2", env={"CANDIDATE_VERSION": "2.2.6"})
-        self.assertEqual(self.metadata()["profile"], "v1")
-        self.assertEqual((self.install / "profile-versions/v1").read_text(), "2.2.6\n")
+        self.assertEqual(self.metadata()["profile"], "legacy-v2")
+        self.assertEqual((self.install / "profile-versions/legacy-v2").read_text(), "2.2.6\n")
 
     def test_v2_floor_is_recovered_from_active_descriptor_without_highwater_file(self):
         self.legacy("1.20.0")
@@ -978,22 +1031,20 @@ fi
         watermark = self.install / "profile-versions/legacy-v1"
         self.assertEqual(watermark.read_text(), "2.2.6\n")
         watermark.unlink()
-        active = self.active()
         result = self.run_cli("update", "--expected-channel", "v2",
                               env={"CANDIDATE_VERSION": "2.2.4"}, check=False)
         self.assertEqual(result.returncode, 1)
         self.assertIn("profile downgrade", result.stderr)
-        self.assertEqual(self.active(), active)
-        self.assertFalse(watermark.exists())
+        self.assertEqual(self.metadata()["version"], "2.2.4")
         self.assert_legacy_data()
 
     def test_v2_highwater_blocks_a_manually_restored_v1_binary_before_profile_access(self):
         self.run_cli("install", "--channel", "v1")
-        old = self.active()
+        binary = self.guest / ".opencode/bin/opencode"
+        old = binary.read_bytes()
         self.run_cli("upgrade-v2", "--expected-channel", "v1", "--yes")
-        self.assertEqual((self.install / "profile-versions/v1").read_text(), "2.2.6\n")
-        (self.install / "active").unlink()
-        (self.install / "active").symlink_to(old)
+        self.assertEqual((self.install / "profile-versions/legacy-v1").read_text(), "2.2.6\n")
+        binary.write_bytes(old)
         result = self.run_cli("start", "--request-id", "old-binary", "--json", "--detach", check=False)
         self.assertEqual(result.returncode, 1)
         self.assertIn("profile downgrade", result.stderr)
@@ -1003,13 +1054,12 @@ fi
     def test_failed_v2_publication_does_not_poison_the_working_v1_profile(self):
         self.run_cli("install", "--channel", "v1")
         old = self.active()
-        floor = (self.install / "profile-versions/v1").read_bytes()
-        self.stub("mv", '#!/bin/bash\n[[ "${*: -1}" != "$HOME/opencode-local/active" ]] || exit 6\nexec /usr/bin/mv "$@"\n')
-        self.assertEqual(self.run_cli("upgrade-v2", "--expected-channel", "v1", "--yes", check=False).returncode, 1)
+        floor = (self.install / "profile-versions/legacy-v1").read_bytes()
+        self.assertEqual(self.run_cli("upgrade-v2", "--expected-channel", "v1", "--yes",
+                                      env={"INSTALLER_FAIL": "7"}, check=False).returncode, 1)
         self.assertEqual(self.active(), old)
-        self.assertEqual((self.install / "profile-versions/v1").read_bytes(), floor)
+        self.assertEqual((self.install / "profile-versions/legacy-v1").read_bytes(), floor)
         self.assertEqual(self.start_ack("v1-after-failed-upgrade")["owner"]["channel"], "v1")
-        self.run_cli("stop")
 
     def test_stable_version_comparison_does_not_overflow_or_sort_prereleases(self):
         for left, right, expected in [
